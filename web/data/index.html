@@ -1,14 +1,31 @@
 <html>
     <head>
-        <!--<link href='https://fonts.googleapis.com/css?family=Inconsolata&subset=latin,latin-ext' rel='stylesheet' type='text/css'>-->
         <link href='static/font-inconsolata.css' rel='stylesheet'  type='text/css'>
         <link href='static/style.css' rel='stylesheet' type='text/css'>
         
         <script src='static/jquery-2.2.3.min.js'></script>
-        <script src='static/glMatrix-0.9.5.min.js'></script>
+        <script src='static/gl-matrix-min.js'></script>
         
         <script src='static/3dstuff.js'></script>
         <script src='static/ui.js'></script>
+        
+        <script id="shader-fs" type="x-shader/x-fragment">
+void main(void) {
+    gl_FragColor = vec4(0.5);
+}
+        </script>
+
+        <script id="shader-vs" type="x-shader/x-vertex">
+attribute vec3 aVertexPosition;
+
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+
+void main(void) {
+    gl_Position = uModelViewMatrix * uProjectionMatrix * vec4(aVertexPosition, 1.0);
+    vTextureCoord = aTextureCoord;
+}
+        </script>
     </head>
     <body>
         <div id='view'>

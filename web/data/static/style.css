@@ -93,7 +93,17 @@ a {
 
 #view-summary table {
     color: inherit;
-    padding: 4px;
+    margin: 4px;
+    border-collapse: collapse;
+}
+
+#view-summary table td {
+    padding: 0 4px;
+    border-left: solid 2px #465265;
+}
+
+#view-summary table tr {
+    border: solid 1px #465265;
 }
 
 #view-summary img {

@@ -41,7 +41,9 @@ func (wad *Wad) Get(id int) (interface{}, error) {
 			return nil, fmt.Errorf("Error getting wad '%s' node %d(%s)reader: %v", wad.Name, id, node.Name, err)
 		}
 		cache, err := han(wad, node, rdr)
-		node.Cache = cache
+		if err == nil {
+			node.Cache = cache
+		}
 		return cache, err
 	} else {
 		return nil, utils.ErrHandlerNotFound

@@ -100,7 +100,7 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 						writeJson(w, data)
 					}
 				} else {
-					writeError(w, fmt.Errorf("File %s->%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
+					writeError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
 				}
 			}
 		default:

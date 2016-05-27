@@ -1,6 +1,24 @@
 'use strict';
 var gl;
-var gMatrix = mat4.create();
+var models = [];
+var viewW, viewH;
+
+var shaderFs = `
+void main(void) {
+    gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+}
+`;
+
+var shaderVs = `
+attribute vec3 aVertexPosition;
+
+uniform mat4 uModelMatrix;
+uniform mat4 uProjectionViewMatrix;
+
+void main(void) {
+    gl_Position = uProjectionViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
+}
+`;
 
 window.requestAnimFrame = (function() {
     return window.requestAnimationFrame ||
@@ -8,63 +26,71 @@ window.requestAnimFrame = (function() {
         window.mozRequestAnimationFrame ||
         window.oRequestAnimationFrame ||
         window.msRequestAnimationFrame ||
-        function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+        function(callback, element) {
             window.setTimeout(callback, 1000/60);
         };
 })();
 
-function MeshObject(texture) {
-    this.pBufVertex = null;
-    this.pBufIndex = null;
-    this.pBufColor = null;
-    this.pBufNormal = null;
-    this.pBufTexture = null;
-    this.pTextureId = texture;
-}
-
-MeshObject.prototype.loadVertexData = function(vertex, index) {
-    this.pBufVertex = gl.createBuffer();
-    this.pBufIndex = gl.createBuffer();
-}
-
-MeshObject.prototype.loadColorData = function(color) {
-    this.pBufColor = gl.createBuffer();
-}
-
-MeshObject.prototype.loadNormalData = function(normal) {
-    this.pBufNormal = gl.createBuffer();
-}
-
-MeshObject.prototype.loadTextureData = function(texture) {
-    this.pBufTexture = gl.createBuffer();
-}
-
-MeshObject.prototype.free = function() {
-    if (this.pBufVertex != null) {
-        gl.deleteBuffer(this.pBufVertex);
-        gl.deleteBuffer(this.pBufIndex);
-    }
-    if (this.pBufColor != null) { gl.deleteBuffer(this.pBufColor); }
-    if (this.pBufNormal != null) { gl.deleteBuffer(this.pBufNormal); }
-    if (this.pBufTexture != null) { gl.deleteBuffer(this.pBufTexture); }
-}
-
 function Mesh() {
     this.objects = [];
 }
-
+Mesh.prototype.add = function(meshObject) {
+    this.objects.push(meshObject);
+}
 Mesh.prototype.free = function() {
-    for (i in this.objects) {
+    for (var i in this.objects) {
         this.objects[i].free();
     }
 }
 
-function Model(mesh, bones) {
-    this.pMatrix = mat4.create();
-    this.pMesh = mesh;
+function MeshObject(vertexData, indexData) {
+    this.countVertexes = vertexData.length / 3;
+    this.countIndexes = indexData.length;
+    
+    if (vertexData.countVertexes > 255) {
+        console.warn('8 bit indexes not support more than 255 vertexes');
+    }
+    
+    this.pVertexBuffer = gl.createBuffer();
+    this.pIndexBuffer = gl.createBuffer();
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.pVertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.pIndexBuffer);
+    
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexData), gl.STATIC_DRAW);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(indexData), gl.STATIC_DRAW);
+}
+MeshObject.prototype.free = function() {
+    if (this.pBufVertex != null) gl.deleteBuffer(this.pBufVertex);
+    if (this.pIndexBuffer != null) gl.deleteBuffer(this.pIndexBuffer);   
 }
 
-function initGL(canvas) {
+var current_models = [];
+function Model(mesh) {
+    this.pMatrix = mat4.create();
+    this.pMesh = mesh;
+    
+    current_models.push(this);
+}
+Model.prototype.free = function() {
+    current_models.splice(current_models.indexOf(this), 1);
+    this.pMesh.free();
+}
+Model.prototype.setMatrix = function(mat) {
+    mat4.copy(this.pMatrix, mat);
+}
+
+function redraw3d() {
+    requestAnimFrame(drawScene);
+}
+
+function reset3d() {
+    for (var i in current_models)
+        current_models[i].free();
+    current_models.length = 0;
+}
+
+function init3d(canvas) {
     var names = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
     for (var i in names) {
         try {
@@ -76,48 +102,36 @@ function initGL(canvas) {
     }
     if (!gl) {
         alert("Could not initialise WebGL");
+        return;
     } else {
-        $(window).resize(function(){0
-            gl.viewportWidth = canvas.width();
-            gl.viewportHeight = canvas.height();
-            gl.viewport(0,0, canvas.width(), canvas.height());
-        });
-        gl.viewportWidth = canvas.width();
-        gl.viewportHeight = canvas.height();
-        gl.viewport(0,0, canvas.width(), canvas.height());
+        initShaders();
+        
+        var viewportSet = function() {
+            viewW = gl.canvas.clientWidth;
+            viewH = gl.canvas.clientHeight;
+            gl.canvas.width = viewW;
+            gl.canvas.height = viewH;
+            gl.viewport(0,0, viewW, viewH);            
+            redraw3d();
+        };
+        
+        gl.clearColor(1.0, 0, 1.0, 1);
+        gl.enable(gl.DEPTH_TEST);
+        gl.clearDepth(1.0);
+        gl.depthFunc(gl.LEQUAL);
+        
+        $(window).resize(viewportSet);
+        
+        viewportSet();
     }
-    
-    requestAnimFrame(drawScene);
 }
 
-function getShader(id) {
-    var shaderScript = document.getElementById(id);
-    if (!shaderScript) {
-        return null;
-    }
-
-    var str = "";
-    var k = shaderScript.firstChild;
-    while (k) {
-        if (k.nodeType == 3) {
-            str += k.textContent;
-        }
-        k = k.nextSibling;
-    }
-
-    var shader;
-    if (shaderScript.type == "x-shader/x-fragment") {
-        shader = gl.createShader(gl.FRAGMENT_SHADER);
-    } else if (shaderScript.type == "x-shader/x-vertex") {
-        shader = gl.createShader(gl.VERTEX_SHADER);
-    } else {
-        return null;
-    }
-
-    gl.shaderSource(shader, str);
+function getShader(text, isFragment) {
+    var shader = gl.createShader(isFragment ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER);
+    gl.shaderSource(shader, text);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert(gl.getShaderInfoLog(shader));
+        console.log(text, gl.getShaderInfoLog(shader));
         return null;
     }
     return shader;
@@ -126,8 +140,8 @@ function getShader(id) {
 var shaderProgram;
 
 function initShaders() {
-    var fragmentShader = getShader(gl, "shader-fs");
-    var vertexShader = getShader(gl, "shader-vs");
+    var fragmentShader = getShader(shaderFs, true);
+    var vertexShader = getShader(shaderVs, false);
 
     shaderProgram = gl.createProgram();
     gl.attachShader(shaderProgram, vertexShader);
@@ -135,7 +149,7 @@ function initShaders() {
     gl.linkProgram(shaderProgram);
 
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert("Could not initialise shaders");
+        console.log("Could not initialise shaders");
     }
 
     gl.useProgram(shaderProgram);
@@ -143,13 +157,8 @@ function initShaders() {
     shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
     gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
 
-    shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-    shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-}
-
-function setMatrixUniforms() {
-    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
-    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    shaderProgram.mProjectionView = gl.getUniformLocation(shaderProgram, "uProjectionViewMatrix");
+    shaderProgram.mModel = gl.getUniformLocation(shaderProgram, "uModelMatrix");
 }
 
 function degToRad(degrees) {
@@ -157,35 +166,51 @@ function degToRad(degrees) {
 }
 
 function drawScene() {
-    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+    if (!data3d.is(':visible'))
+        return;
+    
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 5000.0, gMatrix);
+    var projMatrix = mat4.create();
+    mat4.perspective(projMatrix, degToRad(55.0), viewW/viewH, 1.0, 1000.0);
+    
+    
+    var viewMatrix = mat4.create();
 
-    mat4.identity(gMatrix);
-
-    mat4.translate(gMatrix, [0.0, 0.0, 1000.0]);
-
-    mat4.rotate(gMatrix, degToRad(45.0), [1, 0, 0]);
-    mat4.rotate(gMatrix, degToRad(45.0), [0, 1, 0]);
-
-    /*
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexPositionBuffer);
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, cubeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexNormalBuffer);
-    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, cubeVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexTextureCoordBuffer);
-    gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, cubeVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, glassTexture);
-    gl.uniform1i(shaderProgram.samplerUniform, 0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVertexIndexBuffer);
-    setMatrixUniforms();
-    gl.drawElements(gl.TRIANGLES, cubeVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-    */
+    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -200.0]);
+    mat4.rotate(viewMatrix, viewMatrix, degToRad(45.0), [1, 0, 0]);
+    mat4.rotate(viewMatrix, viewMatrix, degToRad(45.0), [0, 1, 0]);
+    
+    var projViewMatrix = mat4.create();
+    mat4.mul(projViewMatrix, projMatrix, viewMatrix);
+    
+    gl.uniformMatrix4fv(shaderProgram.mProjectionView, false, projViewMatrix);
+    
+    var stat_vert = 0;
+    var stat_index = 0;
+    var stat_tria = 0;
+    
+    for (var i in current_models) {
+        var mdl = current_models[i];
+        
+        gl.uniformMatrix4fv(shaderProgram.mModel, false, mdl.pMatrix);
+        for (var j in mdl.pMesh.objects) {
+            var mesh = mdl.pMesh.objects[j];
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, mesh.pVertexBuffer);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.pIndexBuffer);
+            
+            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute,
+                                   3, gl.FLOAT, false, 0, 0);
+            
+            gl.drawElements(gl.TRIANGLES, mesh.countIndexes, gl.UNSIGNED_BYTE, 0);
+            
+            stat_vert += mesh.countVertexes;
+            stat_index += mesh.countIndexes;
+            stat_tria += mesh.countIndexes / 3;
+        }
+    }
+    
+    //console.log('verts:' + stat_vert, 'index:' + stat_index, 'tria:' + stat_tria);
 }
 

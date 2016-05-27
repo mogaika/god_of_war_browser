@@ -17,6 +17,7 @@ import (
 )
 
 type Texture struct {
+	Magic         uint32
 	GfxName       string
 	PalName       string
 	SubTxrName    string
@@ -35,13 +36,8 @@ func NewFromData(fin io.ReaderAt) (*Texture, error) {
 		return nil, err
 	}
 
-	magic := binary.LittleEndian.Uint32(buf[:4])
-
-	if magic != TXR_MAGIC {
-		return nil, errors.New("Wrong magic.")
-	}
-
 	tex := &Texture{
+		Magic:         binary.LittleEndian.Uint32(buf[0:4]),
 		GfxName:       utils.BytesToString(buf[4:28]),
 		PalName:       utils.BytesToString(buf[28:52]),
 		SubTxrName:    utils.BytesToString(buf[52:76]),
@@ -49,6 +45,10 @@ func NewFromData(fin io.ReaderAt) (*Texture, error) {
 		UnkMultiplier: math.Float32frombits(binary.LittleEndian.Uint32(buf[80:84])),
 		UnkFlags1:     binary.LittleEndian.Uint16(buf[84:86]),
 		UnkFlags2:     binary.LittleEndian.Uint16(buf[86:88]),
+	}
+
+	if tex.Magic != TXR_MAGIC {
+		return nil, errors.New("Wrong magic.")
 	}
 
 	if tex.UnkCoeff > 0 {
@@ -61,8 +61,8 @@ func NewFromData(fin io.ReaderAt) (*Texture, error) {
 	}
 
 	// 1 - mask; 5d - alpha channel; 51 - font
-	if tex.UnkFlags2 != 1 && tex.UnkFlags2 != 0x5d && tex.UnkFlags2 != 0x51 {
-		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x5d,0x51)", tex.UnkFlags1)
+	if tex.UnkFlags2 != 1 && tex.UnkFlags2 != 0x41 && tex.UnkFlags2 != 0x5d && tex.UnkFlags2 != 0x51 {
+		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51)", tex.UnkFlags2)
 	}
 
 	return tex, nil

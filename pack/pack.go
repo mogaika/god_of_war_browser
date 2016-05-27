@@ -24,10 +24,11 @@ func SetHandler(format string, ldr FileLoader) {
 
 type PackFile struct {
 	Name  string
+	Pack  uint32
 	Size  int64
 	Start int64
+
 	Count int
-	Pack  int
 	Cache interface{} `json:"-"`
 }
 
@@ -83,10 +84,10 @@ func NewPack(gamePath string) (*Pack, error) {
 
 		file := &PackFile{
 			Name:  name,
+			Pack:  binary.LittleEndian.Uint32(buffer[12:16]),
 			Size:  int64(binary.LittleEndian.Uint32(buffer[16:20])),
 			Start: int64(binary.LittleEndian.Uint32(buffer[20:24])) * utils.SECTOR_SIZE,
 			Count: 1,
-			Pack:  int(binary.LittleEndian.Uint32(buffer[12:16])),
 		}
 
 		if _, ok := files[name]; ok {

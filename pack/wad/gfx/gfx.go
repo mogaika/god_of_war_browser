@@ -14,6 +14,7 @@ const GFX_MAGIC = 0xc
 const HEADER_SIZE = 0x18
 
 type GFX struct {
+	Magic    uint32
 	Width    uint32
 	Height   uint32
 	Encoding uint32
@@ -69,17 +70,17 @@ func NewFromData(fgfx io.ReaderAt) (*GFX, error) {
 		return nil, err
 	}
 
-	magic := binary.LittleEndian.Uint32(buf[:4])
-	if magic != GFX_MAGIC {
-		return nil, errors.New("Wrong magic.")
-	}
-
 	gfx := &GFX{
+		Magic:    binary.LittleEndian.Uint32(buf[0:4]),
 		Width:    binary.LittleEndian.Uint32(buf[4:8]),
 		Height:   binary.LittleEndian.Uint32(buf[8:12]),
 		Encoding: binary.LittleEndian.Uint32(buf[12:16]),
 		Bpi:      binary.LittleEndian.Uint32(buf[16:20]),
 		Data:     make([][]byte, binary.LittleEndian.Uint32(buf[20:24])),
+	}
+
+	if gfx.Magic != GFX_MAGIC {
+		return nil, errors.New("Wrong magic.")
 	}
 
 	dataBlockCount := int(binary.LittleEndian.Uint32(buf[20:24]))
