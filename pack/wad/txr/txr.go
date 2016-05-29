@@ -3,7 +3,6 @@ package txr
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -121,16 +120,18 @@ type AjaxImage struct {
 	Image    []byte
 }
 type Ajax struct {
-	Data   *Texture
-	Images []AjaxImage
+	Data    *Texture
+	Images  []AjaxImage
+	UsedGfx int
+	UsedPal int
 }
 
-func (txr *Texture) AjaxMarshal(wad *wad.Wad, node *wad.WadNode) ([]byte, error) {
+func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := &Ajax{Data: txr}
 
 	if txr.GfxName != "" && txr.PalName != "" {
-		gfxn := wad.FindNode(txr.GfxName, node.Parent)
-		paln := wad.FindNode(txr.PalName, node.Parent)
+		gfxn := node.FindNode(txr.GfxName)
+		paln := node.FindNode(txr.PalName)
 		if gfxn == nil {
 			return nil, fmt.Errorf("Cannot find gfx: %s", txr.GfxName)
 		}
@@ -138,6 +139,9 @@ func (txr *Texture) AjaxMarshal(wad *wad.Wad, node *wad.WadNode) ([]byte, error)
 		if paln == nil {
 			return nil, fmt.Errorf("Cannot find pal: %s", txr.PalName)
 		}
+
+		res.UsedGfx = gfxn.Id
+		res.UsedPal = paln.Id
 
 		gfxc, err := wad.Get(gfxn.Id)
 		if err != nil {
@@ -173,7 +177,7 @@ func (txr *Texture) AjaxMarshal(wad *wad.Wad, node *wad.WadNode) ([]byte, error)
 			}
 		}
 	}
-	return json.Marshal(res)
+	return res, nil
 }
 
 func init() {

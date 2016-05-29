@@ -9,8 +9,12 @@ function set3dVisible(show) {
         viewSummary.attr('style', '')
     } else {
         view3d.hide();
-        viewSummary.attr('style', 'width: auto;')
+        viewSummary.attr('style', 'flex-grow:1;')
     }
+}
+
+function setTitle(viewHeh, title) {
+    $(viewHeh).children(".view-item-title").text(title);
 }
 
 function packLoad() {
@@ -22,7 +26,7 @@ function packLoad() {
             list.append($('<li>')
                     .attr('filename', fileName)
                     .append($('<label>').append(fileName))
-                    .append($('<a>')
+                    .append($('<a download>')
                             .addClass('button-dump')
                             .attr('href', '/dump/pack/' + fileName)) );
         }
@@ -60,12 +64,13 @@ function treeLoadWad(data) {
             var li = $('<li>')
                     .attr('nodeid', node.Id)
                     .attr('nodeformat', node.Format)
-                    .append($('<label>').append(node.Name));
+                    .attr('nodename', node.Name)
+                    .append($('<label>').append(("0000" + node.Id).substr(-4,4) + '.' + node.Name));
             
             if (node.IsLink) {
                 // TODO: link visual
             } else {
-                li.append($('<a>')
+                li.append($('<a download>')
                         .addClass('button-dump')
                         .attr('href', '/dump/pack/' + data.Name + '/' + node.Id))
                 if (node.SubNodes) {
@@ -76,19 +81,28 @@ function treeLoadWad(data) {
         }
         return ol;
     }
+    
+    setTitle(viewTree, data.Name);
+    
     if (data.Roots)
         dataTree.append(addNodes(data.Roots));
+    
     $('#view-tree ol li label').click(function(ev) {
-        var nodeformat = $(this).parent().attr('nodeformat');
-        var nodeid = $(this).parent().attr('nodeid');
-        var wadname = dataTree.children().attr('wadname');
-        treeLoadWadNode(wadname, nodeid, parseInt(nodeformat));
+        var node_element = $(this).parent();
+        
+        treeLoadWadNode(dataTree.children().attr('wadname'),
+                        parseInt(node_element.attr('nodeid')),
+                        parseInt(node_element.attr('nodeformat')),
+                        node_element.attr('nodename'));
     });
 }
 
-function treeLoadWadNode(wad, nodeid, format) {
+function treeLoadWadNode(wad, nodeid, format, nodename) {
     dataSummary.empty();
+    
     $.getJSON('/json/pack/' + wad +'/' + nodeid, function(data) {
+        setTitle(viewSummary, nodename);
+    
         switch (format) {
             case 0x00000007: // txr
                 summaryLoadWadTxr(data);
@@ -98,6 +112,9 @@ function treeLoadWadNode(wad, nodeid, format) {
                 break;
             case 0x0001000f: // mesh
                 summaryLoadWadMesh(data);
+                break;
+            case 0x0002000f: // mdl
+                summaryLoadWadMdl(data);
                 break;
             case 0x0000000c: // gfx pal
             default:
@@ -109,12 +126,7 @@ function treeLoadWadNode(wad, nodeid, format) {
     });
 }
 
-function summaryLoadWadMesh(data) {
-    set3dVisible(true);
-    reset3d();
-    
-    console.log(data);
-    
+function loadMeshFromAjax(data, textures) {
     var r_mesh = new Mesh();
     
     for (var iPart in data.Parts) {
@@ -130,30 +142,115 @@ function summaryLoadWadMesh(data) {
                         
                         var m_vertexes = [];
                         var m_indexes = [];
+                        var m_colors;
+                        var m_textures;
+                        var m_material;
+
+                        m_vertexes.length = block.Trias.X.length * 3;
                         
-                        m_vertexes.length = block.Trias.length * 3;
-                        
-                        for (var i in block.Trias) {
-                            var tr = block.Trias[i];
+                        for (var i in block.Trias.X) {
                             var j = i * 3;
-                            m_vertexes[j] = tr.X;
-                            m_vertexes[j+1] = tr.Y;
-                            m_vertexes[j+2] = tr.Z;
-                            if (!tr.Skip) {
+                            m_vertexes[j] = block.Trias.X[i];
+                            m_vertexes[j+1] = block.Trias.Y[i];
+                            m_vertexes[j+2] = block.Trias.Z[i];
+                            if (!block.Trias.Skip[i]) {
                                 m_indexes.push(i-1);
                                 m_indexes.push(i-2);
                                 m_indexes.push(i-0);
                             }
                         }
                         
-                        r_mesh.add(new MeshObject(m_vertexes, m_indexes));
+                        if (block.Blend.R && block.Blend.R.length) {
+                            m_colors = [];
+                            m_colors.length = block.Blend.R.length * 4;
+                            
+                            for (var i in block.Blend.R) {
+                                var j = i * 4;
+                                m_colors[j] = block.Blend.R[i];
+                                m_colors[j+1] = block.Blend.G[i];
+                                m_colors[j+2] = block.Blend.B[i];
+                                m_colors[j+3] = block.Blend.A[i];
+                            }
+                        }
+                        
+                        if (textures && object.MaterialId < textures.length) {
+                            if (block.Uvs.U && block.Uvs.U.length) {
+                                m_textures = [];
+                                m_textures.length = block.Uvs.U.length * 2;
+                                
+                                m_material = textures[object.MaterialId];
+
+                                for (var i in block.Uvs.U) {
+                                    var j = i * 2;
+                                    m_textures[j] = block.Uvs.U[i];
+                                    m_textures[j+1] = block.Uvs.V[i];
+                                }
+                            }
+                        }
+                        
+                        r_mesh.add(new MeshObject(m_vertexes, m_indexes, m_colors, m_material, m_textures));
                     }
                 }
             }
         }
     }
+    return r_mesh;
+}
+
+function summaryLoadWadMesh(data) {
+    set3dVisible(true);
+    reset3d();
+        
+    console.log(data, new Model(loadMeshFromAjax(data), null));
     
-    console.log(new Model(r_mesh));
+    redraw3d();
+}
+
+function summaryLoadWadMdl(data) {
+    set3dVisible(true);
+    reset3d();
+    
+    var table = $('<table>');
+    if (data.Raw) {
+        $.each(data.Raw, function(k, val) {
+            switch (k) {
+                case 'UnkFloats':
+                case 'Someinfo':
+                    val = JSON.stringify(val);
+                    break;
+                default:
+                    break;
+            }
+            table.append($('<tr>').append($('<td>').append(k)));
+            table.append($('<tr>').append($('<td>').append(val)));
+        });
+    }
+    dataSummary.append(table);
+    
+    console.log(textureIdMap, 'before textures loading');
+    
+    var textrs = [];
+    for (var i in data.Materials) {
+        var txrs = data.Materials[i].Textures;
+        if (txrs && txrs.length && txrs[0]) {
+            var imgs = txrs[0].Images;
+            if (imgs && imgs.length && imgs[0]) {
+                textrs.push(LoadTexture(i, 'data:image/png;base64,' + imgs[0].Image));
+            }
+        } else {
+            textrs.push(null);
+        }
+    }
+    
+    console.log(textureIdMap, 'before model loading');
+
+    if (data.Meshes && data.Meshes.length) {
+        console.log(data, new Model(loadMeshFromAjax(data.Meshes[0], textrs)));
+    } else {
+        console.info('no meshes in mdl', data);
+    }
+    
+    console.log(textureIdMap, 'after loading');
     
     redraw3d();
 }
@@ -166,6 +263,13 @@ function summaryLoadWadTxr(data) {
             .append($('<td>').append(k))
             .append($('<td>').append(val)));
     });
+    table.append($('<tr>')
+        .append($('<td>').append('Used gfx'))
+        .append($('<td>').append(data.UsedGfx)));
+    table.append($('<tr>')
+        .append($('<td>').append('Used pal'))
+        .append($('<td>').append(data.UsedPal)));
+
     dataSummary.append(table);
     for (var i in data.Images) {
         var img = data.Images[i];
@@ -202,7 +306,9 @@ function summaryLoadWadMat(data) {
                 case 'Texture':
                     td.append(v);
                     if (v != '') {
-                        var txrobj = JSON.parse(data.Textures[l]);
+                        var txrobj = data.Textures[l];
+                        td.append('<br>').append(txrobj.Data.GfxName);
+                        td.append('<br>').append(txrobj.Data.PalName);
                         td.append('<br>').append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].Image));
                     }
                     break;
@@ -228,9 +334,9 @@ $(document).ready(function(){
     viewSummary = $('#view-summary');
     view3d = $('#view-3d');
     
-    dataPack = viewPack.children();
-    dataTree = viewTree.children();
-    dataSummary = viewSummary.children();
+    dataPack = viewPack.children('.view-item-container');
+    dataTree = viewTree.children('.view-item-container');
+    dataSummary = viewSummary.children('.view-item-container');
     data3d = view3d.children().children();
     
     packLoad();

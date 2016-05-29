@@ -3,6 +3,7 @@ html, body {
     margin: 0;
     font-size: 100%;
     font-family: 'Inconsolata', monospace;
+    color: white;
 }
 
 a {
@@ -11,34 +12,36 @@ a {
     text-decoration: inherit;
 }
 
-#view-container {
-    overflow: auto;
+#view {
+    display: flex;
     width: 100%;
     height: 100%;
+    align-items: stretch;
+}     
+
+#view .view-item {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    box-shadow: inset 4px 0px 4px -4px #111;
 }
 
-#view {
-    display: table;
-    width: 100%;
-    height: 100%;
-}            
+#view .view-item .view-item-container {
+    overflow-y: auto;
+    flex-grow: 1;
+    box-shadow: inset 0px 4px 4px -4px #111;
+}
 
-#view-pack,
-#view-tree,
-#view-summary,
-#view-3d {
-    display: table-cell;
-    height: 100%;
-    text-align: left;
-    margin: 0;
-    padding: 0;
-    vertical-align: top;
-    color: white;
+#view .view-item .view-item-title {
+    padding: 4px;
+    text-align: center;
+    font-weight: bold;
+    flex-grow: 0;
 }
 
 #view-pack {
     background-color: #332b3e;
-    width: 10em;
+    min-width: 10em;
 }
 
 #view-pack ol {
@@ -48,8 +51,8 @@ a {
 }
 
 #view-pack ol li {
-    cursor: pointer;
     position: relative;
+    cursor: pointer;
 }
 
 #view-pack ol li label:hover {
@@ -57,9 +60,8 @@ a {
 }
 
 #view-tree {
-    width: 15em;
+    width: 18em;
     background-color: #3e2b39;
-    box-shadow: inset 4px 0px 4px -2px rgba(0, 0, 0, 0.2);
 }
 
 #view-tree ol {
@@ -87,7 +89,6 @@ a {
 #view-summary {
     width: 18em;
     background-color: #2b323e;
-    box-shadow: inset 4px 0px 4px -2px rgba(0, 0, 0, 0.2);
     word-break: break-all;
 }
 
@@ -114,8 +115,8 @@ a {
 }
 
 #view-3d {
+    flex-grow: 1;
     background-color: #333333;
-    box-shadow: inset 4px 0px 4px -2px rgba(0, 0, 0, 0.2);
 }
 
 

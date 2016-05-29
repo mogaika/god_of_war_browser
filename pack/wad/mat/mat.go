@@ -2,7 +2,6 @@ package mat
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -85,32 +84,32 @@ func NewFromData(fmat io.ReaderAt) (*Material, error) {
 
 type Ajax struct {
 	Mat      *Material
-	Textures []string
+	Textures []interface{}
 }
 
-func (mat *Material) AjaxMarshal(wad *wad.Wad, node *wad.WadNode) ([]byte, error) {
+func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := Ajax{
 		Mat:      mat,
-		Textures: make([]string, len(mat.Layers)),
+		Textures: make([]interface{}, len(mat.Layers)),
 	}
 
 	for i := range mat.Layers {
-		tn := wad.FindNode(mat.Layers[i].Texture, node.Parent)
+		tn := node.FindNode(mat.Layers[i].Texture)
 		if tn != nil {
 			txr, err := wad.Get(tn.Id)
 			if err != nil {
 				return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", tn.Name, node.Name, err)
 			}
 
-			dat, err := txr.(*file_txr.Texture).AjaxMarshal(tn.Wad, tn)
+			dat, err := txr.(*file_txr.Texture).Marshal(tn.Wad, tn)
 			if err != nil {
 				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", tn.Name, node.Name, err)
 			}
 
-			res.Textures[i] = string(dat)
+			res.Textures[i] = dat
 		}
 	}
-	return json.Marshal(res)
+	return res, nil
 }
 
 func init() {

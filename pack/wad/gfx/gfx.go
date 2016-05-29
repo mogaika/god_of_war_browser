@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -38,6 +40,7 @@ func (gfx *GFX) GetPallet(idx int) (color.Palette, error) {
 			G: palbuf[si+1],
 			B: palbuf[si+2],
 			A: byte(float32(palbuf[si+3]) * (255.0 / 128.0)),
+			//A: palbuf[si+3],
 		}
 
 		switch gfx.Height {
@@ -117,6 +120,19 @@ func NewFromData(fgfx io.ReaderAt) (*GFX, error) {
 
 func init() {
 	wad.SetHandler(GFX_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
-		return NewFromData(r)
+		gfx, err := NewFromData(r)
+		if err != nil {
+			return gfx, err
+		}
+
+		for i := range gfx.Data {
+			fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.gfx.%d.dump", node.Id, node.Name, i))
+			os.MkdirAll(filepath.Dir(fpath), 0777)
+			dump, _ := os.Create(fpath)
+			dump.Write(gfx.Data[i])
+			dump.Close()
+		}
+
+		return gfx, err
 	})
 }

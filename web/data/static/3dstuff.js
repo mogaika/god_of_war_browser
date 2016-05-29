@@ -1,22 +1,57 @@
 'use strict';
 var gl;
+
 var models = [];
+var textureIdMap = new Map();
+
 var viewW, viewH;
+var viewDist = 100.0;
+var viewRotX = 45.0, viewRotY = 45.0;
+var viewMouseDown = false;
+var viewMouseX, viewMouseY;
+
+var shaderBoolColor = false, shaderBoolUV = false;
 
 var shaderFs = `
+uniform sampler2D uSampler;
+uniform bool bUseVertexUV;
+
+varying lowp vec4 vColor;
+varying mediump vec2 vTextureVU;
+
 void main(void) {
-    gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    if (bUseVertexUV) {
+        gl_FragColor = vColor * texture2D(uSampler, vTextureVU);
+    } else {
+        gl_FragColor = vColor;
+    }
 }
 `;
 
 var shaderVs = `
-attribute vec3 aVertexPosition;
+attribute highp vec3 aVertexPosition;
+attribute highp vec4 aVertexColor;
+attribute mediump vec2 aVertexUV;
 
-uniform mat4 uModelMatrix;
-uniform mat4 uProjectionViewMatrix;
+uniform highp mat4 uModelMatrix;
+uniform highp mat4 uProjectionViewMatrix;
+
+uniform bool bUseVertexUV;
+uniform bool bUseVertexColor;
+
+varying lowp vec4 vColor;
+varying mediump vec2 vTextureVU;
 
 void main(void) {
     gl_Position = uProjectionViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
+    if (bUseVertexColor) {
+        vColor = aVertexColor * (256.0 / 128.0);
+    } else {
+        vColor = vec4(0.5, 0.5, 0.5, 0.5);
+    }
+    if (bUseVertexUV) {
+        vTextureVU = aVertexUV;
+    }
 }
 `;
 
@@ -31,6 +66,52 @@ window.requestAnimFrame = (function() {
         };
 })();
 
+function Texture(uid, src) {
+    this.ref = 0;
+    this.uid = uid;
+    var gltex = gl.createTexture();
+    this.pTexture = gltex;
+    
+    gl.bindTexture(gl.TEXTURE_2D, this.pTexture);
+    // pink placeholder
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+              new Uint8Array([255, 0, 255, 128]));
+    
+    var image = new Image();
+    image.src = src;
+    image.onload = function() {
+        gl.bindTexture(gl.TEXTURE_2D, gltex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        redraw3d();
+    };
+
+    textureIdMap.set(uid, this);
+}
+Texture.prototype.refInc = function() {
+    this.ref = this.ref + 1;
+}
+Texture.prototype.refDec = function() {
+    this.ref = this.ref - 1;
+    if (this.ref === 0) {
+        this.free();
+    }
+}
+Texture.prototype.free = function() {
+    console.info('free texture ' + this.uid);
+    textureIdMap.set(this.uid, undefined);
+    gl.deleteTexture(this.pTexture);
+}
+
+function LoadTexture(uid, src) {
+    var ex = textureIdMap.get(uid);
+    if (!ex) {
+        ex = new Texture(uid, src);
+        
+    }
+    return ex;
+}
+
 function Mesh() {
     this.objects = [];
 }
@@ -43,7 +124,7 @@ Mesh.prototype.free = function() {
     }
 }
 
-function MeshObject(vertexData, indexData) {
+function MeshObject(vertexData, indexData, colorData, texture, textureData) {
     this.countVertexes = vertexData.length / 3;
     this.countIndexes = indexData.length;
     
@@ -52,17 +133,49 @@ function MeshObject(vertexData, indexData) {
     }
     
     this.pVertexBuffer = gl.createBuffer();
-    this.pIndexBuffer = gl.createBuffer();
-    
     gl.bindBuffer(gl.ARRAY_BUFFER, this.pVertexBuffer);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.pIndexBuffer);
-    
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexData), gl.STATIC_DRAW);
+    
+    this.pIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.pIndexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(indexData), gl.STATIC_DRAW);
+    
+    if (colorData) {
+        this.pColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.pColorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(colorData), gl.STATIC_DRAW);
+        
+        this.countColors = colorData.length / 4;
+        if (this.countColors != this.countVertexes) 
+            console.error('color count mismath ' + this.countColors + ' != ' + this.countVertexes);
+    } else {
+        this.pColorBuffer = null;
+        this.countColors = 0;
+    }
+    
+    if (texture && textureData) {
+        this.pTextureBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.pTextureBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureData), gl.STATIC_DRAW);
+    
+        this.texture = texture;
+        this.texture.refInc();
+        
+        this.countTextures = textureData.length / 2;
+        if (this.countTextures != this.countVertexes) 
+            console.error('texture count mismath ' + this.countTextures + ' != ' + this.countVertexes);
+    } else {
+        this.pTextureBuffer = null;
+        this.countTextures = 0;
+        this.texture = null;
+    }
 }
 MeshObject.prototype.free = function() {
-    if (this.pBufVertex != null) gl.deleteBuffer(this.pBufVertex);
-    if (this.pIndexBuffer != null) gl.deleteBuffer(this.pIndexBuffer);   
+    if (this.pBufVertex) gl.deleteBuffer(this.pBufVertex);
+    if (this.pIndexBufferl) gl.deleteBuffer(this.pIndexBuffer);
+    if (this.pColorBuffer) gl.deleteBuffer(this.pColorBuffer);
+    if (this.pTextureBuffer) gl.deleteBuffer(this.pTextureBuffer);
+    if (this.texture) this.texture.refDec();
 }
 
 var current_models = [];
@@ -115,15 +228,58 @@ function init3d(canvas) {
             redraw3d();
         };
         
-        gl.clearColor(1.0, 0, 1.0, 1);
+        gl.clearColor(0.2, 0.2, 0.2, 1);
         gl.enable(gl.DEPTH_TEST);
         gl.clearDepth(1.0);
         gl.depthFunc(gl.LEQUAL);
+        
+        gl.enable(gl.BLEND);
         
         $(window).resize(viewportSet);
         
         viewportSet();
     }
+    
+    canvas.mousewheel(function(event) {
+        var resizeDelta = Math.sqrt(viewDist) * event.deltaY * event.deltaFactor * 0.01;
+        viewDist -= resizeDelta * 2;
+        if (viewDist < 1.0)
+            viewDist = 1.0;
+        redraw3d();
+        
+        event.stopPropagation();
+        event.preventDefault();
+    }).mousedown(function(event) {
+        if (event.button === 0) {
+            viewMouseDown = true;
+            viewMouseX = event.clientX;
+            viewMouseY = event.clientY;
+            
+            event.stopPropagation();
+            event.preventDefault();
+        }
+    });
+    
+    $(window).mouseup(function(event) {
+        if (event.button === 0) {
+            viewMouseDown = false;
+            
+            event.stopPropagation();
+            event.preventDefault();
+        }
+    }).mousemove(function(event) {
+        if (viewMouseDown) {
+            viewRotY += (event.clientX - viewMouseX) * 0.2;
+            viewRotX += (event.clientY - viewMouseY) * 0.2;
+            
+            viewMouseX = event.clientX;
+            viewMouseY = event.clientY;
+            redraw3d();
+            
+            event.stopPropagation();
+            event.preventDefault();
+        }
+    });
 }
 
 function getShader(text, isFragment) {
@@ -155,14 +311,22 @@ function initShaders() {
     gl.useProgram(shaderProgram);
 
     shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+    shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+    shaderProgram.vertexUVAttribute = gl.getAttribLocation(shaderProgram, "aVertexUV");
 
     shaderProgram.mProjectionView = gl.getUniformLocation(shaderProgram, "uProjectionViewMatrix");
     shaderProgram.mModel = gl.getUniformLocation(shaderProgram, "uModelMatrix");
-}
-
-function degToRad(degrees) {
-    return degrees * Math.PI / 180;
+    shaderProgram.uSampler = gl.getUniformLocation(shaderProgram, "uSampler");
+    shaderProgram.bVertexColor = gl.getUniformLocation(shaderProgram, "bUseVertexColor");
+    shaderProgram.bVertexUV = gl.getUniformLocation(shaderProgram, "bUseVertexUV");
+    
+    gl.disableVertexAttribArray(shaderProgram.vertexColorAttribute);
+    gl.disableVertexAttribArray(shaderProgram.vertexUVAttribute);
+    gl.uniform1i(shaderProgram.uSampler, 0);
+    gl.uniform1i(shaderProgram.bVertexColor, 0);
+    gl.uniform1i(shaderProgram.bVertexUV, 0);
+    shaderBoolColor = false;
+    shaderBoolUV = false;
 }
 
 function drawScene() {
@@ -172,14 +336,13 @@ function drawScene() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     var projMatrix = mat4.create();
-    mat4.perspective(projMatrix, degToRad(55.0), viewW/viewH, 1.0, 1000.0);
-    
+    mat4.perspective(projMatrix, glMatrix.toRadian(45.0), viewW/viewH, 1.0, 8000.0);
     
     var viewMatrix = mat4.create();
 
-    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -200.0]);
-    mat4.rotate(viewMatrix, viewMatrix, degToRad(45.0), [1, 0, 0]);
-    mat4.rotate(viewMatrix, viewMatrix, degToRad(45.0), [0, 1, 0]);
+    mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -viewDist]);
+    mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(viewRotX), [1, 0, 0]);
+    mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(viewRotY), [0, 1, 0]);
     
     var projViewMatrix = mat4.create();
     mat4.mul(projViewMatrix, projMatrix, viewMatrix);
@@ -197,11 +360,47 @@ function drawScene() {
         for (var j in mdl.pMesh.objects) {
             var mesh = mdl.pMesh.objects[j];
             
+            gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
             gl.bindBuffer(gl.ARRAY_BUFFER, mesh.pVertexBuffer);
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.pIndexBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
             
-            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute,
-                                   3, gl.FLOAT, false, 0, 0);
+            if (mesh.pColorBuffer) {
+                gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+                gl.bindBuffer(gl.ARRAY_BUFFER, mesh.pColorBuffer);
+                gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+                if (shaderBoolColor === false) {
+                    gl.uniform1i(shaderProgram.bVertexColor, 1);
+                    shaderBoolColor = true;
+                }
+            } else {
+                gl.disableVertexAttribArray(shaderProgram.vertexColorAttribute);
+                if (shaderBoolColor === true) {
+                    gl.uniform1i(shaderProgram.bVertexColor, 0);
+                    shaderBoolColor = false;
+                }
+            }
+            
+            if (mesh.texture && mesh.pTextureBuffer) {
+                gl.enableVertexAttribArray(shaderProgram.vertexUVAttribute);
+                gl.bindBuffer(gl.ARRAY_BUFFER, mesh.pTextureBuffer);
+                gl.vertexAttribPointer(shaderProgram.vertexUVAttribute, 2, gl.FLOAT, false, 0, 0);
+                
+                gl.bindTexture(gl.TEXTURE_2D, mesh.texture.pTexture);
+                
+                if (shaderBoolUV === false) {
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.uniform1i(shaderProgram.bVertexUV, 1);
+                    shaderBoolUV = true;
+                }
+            } else {
+                gl.disableVertexAttribArray(shaderProgram.vertexUVAttribute);
+                if (shaderBoolUV === true) {
+                    gl.uniform1i(shaderProgram.bVertexUV, 0);
+                    shaderBoolUV = false;
+                }
+            }
+            
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.pIndexBuffer);
             
             gl.drawElements(gl.TRIANGLES, mesh.countIndexes, gl.UNSIGNED_BYTE, 0);
             
@@ -211,6 +410,5 @@ function drawScene() {
         }
     }
     
-    //console.log('verts:' + stat_vert, 'index:' + stat_index, 'tria:' + stat_tria);
+    console.log('verts:' + stat_vert, 'index:' + stat_index, 'tria:' + stat_tria);
 }
-

@@ -82,7 +82,7 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 				data, err := wad.Get(id)
 				if err == nil {
 					val := reflect.ValueOf(data)
-					ajaxmarshal := val.MethodByName("AjaxMarshal")
+					ajaxmarshal := val.MethodByName("Marshal")
 					if ajaxmarshal.IsValid() {
 						retval := ajaxmarshal.Call([]reflect.Value{
 							reflect.ValueOf(wad),
@@ -94,7 +94,7 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 						if err != nil {
 							writeError(w, fmt.Errorf("Error AjaxMarshaling node %d from %s: %v", id, file, err.(error)))
 						} else {
-							writeResult(w, val.([]byte))
+							writeJson(w, val)
 						}
 					} else {
 						writeJson(w, data)

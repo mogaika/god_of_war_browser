@@ -29,16 +29,33 @@ type Wad struct {
 	Roots  []int
 }
 
+func (wad *Wad) Node(id int) *WadNode {
+	if id > len(wad.Nodes) || id < 0 {
+		return nil
+	} else {
+		nd := wad.Nodes[id]
+		return nd
+	}
+}
+
+func (link *WadNode) ResolveLink() *WadNode {
+	for link.IsLink {
+		link = link.FindNode(link.Name)
+	}
+	return link
+}
+
 func (wad *Wad) Get(id int) (interface{}, error) {
-	node := wad.Nodes[id]
+	node := wad.Node(id).ResolveLink()
+
 	if node.Cache != nil {
 		return node.Cache, nil
 	}
 
 	if han, ex := cacheHandlers[node.Format]; ex {
-		rdr, err := wad.GetFileReader(id)
+		rdr, err := wad.GetFileReader(node.Id)
 		if err != nil {
-			return nil, fmt.Errorf("Error getting wad '%s' node %d(%s)reader: %v", wad.Name, id, node.Name, err)
+			return nil, fmt.Errorf("Error getting wad '%s' node %d(%s)reader: %v", wad.Name, node.Id, node.Name, err)
 		}
 		cache, err := han(wad, node, rdr)
 		if err == nil {
@@ -56,6 +73,7 @@ type WadNode struct {
 	IsLink   bool
 	Parent   int
 	SubNodes []int
+	Flags    uint16
 	Wad      *Wad `json:"-"`
 	Size     uint32
 	Start    int64
@@ -66,18 +84,19 @@ type WadNode struct {
 	Format uint32 // first 4 bytes of data
 }
 
-func (wad *Wad) NewNode(name string, isLink bool, parent int) *WadNode {
+func (wad *Wad) NewNode(name string, isLink bool, parent int, flags uint16) *WadNode {
 	node := &WadNode{
 		Id:     len(wad.Nodes),
 		Name:   name,
 		IsLink: isLink,
 		Parent: parent,
 		Wad:    wad,
+		Flags:  flags,
 	}
 
 	wad.Nodes = append(wad.Nodes, node)
 	if parent >= 0 {
-		pnode := wad.Nodes[parent]
+		pnode := wad.Node(parent)
 		pnode.SubNodes = append(pnode.SubNodes, node.Id)
 	} else {
 		wad.Roots = append(wad.Roots, node.Id)
@@ -85,29 +104,46 @@ func (wad *Wad) NewNode(name string, isLink bool, parent int) *WadNode {
 	return node
 }
 
-func (wad *Wad) FindNode(name string, start int) *WadNode {
-	if start < 0 {
+func (wad *Wad) FindNode(name string, parent int, end_at int) *WadNode {
+	var result *WadNode = nil
+	if parent < 0 {
 		for _, n := range wad.Roots {
-			if wad.Nodes[n].Name == name {
-				return wad.Nodes[n]
+			if n >= end_at {
+				return result
+			}
+			nd := wad.Node(n)
+			if nd.Name == name {
+				result = nd
 			}
 		}
-		return nil
+		return result
 	} else {
 		if wad.Nodes != nil {
-			for _, n := range wad.Nodes[start].SubNodes {
-				if wad.Nodes[n].Name == name {
-					return wad.Nodes[n]
+			for _, n := range wad.Node(parent).SubNodes {
+				if n >= end_at {
+					if result != nil {
+						return result
+					} else {
+						break
+					}
+				}
+				nd := wad.Node(n)
+				if nd.Name == name {
+					result = nd
 				}
 			}
 		}
-		return wad.FindNode(name, wad.Nodes[start].Parent)
+		return wad.FindNode(name, wad.Node(parent).Parent, parent)
 	}
 }
 
 func (wad *Wad) GetFileReader(id int) (*io.SectionReader, error) {
-	node := wad.Nodes[id]
+	node := wad.Node(id)
 	return io.NewSectionReader(wad.Reader, node.Start, int64(node.Size)), nil
+}
+
+func (node *WadNode) FindNode(name string) *WadNode {
+	return node.Wad.FindNode(name, node.Parent, node.Id)
 }
 
 func NewWad(r io.ReaderAt, name string) (*Wad, error) {
@@ -133,6 +169,7 @@ func NewWad(r io.ReaderAt, name string) (*Wad, error) {
 		}
 
 		tag := binary.LittleEndian.Uint16(item[0:2])
+		flags := binary.LittleEndian.Uint16(item[2:4])
 		size := binary.LittleEndian.Uint32(item[4:8])
 		name := utils.BytesToString(item[8:32])
 
@@ -141,10 +178,15 @@ func NewWad(r io.ReaderAt, name string) (*Wad, error) {
 			data_pos := pos + WAD_ITEM_SIZE
 			var node *WadNode
 			// minimal size of data == 4, for storing data format
+			nd := wad.FindNode(name, currentNode, len(wad.Nodes))
+			if nd != nil && nd.Parent == currentNode {
+				log.Printf("Finded copy of %s->%d", nd.Name, nd.Id)
+			}
+
 			if size == 0 {
-				node = wad.NewNode(name, true, currentNode)
+				node = wad.NewNode(name, true, currentNode, flags)
 			} else {
-				node = wad.NewNode(name, false, currentNode)
+				node = wad.NewNode(name, false, currentNode, flags)
 
 				var bfmt [4]byte
 				_, err := r.ReadAt(bfmt[:], data_pos)

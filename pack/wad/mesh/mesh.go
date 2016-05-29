@@ -11,25 +11,25 @@ import (
 )
 
 type MeshPacket struct {
-	fileStruct uint32
+	FileStruct uint32
 	Rows       uint16
 	Blocks     []*stBlock
 }
 
 type MeshObject struct {
-	fileStruct uint32
+	FileStruct uint32
 	Type       uint16
 	MaterialId uint8
 	Packets    []*MeshPacket
 }
 
 type MeshGroup struct {
-	fileStruct uint32
+	FileStruct uint32
 	Objects    []*MeshObject
 }
 
 type MeshPart struct {
-	fileStruct uint32
+	FileStruct uint32
 	Groups     []*MeshGroup
 	JointId    uint16 // parent joint
 }
@@ -70,7 +70,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 		groupsCount := u16(pPart + 2)
 
 		part := &MeshPart{
-			fileStruct: pPart,
+			FileStruct: pPart,
 			Groups:     make([]*MeshGroup, groupsCount),
 			JointId:    u16(pPart + 8),
 		}
@@ -81,7 +81,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 			objectsCount := u32(pGroup + 4)
 
 			group := &MeshGroup{
-				fileStruct: pGroup,
+				FileStruct: pGroup,
 				Objects:    make([]*MeshObject, objectsCount),
 			}
 
@@ -99,7 +99,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 				*/
 
 				object := &MeshObject{
-					fileStruct: pObject,
+					FileStruct: pObject,
 					Type:       objectType,
 					Packets:    make([]*MeshPacket, 0),
 				}
@@ -114,19 +114,19 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						pPacket := pObject + u32(pPacketInfo+4)
 
 						packet := &MeshPacket{
-							fileStruct: pPacket,
+							FileStruct: pPacket,
 							Rows:       u16(pPacketInfo),
 						}
 
 						object.Packets = append(object.Packets, packet)
 
 						packetSize := uint32(packet.Rows) * 0x10
-						packetEnd := packetSize + packet.fileStruct
+						packetEnd := packetSize + packet.FileStruct
 
 						fmt.Fprintf(exlog, "    packet: %d pos: 0x%.6x rows: 0x%.4x end: 0x%.6x\n",
-							iPacket, packet.fileStruct, packet.Rows, packetEnd)
+							iPacket, packet.FileStruct, packet.Rows, packetEnd)
 
-						err, packet.Blocks = VifRead1(file[packet.fileStruct:packetEnd], packet.fileStruct, exlog)
+						err, packet.Blocks = VifRead1(file[packet.FileStruct:packetEnd], packet.FileStruct, exlog)
 						if err != nil {
 							return nil, err
 						}
@@ -147,9 +147,10 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
-		fpath := filepath.Join("logs", w.Name, node.Name+".mesh.log")
+		fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.mesh.log", node.Id, node.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
+		defer f.Close()
 
 		file := make([]byte, node.Size)
 		_, err := r.ReadAt(file, 0)

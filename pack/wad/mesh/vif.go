@@ -6,28 +6,20 @@ import (
 	"io"
 )
 
-type stUV struct {
-	U, V float32
-}
-
-type stNorm struct {
-	X, Y, Z float32
-}
-
-type stRGBA struct {
-	R, G, B, A uint8
-}
-
-type stXYZ struct {
-	X, Y, Z float32
-	Skip    bool
-}
-
 type stBlock struct {
-	Uvs      []stUV
-	Trias    []stXYZ
-	Norms    []stNorm
-	Blend    []stRGBA
+	Uvs struct {
+		U, V []float32
+	}
+	Trias struct {
+		X, Y, Z []float32
+		Skip    []bool
+	}
+	Norms struct {
+		X, Y, Z []float32
+	}
+	Blend struct {
+		R, G, B, A []uint16 // actually uint8, only for marshaling
+	}
 	Joints   []uint16
 	DebugPos uint32
 }
@@ -236,63 +228,73 @@ func VifRead1(vif []byte, debug_off uint32, debugOut io.Writer) (error, []*stBlo
 				currentBlock := &stBlock{}
 				currentBlock.DebugPos = tagpos
 
-				currentBlock.Trias = make([]stXYZ, len(block_data_xyzw)/8)
-				for i := range currentBlock.Trias {
+				countTrias := len(block_data_xyzw) / 8
+				currentBlock.Trias.X = make([]float32, countTrias)
+				currentBlock.Trias.Y = make([]float32, countTrias)
+				currentBlock.Trias.Z = make([]float32, countTrias)
+				currentBlock.Trias.Skip = make([]bool, countTrias)
+				for i := range currentBlock.Trias.X {
 					bp := i * 8
-					t := &currentBlock.Trias[i]
-					t.X = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp:bp+2]))) / GSFixed12Point4Delimeter
-					t.Y = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp+2:bp+4]))) / GSFixed12Point4Delimeter
-					t.Z = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp+4:bp+6]))) / GSFixed12Point4Delimeter
-					t.Skip = block_data_xyzw[bp+7]&0x80 != 0
+					currentBlock.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp:bp+2]))) / GSFixed12Point4Delimeter
+					currentBlock.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp+2:bp+4]))) / GSFixed12Point4Delimeter
+					currentBlock.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp+4:bp+6]))) / GSFixed12Point4Delimeter
+					currentBlock.Trias.Skip[i] = block_data_xyzw[bp+7]&0x80 != 0
 				}
 
 				if block_data_uv != nil {
 					switch block_data_uv_width {
 					case 2:
-						currentBlock.Uvs = make([]stUV, len(block_data_uv)/4)
-						for i := range currentBlock.Trias {
+						uvCount := len(block_data_uv) / 4
+						currentBlock.Uvs.U = make([]float32, uvCount)
+						currentBlock.Uvs.V = make([]float32, uvCount)
+						for i := range currentBlock.Uvs.U {
 							bp := i * 4
-							u := &currentBlock.Uvs[i]
-							u.U = float32(int16(binary.LittleEndian.Uint16(block_data_uv[bp:bp+2]))) / GSFixed12Point4Delimeter1000
-							u.V = float32(int16(binary.LittleEndian.Uint16(block_data_uv[bp+2:bp+4]))) / GSFixed12Point4Delimeter1000
+							currentBlock.Uvs.U[i] = float32(int16(binary.LittleEndian.Uint16(block_data_uv[bp:bp+2]))) / GSFixed12Point4Delimeter1000
+							currentBlock.Uvs.V[i] = float32(int16(binary.LittleEndian.Uint16(block_data_uv[bp+2:bp+4]))) / GSFixed12Point4Delimeter1000
 						}
 					case 4:
-						currentBlock.Uvs = make([]stUV, len(block_data_uv)/8)
-						for i := range currentBlock.Trias {
+						uvCount := len(block_data_uv) / 8
+						currentBlock.Uvs.U = make([]float32, uvCount)
+						currentBlock.Uvs.V = make([]float32, uvCount)
+						for i := range currentBlock.Uvs.U {
 							bp := i * 8
-							u := &currentBlock.Uvs[i]
-							u.U = float32(int32(binary.LittleEndian.Uint32(block_data_uv[bp:bp+4]))) / GSFixed12Point4Delimeter1000
-							u.V = float32(int32(binary.LittleEndian.Uint32(block_data_uv[bp+4:bp+8]))) / GSFixed12Point4Delimeter1000
+							currentBlock.Uvs.U[i] = float32(int32(binary.LittleEndian.Uint32(block_data_uv[bp:bp+4]))) / GSFixed12Point4Delimeter1000
+							currentBlock.Uvs.V[i] = float32(int32(binary.LittleEndian.Uint32(block_data_uv[bp+4:bp+8]))) / GSFixed12Point4Delimeter1000
 						}
 					}
 				}
 
 				if block_data_norm != nil {
-					currentBlock.Norms = make([]stNorm, len(block_data_norm)/3)
-					for i := range currentBlock.Norms {
+					normcnt := len(block_data_norm) / 3
+					currentBlock.Norms.X = make([]float32, normcnt)
+					currentBlock.Norms.Y = make([]float32, normcnt)
+					currentBlock.Norms.Z = make([]float32, normcnt)
+					for i := range currentBlock.Norms.X {
 						bp := i * 3
-						n := &currentBlock.Norms[i]
-						n.X = float32(int8(block_data_norm[bp])) / 100.0
-						n.Y = float32(int8(block_data_norm[bp+1])) / 100.0
-						n.Z = float32(int8(block_data_norm[bp+2])) / 100.0
+						currentBlock.Norms.X[i] = float32(int8(block_data_norm[bp])) / 100.0
+						currentBlock.Norms.Y[i] = float32(int8(block_data_norm[bp+1])) / 100.0
+						currentBlock.Norms.Z[i] = float32(int8(block_data_norm[bp+2])) / 100.0
 					}
 				}
 
 				if block_data_rgba != nil {
-					currentBlock.Blend = make([]stRGBA, len(block_data_rgba)/4)
-					for i := range currentBlock.Blend {
+					rgbacnt := len(block_data_rgba) / 4
+					currentBlock.Blend.R = make([]uint16, rgbacnt)
+					currentBlock.Blend.G = make([]uint16, rgbacnt)
+					currentBlock.Blend.B = make([]uint16, rgbacnt)
+					currentBlock.Blend.A = make([]uint16, rgbacnt)
+					for i := range currentBlock.Blend.R {
 						bp := i * 4
-						c := &currentBlock.Blend[i]
-						c.R = block_data_rgba[bp]
-						c.G = block_data_rgba[bp+1]
-						c.B = block_data_rgba[bp+2]
-						c.A = block_data_rgba[bp+3]
+						currentBlock.Blend.R[i] = uint16(block_data_rgba[bp])
+						currentBlock.Blend.G[i] = uint16(block_data_rgba[bp+1])
+						currentBlock.Blend.B[i] = uint16(block_data_rgba[bp+2])
+						currentBlock.Blend.A[i] = uint16(block_data_rgba[bp+3])
 					}
 				}
 
 				if block_data_vertex_meta != nil {
 					blocks := len(block_data_vertex_meta) / 16
-					vertexes := len(currentBlock.Trias)
+					vertexes := len(currentBlock.Trias.X)
 
 					currentBlock.Joints = make([]uint16, vertexes)
 

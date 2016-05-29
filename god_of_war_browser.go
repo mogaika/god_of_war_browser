@@ -9,8 +9,11 @@ import (
 
 	_ "github.com/mogaika/god_of_war_browser/pack/wad"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/inst"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/mat"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/mdl"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/obj"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/txr"
 )
 
