@@ -14,7 +14,11 @@ import (
 
 const WAD_ITEM_SIZE = 0x20
 
-type FileLoader func(wad *Wad, node *WadNode, r io.ReaderAt) (interface{}, error)
+type File interface {
+	Marshal(wad *Wad, node *WadNode) (interface{}, error)
+}
+
+type FileLoader func(wad *Wad, node *WadNode, r io.ReaderAt) (File, error)
 
 var cacheHandlers map[uint32]FileLoader = make(map[uint32]FileLoader, 0)
 
@@ -39,14 +43,18 @@ func (wad *Wad) Node(id int) *WadNode {
 }
 
 func (link *WadNode) ResolveLink() *WadNode {
-	for link.IsLink {
+	for link != nil && link.IsLink {
 		link = link.FindNode(link.Name)
 	}
 	return link
 }
 
-func (wad *Wad) Get(id int) (interface{}, error) {
+func (wad *Wad) Get(id int) (File, error) {
 	node := wad.Node(id).ResolveLink()
+
+	if node == nil {
+		return nil, errors.New("Node not found")
+	}
 
 	if node.Cache != nil {
 		return node.Cache, nil
@@ -78,8 +86,8 @@ type WadNode struct {
 	Size     uint32
 	Start    int64
 
-	Cached bool        `json:"-"`
-	Cache  interface{} `json:"-"`
+	Cached bool `json:"-"`
+	Cache  File `json:"-"`
 
 	Format uint32 // first 4 bytes of data
 }

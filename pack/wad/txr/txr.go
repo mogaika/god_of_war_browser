@@ -181,7 +181,7 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 }
 
 func init() {
-	wad.SetHandler(TXR_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
+	wad.SetHandler(TXR_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
 		return NewFromData(r)
 	})
 }

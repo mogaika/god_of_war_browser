@@ -145,8 +145,12 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 	return mesh, nil
 }
 
+func (m *Mesh) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+	return m, nil
+}
+
 func init() {
-	wad.SetHandler(MESH_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
+	wad.SetHandler(MESH_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
 		fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.mesh.log", node.Id, node.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)

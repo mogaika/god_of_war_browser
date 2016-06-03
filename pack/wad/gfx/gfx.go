@@ -118,8 +118,12 @@ func NewFromData(fgfx io.ReaderAt) (*GFX, error) {
 	return gfx, nil
 }
 
+func (gfx *GFX) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+	return gfx, nil
+}
+
 func init() {
-	wad.SetHandler(GFX_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
+	wad.SetHandler(GFX_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
 		gfx, err := NewFromData(r)
 		if err != nil {
 			return gfx, err

@@ -113,7 +113,7 @@ func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, erro
 }
 
 func init() {
-	wad.SetHandler(MAT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
+	wad.SetHandler(MAT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
 		return NewFromData(r)
 	})
 }

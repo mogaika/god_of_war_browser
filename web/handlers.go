@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"reflect"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -65,6 +64,11 @@ func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
+	type Result struct {
+		Node *file_wad.WadNode
+		Data interface{}
+	}
+
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
 	data, err := ServerPack.Get(file)
@@ -79,28 +83,21 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				writeError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				data, err := wad.Get(id)
-				if err == nil {
-					val := reflect.ValueOf(data)
-					ajaxmarshal := val.MethodByName("Marshal")
-					if ajaxmarshal.IsValid() {
-						retval := ajaxmarshal.Call([]reflect.Value{
-							reflect.ValueOf(wad),
-							reflect.ValueOf(wad.Nodes[id]),
-						})
-
-						val := retval[0].Interface()
-						err := retval[1].Interface()
+				node := wad.Node(id).ResolveLink()
+				if node != nil {
+					data, err := wad.Get(node.Id)
+					if err == nil {
+						val, err := data.Marshal(wad, node)
 						if err != nil {
-							writeError(w, fmt.Errorf("Error AjaxMarshaling node %d from %s: %v", id, file, err.(error)))
+							writeError(w, fmt.Errorf("Error Marshaling node %d from %s: %v", id, file, err.(error)))
 						} else {
-							writeJson(w, val)
+							writeJson(w, &Result{Node: node, Data: val})
 						}
 					} else {
-						writeJson(w, data)
+						writeError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
 					}
 				} else {
-					writeError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
+					writeError(w, fmt.Errorf("Cannot find node %d in %s", id, wad.Name))
 				}
 			}
 		default:

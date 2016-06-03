@@ -48,8 +48,12 @@ func NewFromData(fmat io.ReaderAt) (*Instance, error) {
 	return inst, nil
 }
 
+func (inst *Instance) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+	return inst, nil
+}
+
 func init() {
-	wad.SetHandler(INSTANCE_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (interface{}, error) {
+	wad.SetHandler(INSTANCE_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
 		return NewFromData(r)
 	})
 }
