@@ -8,6 +8,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/web"
 
 	_ "github.com/mogaika/god_of_war_browser/pack/wad"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/cxt"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/inst"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/mat"
