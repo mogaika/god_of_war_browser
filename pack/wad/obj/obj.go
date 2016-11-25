@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
 
@@ -23,6 +24,7 @@ type Joint struct {
 	ChildsStart int16
 	ChildsEnd   int16
 	Parent      int16
+	UnkCoeef    float32
 
 	HaveInverse bool
 	InvId       int16
@@ -60,8 +62,8 @@ type Object struct {
 
 func (obj *Object) StringJoint(id int16, spaces string) string {
 	j := obj.Joints[id]
-	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
-		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.HaveInverse, j.InvId, j.Name,
+	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
+		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.HaveInverse, j.InvId, j.UnkCoeef, j.Name,
 		spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
 		spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
 		spaces, obj.Vectors7[j.Id])
@@ -158,6 +160,7 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 			ChildsStart: int16(binary.LittleEndian.Uint16(jointBuf[0x4:0x6])),
 			ChildsEnd:   int16(binary.LittleEndian.Uint16(jointBuf[0x6:0x8])),
 			Parent:      int16(binary.LittleEndian.Uint16(jointBuf[0x8:0xa])),
+			UnkCoeef:    math.Float32frombits(binary.LittleEndian.Uint32(jointBuf[0xc:0x10])),
 			Id:          int16(i),
 			HaveInverse: isInvMat,
 			InvId:       invid,
@@ -237,14 +240,14 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 	}
 
 	obj.FeelJoints()
-	/*
-		s := ""
-		for i, m := range obj.Matrixes3 {
-			s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
-		}
 
-		log.Printf("%s\n%s", s, obj.StringTree())
-	*/
+	s := ""
+	for i, m := range obj.Matrixes3 {
+		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
+	}
+
+	log.Printf("%s\n%s", s, obj.StringTree())
+
 	return obj, nil
 }
 

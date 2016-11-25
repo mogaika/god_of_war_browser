@@ -6,6 +6,17 @@ html, body {
     color: white;
 }
 
+/* we want render textures without browser interpolation */
+img.no-interpolate { 
+    image-rendering: optimizeSpeed;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -o-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: pixelated;
+    image-rendering: optimize-contrast;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+
 a {
     color: inherit;
     font-style: italic;
@@ -110,8 +121,8 @@ a {
 #view-summary img {
     display: inline-block;
     padding: 4px;
-    max-width: 30em;
-    min-height: 16em;
+	min-width: 14em;
+	min-height: 14em;
 }
 
 #view-3d {

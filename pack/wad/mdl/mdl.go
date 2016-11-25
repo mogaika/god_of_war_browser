@@ -57,21 +57,23 @@ type Ajax struct {
 func (mdl *Model) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := &Ajax{Raw: mdl}
 	for _, i := range node.SubNodes {
-		sn, err := wad.Get(i)
-		if err != nil {
-			return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, wad.Node(i).Name, err)
-		} else {
-			switch sn.(type) {
-			case *file_mesh.Mesh:
-				res.Meshes = append(res.Meshes, sn.(*file_mesh.Mesh))
-			case *file_mat.Material:
-				mat, err := sn.(*file_mat.Material).Marshal(wad, wad.Nodes[i])
-				if err != nil {
-					return nil, fmt.Errorf("Error when getting material info %d-'%s': %v", i, wad.Node(i).Name, err)
+		if nd := wad.Node(i); nd.Name[0] != ' ' {
+			sn, err := wad.Get(i)
+			if err != nil {
+				return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, wad.Node(i).Name, err)
+			} else {
+				switch sn.(type) {
+				case *file_mesh.Mesh:
+					res.Meshes = append(res.Meshes, sn.(*file_mesh.Mesh))
+				case *file_mat.Material:
+					mat, err := sn.(*file_mat.Material).Marshal(wad, wad.Nodes[i])
+					if err != nil {
+						return nil, fmt.Errorf("Error when getting material info %d-'%s': %v", i, wad.Node(i).Name, err)
+					}
+					res.Materials = append(res.Materials, mat)
+				default:
+					res.Other = append(res.Other, "Unknown interface of "+reflect.TypeOf(sn).Name())
 				}
-				res.Materials = append(res.Materials, mat)
-			default:
-				res.Other = append(res.Other, "Unknown interface of "+reflect.TypeOf(sn).Name())
 			}
 		}
 	}
