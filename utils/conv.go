@@ -3,6 +3,9 @@ package utils
 import (
 	"bytes"
 	"errors"
+
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/transform"
 )
 
 const SECTOR_SIZE = 0x800
@@ -14,5 +17,7 @@ func BytesToString(bs []byte) string {
 	if n < 0 {
 		n = len(bs)
 	}
-	return string(bs[0:n])
+
+	s, _, _ := transform.Bytes(charmap.Windows1252.NewDecoder(), bs[0:n])
+	return string(s)
 }

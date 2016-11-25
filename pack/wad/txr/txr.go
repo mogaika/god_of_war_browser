@@ -60,59 +60,42 @@ func NewFromData(fin io.ReaderAt) (*Texture, error) {
 	}
 
 	// 1 - mask; 5d - alpha channel; 51 - font
-	if tex.UnkFlags2 != 1 && tex.UnkFlags2 != 0x41 && tex.UnkFlags2 != 0x5d && tex.UnkFlags2 != 0x51 {
-		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51)", tex.UnkFlags2)
+	if tex.UnkFlags2 != 1 && tex.UnkFlags2 != 0x41 && tex.UnkFlags2 != 0x5d && tex.UnkFlags2 != 0x51 && tex.UnkFlags2 != 0x11 {
+		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51,0x11)", tex.UnkFlags2)
 	}
 
 	return tex, nil
 }
 
-func (txr *Texture) Image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (image.Image, error) {
+func (txr *Texture) Image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (image.Image, bool, error) {
 	width := int(gfx.Width)
 	height := int(gfx.Height)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	pallete, err := pal.GetPallet(ipal)
+	pallete, err := pal.AsPallet(ipal)
 
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	data := gfx.Data[igfx]
+	haveTransparent := false
 
-	encoding := gfx.Encoding
+	palidx := gfx.AsPalletIndexes(igfx)
 
-	if gfx.Bpi == 4 {
-		encoding = 2
-	}
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			clr := pallete[palidx[x+y*width]]
+			img.Set(x, y, clr)
 
-	switch encoding {
-	case 0:
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				// apply swizzle
-				block_location := (y&(math.MaxInt32^0xf))*width + (x&(math.MaxInt32^0xf))*2
-				swap_selector := (((y + 2) >> 2) & 0x1) * 4
-				posY := (((y & (math.MaxInt32 ^ 3)) >> 1) + (y & 1)) & 0x7
-				column_location := posY*width*2 + ((x+swap_selector)&0x7)*4
-
-				byte_num := ((y >> 1) & 1) + ((x >> 2) & 2) // 0,1,2,3
-
-				datapos := block_location + column_location + byte_num
-				palpos := data[datapos]
-
-				img.Set(x, y, pallete[palpos])
-			}
-		}
-	case 2:
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				img.Set(x, y, pallete[data[x+y*width]])
+			if !haveTransparent {
+				if _, _, _, a := clr.RGBA(); a < 0xffff {
+					haveTransparent = true
+				}
 			}
 		}
 	}
 
-	return img, nil
+	return img, haveTransparent, nil
 }
 
 type AjaxImage struct {
@@ -120,14 +103,15 @@ type AjaxImage struct {
 	Image    []byte
 }
 type Ajax struct {
-	Data    *Texture
-	Images  []AjaxImage
-	UsedGfx int
-	UsedPal int
+	Data            *Texture
+	Images          []AjaxImage
+	UsedGfx         int
+	UsedPal         int
+	HaveTransparent bool
 }
 
 func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
-	res := &Ajax{Data: txr}
+	res := &Ajax{Data: txr, HaveTransparent: false}
 
 	if txr.GfxName != "" && txr.PalName != "" {
 		gfxn := node.FindNode(txr.GfxName)
@@ -161,9 +145,13 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 		i := 0
 		for iGfx := range gfx.Data {
 			for iPal := range pal.Data {
-				img, err := txr.Image(gfx, pal, iGfx, iPal)
+				img, haveTransparent, err := txr.Image(gfx, pal, iGfx, iPal)
 				if err != nil {
 					return nil, err
+				}
+
+				if !res.HaveTransparent {
+					res.HaveTransparent = haveTransparent
 				}
 
 				var buf bytes.Buffer

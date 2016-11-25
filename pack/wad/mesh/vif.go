@@ -20,8 +20,9 @@ type stBlock struct {
 	Blend struct {
 		R, G, B, A []uint16 // actually uint8, only for marshaling
 	}
-	Joints   []uint16
-	DebugPos uint32
+	Joints                 []uint16
+	DebugPos               uint32
+	HasTransparentBlending bool
 }
 
 // GS use 12:4 fixed point format
@@ -225,7 +226,7 @@ func VifRead1(vif []byte, debug_off uint32, debugOut io.Writer) (error, []*stBlo
 
 			// if we collect some data
 			if block_data_xyzw != nil {
-				currentBlock := &stBlock{}
+				currentBlock := &stBlock{HasTransparentBlending: false}
 				currentBlock.DebugPos = tagpos
 
 				countTrias := len(block_data_xyzw) / 8
@@ -289,6 +290,12 @@ func VifRead1(vif []byte, debug_off uint32, debugOut io.Writer) (error, []*stBlo
 						currentBlock.Blend.G[i] = uint16(block_data_rgba[bp+1])
 						currentBlock.Blend.B[i] = uint16(block_data_rgba[bp+2])
 						currentBlock.Blend.A[i] = uint16(block_data_rgba[bp+3])
+					}
+					for _, a := range currentBlock.Blend.A {
+						if a < 0x80 {
+							currentBlock.HasTransparentBlending = true
+							break
+						}
 					}
 				}
 

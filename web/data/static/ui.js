@@ -23,12 +23,14 @@ function packLoad() {
         var list = $('<ol>');
         for (var i in data.Files) {
             var fileName = data.Files[i].Name;
-            list.append($('<li>')
-                    .attr('filename', fileName)
-                    .append($('<label>').append(fileName))
-                    .append($('<a download>')
-                            .addClass('button-dump')
-                            .attr('href', '/dump/pack/' + fileName)) );
+			if (fileName.endsWith("WAD")) {
+	            list.append($('<li>')
+	                    .attr('filename', fileName)
+	                    .append($('<label>').append(fileName))
+	                    .append($('<a download>')
+	                            .addClass('button-dump')
+	                            .attr('href', '/dump/pack/' + fileName)) );
+			}
         }
         dataPack.append(list);
         
@@ -193,7 +195,7 @@ function loadMeshFromAjax(data, textures) {
                             }
                         }
                         
-                        r_mesh.add(new MeshObject(m_vertexes, m_indexes, m_colors, m_material, m_textures));
+                        r_mesh.add(new MeshObject(m_vertexes, m_indexes, m_colors, m_material, m_textures, block.HasTransparentBlending));
                     }
                 }
             }
@@ -240,7 +242,8 @@ function summaryLoadWadMdl(data) {
         if (txrs && txrs.length && txrs[0]) {
             var imgs = txrs[0].Images;
             if (imgs && imgs.length && imgs[0]) {
-                textrs.push(LoadTexture(i, 'data:image/png;base64,' + imgs[0].Image));
+				console.log(txrs);
+                textrs.push(LoadTexture(i, 'data:image/png;base64,' + imgs[0].Image, txrs[0].HaveTransparent));
             }
         } else {
             textrs.push(null);
@@ -268,6 +271,9 @@ function summaryLoadWadTxr(data) {
             .append($('<td>').append(k))
             .append($('<td>').append(val)));
     });
+	table.append($('<tr>')
+        .append($('<td>').append('Have transparent'))
+        .append($('<td>').append(data.HaveTransparent?"true":"false")));
     table.append($('<tr>')
         .append($('<td>').append('Used gfx'))
         .append($('<td>').append(data.UsedGfx)));
@@ -279,6 +285,7 @@ function summaryLoadWadTxr(data) {
     for (var i in data.Images) {
         var img = data.Images[i];
         dataSummary.append($('<img>')
+				.addClass('no-interpolate')
                 .attr('src', 'data:image/png;base64,' + img.Image)
                 .attr('alt', 'gfx:' + img.Gfx + '  pal:' + img.Pal));
     }
