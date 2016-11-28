@@ -11,6 +11,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/pack/wad/mdl"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -31,6 +32,7 @@ type Joint struct {
 
 	BindToJointMat mgl32.Mat4
 	JointToIdleMat mgl32.Mat4
+	BindToIdleMat  mgl32.Mat4
 }
 
 const JOINT_CHILD_NONE = -1
@@ -258,21 +260,45 @@ func (obj *Object) FeelJoints() {
 			j.BindToJointMat = obj.Matrixes3[j.InvId]
 		} else {
 			if j.Parent != JOINT_CHILD_NONE {
-				j.BindToJointMat = obj.Joints[j.Parent].BindToJointMat.Inv().Mul4(obj.Matrixes1[i]).Inv()
+				//j.BindToJointMat = obj.Joints[j.Parent].BindToJointMat.Inv().Mul4(obj.Matrixes1[i]).Inv()
+				j.BindToJointMat = obj.Joints[j.Parent].BindToJointMat
 			} else {
-				j.BindToJointMat = obj.Matrixes1[i].Inv()
+				//j.BindToJointMat = obj.Matrixes1[i].Inv()
+				j.BindToJointMat = mgl32.Ident4()
 			}
 		}
 
 		j.JointToIdleMat = obj.Matrixes1[i]
-		if j.Parent != JOINT_CHILD_NONE {
-			j.JointToIdleMat = obj.Joints[j.Parent].JointToIdleMat.Mul4(j.JointToIdleMat)
-		}
+
+		j.BindToIdleMat = j.BindToJointMat.Mul4(j.JointToIdleMat)
 	}
 }
 
-func (obj *Object) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
-	return obj, nil
+type ObjMarshal struct {
+	Data  *Object
+	Model interface{}
+}
+
+func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) {
+	var model interface{}
+
+	for _, id := range node.SubNodes {
+		nd := wd.Node(id).ResolveLink()
+		if nd.Format == mdl.MODEL_MAGIC {
+			modelFile, err := wd.Get(id)
+			if err == nil {
+				model, err = modelFile.Marshal(wd, nd)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+	}
+
+	return &ObjMarshal{
+		Data:  obj,
+		Model: model,
+	}, nil
 }
 
 func init() {

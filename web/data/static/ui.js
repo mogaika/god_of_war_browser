@@ -122,6 +122,9 @@ function treeLoadWadNode(wad, nodeid) {
                 case 0x0002000f: // mdl
                     summaryLoadWadMdl(data);
                     break;
+                case 0x00040001: // obj
+                    summaryLoadWadObj(data);
+                    break;
                 case 0x0000000c: // gfx pal
                 default:
                     set3dVisible(false);
@@ -213,6 +216,28 @@ function summaryLoadWadMesh(data) {
     redraw3d();
 }
 
+function loadMdlFromAjax(mdl, matrix, skelet) {
+	var textrs = [];
+    for (var i in mdl.Materials) {
+        var txrs = mdl.Materials[i].Textures;
+        if (txrs && txrs.length && txrs[0]) {
+            var imgs = txrs[0].Images;
+            if (imgs && imgs.length && imgs[0]) {
+				console.log(txrs);
+                textrs.push(LoadTexture(i, 'data:image/png;base64,' + imgs[0].Image, txrs[0].HaveTransparent));
+            }
+        } else {
+            textrs.push(null);
+        }
+    }
+    
+    if (mdl.Meshes && mdl.Meshes.length) {
+		return new Model(loadMeshFromAjax(mdl.Meshes[0], textrs), matrix, skelet);
+    } else {
+        console.info('no meshes in mdl', mdl);
+    }
+}
+
 function summaryLoadWadMdl(data) {
     set3dVisible(true);
     reset3d();
@@ -234,29 +259,7 @@ function summaryLoadWadMdl(data) {
     }
     dataSummary.append(table);
     
-    console.log(textureIdMap, 'before textures loading');
-    
-    var textrs = [];
-    for (var i in data.Materials) {
-        var txrs = data.Materials[i].Textures;
-        if (txrs && txrs.length && txrs[0]) {
-            var imgs = txrs[0].Images;
-            if (imgs && imgs.length && imgs[0]) {
-				console.log(txrs);
-                textrs.push(LoadTexture(i, 'data:image/png;base64,' + imgs[0].Image, txrs[0].HaveTransparent));
-            }
-        } else {
-            textrs.push(null);
-        }
-    }
-    
-    console.log(textureIdMap, 'before model loading');
-
-    if (data.Meshes && data.Meshes.length) {
-        console.log(data, new Model(loadMeshFromAjax(data.Meshes[0], textrs)));
-    } else {
-        console.info('no meshes in mdl', data);
-    }
+	loadMdlFromAjax(data);
     
     console.log(textureIdMap, 'after loading');
     
@@ -340,6 +343,46 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
+function summaryLoadWadObj(data) {
+	console.log(data);
+	set3dVisible(true);
+	reset3d();
+
+    var jointsTable = $('<table>');
+
+	$.each(data.Data.Joints, function(joint_id, joint) {
+		var row = $('<tr>').append(
+			$('<td>').append(joint.Id).attr("rowspan", 6*2)
+		);
+		
+		for (var k in joint) {
+			if (k === "Name"
+				|| k === "HaveInverse"
+				|| k === "JointToIdleMat"
+				|| k === "BindToIdleMat"
+				|| k === "BindToJointMat"
+				|| k === "Parent") {
+				row.append($('<td>').text(k));
+				jointsTable.append(row);
+				jointsTable.append($('<tr>').append($('<td>').text(JSON.stringify(joint[k]))));
+				var row = $('<tr>');
+			}
+		}
+		
+		
+		jointsTable.append(row);
+	});
+	dataSummary.append(jointsTable);
+	
+	if (data.Model) {
+		var mdl = loadMdlFromAjax(data.Model, data.Data.Joints[0].BindToIdleMat);
+		//var mdl = loadMdlFromAjax(data.Model, undefined, data.Data);
+		redraw3d();
+	} else {
+		set3dVisible(false);
+	}
+}
+
 $(document).ready(function(){
     viewPack = $('#view-pack');
     viewTree = $('#view-tree');
@@ -349,7 +392,7 @@ $(document).ready(function(){
     dataPack = viewPack.children('.view-item-container');
     dataTree = viewTree.children('.view-item-container');
     dataSummary = viewSummary.children('.view-item-container');
-    data3d = view3d.children().children();
+    data3d = view3d.children('.view-item-container');
     
     packLoad();
     
