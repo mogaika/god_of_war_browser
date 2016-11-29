@@ -98,7 +98,7 @@ function grCameraTargeted() {
 	this.fow = 55.0;
 	this.target = [0, 0, 0];
 	this.distance = 100.0;
-	this.rotation = [45.0, 45.0, 0];
+	this.rotation = [45.0, -45.0, 0];
 }
 
 grCameraTargeted.prototype.getProjViewMatrix = function() {
@@ -211,7 +211,7 @@ function gwInitRenderer(viewDomObject) {
 		return;
 	}
 	gr_instance = new grController(viewDomObject);
-	gr_instance.changeRenderChain(grRenderChain_Simple);
+	gr_instance.changeRenderChain(grRenderChain_VertexColor);
 	gr_instance.onResize();
 	gr_instance.requestRedraw();
 }
