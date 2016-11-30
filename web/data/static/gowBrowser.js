@@ -2,6 +2,8 @@
 
 var viewPack, viewTree, viewSummary, view3d;
 var dataPack, dataTree, dataSummary, data3d;
+var defferedLoadingWad;
+var defferedLoadingWadNode;
 
 function set3dVisible(show) {
     if (show) {
@@ -15,6 +17,14 @@ function set3dVisible(show) {
 
 function setTitle(viewHeh, title) {
     $(viewHeh).children(".view-item-title").text(title);
+}
+
+function setLocation(hash) {
+	if (window.history.pushState) {
+		window.history.pushState(null, null, hash);
+	} else {
+		window.location.hash = hash;
+	}
 }
 
 function packLoad() {
@@ -34,6 +44,10 @@ function packLoad() {
         }
         dataPack.append(list);
         
+		if (defferedLoadingWad) {
+			packLoadFile(defferedLoadingWad);
+		}
+		
         $('#view-pack ol li label').click(function(ev) {
             packLoadFile($(this).parent().attr('filename'));
         });
@@ -59,7 +73,7 @@ function packLoadFile(filename) {
 }
 
 function treeLoadWad(data) {
-    var addNodes = function(nodes) {
+	var addNodes = function(nodes) {
         var ol = $('<ol>').attr('wadname', data.Name);
         for (var sn in nodes) {
             var node = data.Nodes[nodes[sn]];
@@ -89,6 +103,12 @@ function treeLoadWad(data) {
     if (data.Roots)
         dataTree.append(addNodes(data.Roots));
     
+	if (defferedLoadingWadNode) {
+		treeLoadWadNode(data.Name, parseInt(defferedLoadingWadNode));
+	} else {
+		setLocation('#/' + data.Name);
+	}
+	
     $('#view-tree ol li label').click(function(ev) {
         var node_element = $(this).parent();
         
@@ -98,7 +118,8 @@ function treeLoadWad(data) {
 
 function treeLoadWadNode(wad, nodeid) {
     dataSummary.empty();
-    
+	setLocation('#/' + wad + '/' + nodeid);
+	
     $.getJSON('/json/pack/' + wad +'/' + nodeid, function(resp) {
         var data = resp.Data;
         var node = resp.Node;
@@ -416,6 +437,18 @@ $(document).ready(function(){
     dataSummary = viewSummary.children('.view-item-container');
     data3d = view3d.children('.view-item-container');
     
+	var urlParts = decodeURI(window.location.hash).split("/");
+	if (urlParts.length > 1) {
+		if (urlParts[1].length > 0) {
+			defferedLoadingWad = urlParts[1];
+		}
+	}
+	if (urlParts.length > 2) {
+		if (urlParts[2].length > 0) {
+			defferedLoadingWadNode = urlParts[2];
+		}
+	}
+	
     packLoad();
     
     gwInitRenderer(data3d);
