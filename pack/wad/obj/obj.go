@@ -27,12 +27,14 @@ type Joint struct {
 	Parent      int16
 	UnkCoeef    float32
 
-	HaveInverse bool
-	InvId       int16
+	IsSkinned bool
+	InvId     int16
 
-	BindToJointMat mgl32.Mat4
-	JointToIdleMat mgl32.Mat4
-	BindToIdleMat  mgl32.Mat4
+	BindToJointMat mgl32.Mat4 // bind space
+	ParentToJoint  mgl32.Mat4 // idle space??
+
+	OurJointToIdleMat mgl32.Mat4
+	RenderMat         mgl32.Mat4
 }
 
 const JOINT_CHILD_NONE = -1
@@ -53,9 +55,9 @@ type Object struct {
 	Vec6offset uint32
 	Vec7offset uint32
 
-	Matrixes1 []mgl32.Mat4 // idle pose
+	Matrixes1 []mgl32.Mat4 // bind pose
 	Vectors2  [][4]uint32
-	Matrixes3 []mgl32.Mat4 // inverce matrices bind pose (not at all joints, if not present, use idle inverted pose)
+	Matrixes3 []mgl32.Mat4 // inverce matrices bind pose (not att all joints)
 	Vectors4  []mgl32.Vec4 // idle pose xyz
 	Vectors5  [][4]int32
 	Vectors6  []mgl32.Vec4 // idle pose scale
@@ -65,7 +67,7 @@ type Object struct {
 func (obj *Object) StringJoint(id int16, spaces string) string {
 	j := obj.Joints[id]
 	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
-		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.HaveInverse, j.InvId, j.UnkCoeef, j.Name,
+		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
 		spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
 		spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
 		spaces, obj.Vectors7[j.Id])
@@ -164,7 +166,7 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 			Parent:      int16(binary.LittleEndian.Uint16(jointBuf[0x8:0xa])),
 			UnkCoeef:    math.Float32frombits(binary.LittleEndian.Uint32(jointBuf[0xc:0x10])),
 			Id:          int16(i),
-			HaveInverse: isInvMat,
+			IsSkinned:   isInvMat,
 			InvId:       invid,
 		}
 
@@ -248,7 +250,7 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
 	}
 
-	log.Printf("%s\n%s", s, obj.StringTree())
+	//log.Printf("%s\n%s", s, obj.StringTree())
 
 	return obj, nil
 }
@@ -256,21 +258,26 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 func (obj *Object) FeelJoints() {
 	for i := range obj.Joints {
 		j := &obj.Joints[i]
-		if j.HaveInverse {
+		j.ParentToJoint = obj.Matrixes1[i]
+
+		if j.IsSkinned {
 			j.BindToJointMat = obj.Matrixes3[j.InvId]
 		} else {
-			if j.Parent != JOINT_CHILD_NONE {
-				//j.BindToJointMat = obj.Joints[j.Parent].BindToJointMat.Inv().Mul4(obj.Matrixes1[i]).Inv()
-				j.BindToJointMat = obj.Joints[j.Parent].BindToJointMat
-			} else {
-				//j.BindToJointMat = obj.Matrixes1[i].Inv()
-				j.BindToJointMat = mgl32.Ident4()
-			}
+			j.BindToJointMat = mgl32.Ident4()
 		}
 
-		j.JointToIdleMat = obj.Matrixes1[i]
+		j.OurJointToIdleMat = j.ParentToJoint
+		if j.Parent != JOINT_CHILD_NONE {
+			j.OurJointToIdleMat = obj.Joints[j.Parent].OurJointToIdleMat.Mul4(j.ParentToJoint)
+		}
 
-		j.BindToIdleMat = j.BindToJointMat.Mul4(j.JointToIdleMat)
+		diff := float64(0)
+		for v := range j.BindToJointMat {
+			diff += float64(j.BindToJointMat[v]) - float64(j.OurJointToIdleMat.Inv()[v])
+		}
+		log.Printf("diff %f", diff)
+
+		j.RenderMat = j.OurJointToIdleMat.Mul4(j.BindToJointMat)
 	}
 }
 

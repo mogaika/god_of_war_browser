@@ -18,26 +18,10 @@ type Instance struct {
 	Object    string
 	Id        uint16
 	Params    uint16
-	Position1 mgl32.Vec4 // for dynamic objects ??
-	/*
-		pos1 used by
-		- movable objects
-		- animated in main-menu
-		- static objects in ATHN01A.WAD
-		not used by
-		- savepoint position
-		- water
-		- chests positions
-		- animated in ATHN01A.WAD
-	*/
-	Rotation  mgl32.Vec4 // rotation of object
-	Position2 mgl32.Vec4 // for static objects ??
-	/*
-		affects all objects
-		except loaded from perm file
-		Probably this is rendering collider position?
-	*/
-	Unk [3]uint32
+	Position1 mgl32.Vec4 // global position?. need transform object by this?
+	Rotation  mgl32.Vec4 // rotation of object (euler)
+	Position2 mgl32.Vec4 // world-relative position? for visibility check mby>???
+	Unk       [3]uint32
 }
 
 func NewFromData(fmat io.ReaderAt) (*Instance, error) {
