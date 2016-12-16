@@ -19,9 +19,10 @@ function setTitle(viewHeh, title) {
     $(viewHeh).children(".view-item-title").text(title);
 }
 
-function setLocation(hash) {
+function setLocation(title, hash) {
+	$("head title").text(title);
 	if (window.history.pushState) {
-		window.history.pushState(null, null, hash);
+		window.history.pushState(null, title, hash);
 	} else {
 		window.location.hash = hash;
 	}
@@ -106,7 +107,7 @@ function treeLoadWad(data) {
 	if (defferedLoadingWadNode) {
 		treeLoadWadNode(data.Name, parseInt(defferedLoadingWadNode));
 	} else {
-		setLocation('#/' + data.Name);
+		setLocation(data.Name, '#/' + data.Name);
 	}
 	
     $('#view-tree ol li label').click(function(ev) {
@@ -118,17 +119,19 @@ function treeLoadWad(data) {
 
 function treeLoadWadNode(wad, nodeid) {
     dataSummary.empty();
-	setLocation('#/' + wad + '/' + nodeid);
-	
+
     $.getJSON('/json/pack/' + wad +'/' + nodeid, function(resp) {
         var data = resp.Data;
         var node = resp.Node;
+
         if (resp.error) {
             set3dVisible(false);
             setTitle(viewSummary, 'Error');
             dataSummary.append(resp.error);
         } else {
             setTitle(viewSummary, node.Name);
+
+			setLocation(wad + " => " + node.Name, '#/' + wad + '/' + nodeid);
 
             switch (node.Format) {
                 case 0x00000007: // txr
@@ -146,6 +149,12 @@ function treeLoadWadNode(wad, nodeid) {
                 case 0x00040001: // obj
                     summaryLoadWadObj(data);
                     break;
+                case 0x80000001: // cxt
+                    summaryLoadWadCxt(data);
+                    break;
+                case 0x00020001: // gameObject
+                    summaryLoadWadGameObject(data);
+                    break;
                 case 0x0000000c: // gfx pal
                 default:
                     set3dVisible(false);
@@ -161,7 +170,7 @@ function loadMeshFromAjax(model, data) {
     for (var iPart in data.Parts) {
         var part = data.Parts[iPart];
         for (var iGroup in part.Groups) {
-            var group = part.Groups[iGroup]
+            var group = part.Groups[iGroup];
             for (var iObject in group.Objects) {
                 var object = group.Objects[iObject];
                 for (var iPacket in object.Packets) {
@@ -215,7 +224,6 @@ function loadMeshFromAjax(model, data) {
 								m_textures[j] = block.Uvs.U[i];
 								m_textures[j+1] = block.Uvs.V[i];
 							}
-							
 							mesh.setUVs(m_textures, object.MaterialId);							
                         }
 						
@@ -253,39 +261,40 @@ function summaryLoadWadMesh(data) {
 	
 	loadMeshFromAjax(mdl, data);
 	
-	console.log("mdl", mdl, data);
-	
 	gr_instance.models.push(mdl);
-    
     gr_instance.requestRedraw();
 }
 
-function loadMdlFromAjax(mdl, matrix, skelet) {
-	var textrs = [];
-    for (var i in mdl.Materials) {
-        var txrs = mdl.Materials[i].Textures;
-        if (txrs && txrs.length && txrs[0]) {
-            var imgs = txrs[0].Images;
+function loadMdlFromAjax(mdl, data) {
+	if (data.Meshes && data.Meshes.length) {
+		loadMeshFromAjax(mdl, data.Meshes[0]);
+	}
+
+	for (var i in data.Materials) {
+		var material = new grMaterial();
+		
+        var textures = data.Materials[i].Textures;
+		var rawMat = data.Materials[i].Mat;
+		if (rawMat && rawMat.Color) {
+			material.setColor(rawMat.Color);
+		}
+        if (textures && textures.length && textures[0]) {
+            var imgs = textures[0].Images;
             if (imgs && imgs.length && imgs[0]) {
-				console.log(txrs);
-                textrs.push(LoadTexture(i, 'data:image/png;base64,' + imgs[0].Image, txrs[0].HaveTransparent));
+				material.setDiffuse(new grTexture('data:image/png;base64,' + imgs[0].Image));
             }
-        } else {
-            textrs.push(null);
         }
-    }
-    
-    if (mdl.Meshes && mdl.Meshes.length) {
-		return new Model(loadMeshFromAjax(mdl.Meshes[0], textrs), matrix, skelet);
-    } else {
-        console.info('no meshes in mdl', mdl);
+		
+		mdl.addMaterial(material);
     }
 }
 
 function summaryLoadWadMdl(data) {
+	gr_instance.destroyModels();
     set3dVisible(true);
-    reset3d();
     
+	var mdl = new grModel();
+    	
     var table = $('<table>');
     if (data.Raw) {
         $.each(data.Raw, function(k, val) {
@@ -303,11 +312,10 @@ function summaryLoadWadMdl(data) {
     }
     dataSummary.append(table);
     
-	loadMdlFromAjax(data);
-    
-    console.log(textureIdMap, 'after loading');
-    
-    redraw3d();
+	loadMdlFromAjax(mdl, data);
+	
+	gr_instance.models.push(mdl);    
+    gr_instance.requestRedraw();
 }
 
 function summaryLoadWadTxr(data) {
@@ -387,24 +395,29 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
+function loadObjFromAjax(mdl, data) {
+	loadMdlFromAjax(mdl, data.Model);
+	//mdl.matrix = mat4.clone(data.Data.Joints[0].ParentToJoint);
+	mdl.loadSkeleton(data.Data.Joints);
+}
+
 function summaryLoadWadObj(data) {
-	console.log(data);
-	set3dVisible(true);
-	reset3d();
+	gr_instance.destroyModels();
 
     var jointsTable = $('<table>');
 
 	$.each(data.Data.Joints, function(joint_id, joint) {
 		var row = $('<tr>').append(
-			$('<td>').append(joint.Id).attr("rowspan", 6*2)
+			$('<td>').append(joint.Id).attr("rowspan", 7*2)
 		);
 		
 		for (var k in joint) {
 			if (k === "Name"
-				|| k === "HaveInverse"
-				|| k === "JointToIdleMat"
-				|| k === "BindToIdleMat"
+				|| k === "IsSkinned"
+				|| k === "OurJointToIdleMat"
+				|| k === "ParentToJoint"
 				|| k === "BindToJointMat"
+				|| k === "RenderMat"
 				|| k === "Parent") {
 				row.append($('<td>').text(k));
 				jointsTable.append(row);
@@ -412,18 +425,56 @@ function summaryLoadWadObj(data) {
 				var row = $('<tr>');
 			}
 		}
-		
-		
 		jointsTable.append(row);
 	});
 	dataSummary.append(jointsTable);
 	
 	if (data.Model) {
-		var mdl = loadMdlFromAjax(data.Model, data.Data.Joints[0].BindToIdleMat);
-		redraw3d();
+    	set3dVisible(true);
+    
+		var mdl = new grModel();
+		loadObjFromAjax(mdl, data);
+		
+		gr_instance.models.push(mdl);    
+	    gr_instance.requestRedraw();
 	} else {
 		set3dVisible(false);
 	}
+}
+
+
+function summaryLoadWadGameObject(data) {
+	gr_instance.destroyModels();
+	set3dVisible(false);
+    var table = $('<table>');
+	for (var k in data) {
+		table.append($('<tr>').append($('<td>').text(k)).append($('<td>').text(JSON.stringify(data[k]))));
+	}
+	dataSummary.append(table);
+}
+
+function summaryLoadWadCxt(data) {
+	//console.log("cxt", data);
+	gr_instance.destroyModels();
+   	set3dVisible(true);
+   
+	for (var i in data.Instances) {
+		var inst = data.Instances[i];
+		var obj = data.Objects[inst.Object];
+		//console.log(inst, obj);
+		if (obj && obj.Model) {
+			var mdl = new grModel();
+			loadObjFromAjax(mdl, obj);
+			var rot = quat.fromEuler(quat.create(), inst.Rotation[0], inst.Rotation[1], inst.Rotation[2]);
+			var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
+			//mdl.matrix = mat4.translate(mat4.create(), mdl.matrix, instMat);
+			mdl.matrix = instMat;
+			
+			gr_instance.models.push(mdl);
+		}
+	}
+	
+    gr_instance.requestRedraw();
 }
 
 $(document).ready(function(){

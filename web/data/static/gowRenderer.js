@@ -5,6 +5,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.refs = 0;
 	this.indexesCount = indexArray.length;
 	this.primitive = (!!primitive) ? primitive : gl.TRIANGLES;
+	this.isDepthTested = true;
 	
 	this.bufferVertex = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferVertex);
@@ -20,6 +21,10 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.bufferNormals = undefined;
 	this.bufferJointIds = undefined;
 	this.materialIndex = undefined;
+}
+
+grMesh.prototype.setDepthTest = function(isDepthTested) {
+	this.isDepthTested = isDepthTested;
 }
 
 grMesh.prototype.setBlendColors = function(data) {
@@ -80,30 +85,120 @@ grModel.prototype.addMesh = function(mesh) {
 	this.meshes.push(mesh);
 }
 
+grModel.prototype.addMaterial = function(material) {
+	material.claim();
+	this.materials.push(material);
+}
+
+function mshFromSklt(sklt, key="OurJointToIdleMat") {
+	var vrtxs = [];
+	var indxs = [];
+	var idx = 0;
+	
+	for (var i in sklt) {
+		var joint = sklt[i];
+		if (joint.Parent >= 0) {
+			var pJoint = sklt[joint.Parent];
+			vrtxs.push(pJoint[key][12]);
+			vrtxs.push(pJoint[key][13]);
+			vrtxs.push(pJoint[key][14]);
+			
+			vrtxs.push(joint[key][12]);
+			vrtxs.push(joint[key][13]);
+			vrtxs.push(joint[key][14]);
+			
+			indxs.push(idx);
+			indxs.push(idx+1);
+			idx += 2;
+		}
+	}
+	
+	var sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
+	sklMesh.setDepthTest(false);
+	return sklMesh;
+}
+
+grModel.prototype.loadSkeleton = function(sklt) {
+	this.addMesh(mshFromSklt(sklt,"RenderMat"));
+	this.skeleton = [];
+	for (var i in sklt) {
+		this.skeleton.push(new Float32Array(sklt[i].RenderMat));
+	}
+}
+
 grModel.prototype.free = function() {
 	for (var i in this.meshes) { this.meshes[i].unclaim(); }
 	for (var i in this.materials) { this.materials[i].unclaim(); }
 }
 
+function grTexture__handleLoading(img, txr) {
+	if (!txr.loaded) {
+		txr.txr = gl.createTexture();
+	}
+	gl.bindTexture(gl.TEXTURE_2D, txr.txr);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+	gl.generateMipmap(gl.TEXTURE_2D);
+	gl.bindTexture(gl.TEXTURE_2D, null);
+	txr.loaded = true;
+}
+
+function grTexture(src, wait = false) {
+	this.loaded = wait;
+	this.txr = undefined;
+	
+	if (wait) {
+		this.txr = gl.createTexture();
+		// pink placeholder
+		gl.bindTexture(gl.TEXTURE_2D, this.txr);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 0, 255, 128]));
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	}
+	
+    var img = new Image();
+    img.src = src;
+	var _this = this;
+    img.onload = function() {
+		grTexture__handleLoading(img, _this);
+		gr_instance.requestRedraw();
+    };
+}
+
+grTexture.prototype.free = function() { if (this.txr) gl.deleteTexture(this.txr); }
+grTexture.prototype.get = function() { return this.loaded ? this.txr : gr_instance.emptyTexture.get(); }
+
 function grMaterial() {
 	this.refs = 0;
+	this.color = [1,1,1,1];
+	this.textureDiffuse = undefined;
+}
+
+grMaterial.prototype.setColor = function(color) {
+	this.color = color;
+}
+
+grMaterial.prototype.setDiffuse = function(txtr) {
+	this.textureDiffuse = txtr;
 }
 
 grMaterial.prototype.claim = function() { this.refs ++; }
-grMaterial.prototype.unclaim = function() { if (--this.refs === 0) this.free(); }
+grMaterial.prototype.unclaim = function() { if (--this.refs == 0) { this.free(); }}
+
+grMaterial.prototype.free = function() {
+	if (this.textureDiffuse) { this.textureDiffuse.free(); }
+}
 
 function grCameraTargeted() {
-	this.farPlane = 20000.0;
+	this.farPlane = 50000.0;
 	this.nearPlane = 1.0;
 	this.fow = 55.0;
 	this.target = [0, 0, 0];
 	this.distance = 100.0;
-	this.rotation = [45.0, -45.0, 0];
+	this.rotation = [15.0, 45.0*3, 0];
 }
 
 grCameraTargeted.prototype.getProjViewMatrix = function() {
     var projMatrix = mat4.create();
-    mat4.perspective(projMatrix, glMatrix.toRadian(45), gr_instance.rectX/gr_instance.rectY, this.nearPlane,this.farPlane);
+    mat4.perspective(projMatrix, glMatrix.toRadian(this.fow), gr_instance.rectX/gr_instance.rectY, this.nearPlane,this.farPlane);
     
 	var viewMatrix = mat4.create();
     mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -this.distance]);
@@ -163,6 +258,7 @@ function grController(viewDomObject) {
 	this.rectY = gl.canvas.height;
 	this.mouseDown = [false, false];
 	this.mouseLastPos = [0, 0];
+	this.emptyTexture = new grTexture("/static/emptytexture.png", true);
 	
 	window.requestAnimationFrame = (function() {
 		return window.requestAnimationFrame ||
@@ -211,7 +307,7 @@ function gwInitRenderer(viewDomObject) {
 		return;
 	}
 	gr_instance = new grController(viewDomObject);
-	gr_instance.changeRenderChain(grRenderChain_VertexColor);
+	gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
 	gr_instance.onResize();
 	gr_instance.requestRedraw();
 }

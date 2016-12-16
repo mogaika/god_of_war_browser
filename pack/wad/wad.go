@@ -229,9 +229,9 @@ func NewWad(r io.ReaderAt, name string) (*Wad, error) {
 		case 0x0071: // TWK_Cloth_195
 		case 0x0072: // TWK_CombatFile_328
 		case 0x01f4: // RSRCS
+		case 0x029a: // file data start
 		case 0x0378: // file header start
 		case 0x03e7: // file header pop heap
-		case 0x029a: // file data start
 		default:
 			log.Printf("unknown wad tag %.4x size %.8x name %s", tag, size, name)
 			return nil, fmt.Errorf("unknown tag")
