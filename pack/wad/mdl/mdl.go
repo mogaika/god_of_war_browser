@@ -10,6 +10,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_mat "github.com/mogaika/god_of_war_browser/pack/wad/mat"
 	file_mesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
+	file_scr "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 )
 
 type Model struct {
@@ -51,29 +52,34 @@ type Ajax struct {
 	Raw       *Model
 	Meshes    []*file_mesh.Mesh
 	Materials []interface{}
+	Scripts   []interface{}
 	Other     []interface{}
 }
 
 func (mdl *Model) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := &Ajax{Raw: mdl}
 	for _, i := range node.SubNodes {
-		if nd := wad.Node(i); nd.Name[0] != ' ' {
-			sn, err := wad.Get(i)
-			if err != nil {
-				return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, wad.Node(i).Name, err)
-			} else {
-				switch sn.(type) {
-				case *file_mesh.Mesh:
-					res.Meshes = append(res.Meshes, sn.(*file_mesh.Mesh))
-				case *file_mat.Material:
-					mat, err := sn.(*file_mat.Material).Marshal(wad, wad.Nodes[i])
-					if err != nil {
-						return nil, fmt.Errorf("Error when getting material info %d-'%s': %v", i, wad.Node(i).Name, err)
-					}
-					res.Materials = append(res.Materials, mat)
-				default:
-					res.Other = append(res.Other, "Unknown interface of "+reflect.TypeOf(sn).Name())
+		sn, err := wad.Get(i)
+		if err != nil {
+			return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, wad.Node(i).Name, err)
+		} else {
+			switch sn.(type) {
+			case *file_mesh.Mesh:
+				res.Meshes = append(res.Meshes, sn.(*file_mesh.Mesh))
+			case *file_mat.Material:
+				mat, err := sn.(*file_mat.Material).Marshal(wad, wad.Nodes[i])
+				if err != nil {
+					return nil, fmt.Errorf("Error when getting material info %d-'%s': %v", i, wad.Node(i).Name, err)
 				}
+				res.Materials = append(res.Materials, mat)
+			case *file_scr.ScriptParams:
+				scr, err := sn.(*file_scr.ScriptParams).Marshal(wad, wad.Nodes[i])
+				if err != nil {
+					return nil, fmt.Errorf("Error when getting script info %d-'%s': %v", i, wad.Node(i).Name, err)
+				}
+				res.Scripts = append(res.Scripts, scr)
+			default:
+				res.Other = append(res.Other, "Unknown interface of "+reflect.TypeOf(sn).Name())
 			}
 		}
 	}

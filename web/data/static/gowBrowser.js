@@ -101,8 +101,28 @@ function treeLoadWad(data) {
     
     setTitle(viewTree, data.Name);
     
-    if (data.Roots)
+    if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
+		
+		if (!defferedLoadingWadNode) {
+			set3dVisible(true);
+			gr_instance.destroyModels();
+			for (var sn in data.Roots) {
+				var node = data.Nodes[data.Roots[sn]];
+				if (node.Name.startsWith("CXT_") && node.Format == 0x80000001) {
+					$.getJSON('/json/pack/' + data.Name +'/' + node.Id, function(resp) {
+						var data = resp.Data;
+						var node = resp.Node;
+						if (node.Format == 0x80000001) {
+							loadCxtFromAjax(data);
+							gr_instance.requestRedraw();
+						}
+						console.log("loaded wad part: " + node.Name); 
+					});
+				}
+			}
+		}
+	}
     
 	if (defferedLoadingWadNode) {
 		treeLoadWadNode(data.Name, parseInt(defferedLoadingWadNode));
@@ -173,7 +193,7 @@ function loadMeshFromAjax(model, data) {
             var group = part.Groups[iGroup];
             for (var iObject in group.Objects) {
                 var object = group.Objects[iObject];
-                for (var iPacket in object.Packets) {
+				for (var iPacket in object.Packets) {
                     var packet = object.Packets[iPacket];
                     for (var iBlock in packet.Blocks) {
                         var block = packet.Blocks[iBlock];
@@ -203,7 +223,6 @@ function loadMeshFromAjax(model, data) {
                         if (block.Blend.R && block.Blend.R.length) {
                             var m_colors = [];
                             m_colors.length = block.Blend.R.length * 4;
-                            
                             for (var i in block.Blend.R) {
                                 var j = i * 4;
                                 m_colors[j] = block.Blend.R[i];
@@ -241,8 +260,8 @@ function loadMeshFromAjax(model, data) {
 							mesh.setNormals(m_normals);							
                         }
 						
-						if (block.Joints && block.Joints.length) {
-							mesh.setJointIds(block.Joints);
+						if (block.Joints && block.Joints.length && object.JointMapper && object.JointMapper.length) {
+							mesh.setJointIds(block.Joints, object.JointMapper);
 						}
                         
                         model.addMesh(mesh);
@@ -265,7 +284,7 @@ function summaryLoadWadMesh(data) {
     gr_instance.requestRedraw();
 }
 
-function loadMdlFromAjax(mdl, data) {
+function loadMdlFromAjax(mdl, data, parseScripts=false) {
 	if (data.Meshes && data.Meshes.length) {
 		loadMeshFromAjax(mdl, data.Meshes[0]);
 	}
@@ -282,11 +301,25 @@ function loadMdlFromAjax(mdl, data) {
             var imgs = textures[0].Images;
             if (imgs && imgs.length && imgs[0]) {
 				material.setDiffuse(new grTexture('data:image/png;base64,' + imgs[0].Image));
+				material.setHasAlphaAttribute(textures[0].HaveTransparent);
             }
         }
-		
 		mdl.addMaterial(material);
     }
+	
+	if (parseScripts) {
+		for (var i in data.Scripts) {
+			var scr = data.Scripts[i];
+			switch (scr.TargetScript) {
+				case "SCR_Sky":
+					mdl.setType("sky");
+					break;
+				default:
+					console.warn("Unknown SCR target: " + scr.TargetScript, data, mdl, scr);
+					break;
+			}
+		}
+	}
 }
 
 function summaryLoadWadMdl(data) {
@@ -395,9 +428,8 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
-function loadObjFromAjax(mdl, data) {
-	loadMdlFromAjax(mdl, data.Model);
-	//mdl.matrix = mat4.clone(data.Data.Joints[0].ParentToJoint);
+function loadObjFromAjax(mdl, data, parseScripts=false) {
+	loadMdlFromAjax(mdl, data.Model, parseScripts);
 	mdl.loadSkeleton(data.Data.Joints);
 }
 
@@ -407,9 +439,11 @@ function summaryLoadWadObj(data) {
     var jointsTable = $('<table>');
 
 	$.each(data.Data.Joints, function(joint_id, joint) {
-		var row = $('<tr>').append(
-			$('<td>').append(joint.Id).attr("rowspan", 7*2)
-		);
+		var row = $('<tr>').append($('<td>').attr('style','background-color:rgb('+
+						parseInt((joint.Id % 8) * 15) + ',' +
+						parseInt(((joint.Id / 8) % 8) * 15) + ',' +
+						parseInt(((joint.Id / 64) % 8) * 15) + ');')
+						.append(joint.Id).attr("rowspan", 7*2));
 		
 		for (var k in joint) {
 			if (k === "Name"
@@ -453,26 +487,28 @@ function summaryLoadWadGameObject(data) {
 	dataSummary.append(table);
 }
 
-function summaryLoadWadCxt(data) {
-	//console.log("cxt", data);
-	gr_instance.destroyModels();
-   	set3dVisible(true);
-   
+function loadCxtFromAjax(data, parseScripts=true) {
 	for (var i in data.Instances) {
 		var inst = data.Instances[i];
 		var obj = data.Objects[inst.Object];
-		//console.log(inst, obj);
 		if (obj && obj.Model) {
 			var mdl = new grModel();
-			loadObjFromAjax(mdl, obj);
-			var rot = quat.fromEuler(quat.create(), inst.Rotation[0], inst.Rotation[1], inst.Rotation[2]);
+			loadObjFromAjax(mdl, obj, true);
+			var rs = 180.0/Math.PI;
+			var rot = quat.fromEuler(quat.create(), inst.Rotation[0]*rs, inst.Rotation[1]*rs, inst.Rotation[2]*rs);
 			var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
-			//mdl.matrix = mat4.translate(mat4.create(), mdl.matrix, instMat);
 			mdl.matrix = instMat;
 			
 			gr_instance.models.push(mdl);
 		}
 	}
+}
+
+function summaryLoadWadCxt(data) {
+	gr_instance.destroyModels();
+   	set3dVisible(true);
+   
+	loadCxtFromAjax(data);
 	
     gr_instance.requestRedraw();
 }
