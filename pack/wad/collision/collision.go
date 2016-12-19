@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
-	"github.com/mogaika/god_of_war_tools/utils"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 const ENZ_MAGIC = 0x00000011
