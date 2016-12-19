@@ -18,9 +18,9 @@ type Instance struct {
 	Object    string
 	Id        uint16
 	Params    uint16
-	Position1 mgl32.Vec4 // global position?. need transform object by this?
-	Rotation  mgl32.Vec4 // rotation of object (euler)
-	Position2 mgl32.Vec4 // world-relative position? for visibility check mby>???
+	Position1 mgl32.Vec4 // object translation. need transform object by this
+	Rotation  mgl32.Vec4 // rotation of object (euler, rads)
+	Position2 mgl32.Vec4 // world-relative position for visibility check mby>???
 	Unk       [3]uint32
 }
 

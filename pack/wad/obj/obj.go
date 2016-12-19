@@ -66,11 +66,13 @@ type Object struct {
 
 func (obj *Object) StringJoint(id int16, spaces string) string {
 	j := obj.Joints[id]
-	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
-		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
-		spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
-		spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
-		spaces, obj.Vectors7[j.Id])
+	/*return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
+	spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
+	spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
+	spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
+	spaces, obj.Vectors7[j.Id])
+	*/
+	return fmt.Sprintf("[%.4x]%s %s\n", j.Id, spaces, j.Name)
 }
 
 func (obj *Object) StringTree() string {
@@ -98,7 +100,7 @@ func (obj *Object) StringTree() string {
 			} else {
 				stack = append(stack, j.ChildsEnd)
 			}
-			spaces += "  "
+			spaces += " -"
 		}
 	}
 	return buffer.String()
@@ -250,7 +252,7 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
 	}
 
-	//log.Printf("%s\n%s", s, obj.StringTree())
+	log.Printf("%s\n%s", s, obj.StringTree())
 
 	return obj, nil
 }
@@ -271,13 +273,11 @@ func (obj *Object) FeelJoints() {
 			j.OurJointToIdleMat = obj.Joints[j.Parent].OurJointToIdleMat.Mul4(j.ParentToJoint)
 		}
 
-		diff := float64(0)
-		for v := range j.BindToJointMat {
-			diff += float64(j.BindToJointMat[v]) - float64(j.OurJointToIdleMat.Inv()[v])
+		if j.IsSkinned {
+			j.RenderMat = j.OurJointToIdleMat.Mul4(j.BindToJointMat)
+		} else {
+			j.RenderMat = j.OurJointToIdleMat
 		}
-		log.Printf("diff %f", diff)
-
-		j.RenderMat = j.OurJointToIdleMat.Mul4(j.BindToJointMat)
 	}
 }
 

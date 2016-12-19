@@ -6,6 +6,15 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.indexesCount = indexArray.length;
 	this.primitive = (!!primitive) ? primitive : gl.TRIANGLES;
 	this.isDepthTested = true;
+	this.hasAlpha = false;
+	
+	// construct array of unique indexes
+	this.usedIndexes = [];
+    for (var i in indexArray) {
+        if (this.usedIndexes.indexOf(indexArray[i]) === -1) {
+            this.usedIndexes.push(indexArray[i]);
+		}
+	}
 	
 	this.bufferVertex = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferVertex);
@@ -20,6 +29,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.bufferUV = undefined;
 	this.bufferNormals = undefined;
 	this.bufferJointIds = undefined;
+	this.jointMapping = undefined;
 	this.materialIndex = undefined;
 }
 
@@ -31,6 +41,16 @@ grMesh.prototype.setBlendColors = function(data) {
 	if (!this.bufferBlendColor) {
 		this.bufferBlendColor = gl.createBuffer();
 	}
+	this.hasAlpha = false;
+	
+	for (var i in this.usedIndexes) {
+		if (data[this.usedIndexes[i] * 4 + 3] < 127) {
+			this.hasAlpha = true;
+			//console.log("mesh hasAlpha detected from ", this, "by ", i, "index");
+			break;
+		}
+	}
+	
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferBlendColor);
 	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(data), gl.STATIC_DRAW);
 }
@@ -52,12 +72,13 @@ grMesh.prototype.setNormals = function(data) {
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
 }
 
-grMesh.prototype.setJointIds = function(data) {
+grMesh.prototype.setJointIds = function(jointIds, jointMapping) {
 	if (!this.bufferJointIds) {
 		this.bufferJointIds = gl.createBuffer();
 	}
+	this.jointMapping = jointMapping;
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds);
-	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(data), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds), gl.STATIC_DRAW);
 }
 
 grMesh.prototype.free = function() {
@@ -78,6 +99,11 @@ function grModel() {
 	this.materials = [];
 	this.skeleton = undefined;
 	this.matrix = mat4.create();
+	this.type = undefined;
+}
+
+grModel.prototype.setType = function(type) {
+	this.type = type;
 }
 
 grModel.prototype.addMesh = function(mesh) {
@@ -93,34 +119,37 @@ grModel.prototype.addMaterial = function(material) {
 function mshFromSklt(sklt, key="OurJointToIdleMat") {
 	var vrtxs = [];
 	var indxs = [];
-	var idx = 0;
+	var clrs = [];
+	
+	vrtxs.length = 3 * sklt.length;
+	clrs.length = 4 * sklt.length;
 	
 	for (var i in sklt) {
 		var joint = sklt[i];
+		vrtxs[i*3+0] = joint[key][12];
+		vrtxs[i*3+1] = joint[key][13];
+		vrtxs[i*3+2] = joint[key][14];
+		clrs[i*4+0] = (i % 8) * 15;
+		clrs[i*4+1] = ((i / 8) % 8) * 15;
+		clrs[i*4+2] = ((i / 64) % 8) * 15;
+		clrs[i*4+3] = 127;
+		
 		if (joint.Parent >= 0) {
-			var pJoint = sklt[joint.Parent];
-			vrtxs.push(pJoint[key][12]);
-			vrtxs.push(pJoint[key][13]);
-			vrtxs.push(pJoint[key][14]);
-			
-			vrtxs.push(joint[key][12]);
-			vrtxs.push(joint[key][13]);
-			vrtxs.push(joint[key][14]);
-			
-			indxs.push(idx);
-			indxs.push(idx+1);
-			idx += 2;
+			indxs.push(joint.Parent);
+			indxs.push(i);
 		}
 	}
 	
 	var sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
 	sklMesh.setDepthTest(false);
+	sklMesh.setBlendColors(clrs);
 	return sklMesh;
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-	this.addMesh(mshFromSklt(sklt,"RenderMat"));
+	this.addMesh(mshFromSklt(sklt));
 	this.skeleton = [];
+
 	for (var i in sklt) {
 		this.skeleton.push(new Float32Array(sklt[i].RenderMat));
 	}
@@ -138,6 +167,8 @@ function grTexture__handleLoading(img, txr) {
 	gl.bindTexture(gl.TEXTURE_2D, txr.txr);
 	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 	gl.generateMipmap(gl.TEXTURE_2D);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 	gl.bindTexture(gl.TEXTURE_2D, null);
 	txr.loaded = true;
 }
@@ -170,6 +201,7 @@ function grMaterial() {
 	this.refs = 0;
 	this.color = [1,1,1,1];
 	this.textureDiffuse = undefined;
+	this.hasAlpha = false;
 }
 
 grMaterial.prototype.setColor = function(color) {
@@ -178,6 +210,10 @@ grMaterial.prototype.setColor = function(color) {
 
 grMaterial.prototype.setDiffuse = function(txtr) {
 	this.textureDiffuse = txtr;
+}
+
+grMaterial.prototype.setHasAlphaAttribute = function(alpha=true) {
+	this.hasAlpha = alpha;
 }
 
 grMaterial.prototype.claim = function() { this.refs ++; }
@@ -196,21 +232,21 @@ function grCameraTargeted() {
 	this.rotation = [15.0, 45.0*3, 0];
 }
 
-grCameraTargeted.prototype.getProjViewMatrix = function() {
-    var projMatrix = mat4.create();
-    mat4.perspective(projMatrix, glMatrix.toRadian(this.fow), gr_instance.rectX/gr_instance.rectY, this.nearPlane,this.farPlane);
-    
+grCameraTargeted.prototype.getProjectionMatrix = function() {
+	return mat4.perspective(mat4.create(), glMatrix.toRadian(this.fow), gr_instance.rectX/gr_instance.rectY, this.nearPlane,this.farPlane);
+}
+
+grCameraTargeted.prototype.getViewMatrix = function() {
 	var viewMatrix = mat4.create();
     mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -this.distance]);
     mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[0]), [1, 0, 0]);
     mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[1]), [0, 1, 0]);
 	mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[2]), [0, 0, 1]);
-	mat4.translate(viewMatrix, viewMatrix, [-this.target[0], -this.target[1], -this.target[2]]);
-    
-    var projViewMatrix = mat4.create();
-    mat4.mul(projViewMatrix, projMatrix, viewMatrix);
-	
-	return projViewMatrix;
+	return mat4.translate(viewMatrix, viewMatrix, [-this.target[0], -this.target[1], -this.target[2]]);
+}
+
+grCameraTargeted.prototype.getProjViewMatrix = function() {
+    return mat4.mul(mat4.create(), this.getProjectionMatrix(), this.getViewMatrix());
 }
 
 grCameraTargeted.prototype.onMouseWheel = function(delta) {
@@ -321,7 +357,7 @@ grController.prototype.changeRenderChain = function(chainType) {
 grController.prototype.onResize = function() {
 	gl.canvas.width = this.rectX = gl.canvas.clientWidth;
 	gl.canvas.height = this.rectY = gl.canvas.clientHeight;
-	gl.viewport(0,0, this.rectX,this.rectY);
+	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
 }
 grController.prototype._onResize = function() { gr_instance.onResize(); gr_instance.requestRedraw(); }
 

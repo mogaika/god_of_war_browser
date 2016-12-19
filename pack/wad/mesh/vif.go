@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 type stBlock struct {
@@ -114,16 +115,26 @@ func VifRead1(vif []byte, debug_off uint32, debugOut io.Writer) (error, []*stBlo
 						handledBy = "meta"
 						for i := byte(0); i < pk_num; i++ {
 							bp := pos + uint32(i)*0x10
-							fmt.Fprintf(debugOut, "%s -  %.6x = %.4x %.4x %.4x %.4x  %.4x %.4x %.4x %.4x\n", spaces, debug_off+bp,
-								binary.LittleEndian.Uint16(vif[bp:bp+2]), binary.LittleEndian.Uint16(vif[bp+2:bp+4]),
-								binary.LittleEndian.Uint16(vif[bp+4:bp+6]), binary.LittleEndian.Uint16(vif[bp+6:bp+8]),
-								binary.LittleEndian.Uint16(vif[bp+8:bp+10]), binary.LittleEndian.Uint16(vif[bp+10:bp+12]),
-								binary.LittleEndian.Uint16(vif[bp+12:bp+14]), binary.LittleEndian.Uint16(vif[bp+14:bp+16]))
+							fmt.Fprintf(debugOut, "%s -  %.6x = ", spaces, debug_off+bp)
+							for i := uint32(0); i < 16; i += 4 {
+								fmt.Fprintf(debugOut, "%.8x ", binary.LittleEndian.Uint32(vif[bp+i:bp+i+4]))
+							}
+							fmt.Fprintf(debugOut, "\n")
 						}
 						switch target {
 						case 0x000, 0x155, 0x2ab:
 							block_data_vertex_meta = vif[pos : pos+blocksize]
 							handledBy = "vmta"
+						default:
+							for i := byte(0); i < pk_num; i++ {
+								bp := pos + uint32(i)*0x10
+								fmt.Fprintf(debugOut, "%s -  %.6x = ", spaces, debug_off+bp)
+								for i := uint32(0); i < 16; i += 4 {
+									fmt.Fprintf(debugOut, "%.f  ", math.Float32frombits(binary.LittleEndian.Uint32(vif[bp+i:bp+i+4])))
+								}
+								fmt.Fprintf(debugOut, "\n")
+							}
+
 						}
 					case 2:
 						handledBy = " uv4"
@@ -239,8 +250,10 @@ func VifRead1(vif []byte, debug_off uint32, debugOut io.Writer) (error, []*stBlo
 					currentBlock.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp:bp+2]))) / GSFixed12Point4Delimeter
 					currentBlock.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp+2:bp+4]))) / GSFixed12Point4Delimeter
 					currentBlock.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(block_data_xyzw[bp+4:bp+6]))) / GSFixed12Point4Delimeter
+					//fmt.Fprintf(debugOut, "%.2x ", block_data_xyzw[bp+7])
 					currentBlock.Trias.Skip[i] = block_data_xyzw[bp+7]&0x80 != 0
 				}
+				//fmt.Fprintf(debugOut, "\n")
 
 				if block_data_uv != nil {
 					switch block_data_uv_width {
@@ -312,7 +325,7 @@ func VifRead1(vif []byte, debug_off uint32, debugOut io.Writer) (error, []*stBlo
 						block_verts := int(block[0])
 
 						for j := 0; j < block_verts; j++ {
-							currentBlock.Joints[vertnum+j] = uint16(block[12]) | (uint16((block[13] / 4)) << 8)
+							currentBlock.Joints[vertnum+j] = uint16(block[13] >> 4)
 						}
 
 						vertnum += block_verts
