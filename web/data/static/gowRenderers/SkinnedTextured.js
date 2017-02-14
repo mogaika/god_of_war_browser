@@ -37,6 +37,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
 	gl.disable(gl.BLEND);
 	gl.depthMask(true);
 	gl.enable(gl.DEPTH_TEST);
+	gl.disable(gl.CULL_FACE);
 	
 	console.log(this);
 }
@@ -82,6 +83,9 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 		gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds);
 		gl.vertexAttribPointer(this.aVertexJointID, 1, gl.BYTE, false, 0, 0);
 	} else {
+		if (!mesh.bufferJointIds && hasJoints) {
+			console.warn("has joints but without jointIdsBuffer", mesh);
+		}
 		gl.uniform1i(this.uUseJoints, 0);
 		gl.disableVertexAttribArray(this.aVertexJointID);
 	}
@@ -99,7 +103,7 @@ grRenderChain_SkinnedTextured.prototype.renderModels = function(ctrl, mdls, filt
 			gl.uniformMatrix4fv(this.umModelTransform, false, mdl.matrix);
 
 			var hasSkelet = useSkelet && !!mdl.skeleton;
-
+			var usedJoints = [];
 			for (var j in mdl.meshes) {
 				var mesh = mdl.meshes[j];
 				
@@ -114,12 +118,28 @@ grRenderChain_SkinnedTextured.prototype.renderModels = function(ctrl, mdls, filt
 					gl.disable(gl.DEPTH_TEST);
 				}
 				
-				if (hasSkelet) {
+				if (hasSkelet && mesh.jointMapping) {
 					for (var i in mesh.jointMapping) {
-						gl.uniformMatrix4fv(this.umJoints[i], false, mdl.skeleton[mesh.jointMapping[i]]);
+						if (i >= 12) {
+							console.warn("jointMap array in shader is overflowed", mesh.jointMapping)
+						}
+						//console.log(mdl.skeleton[mesh.jointMapping[i]], mdl.skeleton, mesh.jointMapping[i]);
+						var jointId = mesh.jointMapping[i];
+						if (usedJoints.indexOf(jointId) < 0) {
+							usedJoints.push(jointId);
+						}
+						if (jointId >= mdl.skeleton.length) {
+							console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.skeleton.length);
+						} else {
+							//console.info(i, mesh.jointMapping[i], mdl.skeleton[mesh.jointMapping[i]]);
+							gl.uniformMatrix4fv(this.umJoints[i], false, mdl.skeleton[jointId]);
+						}						
 					}
+					//console.info("used " + mesh.jointMapping.length + " joint slots");
+				} else {
+					hasSkelet = false;
 				}
-				
+				//console.log(mesh, mesh.materialIndex, mdl.materials);
 				if (mesh.materialIndex != undefined && mdl.materials && mdl.materials.length) {
 					var mat = mdl.materials[mesh.materialIndex];
 					gl.bindTexture(gl.TEXTURE_2D, mat.textureDiffuse.get());
@@ -134,13 +154,14 @@ grRenderChain_SkinnedTextured.prototype.renderModels = function(ctrl, mdls, filt
 				
 				rendered_meshes += 1;
 			}
+			console.log("Used joints", usedJoints.sort(function(a, b){return a - b;}));
 		}
 	}
 	return rendered_meshes;
 }
 
 function __mdl_mesh_has_alpha(mdl, mesh) {
-	return mesh.hasAlpha ; //|| (mesh.materialIndex && mesh.materialIndex < mdl.materials.length && mdl.materials[mesh.materialIndex].hasAlpha);
+	return (mesh.materialIndex && mesh.materialIndex < mdl.materials.length && mdl.materials[mesh.materialIndex].hasAlpha);	
 }
 
 grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
@@ -179,12 +200,15 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
 		
 		gl.disable(gl.BLEND);
 		gl.depthMask(true);
-		rendered_meshes += this.renderModels(ctrl, mdls, function(mdl, mesh) {return !__mdl_mesh_has_alpha(mdl, mesh);});
+		//rendered_meshes += this.renderModels(ctrl, mdls, function(mdl, mesh) {return !__mdl_mesh_has_alpha(mdl, mesh);});
+		rendered_meshes += this.renderModels(ctrl, mdls, function(){return true;});
 		
-		gl.enable(gl.BLEND);
-		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		gl.depthMask(false);
-		rendered_meshes += this.renderModels(ctrl, mdls, __mdl_mesh_has_alpha);
+		//console.log(mdls);
+		
+		//gl.enable(gl.BLEND);
+		//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		//gl.depthMask(false);
+		//rendered_meshes += this.renderModels(ctrl, mdls, __mdl_mesh_has_alpha);
 	}
 	
 	console.log("stats:", rendered_meshes);	

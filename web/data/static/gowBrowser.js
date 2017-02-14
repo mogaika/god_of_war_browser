@@ -178,7 +178,7 @@ function treeLoadWadNode(wad, nodeid) {
                 case 0x0000000c: // gfx pal
                 default:
                     set3dVisible(false);
-                    dataSummary.append(JSON.stringify(data, undefined, 2).replace('\n', '<br>'));
+                    dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replace('\n', '<br>')));
                     break;
             }
             console.log('wad ' + wad + ' file (' + node.Name + ')' + node.Id + ' loaded. format:' + node.Format);
@@ -193,10 +193,12 @@ function loadMeshFromAjax(model, data) {
             var group = part.Groups[iGroup];
             for (var iObject in group.Objects) {
                 var object = group.Objects[iObject];
-				for (var iPacket in object.Packets) {
-                    var packet = object.Packets[iPacket];
-                    for (var iBlock in packet.Blocks) {
-                        var block = packet.Blocks[iBlock];
+				{
+					var iSkin = 0;
+				//for (var iSkin in object.Blocks) {
+                    var skin = object.Blocks[iSkin];
+                    for (var iBlock in skin) {
+                        var block = skin[iBlock];
                         
                         var m_vertexes = [];
                         var m_indexes = [];
@@ -260,7 +262,8 @@ function loadMeshFromAjax(model, data) {
 							mesh.setNormals(m_normals);							
                         }
 						
-						if (block.Joints && block.Joints.length && object.JointMapper && object.JointMapper.length) {
+						if (!!block.Joints && block.Joints.length && !!object.JointMapper && object.JointMapper.length) {
+							console.log(block.Joints, object.JointMapper);
 							mesh.setJointIds(block.Joints, object.JointMapper);
 						}
                         

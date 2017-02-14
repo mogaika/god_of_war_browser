@@ -78,7 +78,7 @@ grMesh.prototype.setJointIds = function(jointIds, jointMapping) {
 	}
 	this.jointMapping = jointMapping;
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds);
-	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Uint16Array(jointIds), gl.STATIC_DRAW);
 }
 
 grMesh.prototype.free = function() {
