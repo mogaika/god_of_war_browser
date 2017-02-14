@@ -7,8 +7,6 @@ import (
 	"image/color"
 	"io"
 	"math"
-	"os"
-	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -218,14 +216,15 @@ func init() {
 			return gfx, err
 		}
 
-		for i := range gfx.Data {
-			fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.gfx.%d.dump", node.Id, node.Name, i))
-			os.MkdirAll(filepath.Dir(fpath), 0777)
-			dump, _ := os.Create(fpath)
-			dump.Write(gfx.Data[i])
-			dump.Close()
-		}
-
+		/*
+			for i := range gfx.Data {
+				fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.gfx.%d.dump", node.Id, node.Name, i))
+				os.MkdirAll(filepath.Dir(fpath), 0777)
+				dump, _ := os.Create(fpath)
+				dump.Write(gfx.Data[i])
+				dump.Close()
+			}
+		*/
 		return gfx, err
 	})
 }
