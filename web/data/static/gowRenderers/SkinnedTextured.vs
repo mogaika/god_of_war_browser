@@ -1,12 +1,12 @@
 attribute highp vec3 aVertexPos;
 attribute lowp vec4 aVertexColor;
 attribute mediump vec2 aVertexUV;
-attribute highp float aVertexJointID;
+attribute mediump float aVertexJointID;
 
 uniform highp mat4 umModelTransform;
 uniform highp mat4 umProjectionView;
 uniform lowp vec4 uMaterialColor;
-uniform highp mat4 umJoints[12];
+uniform mediump mat4 umJoints[12];
 uniform bool uUseJoints;
 uniform bool uUseVertexColor;
 uniform bool uUseModelTransform;

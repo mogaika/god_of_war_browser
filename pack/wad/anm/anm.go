@@ -87,6 +87,14 @@ func (rh *RawHeader) parseRawData(data []byte) error {
 	return nil
 }
 
+func (anm *Animations) ParseAnimations() error {
+	for _, a := range anm.Raw.Anims {
+		anmRaw := anm.Raw.Data[a.Offset:]
+		_ = anmRaw
+	}
+	return nil
+}
+
 func (anm *Animations) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	return anm, nil
 }

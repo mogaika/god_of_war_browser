@@ -7,6 +7,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.primitive = (!!primitive) ? primitive : gl.TRIANGLES;
 	this.isDepthTested = true;
 	this.hasAlpha = false;
+	this.isVisible = true;
 	
 	// construct array of unique indexes
 	this.usedIndexes = [];
@@ -31,6 +32,10 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.bufferJointIds = undefined;
 	this.jointMapping = undefined;
 	this.materialIndex = undefined;
+}
+
+grMesh.prototype.setVisible = function(visible) {
+	this.isVisible = visible;
 }
 
 grMesh.prototype.setDepthTest = function(isDepthTested) {
@@ -100,6 +105,11 @@ function grModel() {
 	this.skeleton = undefined;
 	this.matrix = mat4.create();
 	this.type = undefined;
+	this.exclusiveMesh = undefined;
+}
+
+grModel.prototype.showExclusiveMesh = function(mesh) {
+	this.exclusiveMesh = mesh;
 }
 
 grModel.prototype.setType = function(type) {
