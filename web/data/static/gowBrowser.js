@@ -104,6 +104,7 @@ function treeLoadWad(data) {
     if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
 		
+		/*
 		if (!defferedLoadingWadNode) {
 			set3dVisible(true);
 			gr_instance.destroyModels();
@@ -122,6 +123,7 @@ function treeLoadWad(data) {
 				}
 			}
 		}
+		*/
 	}
     
 	if (defferedLoadingWadNode) {
@@ -186,93 +188,123 @@ function treeLoadWadNode(wad, nodeid) {
     });
 }
 
-function loadMeshFromAjax(model, data) {
-    for (var iPart in data.Parts) {
+function parseMeshPart(part, group, object, block) {
+	var m_vertexes = [];
+	var m_indexes = [];
+	var m_colors;
+	var m_textures;
+	var m_normals;
+
+	m_vertexes.length = block.Trias.X.length * 3;
+	
+	for (var i in block.Trias.X) {
+		var j = i * 3;
+		m_vertexes[j] = block.Trias.X[i];
+		m_vertexes[j+1] = block.Trias.Y[i];
+		m_vertexes[j+2] = block.Trias.Z[i];
+		if (!block.Trias.Skip[i]) {
+			m_indexes.push(i-1);
+			m_indexes.push(i-2);
+			m_indexes.push(i-0);
+		}
+	}
+	
+	var mesh = new grMesh(m_vertexes, m_indexes);
+	
+	if (block.Blend.R && block.Blend.R.length) {
+		var m_colors = [];
+		m_colors.length = block.Blend.R.length * 4;
+		for (var i in block.Blend.R) {
+			var j = i * 4;
+			m_colors[j] = block.Blend.R[i];
+			m_colors[j+1] = block.Blend.G[i];
+			m_colors[j+2] = block.Blend.B[i];
+			m_colors[j+3] = block.Blend.A[i];
+		}
+		
+		mesh.setBlendColors(m_colors);
+	}
+	
+	if (block.Uvs.U && block.Uvs.U.length) {
+		m_textures = [];
+		m_textures.length = block.Uvs.U.length * 2;
+			
+		for (var i in block.Uvs.U) {
+			var j = i * 2;
+			m_textures[j] = block.Uvs.U[i];
+			m_textures[j+1] = block.Uvs.V[i];
+		}
+		mesh.setUVs(m_textures, object.MaterialId);							
+	}
+	
+	if (block.Norms.X && block.Norms.X.length) {
+		m_normals = [];
+		m_normals.length = block.Norms.X.length * 3;
+			
+		for (var i in block.Norms.X) {
+			var j = i * 3;
+			m_normals[j] = block.Norms.X[i];
+			m_normals[j+1] = block.Norms.Y[i];
+			m_normals[j+2] = block.Norms.Z[i];
+		}
+		
+		mesh.setNormals(m_normals);							
+	}
+	
+	if (!!block.Joints && block.Joints.length && !!object.JointMapper && object.JointMapper.length) {
+		//console.log(block.Joints, object.JointMapper);
+		mesh.setJointIds(block.Joints, object.JointMapper);
+	}
+	
+	return mesh;
+}
+
+function loadMeshFromAjax(model, data, needTable = false) {
+	var table = needTable ? $('<table>') : undefined;
+	for (var iPart in data.Parts) {
         var part = data.Parts[iPart];
         for (var iGroup in part.Groups) {
             var group = part.Groups[iGroup];
             for (var iObject in group.Objects) {
                 var object = group.Objects[iObject];
-				{
-					var iSkin = 0;
+				var objName = iPart + "_" + iGroup + "_" + iObject;
+				if (table) {
+					table.append($('<tr>').append($('<td>').append("o_" + objName)));
+				}
 				//for (var iSkin in object.Blocks) {
-                    var skin = object.Blocks[iSkin];
-                    for (var iBlock in skin) {
-                        var block = skin[iBlock];
-                        
-                        var m_vertexes = [];
-                        var m_indexes = [];
-                        var m_colors;
-                        var m_textures;
-						var m_normals;
-
-                        m_vertexes.length = block.Trias.X.length * 3;
-                        
-                        for (var i in block.Trias.X) {
-                            var j = i * 3;
-                            m_vertexes[j] = block.Trias.X[i];
-                            m_vertexes[j+1] = block.Trias.Y[i];
-                            m_vertexes[j+2] = block.Trias.Z[i];
-                            if (!block.Trias.Skip[i]) {
-                                m_indexes.push(i-1);
-                                m_indexes.push(i-2);
-                                m_indexes.push(i-0);
-                            }
-                        }
-                        
-						var mesh = new grMesh(m_vertexes, m_indexes);
-						
-                        if (block.Blend.R && block.Blend.R.length) {
-                            var m_colors = [];
-                            m_colors.length = block.Blend.R.length * 4;
-                            for (var i in block.Blend.R) {
-                                var j = i * 4;
-                                m_colors[j] = block.Blend.R[i];
-                                m_colors[j+1] = block.Blend.G[i];
-                                m_colors[j+2] = block.Blend.B[i];
-                                m_colors[j+3] = block.Blend.A[i];
-                            }
-							
-							mesh.setBlendColors(m_colors);
-                        }
-                        
-                        if (block.Uvs.U && block.Uvs.U.length) {
-                            m_textures = [];
-                            m_textures.length = block.Uvs.U.length * 2;
-                                
-                            for (var i in block.Uvs.U) {
-								var j = i * 2;
-								m_textures[j] = block.Uvs.U[i];
-								m_textures[j+1] = block.Uvs.V[i];
-							}
-							mesh.setUVs(m_textures, object.MaterialId);							
-                        }
-						
-						if (block.Norms.X && block.Norms.X.length) {
-                            m_normals = [];
-                            m_normals.length = block.Norms.X.length * 3;
-                                
-                            for (var i in block.Norms.X) {
-								var j = i * 3;
-								m_normals[j] = block.Norms.X[i];
-								m_normals[j+1] = block.Norms.Y[i];
-								m_normals[j+2] = block.Norms.Z[i];
-							}
-							
-							mesh.setNormals(m_normals);							
-                        }
-						
-						if (!!block.Joints && block.Joints.length && !!object.JointMapper && object.JointMapper.length) {
-							console.log(block.Joints, object.JointMapper);
-							mesh.setJointIds(block.Joints, object.JointMapper);
-						}
-                        
-                        model.addMesh(mesh);
-                    }
+				var skin = object.Blocks[0];
+                for (var iBlock in skin) {
+					var block = skin[iBlock];
+					
+					var mesh = parseMeshPart(part, group, object, block)
+					
+					model.addMesh(mesh);
+					
+					if (table) {
+						var blockName = "  m_" + objName + "_" + iBlock;
+						var label = $('<label>');
+						var chbox = $('<input type="checkbox" checked>');
+						var td = $('<td>').append(label);
+						chbox.click(mesh, function(ev) {
+							ev.data.setVisible(this.checked);
+							gr_instance.requestRedraw();
+						});
+						td.mouseenter([model,mesh],function(ev) {
+							ev.data[0].showExclusiveMesh(ev.data[1]);
+							gr_instance.requestRedraw();
+						}).mouseleave(model,function(ev, a) {
+							ev.data.showExclusiveMesh();
+							gr_instance.requestRedraw();
+						});
+						label.append(chbox);
+						label.append(blockName);
+						table.append($('<tr>').append(td));
+					}
                 }
             }
         }
     }
+	return table;
 }
 
 function summaryLoadWadMesh(data) {
@@ -281,15 +313,18 @@ function summaryLoadWadMesh(data) {
     
 	var mdl = new grModel();
 	
-	loadMeshFromAjax(mdl, data);
+	var table = loadMeshFromAjax(mdl, data, true);
+	
+	dataSummary.append(table);
 	
 	gr_instance.models.push(mdl);
     gr_instance.requestRedraw();
 }
 
-function loadMdlFromAjax(mdl, data, parseScripts=false) {
+function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
+	var table = undefined;
 	if (data.Meshes && data.Meshes.length) {
-		loadMeshFromAjax(mdl, data.Meshes[0]);
+		table = loadMeshFromAjax(mdl, data.Meshes[0], needTable);
 	}
 
 	for (var i in data.Materials) {
@@ -323,6 +358,7 @@ function loadMdlFromAjax(mdl, data, parseScripts=false) {
 			}
 		}
 	}
+	return table;
 }
 
 function summaryLoadWadMdl(data) {
@@ -348,7 +384,8 @@ function summaryLoadWadMdl(data) {
     }
     dataSummary.append(table);
     
-	loadMdlFromAjax(mdl, data);
+	var table = loadMdlFromAjax(mdl, data, false, true);
+	dataSummary.append(table);
 	
 	gr_instance.models.push(mdl);    
     gr_instance.requestRedraw();

@@ -1,6 +1,7 @@
 package mesh
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -49,7 +50,6 @@ func (m *MeshDataStream) Blocks() []stBlock {
 }
 
 func (m *MeshDataStream) flushState(debugPos uint32) error {
-	m.Log("--> vif_mscal flush", debugPos)
 	if m.state != nil {
 		block, err := m.state.ToBlock(debugPos, m.debugOut)
 		if err != nil {
@@ -95,14 +95,16 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 			if m.state == nil {
 				m.state = &MeshParserState{Buffer: vifBufferBase}
 			} else if vifBufferBase != m.state.Buffer {
-				m.flushState(debugPos + tagPos)
+				if err := m.flushState(debugPos + tagPos); err != nil {
+					return err
+				}
 				m.state.Buffer = vifBufferBase
 			}
 			handledBy := ""
 
 			defer func() {
 				if r := recover(); r != nil {
-					m.Log("!! !! recover on unpack unpack [%s]: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x", debugPos+tagPos,
+					m.Log("!! !! panic on unpack [%s]: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x", debugPos+tagPos,
 						handledBy, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
 					panic(r)
 				}
@@ -181,6 +183,9 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 					switch vifComponents {
 					case 4:
 						//if m.state.RGBA == nil {
+						if m.state.RGBA != nil {
+							m.Log(" --overwrite of rgba data. Compare=%d", debugPos+tagPos, bytes.Compare(m.state.RGBA, vifBlock))
+						}
 						m.state.RGBA = vifBlock
 						handledBy = "rgba"
 						//} else {
@@ -201,7 +206,9 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 			m.Log("# vif %v", tagPos+debugPos, vifCode)
 			switch vifCode.Cmd() {
 			case vif.VIF_CMD_MSCAL:
-				m.flushState(debugPos + pos)
+				if err := m.flushState(debugPos + pos); err != nil {
+					return err
+				}
 			case vif.VIF_CMD_STROW:
 				pos += 0x10
 			}
@@ -354,9 +361,9 @@ func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stB
 			}
 		}
 
-		fmt.Fprintf(debugOut, "    = Flush xyzw:%t, rgba:%t, uv:%t, norm:%t\n",
-			state.XYZW != nil, state.RGBA != nil,
-			state.UV != nil, state.Norm != nil)
+		fmt.Fprintf(debugOut, "    = Flush xyzw:%t, rgba:%t, uv:%t, norm:%t, vmeta:%t (%d)\n",
+			state.XYZW != nil, state.RGBA != nil, state.UV != nil,
+			state.Norm != nil, state.VertexMeta != nil, len(currentBlock.Trias.X))
 
 		return currentBlock, nil
 	} else {

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -92,7 +91,8 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 		}
 		parts[iPart] = part
 
-		log.Printf("part %d: %.8x: %.8x  ...  %.8x", iPart, pPart, u32(pPart), u32(pPart+4+uint32(groupsCount)*4))
+		//log.Printf("part %d: %.8x: %.8x  ...  %.8x", iPart, pPart, u32(pPart), u32(pPart+4+uint32(groupsCount)*4))
+		fmt.Fprintf(exlog, "part %d: %.8x: %.8x  ...  %.8x\n", iPart, pPart, u32(pPart), u32(pPart+4+uint32(groupsCount)*4))
 
 		for iGroup := range part.Groups {
 			pGroup := pPart + u32(pPart+uint32(iGroup)*4+4)
@@ -105,7 +105,8 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 
 			part.Groups[iGroup] = group
 
-			log.Printf("- group %d: %.8x: %.8x %.8x[ocnt] %.8x", iGroup, pGroup, u32(pGroup), u32(pGroup+4), u32(pGroup+8))
+			//log.Printf("- group %d: %.8x: %.8x %.8x[ocnt] %.8x", iGroup, pGroup, u32(pGroup), u32(pGroup+4), u32(pGroup+8))
+			fmt.Fprintf(exlog, "- group %d: %.8x: %.8x %.8x[ocnt] %.8x\n", iGroup, pGroup, u32(pGroup), u32(pGroup+4), u32(pGroup+8))
 
 			for iObject := range group.Objects {
 				pObject := pGroup + u32(0xc+pGroup+uint32(iObject)*4)
@@ -125,9 +126,9 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 
 				group.Objects[iObject] = object
 
-				log.Printf("- - object %d: %.8x:", iObject, pObject)
-				log.Printf("         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
-				log.Printf("         %.8x         %.8x         %.8x           %.8x", u32(pObject+16), u32(pObject+20), u32(pObject+24), u32(pObject+28))
+				//log.Printf("- - object %d: %.8x:", iObject, pObject)
+				//log.Printf("         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
+				//log.Printf("         %.8x         %.8x         %.8x           %.8x", u32(pObject+16), u32(pObject+20), u32(pObject+24), u32(pObject+28))
 
 				fmt.Fprintf(exlog, "- - object %d: %.8x:\n", iObject, pObject)
 				fmt.Fprintf(exlog, "         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x\n", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
@@ -156,33 +157,6 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						object.Blocks[iDmaChain] = ds.Blocks()
 					}
 
-					/*
-						rowsParsed := uint32(0)
-
-						for iPacket := uint32(0); iPacket < packetsCount; iPacket++ {
-							pPacketInfo := pObject + 0x20 + iPacket*0x10
-							pPacket := pObject + u32(pPacketInfo+4)
-
-							packetRows := u16(pPacketInfo)
-
-							object.Packets = append(object.Packets, packet)
-
-							packetSize := uint32(packet.Rows) * 0x10
-							rowsParsed += uint32(packet.Rows)
-							packetEnd := packetSize + packet.FileStruct
-
-							log.Printf("- - - packet %d: %.8x: %.8x[rowscnt,] %.8x[packoff] %.8x %.8x packDat: %.8x", iPacket, pPacketInfo,
-								u32(pPacketInfo), u32(pPacketInfo+4), u32(pPacketInfo+8), u32(pPacketInfo+12), packet.FileStruct)
-
-							fmt.Fprintf(exlog, "    packet: %d pos: 0x%.6x rows: 0x%.4x end: 0x%.6x\n",
-								iPacket, packet.FileStruct, packet.Rows, packetEnd)
-
-							err, packet.Blocks = VifRead1(file[packet.FileStruct:packetEnd], packet.FileStruct, exlog)
-							if err != nil {
-								return nil, err
-							}
-						}
-					*/
 					if object.BonesUsed > 0 && len(object.Blocks) > 0 {
 						object.JointMapper = make([]uint32, object.BonesUsed)
 						pJointMapRaw := pObject + 0x20 + packetsCount*0x10*u32(pObject+0xc)*uint32(u8(pObject+0x18))
