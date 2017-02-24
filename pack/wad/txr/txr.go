@@ -67,40 +67,71 @@ func NewFromData(fin io.ReaderAt) (*Texture, error) {
 	return tex, nil
 }
 
-func (txr *Texture) Image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (image.Image, bool, error) {
+type ImageType int
+
+const (
+	TEXTURE_IMAGE_RGBA ImageType = iota
+	TEXTURE_IMAGE_RGB
+	TEXTURE_IMAGE_A
+)
+
+func (txr *Texture) image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int, image_type ImageType) (*image.RGBA, error) {
 	width := int(gfx.Width)
 	height := int(gfx.Height)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	pallete, err := pal.AsPallet(ipal)
+	pallete, err := pal.AsPallet(ipal, image_type != TEXTURE_IMAGE_A)
 
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
-
-	haveTransparent := false
 
 	palidx := gfx.AsPalletIndexes(igfx)
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			clr := pallete[palidx[x+y*width]]
-			img.Set(x, y, clr)
-
-			if !haveTransparent {
-				if _, _, _, a := clr.RGBA(); a < 0xffff {
-					haveTransparent = true
+			switch image_type {
+			case TEXTURE_IMAGE_RGB:
+				clr.A = 255
+			case TEXTURE_IMAGE_A:
+				clr.B = clr.A
+				if clr.A < 128 {
+					clr.G = clr.A
+				} else {
+					clr.G = 255
 				}
+				if clr.A < 129 {
+					clr.R = clr.A
+				} else {
+					clr.R = 255
+				}
+				clr.A = 255
 			}
+			img.Set(x, y, clr)
 		}
 	}
 
-	return img, haveTransparent, nil
+	return img, nil
+}
+
+func (txr *Texture) Image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.RGBA, error) {
+	return txr.image(gfx, pal, igfx, ipal, TEXTURE_IMAGE_RGBA)
+}
+
+func (txr *Texture) ImageOnlyColor(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.RGBA, error) {
+	return txr.image(gfx, pal, igfx, ipal, TEXTURE_IMAGE_RGB)
+}
+
+func (txr *Texture) ImageOnlyAlpha(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.RGBA, error) {
+	return txr.image(gfx, pal, igfx, ipal, TEXTURE_IMAGE_A)
 }
 
 type AjaxImage struct {
-	Gfx, Pal int
-	Image    []byte
+	Gfx, Pal  int
+	Image     []byte
+	AlphaOnly []byte
+	ColorOnly []byte
 }
 type Ajax struct {
 	Data            *Texture
@@ -145,21 +176,32 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 		i := 0
 		for iGfx := range gfx.Data {
 			for iPal := range pal.Data {
-				img, haveTransparent, err := txr.Image(gfx, pal, iGfx, iPal)
+				img, err := txr.Image(gfx, pal, iGfx, iPal)
 				if err != nil {
 					return nil, err
 				}
 
 				if !res.HaveTransparent {
-					res.HaveTransparent = haveTransparent
+					res.HaveTransparent = !img.Opaque()
 				}
 
-				var buf bytes.Buffer
-				png.Encode(&buf, img)
+				var bufImage bytes.Buffer
+				png.Encode(&bufImage, img)
 
 				res.Images[i].Gfx = iGfx
 				res.Images[i].Pal = iPal
-				res.Images[i].Image = buf.Bytes()
+				res.Images[i].Image = bufImage.Bytes()
+
+				if clrOnly, _ := txr.ImageOnlyColor(gfx, pal, iGfx, iPal); clrOnly != nil {
+					var bufImageClrOnly bytes.Buffer
+					png.Encode(&bufImageClrOnly, clrOnly)
+					res.Images[i].ColorOnly = bufImageClrOnly.Bytes()
+				}
+				if alphaOnly, _ := txr.ImageOnlyAlpha(gfx, pal, iGfx, iPal); alphaOnly != nil {
+					var bufImageAlphaOnly bytes.Buffer
+					png.Encode(&bufImageAlphaOnly, alphaOnly)
+					res.Images[i].AlphaOnly = bufImageAlphaOnly.Bytes()
+				}
 
 				i++
 			}

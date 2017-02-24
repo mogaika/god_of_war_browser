@@ -83,7 +83,7 @@ grMesh.prototype.setJointIds = function(jointIds, jointMapping) {
 	}
 	this.jointMapping = jointMapping;
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds);
-	gl.bufferData(gl.ARRAY_BUFFER, new Uint16Array(jointIds), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds), gl.STATIC_DRAW);
 }
 
 grMesh.prototype.free = function() {
@@ -105,11 +105,11 @@ function grModel() {
 	this.skeleton = undefined;
 	this.matrix = mat4.create();
 	this.type = undefined;
-	this.exclusiveMesh = undefined;
+	this.exclusiveMeshes = undefined;
 }
 
-grModel.prototype.showExclusiveMesh = function(mesh) {
-	this.exclusiveMesh = mesh;
+grModel.prototype.showExclusiveMeshes = function(meshes) {
+	this.exclusiveMeshes = meshes;
 }
 
 grModel.prototype.setType = function(type) {
@@ -212,6 +212,7 @@ function grMaterial() {
 	this.color = [1,1,1,1];
 	this.textureDiffuse = undefined;
 	this.hasAlpha = false;
+	this.method = 0;
 }
 
 grMaterial.prototype.setColor = function(color) {
@@ -226,6 +227,10 @@ grMaterial.prototype.setHasAlphaAttribute = function(alpha=true) {
 	this.hasAlpha = alpha;
 }
 
+grMaterial.prototype.setMethodNormal = function() { this.method = 0; }
+grMaterial.prototype.setMethodAdditive = function() { this.method = 1; }
+grMaterial.prototype.setMethodSubstract = function() { this.method = 2; }
+grMaterial.prototype.setMethodUnknown = function() { this.method = 3; }
 grMaterial.prototype.claim = function() { this.refs ++; }
 grMaterial.prototype.unclaim = function() { if (--this.refs == 0) { this.free(); }}
 

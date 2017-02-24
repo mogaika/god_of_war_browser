@@ -12,11 +12,21 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
+type Flags struct {
+	FilterLinear             bool // when false, then near filter used. may affect only wheb texture expanded (LOD < 0)
+	DisableDepthWrite        bool
+	RenderingAdditive        bool
+	RenderingUsual           bool // handle transparency
+	RenderingSubstract       bool
+	RenderingStrangeBlendedd bool // I'm do not know
+}
+
 type Layer struct {
-	Texture string
-	Flags   [4]uint32
-	Floats  [5]float32
-	Unkn    uint32
+	Texture     string
+	Flags       [4]uint32
+	Floats      [5]float32
+	Unkn        uint32
+	ParsedFlags Flags
 }
 
 const (
@@ -31,6 +41,29 @@ type Material struct {
 const MAT_MAGIC = 0x00000008
 const HEADER_SIZE = 0x38
 const LAYER_SIZE = 0x40
+
+func (l *Layer) ParseFlags() error {
+	l.ParsedFlags.FilterLinear = (l.Flags[0]>>16)&1 != 0
+
+	l.ParsedFlags.DisableDepthWrite = (l.Flags[0]>>19)&1 != 0
+
+	l.ParsedFlags.RenderingStrangeBlendedd = (l.Flags[0]>>24)&1 != 0
+	l.ParsedFlags.RenderingSubstract = (l.Flags[0]>>25)&1 != 0
+	l.ParsedFlags.RenderingUsual = (l.Flags[0]>>26)&1 != 0
+	l.ParsedFlags.RenderingAdditive = (l.Flags[0]>>27)&1 != 0
+
+	cnt := 0
+	for i := uint(0); i < 4; i++ {
+		if (l.Flags[0]>>(24+i))&1 != 0 {
+			cnt++
+		}
+	}
+	if cnt > 1 {
+		return fmt.Errorf("Too much rendering types in one layer: %+#v", l)
+	}
+
+	return nil
+}
 
 func NewFromData(fmat io.ReaderAt) (*Material, error) {
 	buf := make([]byte, HEADER_SIZE)
@@ -77,6 +110,10 @@ func NewFromData(fmat io.ReaderAt) (*Material, error) {
 		}
 
 		mat.Layers[iTex].Unkn = binary.LittleEndian.Uint32(tbuf[60:64])
+
+		if err := mat.Layers[iTex].ParseFlags(); err != nil {
+			return nil, fmt.Errorf("Error paring layer %d: %v", iTex, err)
+		}
 	}
 
 	return mat, nil

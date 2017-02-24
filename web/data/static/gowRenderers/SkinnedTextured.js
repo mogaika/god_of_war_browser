@@ -31,15 +31,13 @@ function grRenderChain_SkinnedTextured(ctrl) {
 	gl.uniform1i(this.uUseMaterialDiffuseSampler, 0);
 	gl.uniform1i(this.uUseJoints, 0);
 	
-	gl.clearColor(0.2, 0.2, 0.2, 1);
+	gl.clearColor(0.05, 0.1, 0.1, 1.0);
 	gl.clearDepth(1.0);
 	gl.depthFunc(gl.LEQUAL);
 	gl.disable(gl.BLEND);
 	gl.depthMask(true);
 	gl.enable(gl.DEPTH_TEST);
 	gl.disable(gl.CULL_FACE);
-	
-	console.log(this);
 }
 
 grRenderChain_SkinnedTextured.prototype.free = function(ctrl) {
@@ -97,44 +95,39 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 grRenderChain_SkinnedTextured.prototype.renderMesh = function(ctrl, mdl, mesh, hasSkelet, filterFunc, usedJoints) {
 	if ((filterFunc && !filterFunc(mdl, mesh)) || !mesh.isVisible)
 		return;
-	
-	var hasTxr = true;
+
 	if (mesh.isDepthTested) {
 		gl.enable(gl.DEPTH_TEST);
 	} else {
 		gl.disable(gl.DEPTH_TEST);
 	}
-	
+
 	if (hasSkelet && mesh.jointMapping) {
 		for (var i in mesh.jointMapping) {
 			if (i >= 12) {
 				console.warn("jointMap array in shader is overflowed", mesh.jointMapping)
 			}
-			//console.log(mdl.skeleton[mesh.jointMapping[i]], mdl.skeleton, mesh.jointMapping[i]);
 			var jointId = mesh.jointMapping[i];
-			if (usedJoints.indexOf(jointId) < 0) {
-				usedJoints.push(jointId);
-			}
 			if (jointId >= mdl.skeleton.length) {
 				console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.skeleton.length);
 			} else {
-				//console.info(i, mesh.jointMapping[i], mdl.skeleton[mesh.jointMapping[i]]);
 				gl.uniformMatrix4fv(this.umJoints[i], false, mdl.skeleton[jointId]);
 			}						
 		}
-		//console.info("used " + mesh.jointMapping.length + " joint slots");
 	} else {
 		hasSkelet = false;
 	}
-	//console.log(mesh, mesh.materialIndex, mdl.materials);
+
+	var hasTxr = true;
 	if (mesh.materialIndex != undefined && mdl.materials && mdl.materials.length) {
 		var mat = mdl.materials[mesh.materialIndex];
 		gl.bindTexture(gl.TEXTURE_2D, mat.textureDiffuse.get());
 		gl.uniform4f(this.uMaterialColor, mat.color[0], mat.color[1], mat.color[2], mat.color[3]);
+		//console.log(mat.color);
 	} else {
-		gl.bindTexture(gl.TEXTURE_2D, ctrl.emptyTexture.get());
 		hasTxr = false;
-		gl.uniform4f(this.uMaterialColor, 255, 255, 255, 255);
+		gl.bindTexture(gl.TEXTURE_2D, ctrl.emptyTexture.get());
+		gl.uniform4f(this.uMaterialColor, 1.0, 1.0, 1.0, 1.0);
 	}
 	
 	this.drawMesh(mesh, hasTxr, hasSkelet);
@@ -147,12 +140,13 @@ grRenderChain_SkinnedTextured.prototype.renderModel = function(ctrl, mdl, useSke
 
 		var hasSkelet = useSkelet && !!mdl.skeleton;
 		var usedJoints = [];
-		if (mdl.exclusiveMesh) {
-			this.renderMesh(ctrl, mdl, mdl.exclusiveMesh, hasSkelet, filterFunc, usedJoints);
+		if (mdl.exclusiveMeshes != undefined) {
+			for (var j in mdl.exclusiveMeshes) {
+				this.renderMesh(ctrl, mdl, mdl.exclusiveMeshes[j], hasSkelet, filterFunc, usedJoints);
+			}
 		} else {
 			for (var j in mdl.meshes) {
-				var mesh = mdl.meshes[j];
-				this.renderMesh(ctrl, mdl, mesh, hasSkelet, filterFunc, usedJoints);
+				this.renderMesh(ctrl, mdl, mdl.meshes[j], hasSkelet, filterFunc, usedJoints);
 			}
 		}
 		//console.log("Used joints", usedJoints.sort(function(a, b){return a - b;}));
@@ -168,6 +162,31 @@ grRenderChain_SkinnedTextured.prototype.renderModels = function(ctrl, mdls, filt
 
 function __mdl_mesh_has_alpha(mdl, mesh) {
 	return (mesh.materialIndex && mesh.materialIndex < mdl.materials.length && mdl.materials[mesh.materialIndex].hasAlpha);	
+}
+
+function __mdl_mesh_rentype_is(mdl, mesh, rentype) {
+	return (mesh.materialIndex != undefined && mdl.materials[mesh.materialIndex].method === rentype);	
+}
+
+grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSkelet = true) {
+	if (mdls.length > 0) {
+		gl.disable(gl.BLEND);
+		gl.depthMask(true);
+		this.renderModels(ctrl, mdls, function(mdl, mesh) {return __mdl_mesh_rentype_is(mdl, mesh, 0) && !__mdl_mesh_has_alpha(mdl, mesh);}, useSkelet);
+		//this.renderModels(ctrl, mdls);
+			
+		//console.log(mdls);
+		
+		gl.enable(gl.BLEND);
+		//gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
+		this.renderModels(ctrl, mdls, function(mdl, mesh) {return __mdl_mesh_rentype_is(mdl, mesh, 0) && __mdl_mesh_has_alpha(mdl, mesh);}, useSkelet);
+		
+		gl.depthMask(true);
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+		this.renderModels(ctrl, mdls, function(mdl, mesh) {return __mdl_mesh_rentype_is(mdl, mesh, 1);}, useSkelet);
+	}
 }
 
 grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
@@ -192,27 +211,19 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
 		
 		gl.uniformMatrix4fv(this.umProjectionView, false, nullPosedMatrix);
 		
-		this.renderModels(ctrl, [sky], undefined, false);
+		this.renderCycle(ctrl, [sky], false);
+		//this.renderModels(ctrl, [sky], undefined, false);
 		
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 	}
+	gl.clear(gl.DEPTH_BUFFER_BIT);
 	
 	var mdls = [].concat(ctrl.helpers).concat(ctrl.models.filter(function(m){return !m.type;}));
 	if (mdls.length > 0) {
 		gl.uniform1i(this.uUseModelTransform, 1);
 		gl.uniformMatrix4fv(this.umProjectionView, false, ctrl.camera.getProjViewMatrix());
 		
-		gl.disable(gl.BLEND);
-		gl.depthMask(true);
-		//this.renderModels(ctrl, mdls, function(mdl, mesh) {return !__mdl_mesh_has_alpha(mdl, mesh);});
-		this.renderModels(ctrl, mdls, function(){return true;});
-		
-		//console.log(mdls);
-		
-		//gl.enable(gl.BLEND);
-		//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		//gl.depthMask(false);
-		//this.renderModels(ctrl, mdls, __mdl_mesh_has_alpha);
+		this.renderCycle(ctrl, mdls);
 	}
 	console.info("redrawed");
 }
