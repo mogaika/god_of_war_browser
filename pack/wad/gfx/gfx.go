@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -59,25 +60,16 @@ var GsPsm map[int]string = map[int]string{
 	GS_PSM_PSMZ16S:  "GS_PSM_PSMZ16S",
 }
 
-func (gfx *GFX) AsPallet(idx int) (color.Palette, error) {
+func (gfx *GFX) AsRawPallet(idx int) ([]uint32, error) {
 	palbuf := gfx.Data[idx]
 
 	colors := gfx.Width * gfx.Height
 
-	pallet := make(color.Palette, colors)
+	pallet := make([]uint32, colors)
 	remap := []int{0, 2, 1, 3}
 
 	for i := range pallet {
-		si := i * 4
-
-		clr := color.RGBA{
-			R: palbuf[si],
-			G: palbuf[si+1],
-			B: palbuf[si+2],
-			A: byte(float32(palbuf[si+3]) * (255.0 / 128.0)),
-			//A: palbuf[si+3],
-		}
-
+		clr := binary.LittleEndian.Uint32(palbuf[i*4 : i*4+4])
 		switch gfx.Height {
 		case 2:
 			pallet[i] = clr
@@ -94,6 +86,33 @@ func (gfx *GFX) AsPallet(idx int) (color.Palette, error) {
 			return nil, fmt.Errorf("Wrong pallet height: %d", gfx.Height)
 		}
 	}
+	return pallet, nil
+}
+
+func (gfx *GFX) AsPallet(idx int, adjustAlpha bool) ([]color.NRGBA, error) {
+	rawPal, err := gfx.AsRawPallet(idx)
+	if err != nil {
+		return nil, err
+	}
+
+	pallet := make([]color.NRGBA, len(rawPal))
+	for i, raw := range rawPal {
+		clr := color.NRGBA{
+			R: uint8(raw),
+			G: uint8(raw >> 8),
+			B: uint8(raw >> 16),
+			A: uint8(raw >> 24),
+		}
+		if adjustAlpha {
+			clr.A = uint8(float32(clr.A) * (255.0 / 128.0))
+			if clr.A < uint8(raw>>24) {
+				panic("damaged image")
+			}
+			log.Printf("%.2x = %.2x * %v", uint8(clr.A), uint8(raw>>24), (255.0 / 128.0))
+		}
+		pallet[i] = clr
+	}
+
 	return pallet, nil
 }
 

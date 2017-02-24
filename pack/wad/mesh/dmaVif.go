@@ -10,6 +10,15 @@ import (
 	"github.com/mogaika/god_of_war_browser/ps2/vif"
 )
 
+/*
+mem:
+0x0000:0x*    - vertex meta
+
+0x0136:0x0005 - texture info
+
+0x155 <<<< next block
+*/
+
 var unpackBuffersBases = []uint32{0, 0x155, 0x2ab, 0x400}
 
 const GSFixed12Point4Delimeter = 16.0

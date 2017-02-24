@@ -104,7 +104,7 @@ function treeLoadWad(data) {
     if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
 		
-		/*
+		
 		if (!defferedLoadingWadNode) {
 			set3dVisible(true);
 			gr_instance.destroyModels();
@@ -123,7 +123,7 @@ function treeLoadWad(data) {
 				}
 			}
 		}
-		*/
+		
 	}
     
 	if (defferedLoadingWadNode) {
@@ -268,39 +268,51 @@ function loadMeshFromAjax(model, data, needTable = false) {
             for (var iObject in group.Objects) {
                 var object = group.Objects[iObject];
 				var objName = iPart + "_" + iGroup + "_" + iObject;
-				if (table) {
-					table.append($('<tr>').append($('<td>').append("o_" + objName)));
-				}
+
 				//for (var iSkin in object.Blocks) {
 				var skin = object.Blocks[0];
+				var meshes = [];
                 for (var iBlock in skin) {
 					var block = skin[iBlock];
 					
 					var mesh = parseMeshPart(part, group, object, block)
-					
+					meshes.push(mesh);
 					model.addMesh(mesh);
-					
-					if (table) {
-						var blockName = "  m_" + objName + "_" + iBlock;
-						var label = $('<label>');
-						var chbox = $('<input type="checkbox" checked>');
-						var td = $('<td>').append(label);
-						chbox.click(mesh, function(ev) {
-							ev.data.setVisible(this.checked);
-							gr_instance.requestRedraw();
-						});
-						td.mouseenter([model,mesh],function(ev) {
-							ev.data[0].showExclusiveMesh(ev.data[1]);
-							gr_instance.requestRedraw();
-						}).mouseleave(model,function(ev, a) {
-							ev.data.showExclusiveMesh();
-							gr_instance.requestRedraw();
-						});
-						label.append(chbox);
-						label.append(blockName);
-						table.append($('<tr>').append(td));
-					}
                 }
+
+				if (table) {
+					var label = $('<label>');
+					var chbox = $('<input type="checkbox" checked>');
+					var td = $('<td>').append(label);
+					chbox.click(meshes, function(ev) {
+						for (i in ev.data) {
+							ev.data[i].setVisible(this.checked);
+						}
+						gr_instance.requestRedraw();
+					});
+					td.mouseenter([model, meshes],function(ev) {
+						ev.data[0].showExclusiveMeshes(ev.data[1]);
+						gr_instance.requestRedraw();
+					}).mouseleave(model, function(ev, a) {
+						ev.data.showExclusiveMeshes();
+						gr_instance.requestRedraw();
+					});
+					label.append(chbox);
+					label.append("o_" + objName);
+					table.append($('<tr>').append(td));
+					
+					//var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
+					
+					var params = '';
+					for (var i in object.Params) {
+						if (i % 2 == 0) {
+							params += '</br>';
+						}
+						params += '0x' + object.Params[i].toString(0x10) + ',';
+					}
+					
+					td.append(params);
+				}
             }
         }
     }
@@ -330,10 +342,17 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
 	for (var i in data.Materials) {
 		var material = new grMaterial();
 		
-        var textures = data.Materials[i].Textures;
+		var textures = data.Materials[i].Textures;
 		var rawMat = data.Materials[i].Mat;
 		if (rawMat && rawMat.Color) {
 			material.setColor(rawMat.Color);
+		}
+		if (rawMat.Layers && rawMat.Layers.length) {
+			var zl = rawMat.Layers[0];
+			if (zl.ParsedFlags.RenderingStrangeBlendedd === true) { material.setMethodUnknown(); }
+			if (zl.ParsedFlags.RenderingSubstract === true) { material.setMethodSubstract(); }
+			if (zl.ParsedFlags.RenderingUsual === true) { material.setMethodNormal(); }
+			if (zl.ParsedFlags.RenderingAdditive === true) { material.setMethodAdditive(); }
 		}
         if (textures && textures.length && textures[0]) {
             var imgs = textures[0].Images;
@@ -439,19 +458,29 @@ function summaryLoadWadMat(data) {
         $.each(layer, function(k, v) {
             var td = $('<td>');
             switch (k) {
+				case 'Flags':
+					var str = '';
+					for (var i in v) {
+						str = str + '0x' + v[i].toString(0x10) + ', ';
+					}
+					td.append(str);
+					break;
                 case 'Floats':
-                case 'Flags':
                     td.append(JSON.stringify(v, undefined, 2));
                     break;
                 case 'Texture':
                     td.append(v);
                     if (v != '') {
                         var txrobj = data.Textures[l];
-                        td.append('<br>').append(txrobj.Data.GfxName);
-                        td.append('<br>').append(txrobj.Data.PalName);
+                        td.append(' \\ ' + txrobj.Data.GfxName + ' \\ ' + txrobj.Data.PalName);
                         td.append('<br>').append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].Image));
+						td.append('<br>').append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].AlphaOnly));
+						td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].ColorOnly));
                     }
                     break;
+				case 'ParsedFlags':
+					td.append(JSON.stringify(v, null, "  ").replace('\n', '<br>'));
+					break;
                 default:
                     td.append(v);
                     break;

@@ -7,7 +7,14 @@ varying lowp vec4 vMaterialColor;
 
 void main(void) {
 	if (uUseMaterialDiffuseSampler) {
-		gl_FragColor = vVertexColor * texture2D(uMaterialDiffuseSampler, vVertexUV) * vMaterialColor;
+		mediump vec4 clr = vVertexColor * texture2D(uMaterialDiffuseSampler, vVertexUV) * vMaterialColor;
+		/*
+		if (clr.a < 1.0) {
+			clr.rb = vec2(1.0 - clr.a);
+			clr *= 0.5;
+		}
+		*/
+		gl_FragColor = clr;
 	} else {
 		gl_FragColor = vVertexColor;
 	}

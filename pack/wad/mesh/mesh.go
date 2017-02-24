@@ -36,6 +36,7 @@ type MeshObject struct {
 	Blocks      [][]stBlock
 	BonesUsed   uint16
 	JointMapper []uint32
+	Params      [8]uint32
 }
 
 type MeshGroup struct {
@@ -133,6 +134,10 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 				fmt.Fprintf(exlog, "- - object %d: %.8x:\n", iObject, pObject)
 				fmt.Fprintf(exlog, "         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x\n", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
 				fmt.Fprintf(exlog, "         %.8x         %.8x         %.8x           %.8x\n", u32(pObject+16), u32(pObject+20), u32(pObject+24), u32(pObject+28))
+
+				for i := range object.Params {
+					object.Params[i] = u32(pObject + uint32(i)*4)
+				}
 
 				if objectType == 0xe || objectType == 0x1d || objectType == 0x24 {
 					object.BonesUsed = u16(pObject + 10)
