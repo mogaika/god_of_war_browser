@@ -23,8 +23,8 @@ var dmaTagIdToString = []string{
 	"refs", "call", "ret", "end",
 }
 
-func (p DmaTag) QWC() uint16 {
-	return uint16(p & 0xffff)
+func (p DmaTag) QWC() uint32 {
+	return uint32(p & 0xffff)
 }
 
 func (p DmaTag) ID() uint8 {

@@ -1,11 +1,14 @@
-function grHelper_Pivot(ctrl) {	
+function grHelper_PivotMesh(size) {	
+	if (size == undefined) {
+		size = 1000;
+	}
 	var vertexData = [
-		1000,0,0,
-		-1000,0,0,
-		0,1000,0,
-		0,-1000,0,
-		0,0,1000,
-		0,0,-1000,
+		size,0,0,
+		-size,0,0,
+		0,size,0,
+		0,-size,0,
+		0,0,size,
+		0,0,-size,
 	]
 	var colorData = [
 		0xff, 0x00, 0x00, 0xff,
@@ -21,8 +24,12 @@ function grHelper_Pivot(ctrl) {
 
 	var mesh = new grMesh(vertexData, indexData, gl.LINES)
 	mesh.setBlendColors(colorData);
+	return mesh;
+}
 
+
+function grHelper_Pivot(size) {	
 	var mdl = new grModel();
-	mdl.addMesh(mesh);
+	mdl.addMesh(grHelper_PivotMesh(size));
 	return mdl;	
 }

@@ -133,16 +133,40 @@ type AjaxImage struct {
 	AlphaOnly []byte
 	ColorOnly []byte
 }
+
 type Ajax struct {
 	Data            *Texture
 	Images          []AjaxImage
 	UsedGfx         int
 	UsedPal         int
 	HaveTransparent bool
+	Refs            map[string]int
+}
+
+func (a *Ajax) addRef(node *wad.WadNode, name string) {
+	if name != "" {
+		if nd := node.FindNode(name); nd != nil {
+			a.Refs[nd.Name] = nd.Id
+		}
+	}
 }
 
 func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
-	res := &Ajax{Data: txr, HaveTransparent: false}
+	res := &Ajax{
+		Data:            txr,
+		HaveTransparent: false,
+		Refs:            make(map[string]int),
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			panic(fmt.Errorf("Panic when marshaling texture %s: %v", node.Name, r))
+		}
+	}()
+
+	res.addRef(node, txr.GfxName)
+	res.addRef(node, txr.PalName)
+	res.addRef(node, txr.SubTxrName)
 
 	if txr.GfxName != "" && txr.PalName != "" {
 		gfxn := node.FindNode(txr.GfxName)
@@ -154,6 +178,9 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 		if paln == nil {
 			return nil, fmt.Errorf("Cannot find pal: %s", txr.PalName)
 		}
+
+		res.Refs[gfxn.Name] = gfxn.Id
+		res.Refs[paln.Name] = paln.Id
 
 		res.UsedGfx = gfxn.Id
 		res.UsedPal = paln.Id

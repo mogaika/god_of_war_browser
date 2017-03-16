@@ -23,7 +23,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 	
 	this.bufferIndex = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufferIndex);
-	this.bufferIndexType = (indexArray.length > 255) ? gl.UNSIGNED_BYTE : gl.UNSIGNED_SHORT;
+	this.bufferIndexType = (indexArray.length > 254) ? gl.UNSIGNED_BYTE : gl.UNSIGNED_SHORT;
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, (this.bufferIndexType === gl.UNSIGNED_SHORT) ? (new Uint16Array(indexArray)) : (new Uint8Array(indexArray)), gl.STATIC_DRAW);
     
 	this.bufferBlendColor = undefined;
@@ -51,7 +51,6 @@ grMesh.prototype.setBlendColors = function(data) {
 	for (var i in this.usedIndexes) {
 		if (data[this.usedIndexes[i] * 4 + 3] < 127) {
 			this.hasAlpha = true;
-			//console.log("mesh hasAlpha detected from ", this, "by ", i, "index");
 			break;
 		}
 	}
@@ -60,12 +59,16 @@ grMesh.prototype.setBlendColors = function(data) {
 	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(data), gl.STATIC_DRAW);
 }
 
-grMesh.prototype.setUVs = function(data, materialIndex) {
+grMesh.prototype.setUVs = function(data) {
 	if (!this.bufferUV) {
 		this.bufferUV = gl.createBuffer();
 	}
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferUV);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+	
+}
+
+grMesh.prototype.setMaterialID = function(materialIndex) {
 	this.materialIndex = materialIndex;
 }
 
@@ -157,7 +160,7 @@ function mshFromSklt(sklt, key="OurJointToIdleMat") {
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-	this.addMesh(mshFromSklt(sklt));
+	//this.addMesh(mshFromSklt(sklt));
 	this.skeleton = [];
 
 	for (var i in sklt) {
@@ -200,7 +203,6 @@ function grTexture(src, wait = false) {
 	var _this = this;
     img.onload = function() {
 		grTexture__handleLoading(img, _this);
-		gr_instance.requestRedraw();
     };
 }
 

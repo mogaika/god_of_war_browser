@@ -13,7 +13,6 @@ uniform bool uUseModelTransform;
 
 varying lowp vec4 vVertexColor;
 varying mediump vec2 vVertexUV;
-varying lowp vec4 vMaterialColor;
 
 void main(void) {
 	vec4 pos = vec4(aVertexPos, 1.0);
@@ -33,5 +32,4 @@ void main(void) {
 	}
 	gl_Position = umProjectionView * pos;	
 	vVertexUV = aVertexUV;
-	vMaterialColor = uMaterialColor;
 }

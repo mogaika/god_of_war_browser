@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -115,13 +114,15 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 
 	obj := new(Object)
 
-	log.Printf(" OBJ: %.8x %.8x %.8x   %.8x %.8x %.8x",
-		binary.LittleEndian.Uint32(file[0x4:0x8]),
-		binary.LittleEndian.Uint32(file[0x8:0xc]),
-		binary.LittleEndian.Uint32(file[0xc:0x10]),
-		binary.LittleEndian.Uint32(file[0x10:0x14]),
-		binary.LittleEndian.Uint32(file[0x14:0x18]),
-		binary.LittleEndian.Uint32(file[0x18:0x1c]))
+	/*
+		log.Printf(" OBJ: %.8x %.8x %.8x   %.8x %.8x %.8x",
+			binary.LittleEndian.Uint32(file[0x4:0x8]),
+			binary.LittleEndian.Uint32(file[0x8:0xc]),
+			binary.LittleEndian.Uint32(file[0xc:0x10]),
+			binary.LittleEndian.Uint32(file[0x10:0x14]),
+			binary.LittleEndian.Uint32(file[0x14:0x18]),
+			binary.LittleEndian.Uint32(file[0x18:0x1c]))
+	*/
 
 	obj.jointsCount = binary.LittleEndian.Uint32(file[0x1c:0x20])
 	obj.dataOffset = binary.LittleEndian.Uint32(file[0x28:0x2c])
@@ -246,14 +247,14 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 	}
 
 	obj.FeelJoints()
+	/*
+		s := ""
+		for i, m := range obj.Matrixes3 {
+			s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
+		}
 
-	s := ""
-	for i, m := range obj.Matrixes3 {
-		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
-	}
-
-	log.Printf("%s\n%s", s, obj.StringTree())
-
+		log.Printf("%s\n%s", s, obj.StringTree())
+	*/
 	return obj, nil
 }
 
@@ -310,6 +311,17 @@ func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) 
 
 func init() {
 	wad.SetHandler(OBJECT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
-		return NewFromData(r)
+		obj, err := NewFromData(r)
+		/*
+			exPath := filepath.Join("gojbs", w.Name, fmt.Sprintf("%d_%s.gobj", node.Id, node.Name))
+			if err = os.MkdirAll(filepath.Dir(exPath), 0777); err != nil {
+				log.Printf("Error creating dir: %v", err)
+			} else {
+				if err := obj.ExportGobj(exPath, w, node); err != nil {
+					log.Printf("Error exporiting: %v", err)
+				}
+			}
+		*/
+		return obj, err
 	})
 }

@@ -106,9 +106,8 @@ func (gfx *GFX) AsPallet(idx int, adjustAlpha bool) ([]color.NRGBA, error) {
 		if adjustAlpha {
 			clr.A = uint8(float32(clr.A) * (255.0 / 128.0))
 			if clr.A < uint8(raw>>24) {
-				panic("damaged image")
+				panic("image damaged by internal uncompressions")
 			}
-			log.Printf("%.2x = %.2x * %v", uint8(clr.A), uint8(raw>>24), (255.0 / 128.0))
 		}
 		pallet[i] = clr
 	}
@@ -137,7 +136,12 @@ func (gfx *GFX) AsPalletIndexes(idx int) []byte {
 		for y := uint32(0); y < gfx.Height; y++ {
 			for x := uint32(0); x < gfx.Width; x++ {
 				if gfx.Encoding&2 == 0 {
-					indexes[x+y*gfx.Width] = data[gfx.UnswizzlePosition(x, y)]
+					pos := gfx.UnswizzlePosition(x, y)
+					if pos < uint32(len(data)) {
+						indexes[x+y*gfx.Width] = data[pos]
+					} else {
+						log.Printf("Warning: Texture missed var: len=%v < pos=%v, x=%v, y=%v", len(data), pos, x, y)
+					}
 				} else {
 					indexes[x+y*gfx.Width] = data[x+y*gfx.Width]
 				}

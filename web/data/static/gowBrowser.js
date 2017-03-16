@@ -188,7 +188,7 @@ function treeLoadWadNode(wad, nodeid) {
     });
 }
 
-function parseMeshPart(part, group, object, block) {
+function parseMeshPart(object, block) {
 	var m_vertexes = [];
 	var m_indexes = [];
 	var m_colors;
@@ -225,6 +225,8 @@ function parseMeshPart(part, group, object, block) {
 		mesh.setBlendColors(m_colors);
 	}
 	
+	mesh.setMaterialID(object.MaterialId);
+	
 	if (block.Uvs.U && block.Uvs.U.length) {
 		m_textures = [];
 		m_textures.length = block.Uvs.U.length * 2;
@@ -234,7 +236,7 @@ function parseMeshPart(part, group, object, block) {
 			m_textures[j] = block.Uvs.U[i];
 			m_textures[j+1] = block.Uvs.V[i];
 		}
-		mesh.setUVs(m_textures, object.MaterialId);							
+		mesh.setUVs(m_textures);
 	}
 	
 	if (block.Norms.X && block.Norms.X.length) {
@@ -267,52 +269,57 @@ function loadMeshFromAjax(model, data, needTable = false) {
             var group = part.Groups[iGroup];
             for (var iObject in group.Objects) {
                 var object = group.Objects[iObject];
-				var objName = iPart + "_" + iGroup + "_" + iObject;
 
 				//for (var iSkin in object.Blocks) {
-				var skin = object.Blocks[0];
-				var meshes = [];
-                for (var iBlock in skin) {
-					var block = skin[iBlock];
+					var iSkin = 0;
+					var skin = object.Blocks[iSkin];
+					var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
 					
-					var mesh = parseMeshPart(part, group, object, block)
-					meshes.push(mesh);
-					model.addMesh(mesh);
-                }
-
-				if (table) {
-					var label = $('<label>');
-					var chbox = $('<input type="checkbox" checked>');
-					var td = $('<td>').append(label);
-					chbox.click(meshes, function(ev) {
-						for (i in ev.data) {
-							ev.data[i].setVisible(this.checked);
-						}
-						gr_instance.requestRedraw();
-					});
-					td.mouseenter([model, meshes],function(ev) {
-						ev.data[0].showExclusiveMeshes(ev.data[1]);
-						gr_instance.requestRedraw();
-					}).mouseleave(model, function(ev, a) {
-						ev.data.showExclusiveMeshes();
-						gr_instance.requestRedraw();
-					});
-					label.append(chbox);
-					label.append("o_" + objName);
-					table.append($('<tr>').append(td));
-					
-					//var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
-					
-					var params = '';
-					for (var i in object.Params) {
-						if (i % 2 == 0) {
-							params += '</br>';
-						}
-						params += '0x' + object.Params[i].toString(0x10) + ',';
+					var meshes = [];
+					for (var iBlock in skin) {
+						var block = skin[iBlock];
+						
+						var mesh = parseMeshPart(object, block)
+						meshes.push(mesh);
+						model.addMesh(mesh);
 					}
-					
-					td.append(params);
-				}
+
+					if (table) {
+						var label = $('<label>');
+						var chbox = $('<input type="checkbox" checked>');
+						var td = $('<td>').append(label);
+						chbox.click(meshes, function(ev) {
+							for (i in ev.data) {
+								ev.data[i].setVisible(this.checked);
+							}
+							gr_instance.requestRedraw();
+						});
+						td.mouseenter([model, meshes],function(ev) {
+							ev.data[0].showExclusiveMeshes(ev.data[1]);
+							gr_instance.requestRedraw();
+						}).mouseleave(model, function(ev, a) {
+							ev.data.showExclusiveMeshes();
+							gr_instance.requestRedraw();
+						});
+						label.append(chbox);
+						label.append("o_" + objName);
+						table.append($('<tr>').append(td));
+						
+						//var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
+						
+						/*
+						var params = '';
+						for (var i in object.Params) {
+							if (i % 2 == 0) {
+								params += '</br>';
+							}
+							params += '0x' + object.Params[i].toString(0x10) + ',';
+						}
+						
+						td.append(params);
+						*/
+					}
+				//}
             }
         }
     }
