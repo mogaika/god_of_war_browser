@@ -122,17 +122,20 @@ func NewFromData(fmat io.ReaderAt) (*Material, error) {
 type Ajax struct {
 	Mat      *Material
 	Textures []interface{}
+	Refs     map[string]int
 }
 
 func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := Ajax{
 		Mat:      mat,
 		Textures: make([]interface{}, len(mat.Layers)),
+		Refs:     make(map[string]int),
 	}
 
 	for i := range mat.Layers {
 		tn := node.FindNode(mat.Layers[i].Texture)
 		if tn != nil {
+			res.Refs[tn.Name] = tn.Id
 			txr, err := wad.Get(tn.Id)
 			if err != nil {
 				return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", tn.Name, node.Name, err)

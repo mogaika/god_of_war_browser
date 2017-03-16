@@ -143,7 +143,6 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 					object.BonesUsed = u16(pObject + 10)
 					object.MaterialId = u8(pObject + 8)
 
-					//ds := NewMeshDataStream(file[pObject:], 0, pObject, exlog)
 					dmaCalls := u32(pObject+0xc) * uint32(u8(pObject+0x18))
 					fmt.Fprintf(exlog, "     --- DMAs: 0x%x * 0x%x = %d\n", u32(pObject+0xc), uint32(u8(pObject+0x18)), dmaCalls)
 					object.Blocks = make([][]stBlock, dmaCalls)
@@ -153,9 +152,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						fmt.Fprintf(exlog, "     --- DMA Chain --- %d >>>>>>>>>>>>>>\n", iDmaChain)
 						ds := NewMeshDataStream(file[:], packetsCount, pPacket, pObject, exlog)
 
-						err = ds.ParsePackets()
-
-						if err != nil {
+						if err = ds.ParsePackets(); err != nil {
 							return nil, err
 						}
 
@@ -167,7 +164,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						pJointMapRaw := pObject + 0x20 + packetsCount*0x10*u32(pObject+0xc)*uint32(u8(pObject+0x18))
 						for jointMapIndex := uint32(0); jointMapIndex < uint32(object.BonesUsed); jointMapIndex++ {
 							object.JointMapper[jointMapIndex] = u32(pJointMapRaw + jointMapIndex*4)
-							if object.JointMapper[jointMapIndex] > 0x1ff {
+							if object.JointMapper[jointMapIndex] > 0x17f {
 								return nil, fmt.Errorf("Probably incorrect JointMapper calculation. 0x%x is too large (pMapAddr:0x%x)", object.JointMapper[jointMapIndex], pJointMapRaw)
 							}
 						}
