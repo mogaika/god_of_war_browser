@@ -8,8 +8,15 @@
         
         <script src='static/gl-matrix-min.js'></script>
         
-        <script src='static/3dstuff.js'></script>
-        <script src='static/ui.js'></script>
+        <script src='static/gowRenderer.js'></script>
+		<script src='static/gowRendererHelpers.js'></script>
+		<script src='static/gowRenderers/Simple.js'></script>
+		<script src='static/gowRenderers/VertexColor.js'></script>
+		<script src='static/gowRenderers/Textured.js'></script>
+		<script src='static/gowRenderers/SkinnedTextured.js'></script>
+        <script src='static/gowBrowser.js'></script>
+		
+		<title>GoW Browser</title>
     </head>
     <body>
         <div id='view'>
@@ -27,15 +34,7 @@
             </div>
             <div class='view-item' id='view-3d'>
                 <div class='view-item-container'>
-					<div id='view-3d-controls'>
-						<input type='checkbox' id='view-3d-control-pivot' checked></input>
-						<label for='view-3d-control-pivot'>Draw pivot</label>
-						<input type='checkbox' id='view-3d-control-additive'></input>
-						<label for='view-3d-control-additive'>Additive</label>
-						<input type='checkbox' id='view-3d-control-heat'></input>
-						<label for='view-3d-control-heat'>Joint heat</label>
-						<button id='view-3d-control-resettarget'>reset target</button>
-					</div>
+					<div id='view-3d-controls'></div>
                     <canvas></canvas>
                 </div>
             </div>
