@@ -2,6 +2,7 @@ attribute highp vec3 aVertexPos;
 attribute lowp vec4 aVertexColor;
 attribute mediump vec2 aVertexUV;
 attribute mediump float aVertexJointID;
+attribute mediump float aVertexJointID2; // Probably for normal
 
 uniform highp mat4 umModelTransform;
 uniform highp mat4 umProjectionView;

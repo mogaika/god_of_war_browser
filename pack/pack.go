@@ -1,10 +1,12 @@
 package pack
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -33,9 +35,10 @@ type PackFile struct {
 }
 
 type Pack struct {
-	Files    map[string]*PackFile
-	GamePath string `json:"-"`
-	stream   [2]*os.File
+	Files           map[string]*PackFile
+	AlreadyUnpacked bool
+	GamePath        string `json:"-"`
+	stream          [2]*os.File
 }
 
 func (p *Pack) Get(name string) (interface{}, error) {
@@ -58,6 +61,33 @@ func (p *Pack) Get(name string) (interface{}, error) {
 	} else {
 		return nil, utils.ErrHandlerNotFound
 	}
+}
+
+func NewPackUnpacked(gamePath string) (*Pack, error) {
+	files := make(map[string]*PackFile, 0)
+
+	dirfiles, err := ioutil.ReadDir(gamePath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range dirfiles {
+		if file.IsDir() {
+			continue
+		}
+		files[file.Name()] = &PackFile{
+			Name: file.Name(),
+			Size: file.Size(),
+		}
+	}
+
+	pack := &Pack{
+		Files:           files,
+		GamePath:        gamePath,
+		AlreadyUnpacked: true,
+	}
+
+	return pack, nil
 }
 
 func NewPack(gamePath string) (*Pack, error) {
@@ -101,8 +131,9 @@ func NewPack(gamePath string) (*Pack, error) {
 	}
 
 	pack := &Pack{
-		Files:    files,
-		GamePath: gamePath,
+		Files:           files,
+		GamePath:        gamePath,
+		AlreadyUnpacked: false,
 	}
 
 	return pack, nil
@@ -110,12 +141,21 @@ func NewPack(gamePath string) (*Pack, error) {
 
 func (p *Pack) GetFileReader(fname string) (*io.SectionReader, error) {
 	if file, ex := p.Files[fname]; ex {
-		if p.stream[file.Pack] == nil {
-			pio, err := os.Open(filepath.Join(p.GamePath, fmt.Sprintf("PART%d.PAK", file.Pack+1)))
+		if p.AlreadyUnpacked {
+			arr, err := ioutil.ReadFile(filepath.Join(p.GamePath, fname))
 			if err != nil {
 				return nil, err
-			} else {
-				p.stream[file.Pack] = pio
+			}
+			file.Size = int64(len(arr))
+			return io.NewSectionReader(bytes.NewReader(arr), 0, int64(len(arr))), nil
+		} else {
+			if p.stream[file.Pack] == nil {
+				pio, err := os.Open(filepath.Join(p.GamePath, fmt.Sprintf("PART%d.PAK", file.Pack+1)))
+				if err != nil {
+					return nil, err
+				} else {
+					p.stream[file.Pack] = pio
+				}
 			}
 		}
 

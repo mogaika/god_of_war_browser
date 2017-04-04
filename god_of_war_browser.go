@@ -23,17 +23,31 @@ import (
 
 func main() {
 	var addr, game string
+	var unpacked bool
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&game, "game", "", "Path to game folder")
+	flag.BoolVar(&unpacked, "unpacked", false, "Pack data already unpacked")
 	flag.Parse()
 
-	pack, err := pack.NewPack(game)
-	defer pack.Close()
+	var p *pack.Pack
+	var err error
+
+	if game != "" {
+		if unpacked {
+			p, err = pack.NewPackUnpacked(game)
+		} else {
+			p, err = pack.NewPack(game)
+		}
+	} else {
+		p, err = pack.NewPackUnpacked("./wads")
+	}
+
+	defer p.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := web.StartServer(addr, pack); err != nil {
+	if err := web.StartServer(addr, p); err != nil {
 		log.Fatal(err)
 	}
 }

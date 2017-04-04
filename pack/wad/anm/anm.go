@@ -13,14 +13,16 @@ import (
 const ANIMATIONS_MAGIC = 0x00000003
 
 const (
-	DATATYPE_SKINNING  = 0
+	DATATYPE_SKINNING  = 0 // apply to object (matrices)
 	DATATYPE_UNKNOWN1  = 1
 	DATATYPE_UNKNOWN2  = 2
-	DATATYPE_MATERIAL  = 3
+	DATATYPE_MATERIAL  = 3 // apply to material (color)
+	DATATYPE_UNKNOWN5  = 5 // apply to object (show/hide maybe)
 	DATATYPE_UNKNOWN6  = 6
 	DATATYPE_UNKNOWN7  = 7
-	DATATYPE_TEXUREPOS = 8
-	DATATYPE_PARTICLES = 10
+	DATATYPE_TEXUREPOS = 8  // apply to material (uv)
+	DATATYPE_PARTICLES = 10 // apply to object (particles)
+	DATATYPE_UNKNOWN11 = 11 // apply to object (? in StonedBRK models)
 )
 
 type RawDataType struct {

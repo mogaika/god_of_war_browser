@@ -30,6 +30,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 	this.bufferUV = undefined;
 	this.bufferNormals = undefined;
 	this.bufferJointIds = undefined;
+	this.bufferJointIds2 = undefined;
 	this.jointMapping = undefined;
 	this.materialIndex = undefined;
 }
@@ -80,13 +81,21 @@ grMesh.prototype.setNormals = function(data) {
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
 }
 
-grMesh.prototype.setJointIds = function(jointIds, jointMapping) {
+grMesh.prototype.setJointIds = function(jointMapping, jointIds, jointIds2) {
+	this.jointMapping = jointMapping;
 	if (!this.bufferJointIds) {
 		this.bufferJointIds = gl.createBuffer();
 	}
-	this.jointMapping = jointMapping;
 	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds);
 	gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds), gl.STATIC_DRAW);
+	
+	if (jointIds2 != undefined) {
+		if (!this.bufferJointIds2) {
+			this.bufferJointIds2 = gl.createBuffer();
+		}
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds2);
+		gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds2), gl.STATIC_DRAW);
+	}
 }
 
 grMesh.prototype.free = function() {
@@ -160,7 +169,7 @@ function mshFromSklt(sklt, key="OurJointToIdleMat") {
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-	//this.addMesh(mshFromSklt(sklt));
+	this.addMesh(mshFromSklt(sklt));
 	this.skeleton = [];
 
 	for (var i in sklt) {

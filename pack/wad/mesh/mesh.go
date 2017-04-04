@@ -25,6 +25,7 @@ type stBlock struct {
 		R, G, B, A []uint16 // actually uint8, only for marshaling
 	}
 	Joints                 []uint16
+	Joints2                []uint16
 	DebugPos               uint32
 	HasTransparentBlending bool
 }
