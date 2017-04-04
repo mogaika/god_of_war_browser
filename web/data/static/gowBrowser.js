@@ -254,8 +254,10 @@ function parseMeshPart(object, block) {
 	}
 	
 	if (!!block.Joints && block.Joints.length && !!object.JointMapper && object.JointMapper.length) {
-		//console.log(block.Joints, object.JointMapper);
-		mesh.setJointIds(block.Joints, object.JointMapper);
+		//console.log(block.Joints, block.Joints2, object.JointMapper);
+		var joints2 = undefined;
+		if (block.Joints2) joints2 = block.Joints2;
+		mesh.setJointIds(object.JointMapper, block.Joints, joints2);
 	}
 	
 	return mesh;
