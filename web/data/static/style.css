@@ -71,7 +71,7 @@ a {
 }
 
 #view-tree {
-    width: 18em;
+    width: 19em;
     background-color: #3e2b39;
 }
 
@@ -96,6 +96,15 @@ a {
 #view-tree ol li label:hover {
     text-decoration: underline;
 }
+
+#view-tree ol li.wad-node-link {
+	color: #7df;
+}
+
+#view-tree ol li.wad-node-data {
+	color: #bf7;
+}
+
 
 #view-summary {
     width: 18em;

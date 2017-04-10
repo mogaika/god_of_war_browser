@@ -85,6 +85,7 @@ type WadNode struct {
 	Wad      *Wad `json:"-"`
 	Size     uint32
 	Start    int64
+	Tag      uint16
 
 	Cached bool `json:"-"`
 	Cache  File `json:"-"`
@@ -154,11 +155,17 @@ func (node *WadNode) FindNode(name string) *WadNode {
 	return node.Wad.FindNode(name, node.Parent, node.Id)
 }
 
-func NewWad(r io.ReaderAt, name string) (*Wad, error) {
+func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 	wad := &Wad{
 		Reader: r,
-		Name:   name,
+		Name:   wadName,
 	}
+
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("Wad parsing error: %v", err)
+		}
+	}()
 
 	item := make([]byte, WAD_ITEM_SIZE)
 
@@ -181,38 +188,45 @@ func NewWad(r io.ReaderAt, name string) (*Wad, error) {
 		size := binary.LittleEndian.Uint32(item[4:8])
 		name := utils.BytesToString(item[8:32])
 
-		switch tag {
-		case 0x1e: // file data packet
+		nd := wad.FindNode(name, currentNode, len(wad.Nodes))
+
+		addNode := func(isLink bool) *WadNode {
 			data_pos := pos + WAD_ITEM_SIZE
-			var node *WadNode
-			// minimal size of data == 4, for storing data format
-			nd := wad.FindNode(name, currentNode, len(wad.Nodes))
-			if nd != nil && nd.Parent == currentNode {
-				log.Printf("Finded copy of %s->%d", nd.Name, nd.Id)
-			}
-
-			if size == 0 {
-				node = wad.NewNode(name, true, currentNode, flags)
-			} else {
-				node = wad.NewNode(name, false, currentNode, flags)
-
+			node := wad.NewNode(name, isLink, currentNode, flags)
+			if !isLink {
 				var bfmt [4]byte
-				_, err := r.ReadAt(bfmt[:], data_pos)
-				if err != nil {
-					return nil, err
+				if _, err := r.ReadAt(bfmt[:], data_pos); err != nil {
+					panic(err)
 				}
 				node.Format = binary.LittleEndian.Uint32(bfmt[0:4])
 			}
 			node.Size = size
 			node.Start = data_pos
+			node.Tag = tag
+			return node
+		}
+
+		switch tag {
+		case 0x1e: // file data packet
+			// Tell file server (server determined by first uint16)
+			// that new file is loaded
+			// if name start with space, then name ignored (unnamed)
+			// overwrite previous instance with same name
+			if nd != nil && nd.Parent == currentNode {
+				log.Printf("Finded copy of %s->%d", nd.Name, nd.Id)
+			}
+
+			// size cannot be 0, because game store server id in first uint16
+			node := addNode(size == 0)
 
 			if newGroupTag {
 				newGroupTag = false
 				currentNode = node.Id
 			}
 		case 0x28: // file data group start
-			newGroupTag = true
+			newGroupTag = true // same realization in game
 		case 0x32: // file data group end
+			// Tell server about group ended
 			newGroupTag = false
 			if currentNode < 0 {
 				return nil, errors.New("Trying to end not started group")
@@ -220,18 +234,38 @@ func NewWad(r io.ReaderAt, name string) (*Wad, error) {
 				currentNode = wad.Nodes[currentNode].Parent
 			}
 		case 0x18: // entity count
+			// Game also adding empty named node to nodedirectory
 			size = 0
-
 		// TODO: use this tags
 		case 0x006e: // MC_DATA   < R_PERM.WAD
+			// Just add node to nodedirectory
 		case 0x006f: // MC_ICON   < R_PERM.WAD
+			// Like 0x006e, but also store size of data
 		case 0x0070: // MSH_BDepoly6Shape
+			// Add node to nodedirectory only if
+			// another node with this name not exists
+			if nd == nil {
+				addNode(false)
+			}
 		case 0x0071: // TWK_Cloth_195
+			// Tweaks affect VFS of game
+			addNode(false)
 		case 0x0072: // TWK_CombatFile_328
+			// Affect VFS too
+			addNode(false)
 		case 0x01f4: // RSRCS
+			// probably affect WadReader
+			// (internally transformed to R_RSRCS, what look like WAD)
+			addNode(false)
 		case 0x029a: // file data start
+			// synonyms - 0x50, 0x309
+			// PopBatchServerStack of server from first uin16
 		case 0x0378: // file header start
+			// create new memory namespace and push to memorystack
+			// create new nodedirectory and push to nodestack
+			// data loading init
 		case 0x03e7: // file header pop heap
+			// data loading structs cleanup
 		default:
 			log.Printf("unknown wad tag %.4x size %.8x name %s", tag, size, name)
 			return nil, fmt.Errorf("unknown tag")

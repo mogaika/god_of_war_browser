@@ -82,11 +82,17 @@ function treeLoadWad(data) {
                     .attr('nodeid', node.Id)
                     .attr('nodeformat', node.Format)
                     .attr('nodename', node.Name)
+					.attr('nodetag', node.Tag)
                     .append($('<label>').append(("0000" + node.Id).substr(-4,4) + '.' + node.Name));
-            
+
             if (node.IsLink) {
-                // TODO: link visual
+				li.addClass('wad-node-link');
             } else {
+				if (node.Tag == 0x1e) {
+					li.addClass('wad-node-data');
+				} else {
+					li.append(' [' + node.Tag + ']');
+				}
                 li.append($('<a download>')
                         .addClass('button-dump')
                         .attr('href', '/dump/pack/' + data.Name + '/' + node.Id))
@@ -103,7 +109,6 @@ function treeLoadWad(data) {
     
     if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
-		
 		
 		if (!defferedLoadingWadNode) {
 			set3dVisible(true);
@@ -134,9 +139,27 @@ function treeLoadWad(data) {
 	
     $('#view-tree ol li label').click(function(ev) {
         var node_element = $(this).parent();
-        
         treeLoadWadNode(dataTree.children().attr('wadname'), parseInt(node_element.attr('nodeid')));
     });
+}
+
+function hexdump(buffer, blockSize) {
+    blockSize = blockSize || 16;
+    var lines = [];
+    var hex = "0123456789ABCDEF";
+    for (var b = 0; b < buffer.length; b += blockSize) {
+        var block = buffer.slice(b, Math.min(b + blockSize, buffer.length));
+        var addr = ("000000" + b.toString(16)).slice(-6);
+        var codes = block.split('').map(function (ch) {
+            var code = ch.charCodeAt(0);
+            return " " + hex[(0xF0 & code) >> 4] + hex[0x0F & code];
+        }).join("");
+        codes += "   ".repeat(blockSize - block.length);
+        var chars = block.replace(/[\x00-\x1F\x20]/g, '.');
+        chars +=  " ".repeat(blockSize - block.length);
+        lines.push(addr + " " + codes + "  " + chars);
+    }
+    return lines.join("\n");
 }
 
 function treeLoadWadNode(wad, nodeid) {
@@ -145,46 +168,61 @@ function treeLoadWadNode(wad, nodeid) {
     $.getJSON('/json/pack/' + wad +'/' + nodeid, function(resp) {
         var data = resp.Data;
         var node = resp.Node;
-
+		
+		var needHexDump = false;
+		
         if (resp.error) {
             set3dVisible(false);
             setTitle(viewSummary, 'Error');
             dataSummary.append(resp.error);
+			needHexDump = true;
         } else {
             setTitle(viewSummary, node.Name);
-
 			setLocation(wad + " => " + node.Name, '#/' + wad + '/' + nodeid);
-
-            switch (node.Format) {
-                case 0x00000007: // txr
-                    summaryLoadWadTxr(data);
-                    break;
-                case 0x00000008: // material
-                    summaryLoadWadMat(data);
-                    break;
-                case 0x0001000f: // mesh
-                    summaryLoadWadMesh(data);
-                    break;
-                case 0x0002000f: // mdl
-                    summaryLoadWadMdl(data);
-                    break;
-                case 0x00040001: // obj
-                    summaryLoadWadObj(data);
-                    break;
-                case 0x80000001: // cxt
-                    summaryLoadWadCxt(data);
-                    break;
-                case 0x00020001: // gameObject
-                    summaryLoadWadGameObject(data);
-                    break;
-                case 0x0000000c: // gfx pal
-                default:
-                    set3dVisible(false);
-                    dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replace('\n', '<br>')));
-                    break;
-            }
+			
+			if (node.Tag == 0x1e) {
+	            switch (node.Format) {
+	                case 0x00000007: // txr
+	                    summaryLoadWadTxr(data);
+	                    break;
+	                case 0x00000008: // material
+	                    summaryLoadWadMat(data);
+	                    break;
+	                case 0x0001000f: // mesh
+	                    summaryLoadWadMesh(data);
+	                    break;
+	                case 0x0002000f: // mdl
+	                    summaryLoadWadMdl(data);
+	                    break;
+	                case 0x00040001: // obj
+	                    summaryLoadWadObj(data);
+	                    break;
+	                case 0x80000001: // cxt
+	                    summaryLoadWadCxt(data);
+	                    break;
+	                case 0x00020001: // gameObject
+	                    summaryLoadWadGameObject(data);
+	                    break;
+	                case 0x0000000c: // gfx pal
+	                default:
+	                    set3dVisible(false);
+	                    dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replace('\n', '<br>')));
+						needHexDump = true;
+	                    break;
+	            }
+			} else {
+				needHexDump = true;
+			}
             console.log('wad ' + wad + ' file (' + node.Name + ')' + node.Id + ' loaded. format:' + node.Format);
         }
+
+		if (needHexDump) {
+			$.ajax('/dump/pack/' + wad +'/' + nodeid, {
+				success: function (data) {
+					dataSummary.append($("<pre>").append(hexdump(data).replace('\n', '<br>')));
+				}
+			});
+		}
     });
 }
 
