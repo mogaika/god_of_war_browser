@@ -190,15 +190,17 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 
 		nd := wad.FindNode(name, currentNode, len(wad.Nodes))
 
-		addNode := func(isLink bool) *WadNode {
+		addNode := func(isLink bool, hasFormat bool) *WadNode {
 			data_pos := pos + WAD_ITEM_SIZE
 			node := wad.NewNode(name, isLink, currentNode, flags)
 			if !isLink {
-				var bfmt [4]byte
-				if _, err := r.ReadAt(bfmt[:], data_pos); err != nil {
-					panic(err)
+				if hasFormat {
+					var bfmt [4]byte
+					if _, err := r.ReadAt(bfmt[:], data_pos); err != nil {
+						panic(err)
+					}
+					node.Format = binary.LittleEndian.Uint32(bfmt[0:4])
 				}
-				node.Format = binary.LittleEndian.Uint32(bfmt[0:4])
 			}
 			node.Size = size
 			node.Start = data_pos
@@ -217,7 +219,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			}
 
 			// size cannot be 0, because game store server id in first uint16
-			node := addNode(size == 0)
+			node := addNode(size == 0, true)
 
 			if newGroupTag {
 				newGroupTag = false
@@ -245,18 +247,18 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			// Add node to nodedirectory only if
 			// another node with this name not exists
 			if nd == nil {
-				addNode(false)
+				addNode(false, false)
 			}
 		case 0x0071: // TWK_Cloth_195
 			// Tweaks affect VFS of game
-			addNode(false)
+			addNode(false, false)
 		case 0x0072: // TWK_CombatFile_328
 			// Affect VFS too
-			addNode(false)
+			addNode(false, false)
 		case 0x01f4: // RSRCS
 			// probably affect WadReader
 			// (internally transformed to R_RSRCS, what look like WAD)
-			addNode(false)
+			addNode(false, false)
 		case 0x029a: // file data start
 			// synonyms - 0x50, 0x309
 			// PopBatchServerStack of server from first uin16

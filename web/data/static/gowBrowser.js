@@ -219,6 +219,7 @@ function treeLoadWadNode(wad, nodeid) {
 		if (needHexDump) {
 			$.ajax('/dump/pack/' + wad +'/' + nodeid, {
 				success: function (data) {
+					dataSummary.append($("<h5>").append('File size:' + data.length));
 					dataSummary.append($("<pre>").append(hexdump(data).replace('\n', '<br>')));
 				}
 			});
