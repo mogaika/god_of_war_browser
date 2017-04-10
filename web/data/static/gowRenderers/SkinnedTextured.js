@@ -96,7 +96,7 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 		}
 		gl.uniform1i(this.uUseJoints, 0);
 		gl.disableVertexAttribArray(this.aVertexJointID);
-		gl.disableVertexAttribArray(this.aVertexJointID2);
+		//gl.disableVertexAttribArray(this.aVertexJointID2);
 	}
 
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.bufferIndex);
@@ -226,7 +226,11 @@ grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSk
 
 		gl.depthMask(false);
 		gl.enable(gl.BLEND);
+		//gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
 		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+		//gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		this.renderModels(ctrl, mdls, __mdl_mesh_additive_tester, useSkelet);
 		
 		gl.depthMask(true);
