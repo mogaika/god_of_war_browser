@@ -251,9 +251,12 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			}
 		case 0x0071: // TWK_Cloth_195
 			// Tweaks affect VFS of game
+			// AI logics, animation
+			// exec twk asap?
 			addNode(false, false)
 		case 0x0072: // TWK_CombatFile_328
 			// Affect VFS too
+			// store twk in mem?
 			addNode(false, false)
 		case 0x01f4: // RSRCS
 			// probably affect WadReader
