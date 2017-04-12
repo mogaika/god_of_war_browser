@@ -144,22 +144,29 @@ function treeLoadWad(data) {
 }
 
 function hexdump(buffer, blockSize) {
-    blockSize = blockSize || 16;
-    var lines = [];
-    var hex = "0123456789ABCDEF";
-    for (var b = 0; b < buffer.length; b += blockSize) {
-        var block = buffer.slice(b, Math.min(b + blockSize, buffer.length));
-        var addr = ("000000" + b.toString(16)).slice(-6);
-        var codes = block.split('').map(function (ch) {
-            var code = ch.charCodeAt(0);
-            return " " + hex[(0xF0 & code) >> 4] + hex[0x0F & code];
-        }).join("");
-        codes += "   ".repeat(blockSize - block.length);
-        var chars = block.replace(/[\x00-\x1F\x20]/g, '.');
-        chars +=  " ".repeat(blockSize - block.length);
-        lines.push(addr + " " + codes + "  " + chars);
-    }
-    return lines.join("\n");
+	var table = $('<table>');
+	blockSize = blockSize || 16;
+	var lines = [];
+	var hex = "0123456789ABCDEF";
+	var blocks = Math.ceil(buffer.length/blockSize);
+	for (var iBlock = 0; iBlock < blocks; iBlock += 1)	 {
+		var blockPos = iBlock * blockSize;
+		
+		var line = '';
+		var chars = '';
+		for (var j = 0; j < Math.min(blockSize, buffer.length - blockPos); j += 1) {
+			var code = buffer[blockPos + j];
+			line += ' ' + hex[(0xF0 & code) >> 4] + hex[0x0F & code];
+			chars += (code > 0x20 && code < 0x80) ? String.fromCharCode(code) : '.';
+		}
+		
+		var tr = $('<tr>');
+		tr.append($('<td>').append(("000000" + blockPos.toString(16)).slice(-6)));
+		tr.append($('<td>').append(line));
+		tr.append($('<td>').append(chars));
+		table.append(tr);
+	}	
+	return table;
 }
 
 function treeLoadWadNode(wad, nodeid) {
@@ -217,10 +224,19 @@ function treeLoadWadNode(wad, nodeid) {
         }
 
 		if (needHexDump) {
-			$.ajax('/dump/pack/' + wad +'/' + nodeid, {
-				success: function (data) {
-					dataSummary.append($("<h5>").append('File size:' + data.length));
-					dataSummary.append($("<pre>").append(hexdump(data).replace('\n', '<br>')));
+			$.ajax({
+				url: '/dump/pack/' + wad +'/' + nodeid,
+				type: 'GET',
+				dataType: 'binary',
+				processData: false,
+				success: function(blob) {
+					var fileReader = new FileReader();
+					fileReader.onload = function() {
+						var arr = new Uint8Array(this.result);
+						dataSummary.append($("<h5>").append('File size:' + arr.length));
+						dataSummary.append(hexdump(arr));
+					};
+					fileReader.readAsArrayBuffer(blob);
 				}
 			});
 		}
