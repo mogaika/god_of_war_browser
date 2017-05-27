@@ -1,55 +1,23 @@
 package web
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/gorilla/mux"
 
+	file_vpk "github.com/mogaika/god_of_war_browser/pack/vpk"
 	file_wad "github.com/mogaika/god_of_war_browser/pack/wad"
+	file_vagp "github.com/mogaika/god_of_war_browser/ps2/vagp"
+	"github.com/mogaika/god_of_war_browser/web/webutils"
 )
 
-func writeFile(w http.ResponseWriter, in io.Reader, name string) {
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+name+"\"")
-	io.Copy(w, in)
-}
-
-func writeJson(w http.ResponseWriter, data interface{}) {
-	res, err := json.Marshal(data)
-	if err != nil {
-		writeError(w, err)
-	} else {
-		writeResult(w, res)
-	}
-}
-
-func writeResult(w http.ResponseWriter, data []byte) {
-	_, err := w.Write(data)
-	if err != nil {
-		log.Printf("Error when writing reponse: %v", err)
-	}
-}
-
-func writeError(w http.ResponseWriter, err error) {
-	type jError struct {
-		Error string `json:"error"`
-	}
-	data, err := json.Marshal(&jError{Error: err.Error()})
-	if err == nil {
-		log.Printf("HERR: %v", string(data))
-		writeResult(w, data)
-	} else {
-		log.Printf("Error marshaling error '%v': %v", err, data)
-	}
-}
-
 func HandlerAjaxPack(w http.ResponseWriter, r *http.Request) {
-	writeJson(w, ServerPack)
+	webutils.WriteJson(w, ServerPack)
 }
 
 func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
@@ -57,9 +25,9 @@ func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 	data, err := ServerPack.Get(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
-		writeError(w, err)
+		webutils.WriteError(w, err)
 	} else {
-		writeJson(w, data)
+		webutils.WriteJson(w, data)
 	}
 }
 
@@ -74,14 +42,14 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 	data, err := ServerPack.Get(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
-		writeError(w, err)
+		webutils.WriteError(w, err)
 	} else {
 		switch file[len(file)-4:] {
 		case ".WAD":
 			wad := data.(*file_wad.Wad)
 			id, err := strconv.Atoi(param)
 			if err != nil {
-				writeError(w, fmt.Errorf("param '%s' is not integer", param))
+				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
 				node := wad.Node(id).ResolveLink()
 				if node != nil {
@@ -89,19 +57,19 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 					if err == nil {
 						val, err := data.Marshal(wad, node)
 						if err != nil {
-							writeError(w, fmt.Errorf("Error Marshaling node %d from %s: %v", id, file, err.(error)))
+							webutils.WriteError(w, fmt.Errorf("Error Marshaling node %d from %s: %v", id, file, err.(error)))
 						} else {
-							writeJson(w, &Result{Node: node, Data: val})
+							webutils.WriteJson(w, &Result{Node: node, Data: val})
 						}
 					} else {
-						writeError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
+						webutils.WriteError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
 					}
 				} else {
-					writeError(w, fmt.Errorf("Cannot find node %d in %s", id, wad.Name))
+					webutils.WriteError(w, fmt.Errorf("Cannot find node %d in %s", id, wad.Name))
 				}
 			}
 		default:
-			writeError(w, fmt.Errorf("File %s not contain subdata", file))
+			webutils.WriteError(w, fmt.Errorf("File %s not contain subdata", file))
 		}
 	}
 }
@@ -110,7 +78,7 @@ func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	reader, err := ServerPack.GetFileReader(file)
 	if err == nil {
-		writeFile(w, reader, file)
+		webutils.WriteFile(w, reader, file)
 	} else {
 		fmt.Fprintf(w, "Error getting file reader: %v", err)
 	}
@@ -122,23 +90,89 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 	data, err := ServerPack.Get(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
-		writeError(w, err)
+		webutils.WriteError(w, err)
 	} else {
 		switch file[len(file)-4:] {
 		case ".WAD":
 			wad := data.(*file_wad.Wad)
 			id, err := strconv.Atoi(param)
 			if err != nil {
-				writeError(w, fmt.Errorf("param '%s' is not integer", param))
+				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
 				if rdr, err := wad.GetFileReader(id); err == nil {
-					writeFile(w, rdr, wad.Nodes[id].Name)
+					webutils.WriteFile(w, rdr, wad.Nodes[id].Name)
 				} else {
-					writeError(w, fmt.Errorf("cannot get wad '%s' file %d reader", file, id))
+					webutils.WriteError(w, fmt.Errorf("cannot get wad '%s' file %d reader", file, id))
+				}
+			}
+		case ".VAG":
+			if wav, err := data.(*file_vagp.VAGP).AsWave(); err != nil {
+				webutils.WriteError(w, fmt.Errorf("Error converting to wav: %v", err))
+			} else {
+				webutils.WriteFile(w, wav, file+".WAV")
+			}
+		case ".VPK":
+			vpk := data.(*file_vpk.VPK)
+			fr, err := ServerPack.GetFileReader(file)
+			if err != nil {
+				panic(err)
+			}
+			var buf bytes.Buffer
+			_, err = vpk.AsWave(fr, &buf)
+			if err != nil {
+				webutils.WriteError(w, fmt.Errorf("Error converting to wav: %v", err))
+			} else {
+				webutils.WriteFile(w, &buf, file+".WAV")
+			}
+		default:
+			webutils.WriteError(w, fmt.Errorf("File %s not contain subdata", file))
+		}
+	}
+}
+
+func HandlerDumpPackParamSubFile(w http.ResponseWriter, r *http.Request) {
+	file := mux.Vars(r)["file"]
+	param := mux.Vars(r)["param"]
+	subfile := mux.Vars(r)["subfile"]
+	data, err := ServerPack.Get(file)
+	if err != nil {
+		log.Printf("Error getting file from pack: %v", err)
+		webutils.WriteError(w, err)
+	} else {
+		switch file[len(file)-4:] {
+		case ".WAD":
+			wad := data.(*file_wad.Wad)
+			id, err := strconv.Atoi(param)
+			if err != nil {
+				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
+			} else {
+				node := wad.Node(id).ResolveLink()
+				if node != nil {
+					data, err := wad.Get(node.Id)
+					if err == nil {
+						rt := reflect.TypeOf(data)
+						method, has := rt.MethodByName("SubfileGetter")
+						if !has {
+							webutils.WriteError(w, fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name()))
+						} else {
+							method.Func.Call([]reflect.Value{
+								reflect.ValueOf(data),
+								reflect.ValueOf(w),
+								reflect.ValueOf(r),
+								reflect.ValueOf(wad),
+								reflect.ValueOf(node),
+								reflect.ValueOf(subfile),
+							}[:])
+						}
+					} else {
+						webutils.WriteError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
+					}
+				} else {
+					webutils.WriteError(w, fmt.Errorf("Cannot find node %d in %s", id, wad.Name))
 				}
 			}
 		default:
-			writeError(w, fmt.Errorf("File %s not contain subdata", file))
+			webutils.WriteError(w, fmt.Errorf("File %s not contain subdata", file))
 		}
 	}
 }
