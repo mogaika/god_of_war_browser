@@ -21,6 +21,7 @@ func StartServer(addr string, _pack *pack.Pack) error {
 	r.HandleFunc("/json/pack/{file}", HandlerAjaxPackFile)
 	r.HandleFunc("/json/pack", HandlerAjaxPack)
 
+	r.HandleFunc("/dump/pack/{file}/{param}/{subfile}", HandlerDumpPackParamSubFile)
 	r.HandleFunc("/dump/pack/{file}/{param}", HandlerDumpPackParamFile)
 	r.HandleFunc("/dump/pack/{file}", HandlerDumpPackFile)
 

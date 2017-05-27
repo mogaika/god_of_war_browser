@@ -34,7 +34,7 @@ function packLoad() {
         var list = $('<ol>');
         for (var i in data.Files) {
             var fileName = data.Files[i].Name;
-			if (fileName.endsWith("WAD")) {
+			if (true || fileName.endsWith("WAD")) {
 	            list.append($('<li>')
 	                    .attr('filename', fileName)
 	                    .append($('<label>').append(fileName))
@@ -65,12 +65,32 @@ function packLoadFile(filename) {
             case 'wad':
                 treeLoadWad(data);  
                 break;
+			case 'vag':
+			case 'vpk':
+				treeLoadVagVpk(data, filename);
+				break;
             default:
                 dataTree.append(JSON.stringify(data, undefined, 2).replace('\n', '<br>'));
                 break;
         }
         console.log('pack file ' + filename + ' loaded');
     });
+}
+
+function treeLoadVagVpk(data, filename) {
+	set3dVisible(false);
+	setTitle(viewTree, filename);
+	var list = $("<ul>");
+	var wavPath = '/dump/pack/' + filename + '/wav';
+	
+	list.append($("<li>").append("SampleRate: " + data.SampleRate));
+	list.append($("<li>").append("Channels: " + data.Channels));
+	list.append($("<li>").append($("<a>").attr("href", wavPath).append("Download WAV")));
+	dataTree.append(list)
+	
+	dataTree.append($("<audio controls autoplay>").append($("<source>").attr("src", wavPath)));
+	
+    setLocation(filename, '#/' + filename);
 }
 
 function treeLoadWad(data) {
@@ -171,12 +191,12 @@ function hexdump(buffer, blockSize) {
 
 function treeLoadWadNode(wad, nodeid) {
     dataSummary.empty();
-
     $.getJSON('/json/pack/' + wad +'/' + nodeid, function(resp) {
         var data = resp.Data;
         var node = resp.Node;
 		
 		var needHexDump = false;
+		var needMarshalDump = false;
 		
         if (resp.error) {
             set3dVisible(false);
@@ -189,6 +209,22 @@ function treeLoadWadNode(wad, nodeid) {
 			
 			if (node.Tag == 0x1e) {
 	            switch (node.Format) {
+					case 0x00000018: // sbk blk
+					case 0x00040018: // sbk vag
+						set3dVisible(false);
+						var list = $("<ul>");
+						for (var i = 0; i < data.Sounds.length; i++) {
+							var snd = data.Sounds[i];
+							var link = '/dump/pack/' + wad +'/' + nodeid + '/' + snd.Name;
+							
+							var vaglink = $("<a>").append(snd.Name).attr('href', link);
+							var wavlink = $("<a>").append(' (> WAV <)').attr('href', link+'@wav@');
+							
+							list.append($("<li>").append(vaglink).append(wavlink));
+						}
+						dataSummary.append(list);
+					    needMarshalDump = true;
+						break;
 	                case 0x00000007: // txr
 	                    summaryLoadWadTxr(data);
 	                    break;
@@ -213,7 +249,7 @@ function treeLoadWadNode(wad, nodeid) {
 	                case 0x0000000c: // gfx pal
 	                default:
 	                    set3dVisible(false);
-	                    dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replace('\n', '<br>')));
+						needMarshalDump = true;
 						needHexDump = true;
 	                    break;
 	            }
@@ -222,6 +258,10 @@ function treeLoadWadNode(wad, nodeid) {
 			}
             console.log('wad ' + wad + ' file (' + node.Name + ')' + node.Id + ' loaded. format:' + node.Format);
         }
+
+		if (needMarshalDump) {
+			dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replace('\n', '<br>')));
+		}
 
 		if (needHexDump) {
 			$.ajax({
