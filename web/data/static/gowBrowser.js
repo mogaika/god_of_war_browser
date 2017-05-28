@@ -44,14 +44,27 @@ function packLoad() {
 			}
         }
         dataPack.append(list);
-        
+
 		if (defferedLoadingWad) {
 			packLoadFile(defferedLoadingWad);
 		}
-		
+
         $('#view-pack ol li label').click(function(ev) {
             packLoadFile($(this).parent().attr('filename'));
         });
+
+		$('#view-pack-filter').on('input', function() {
+			var filterText = $(this).val().toLowerCase();
+			$('#view-pack ol li label').each(function(a1, a2, a3) {
+				var label = $(a2);
+				var p = label.parent();
+				if (label.text().toLowerCase().includes(filterText)) {
+					p.show();
+				} else {
+					p.hide();
+				}
+			});
+		}).val('.wad').trigger('input');
 
         console.log('pack loaded');
     })
