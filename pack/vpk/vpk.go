@@ -75,7 +75,7 @@ func (vpk *VPK) AsWave(r io.Reader, w io.Writer) (int, error) {
 
 			for k := 0; k < len(buf)/2; k++ {
 				j := uint32(k * 2) // 16bit
-				outchpos := j * vpk.Channels
+				outchpos := j*vpk.Channels + uint32(i*2)
 				out[outchpos] = buf[j]
 				out[outchpos+1] = buf[j+1]
 			}

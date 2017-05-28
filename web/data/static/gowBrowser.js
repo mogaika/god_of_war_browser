@@ -211,19 +211,8 @@ function treeLoadWadNode(wad, nodeid) {
 	            switch (node.Format) {
 					case 0x00000018: // sbk blk
 					case 0x00040018: // sbk vag
-						set3dVisible(false);
-						var list = $("<ul>");
-						for (var i = 0; i < data.Sounds.length; i++) {
-							var snd = data.Sounds[i];
-							var link = '/dump/pack/' + wad +'/' + nodeid + '/' + snd.Name;
-							
-							var vaglink = $("<a>").append(snd.Name).attr('href', link);
-							var wavlink = $("<a>").append(' (> WAV <)').attr('href', link+'@wav@');
-							
-							list.append($("<li>").append(vaglink).append(wavlink));
-						}
-						dataSummary.append(list);
-					    needMarshalDump = true;
+						summaryLoadWadSbk(data, wad, nodeid);
+						needMarshalDump = true;
 						break;
 	                case 0x00000007: // txr
 	                    summaryLoadWadTxr(data);
@@ -684,6 +673,26 @@ function summaryLoadWadCxt(data) {
 	loadCxtFromAjax(data);
 	
     gr_instance.requestRedraw();
+}
+
+function summaryLoadWadSbk(data, wad, nodeid) {
+	set3dVisible(false);
+	var list = $("<ul>");
+	for (var i = 0; i < data.Sounds.length; i++) {
+		var snd = data.Sounds[i];
+		var link = '/dump/pack/' + wad +'/' + nodeid + '/' + snd.Name;
+
+		var vaglink = $("<a>").append(snd.Name).attr('href', link);
+		var wavlink = $("<audio controls>").attr("preload","none").append($("<source>").attr("src", link+'@wav@'));	
+
+		var li = $("<li>").append(vaglink);
+
+		if (data.IsVagFiles) {
+			li.append("<br>").append(wavlink);
+		}
+		list.append(li);
+	}
+	dataSummary.append(list);
 }
 
 $(document).ready(function(){

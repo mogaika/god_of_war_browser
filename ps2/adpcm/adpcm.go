@@ -33,15 +33,21 @@ func (stream *AdpcmStream) Unpack(packs []byte) ([]byte, error) {
 	var result = make([]byte, AdpcmSizeToWaveSize(len(packs)))
 	var fsamples [28]float64
 
+	iResultPos := 0
 	for iBlock := 0; iBlock < len(packs)/16; iBlock++ {
 		blockStart := iBlock * 16
+
+		// used to fill space to end of vpk file
+		if packs[blockStart] == 0xc0 {
+			continue
+		}
 
 		predict_nr := uint32(packs[blockStart])
 		shift_factor := predict_nr & 0xf
 		predict_nr >>= 4
 
 		if predict_nr > 5 {
-			log.Printf("Strange sound. PredictNr > 5: %v", predict_nr)
+			log.Printf("Strange sound. PredictNr > 5: %v. Block: %v", predict_nr, packs[blockStart:blockStart+16])
 			predict_nr = 0
 		}
 
@@ -58,8 +64,7 @@ func (stream *AdpcmStream) Unpack(packs []byte) ([]byte, error) {
 			fsamples[i+1] = float64(scale >> shift_factor)
 		}
 
-		bsamples := result[iBlock*56:]
-
+		bsamples := result[iResultPos:]
 		for i := range fsamples {
 			fsamples[i] = fsamples[i] + stream.hist1*vag_f[predict_nr][0] + stream.hist2*vag_f[predict_nr][1]
 			stream.hist2 = stream.hist1
@@ -68,8 +73,9 @@ func (stream *AdpcmStream) Unpack(packs []byte) ([]byte, error) {
 			bsamples[i*2] = byte(d & 0xff)
 			bsamples[i*2+1] = byte(d >> 8)
 		}
+		iResultPos += 56
 	}
-	return result, nil
+	return result[:iResultPos], nil
 }
 
 func NewAdpcmStream() *AdpcmStream {
