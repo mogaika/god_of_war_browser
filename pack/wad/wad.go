@@ -21,9 +21,14 @@ type File interface {
 type FileLoader func(wad *Wad, node *WadNode, r io.ReaderAt) (File, error)
 
 var cacheHandlers map[uint32]FileLoader = make(map[uint32]FileLoader, 0)
+var cacheTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
 
 func SetHandler(format uint32, ldr FileLoader) {
 	cacheHandlers[format] = ldr
+}
+
+func SetTagHandler(tag uint16, ldr FileLoader) {
+	cacheTagHandlers[tag] = ldr
 }
 
 type Wad struct {
@@ -60,16 +65,23 @@ func (wad *Wad) Get(id int) (File, error) {
 		return node.Cache, nil
 	}
 
-	if han, ex := cacheHandlers[node.Format]; ex {
+	evaulateHandler := func(han FileLoader) (File, error) {
 		rdr, err := wad.GetFileReader(node.Id)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting wad '%s' node %d(%s)reader: %v", wad.Name, node.Id, node.Name, err)
 		}
+
 		cache, err := han(wad, node, rdr)
 		if err == nil {
 			node.Cache = cache
 		}
 		return cache, err
+	}
+
+	if han, ex := cacheTagHandlers[node.Tag]; ex {
+		return evaulateHandler(han)
+	} else if han, ex := cacheHandlers[node.Format]; ex {
+		return evaulateHandler(han)
 	} else {
 		return nil, utils.ErrHandlerNotFound
 	}
@@ -238,11 +250,12 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 		case 0x18: // entity count
 			// Game also adding empty named node to nodedirectory
 			size = 0
-		// TODO: use this tags
 		case 0x006e: // MC_DATA   < R_PERM.WAD
 			// Just add node to nodedirectory
+			addNode(false, false)
 		case 0x006f: // MC_ICON   < R_PERM.WAD
 			// Like 0x006e, but also store size of data
+			addNode(false, false)
 		case 0x0070: // MSH_BDepoly6Shape
 			// Add node to nodedirectory only if
 			// another node with this name not exists
@@ -260,11 +273,11 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			addNode(false, false)
 		case 0x01f4: // RSRCS
 			// probably affect WadReader
-			// (internally transformed to R_RSRCS, what look like WAD)
+			// (internally transformed to R_RSRCS)
 			addNode(false, false)
 		case 0x029a: // file data start
 			// synonyms - 0x50, 0x309
-			// PopBatchServerStack of server from first uin16
+			// PopBatchServerStack of server from first uint16
 		case 0x0378: // file header start
 			// create new memory namespace and push to memorystack
 			// create new nodedirectory and push to nodestack
@@ -273,7 +286,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			// data loading structs cleanup
 		default:
 			log.Printf("unknown wad tag %.4x size %.8x name %s", tag, size, name)
-			return nil, fmt.Errorf("unknown tag")
+			//return nil, fmt.Errorf("unknown tag")
 		}
 
 		off := (size + 15) & (15 ^ math.MaxUint32)

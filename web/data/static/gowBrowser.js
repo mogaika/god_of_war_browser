@@ -255,6 +255,8 @@ function treeLoadWadNode(wad, nodeid) {
 						needHexDump = true;
 	                    break;
 	            }
+			} else if (node.Tag == 112) {
+				summaryLoadWadGeomShape(data);
 			} else {
 				needHexDump = true;
 			}
@@ -666,14 +668,20 @@ function loadCxtFromAjax(data, parseScripts=true) {
 	for (var i in data.Instances) {
 		var inst = data.Instances[i];
 		var obj = data.Objects[inst.Object];
+
+		var rs = 180.0/Math.PI;
+		var rot = quat.fromEuler(quat.create(), inst.Rotation[0]*rs, inst.Rotation[1]*rs, inst.Rotation[2]*rs);
+		var instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
+		instMat = mat4.mul(mat4.create(), instMat, mat4.fromQuat(mat4.create(), rot));
+
+		// same as above
+		// var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
+
+		console.log(inst.Object, instMat);
 		if (obj && obj.Model) {
 			var mdl = new grModel();
 			loadObjFromAjax(mdl, obj, true);
-			var rs = 180.0/Math.PI;
-			var rot = quat.fromEuler(quat.create(), inst.Rotation[0]*rs, inst.Rotation[1]*rs, inst.Rotation[2]*rs);
-			var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
 			mdl.matrix = instMat;
-			
 			gr_instance.models.push(mdl);
 		}
 	}
@@ -735,3 +743,35 @@ $(document).ready(function(){
     
     gwInitRenderer(data3d);
 });
+
+
+function summaryLoadWadGeomShape(data) {
+	gr_instance.destroyModels();
+    set3dVisible(true);
+    
+	var m_vertexes = [];
+	m_vertexes.length = data.Vertexes.length * 3;
+	for (var i in data.Vertexes) {
+		var j = i * 3;
+		var v = data.Vertexes[i];
+		m_vertexes[j] = v.Pos[0];
+		m_vertexes[j+1] = v.Pos[1];
+		m_vertexes[j+2] = v.Pos[2];
+	}
+	
+	var m_indexes = [];
+	m_indexes.length = data.Indexes.length * 3;
+	for (var i in data.Indexes) {
+		var j = i * 3;
+		var v = data.Indexes[i];
+		m_indexes[j] = v.Indexes[0];
+		m_indexes[j+1] = v.Indexes[1];
+		m_indexes[j+2] = v.Indexes[2];
+	}
+	
+	var mdl = new grModel();	
+	mdl.addMesh(new grMesh(m_vertexes, m_indexes));
+
+	gr_instance.models.push(mdl);
+    gr_instance.requestRedraw();
+}

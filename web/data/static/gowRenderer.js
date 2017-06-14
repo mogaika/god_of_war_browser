@@ -322,14 +322,6 @@ function grController(viewDomObject) {
 	this.mouseLastPos = [0, 0];
 	this.emptyTexture = new grTexture("/static/emptytexture.png", true);
 	
-	window.requestAnimationFrame = (function() {
-		return window.requestAnimationFrame ||
-			window.webkitRequestAnimationFrame ||
-			window.mozRequestAnimationFrame ||
-			window.oRequestAnimationFrame ||
-			window.msRequestAnimationFrame;
-	})();
-	
 	canvas.mousewheel(function(event) {
 		gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);
 		event.stopPropagation();
@@ -341,7 +333,11 @@ function grController(viewDomObject) {
 			event.stopPropagation();
 			event.preventDefault();
 		}
-    });
+    }).on('webglcontextlost', function() {
+		console.log("webgl context lost");
+	}).on('webglcontextrestored', function() {
+		console.log("webgl context restored");
+	});
     
     $(window).mouseup(function(event) {
 		if (event.button < 2) {
