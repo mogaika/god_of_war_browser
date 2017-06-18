@@ -27,6 +27,26 @@ function grHelper_PivotMesh(size) {
 	return mesh;
 }
 
+function grHelper_Cube(x, y, z, size) {
+	if (size == undefined) {
+		size = 50;
+	}
+	var vertexData = [
+		x-size,y-size,z-size, x+size,y-size,z-size, x+size,y+size,z-size, x-size,y+size,z-size,
+		x-size,y-size,z+size, x+size,y-size,z+size, x+size,y+size,z+size, x-size,y+size,z+size,
+		x-size,y-size,z-size, x-size,y+size,z-size, x-size,y+size,z+size, x-size,y-size,z+size,
+		x+size,y-size,z-size, x+size,y+size,z-size, x+size,y+size,z+size, x+size,y-size,z+size,
+		x-size,y-size,z-size, x-size,y-size,z+size, x+size,y-size,z+size, x+size,y-size,z-size,
+		x-size,y+size,z-size, x-size,y+size,z+size, x+size,y+size,z+size, x+size,y+size,z-size, 
+	]
+	var indexData = [
+		0,1,2, 0,2,3, 4,5,6, 4,6,7,
+		8,9,10, 8,10,11, 12,13,14, 12,14,15,
+		16,17,18, 16,18,19, 20,21,22, 20,22,23 
+	]
+
+	return new grMesh(vertexData, indexData, gl.TRIANGLES)
+}
 
 function grHelper_Pivot(size) {	
 	var mdl = new grModel();

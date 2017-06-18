@@ -165,6 +165,85 @@ func (p *Pack) GetFileReader(fname string) (*io.SectionReader, error) {
 	}
 }
 
+// Function support only 1-pack
+func (p *Pack) SaveWithReplacement(outTok, outPack io.Writer, filesToReplaceOrAdd map[string]io.Reader, filesToRemove []string) error {
+	outPackPos := int64(0)
+	alreadyWrittenFiles := make([]string, 0)
+
+	var zerobytes [utils.SECTOR_SIZE]byte
+
+	writeFile := func(name string, source io.Reader) (err error) {
+		for _, writtenFname := range alreadyWrittenFiles {
+			if name == writtenFname {
+				return nil
+			}
+		}
+
+		startPos := outPackPos
+
+		if packWritten, err := io.Copy(outPack, source); err != nil {
+			return err
+		} else {
+			outPackPos += packWritten
+		}
+
+		outTok.Write(utils.StringToBytes(name, 12, false))
+		var outBuf [12]byte
+		binary.LittleEndian.PutUint32(outBuf[:4], 0)
+		binary.LittleEndian.PutUint32(outBuf[4:8], uint32(outPackPos-startPos))
+		if packWritten, err := outPack.Write(zerobytes[:utils.SECTOR_SIZE-outPackPos%utils.SECTOR_SIZE]); err != nil {
+			return err
+		} else {
+			outPackPos += int64(packWritten)
+		}
+
+		binary.LittleEndian.PutUint32(outBuf[8:], uint32(startPos/int64(utils.SECTOR_SIZE)))
+		alreadyWrittenFiles = append(alreadyWrittenFiles, name)
+		if _, err := outTok.Write(outBuf[:]); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	processFile := func(fileName string) error {
+		for _, remFileName := range filesToRemove {
+			if remFileName == fileName {
+				return nil
+			}
+		}
+
+		var fileSource io.Reader
+		if newReader, hasNew := filesToReplaceOrAdd[fileName]; hasNew {
+			fileSource = newReader
+		} else {
+			if reader, err := p.GetFileReader(fileName); err != nil {
+				return err
+			} else {
+				fileSource = reader
+			}
+		}
+
+		return writeFile(fileName, fileSource)
+	}
+
+	for fileName := range p.Files {
+		if err := processFile(fileName); err != nil {
+			return err
+		}
+	}
+
+	for newFileName, source := range filesToReplaceOrAdd {
+		if err := writeFile(newFileName, source); err != nil {
+			return err
+		}
+	}
+
+	outTok.Write(zerobytes[:0x10])
+
+	return nil
+}
+
 func (p *Pack) Close() error {
 	for _, s := range p.stream {
 		if s != nil {
