@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 
 	"golang.org/x/text/encoding/charmap"
@@ -18,8 +19,29 @@ func BytesToString(bs []byte) string {
 		n = len(bs)
 	}
 
-	s, _, _ := transform.Bytes(charmap.Windows1252.NewDecoder(), bs[0:n])
+	s, _, err := transform.Bytes(charmap.Windows1252.NewDecoder(), bs[0:n])
+	if err != nil {
+		panic(err)
+	}
 	return string(s)
+}
+
+func StringToBytes(s string, bufSize int, nilTerminate bool) []byte {
+	bs, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(s))
+	if err != nil {
+		panic(err)
+	}
+	if nilTerminate {
+		bs = append(bs, 0)
+	}
+	if len(bs) < bufSize {
+		r := make([]byte, bufSize)
+		copy(r, bs)
+		bs = r
+	} else if len(bs) > bufSize {
+		panic(bs)
+	}
+	return bs
 }
 
 func ReverseString(s string) string {
@@ -38,4 +60,10 @@ func ReverseBytes(a []byte) []byte {
 		r[j] = b
 	}
 	return r
+}
+
+func ReadBytes(out interface{}, raw []byte) {
+	if err := binary.Read(bytes.NewReader(raw), binary.LittleEndian, out); err != nil {
+		panic(err)
+	}
 }

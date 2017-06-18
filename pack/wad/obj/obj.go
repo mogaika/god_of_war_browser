@@ -10,6 +10,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/pack/wad/collision"
 	"github.com/mogaika/god_of_war_browser/pack/wad/mdl"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -283,30 +284,33 @@ func (obj *Object) FeelJoints() {
 }
 
 type ObjMarshal struct {
-	Data  *Object
-	Model interface{}
+	Data      *Object
+	Model     interface{}
+	Collision interface{}
 }
 
 func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) {
-	var model interface{}
-
+	mrshl := &ObjMarshal{Data: obj}
 	for _, id := range node.SubNodes {
 		nd := wd.Node(id).ResolveLink()
-		if nd.Format == mdl.MODEL_MAGIC {
-			modelFile, err := wd.Get(id)
+		if nd.Format == mdl.MODEL_MAGIC || nd.Format == collision.COLLISION_MAGIC {
+			subFile, err := wd.Get(id)
 			if err == nil {
-				model, err = modelFile.Marshal(wd, nd)
-				if err != nil {
+				if subFileMarshled, err := subFile.Marshal(wd, nd); err != nil {
 					panic(err)
+				} else {
+					switch nd.Format {
+					case mdl.MODEL_MAGIC:
+						mrshl.Model = subFileMarshled
+					case collision.COLLISION_MAGIC:
+						mrshl.Collision = subFileMarshled
+					}
 				}
 			}
 		}
 	}
 
-	return &ObjMarshal{
-		Data:  obj,
-		Model: model,
-	}, nil
+	return mrshl, nil
 }
 
 func init() {

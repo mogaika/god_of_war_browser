@@ -475,7 +475,7 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
 	if (parseScripts) {
 		for (var i in data.Scripts) {
 			var scr = data.Scripts[i];
-			switch (scr.TargetScript) {
+			switch (scr.TargetName) {
 				case "SCR_Sky":
 					mdl.setType("sky");
 					break;
@@ -606,7 +606,18 @@ function summaryLoadWadMat(data) {
 }
 
 function loadObjFromAjax(mdl, data, parseScripts=false) {
-	loadMdlFromAjax(mdl, data.Model, parseScripts);
+	if (data.Model) {
+		loadMdlFromAjax(mdl, data.Model, parseScripts);
+	} else if (data.Collision) {
+		/*
+		console.log(data);
+		var col = data.Collision;
+		if (col.ShapeName == "BallHull") {
+			var vec = col.Shape.Vector;
+			mdl.addMesh(grHelper_Cube(vec[0], vec[1], vec[2], vec[3]));
+		}
+		*/
+	}	
 	mdl.loadSkeleton(data.Data.Joints);
 }
 
@@ -640,7 +651,8 @@ function summaryLoadWadObj(data) {
 	});
 	dataSummary.append(jointsTable);
 	
-	if (data.Model) {
+	if (data.Model || data.Collision) {
+		console.log("CATCHDED");
     	set3dVisible(true);
     
 		var mdl = new grModel();
@@ -671,14 +683,16 @@ function loadCxtFromAjax(data, parseScripts=true) {
 
 		var rs = 180.0/Math.PI;
 		var rot = quat.fromEuler(quat.create(), inst.Rotation[0]*rs, inst.Rotation[1]*rs, inst.Rotation[2]*rs);
-		var instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
-		instMat = mat4.mul(mat4.create(), instMat, mat4.fromQuat(mat4.create(), rot));
+		
+		//var instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
+		//instMat = mat4.mul(mat4.create(), instMat, mat4.fromQuat(mat4.create(), rot));
 
 		// same as above
-		// var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
+		var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
 
 		console.log(inst.Object, instMat);
-		if (obj && obj.Model) {
+		//if (obj && (obj.Model || (obj.Collision && inst.Object.includes("message")))) {
+		if (obj && (obj.Model)) {
 			var mdl = new grModel();
 			loadObjFromAjax(mdl, obj, true);
 			mdl.matrix = instMat;

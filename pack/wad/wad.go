@@ -285,7 +285,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 		case 0x03e7: // file header pop heap
 			// data loading structs cleanup
 		default:
-			log.Printf("unknown wad tag %.4x size %.8x name %s", tag, size, name)
+			log.Printf("unknown wad tag %.4x size %.8x name %s at %v", tag, size, name, pos)
 			//return nil, fmt.Errorf("unknown tag")
 		}
 
