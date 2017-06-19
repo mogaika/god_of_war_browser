@@ -10,7 +10,7 @@ import (
 )
 
 const SCRIPT_MAGIC = 0x00010004
-const HEADER_SIZE = 0x20
+const HEADER_SIZE = 0x24
 
 type ScriptParams struct {
 	TargetName string
@@ -18,7 +18,7 @@ type ScriptParams struct {
 }
 
 func NewFromData(r io.ReaderAt, size uint32) (*ScriptParams, error) {
-	var data [0x24]byte
+	var data [HEADER_SIZE]byte
 	_, err := r.ReadAt(data[:], 0)
 	if err != nil {
 		return nil, err
@@ -29,8 +29,8 @@ func NewFromData(r io.ReaderAt, size uint32) (*ScriptParams, error) {
 	}
 
 	if loader := store.GetScriptLoader(sp.TargetName); loader != nil {
-		buf := make([]byte, size-0x24)
-		if _, err := r.ReadAt(buf, 0x24); err != nil {
+		buf := make([]byte, size-HEADER_SIZE)
+		if _, err := r.ReadAt(buf, HEADER_SIZE); err != nil {
 			panic(err)
 		}
 		sp.Data = loader(buf)
