@@ -5,6 +5,13 @@ var dataPack, dataTree, dataSummary, data3d;
 var defferedLoadingWad;
 var defferedLoadingWadNode;
 
+String.prototype.replaceAll = function(search, replace) {
+    if (replace === undefined) {
+        return this.toString();
+    }
+    return this.replace(new RegExp('[' + search + ']', 'g'), replace);
+};
+
 function set3dVisible(show) {
     if (show) {
         view3d.show();
@@ -83,7 +90,7 @@ function packLoadFile(filename) {
 				treeLoadVagVpk(data, filename);
 				break;
             default:
-                dataTree.append(JSON.stringify(data, undefined, 2).replace('\n', '<br>'));
+                dataTree.append(JSON.stringify(data, undefined, 2).replaceAll('\n', '<br>'));
                 break;
         }
         console.log('pack file ' + filename + ' loaded');
@@ -248,6 +255,11 @@ function treeLoadWadNode(wad, nodeid) {
 	                case 0x00020001: // gameObject
 	                    summaryLoadWadGameObject(data);
 	                    break;
+					case 0x00010004: // script
+						summaryLoadWadScript(data);
+						needMarshalDump = true;
+						needHexDump = true;
+						break;
 	                case 0x0000000c: // gfx pal
 	                default:
 	                    set3dVisible(false);
@@ -264,7 +276,7 @@ function treeLoadWadNode(wad, nodeid) {
         }
 
 		if (needMarshalDump) {
-			dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replace('\n', '<br>')));
+			dataSummary.append($("<pre>").append(JSON.stringify(data, null, "  ").replaceAll('\n', '<br>')));
 		}
 
 		if (needHexDump) {
@@ -587,7 +599,7 @@ function summaryLoadWadMat(data) {
                     }
                     break;
 				case 'ParsedFlags':
-					td.append(JSON.stringify(v, null, "  ").replace('\n', '<br>'));
+					td.append(JSON.stringify(v, null, "  ").replaceAll('\n', '<br>'));
 					break;
                 default:
                     td.append(v);
@@ -788,4 +800,39 @@ function summaryLoadWadGeomShape(data) {
 
 	gr_instance.models.push(mdl);
     gr_instance.requestRedraw();
+}
+
+function summaryLoadWadScript(data) {
+	gr_instance.destroyModels();
+	
+	dataSummary.append($("<h3>").append("Scirpt " + data.TargetName));
+	
+	if (data.TargetName == 'SCR_Entities') {
+		for (var i in data.Data.Array) {
+			var e = data.Data.Array[i];
+			
+			var ht = $("<table>").append($("<tr>").append($("<td>").attr("colspan", 2).append(e.Name)));
+			for (var j in e) {
+				var v = e[j];
+				if (j == "Handlers") {
+					for (var hi in v) {
+						ht.append(
+							$("<tr>").append($("<td>").append('Handler #' + hi))
+								     .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
+					}
+				} else {
+					if (j == "Matrix") {
+						v = JSON.stringify(v);
+					}
+					ht.append(
+						$("<tr>").append($("<td>").append(j))
+								 .append($("<td>").append(v)));
+				}
+			}
+			
+			dataSummary.append(ht);
+		}
+	}
+	
+	set3dVisible(false);
 }
