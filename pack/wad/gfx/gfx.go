@@ -105,9 +105,6 @@ func (gfx *GFX) AsPallet(idx int, adjustAlpha bool) ([]color.NRGBA, error) {
 		}
 		if adjustAlpha {
 			clr.A = uint8(float32(clr.A) * (255.0 / 128.0))
-			if clr.A < uint8(raw>>24) {
-				panic("image damaged by internal uncompressions")
-			}
 		}
 		pallet[i] = clr
 	}
