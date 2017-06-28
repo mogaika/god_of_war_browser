@@ -32,7 +32,15 @@ func ScopeToString(scope uint16) string {
 	if scope < 4 {
 		return []string{"Entity", "Internal", "GlobalData", "LevelData"}[scope]
 	} else {
-		return ""
+		return fmt.Sprintf("*unknown scope 0x%x*", scope)
+	}
+}
+
+func TypeIdToString(typeid uint8) string {
+	if typeid < 4 {
+		return []string{"float", "int", "bool", "string"}[typeid]
+	} else {
+		return fmt.Sprintf("*unknown type 0x%x*", typeid)
 	}
 }
 
@@ -78,9 +86,9 @@ func DecompileEscScript(b []byte, pointer int) string {
 	}()
 
 	for !fail {
-		output.WriteString(fmt.Sprintf("+0x%.4x: ", pointer))
-
 		opcode := b[pointer]
+		output.WriteString(fmt.Sprintf("0x%.4x: %.2X:  ", pointer, opcode))
+
 		if opcode >= 0x3a {
 			wrline("exit;")
 			break
@@ -96,11 +104,21 @@ func DecompileEscScript(b []byte, pointer int) string {
 		case 0x01:
 			wrline("push_int %d;", int32(binary.LittleEndian.Uint32(opcodeBuf)))
 			pointer += 4
-
-		case 0x06, 0x07, 0x08, 0x09:
+		case 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09:
 			scope, fid := argsParseScopeFunc(opcodeBuf)
-			wrline("peek_set_global scope(0x%x,%s), var(0x%x);", scope, ScopeToString(scope), fid)
-			pointer += 2
+			var target string
+			if scope < 8 {
+				target = ScopeToString(scope)
+			} else if scope == 8 {
+				target = "Special local scope? Currnet obj scope?"
+			} else if scope > 8 {
+				target = "Array at 0x334A98 word[0x256]"
+			}
+			if opcode < 0x06 {
+				wrline("get_scope_%s from (0x%x)'%s' val 0x%x;", TypeIdToString(opcode-2), scope, target, fid)
+			} else {
+				wrline("set_scope_%s from (0x%x)'%s' val 0x%x;", TypeIdToString(opcode-2), scope, target, fid)
+			}
 		case 0x0b:
 			scope, fid := argsParseScopeFunc(opcodeBuf)
 			wrline("call function scope(0x%x), func(0x%x) '%s' => int;", scope, fid, GetEscFunc(scope, fid))
@@ -109,6 +127,7 @@ func DecompileEscScript(b []byte, pointer int) string {
 			scope, fid := argsParseScopeFunc(opcodeBuf)
 			wrline("call function scope(0x%x), func(0x%x) '%s' => float;", scope, fid, GetEscFunc(scope, fid))
 			pointer += 2
+
 		case 0x0e:
 			off := binary.LittleEndian.Uint16(opcodeBuf)
 			wrline("push_string '%s';", utils.BytesToString(b[off:]))
