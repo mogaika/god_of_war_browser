@@ -249,6 +249,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			}
 		case 0x18: // entity count
 			// Game also adding empty named node to nodedirectory
+			log.Printf("%s Entity count: %v", wadName, size)
 			size = 0
 		case 0x006e: // MC_DATA   < R_PERM.WAD
 			// Just add node to nodedirectory

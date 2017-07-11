@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -13,7 +14,7 @@ import (
 
 var ServerPack *pack.Pack
 
-func StartServer(addr string, _pack *pack.Pack) error {
+func StartServer(addr string, _pack *pack.Pack, webPath string) error {
 	ServerPack = _pack
 
 	r := mux.NewRouter()
@@ -25,7 +26,7 @@ func StartServer(addr string, _pack *pack.Pack) error {
 	r.HandleFunc("/dump/pack/{file}/{param}", HandlerDumpPackParamFile)
 	r.HandleFunc("/dump/pack/{file}", HandlerDumpPackFile)
 
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/data")))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(path.Join(webPath, "data"))))
 
 	h := handlers.RecoveryHandler()(r)
 	h = handlers.LoggingHandler(os.Stdout, r)

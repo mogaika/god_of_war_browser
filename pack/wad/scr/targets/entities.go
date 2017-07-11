@@ -16,13 +16,13 @@ type Entities struct {
 	Array []*Entity
 }
 
-type OpcodesStream struct {
+type EntityHandler struct {
 	Stream     []byte `json:"-"`
 	Start      int
 	Decompiled string
 }
 
-func (o *OpcodesStream) Decompile() {
+func (o *EntityHandler) Decompile() {
 	if o.Decompiled == "" {
 		o.Decompiled = DecompileEscScript(o.Stream, o.Start)
 	}
@@ -53,12 +53,54 @@ const (
 
 func GetEscFunc(scope, fid uint16) string {
 	switch scope {
+	case SCOPE_ENTITY:
+		switch fid {
+		case 0x08:
+			return "Printf(format, a1,a2,a3,a4)"
+		case 0x09, 0x0a, 0x0b, 0x0c:
+			return "Get name or index of entity(index in arr[4])"
+		case 0xd:
+			return "PlayStreamedEntry? (string name)"
+
+		case 0x10:
+			return "PreLoadStreamedEntry? (unk, string name)"
+		}
 	case SCOPE_INTERNAL:
 		switch fid {
-		case 0xc:
-			return "Idle (bool needIdle)"
+		case 0x0:
+			return "CheckPoint ()"
+
+		case 0x2:
+			return "Load? (s1, s2)"
+		case 0x3:
+			return "LoadWad? (s1)"
+		case 0x4:
+			return "LoadForWarp? (s1)"
+		case 0x5:
+			return "Warp? ()"
+		case 0x6:
+			return "LoadCheck? (s1)"
+		case 0x7:
+			return "Goto? (s1)"
+
 		case 0xa:
 			return "Print text on screen(type, messageID)"
+
+		case 0xc:
+			return "Idle (bool needIdle)"
+
+		case 0x13:
+			return "Trigger you have failed screen()"
+		case 0x14:
+			return "??CreateTimer??(fDuration): timer_id"
+
+		case 0x17:
+			return "??DestroyTimer??(timerId)"
+		case 0x18:
+			return "??PauseTimer_Or_TimerGetElapsedSeconds??(timerId): elapsed_sec"
+		case 0x19:
+			return "??StartTimer??(timerId)"
+
 		case 0x1f:
 			return "Print text on screen(unkn, type, messageID)"
 		}
@@ -106,6 +148,7 @@ func DecompileEscScript(b []byte, pointer int) string {
 			pointer += 4
 		case 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09:
 			scope, fid := argsParseScopeFunc(opcodeBuf)
+			pointer += 2
 			var target string
 			if scope < 8 {
 				target = ScopeToString(scope)
@@ -115,22 +158,21 @@ func DecompileEscScript(b []byte, pointer int) string {
 				target = "Array at 0x334A98 word[0x256]"
 			}
 			if opcode < 0x06 {
-				wrline("get_scope_%s from (0x%x)'%s' val 0x%x;", TypeIdToString(opcode-2), scope, target, fid)
+				wrline("get_scope_%s from (0x%x)'%s' val 0x%x;", TypeIdToString(opcode-0x02), scope, target, fid)
 			} else {
-				wrline("set_scope_%s from (0x%x)'%s' val 0x%x;", TypeIdToString(opcode-2), scope, target, fid)
+				wrline("set_scope_%s from (0x%x)'%s' val 0x%x;", TypeIdToString(opcode-0x06), scope, target, fid)
 			}
-		case 0x0b:
+		case 0x0a, 0x0b, 0x0c, 0x0d:
 			scope, fid := argsParseScopeFunc(opcodeBuf)
-			wrline("call function scope(0x%x), func(0x%x) '%s' => int;", scope, fid, GetEscFunc(scope, fid))
+			wrline("call_function scope(0x%x), func(0x%x) '%s' => %s;", scope, fid, GetEscFunc(scope, fid), TypeIdToString(opcode-0x0a))
 			pointer += 2
-		case 0x0c:
-			scope, fid := argsParseScopeFunc(opcodeBuf)
-			wrline("call function scope(0x%x), func(0x%x) '%s' => float;", scope, fid, GetEscFunc(scope, fid))
-			pointer += 2
-
 		case 0x0e:
 			off := binary.LittleEndian.Uint16(opcodeBuf)
 			wrline("push_string '%s';", utils.BytesToString(b[off:]))
+			pointer += 2
+		case 0x0f:
+			off := binary.LittleEndian.Uint16(opcodeBuf)
+			wrline("pop_jmp_if_not_zero offset(+0x%x);", off)
 			pointer += 2
 
 		case 0x11:
@@ -138,11 +180,43 @@ func DecompileEscScript(b []byte, pointer int) string {
 		case 0x12:
 			wrline("push_bool FALSE;")
 
+		case 0x15:
+			wrline("pop_pop_int_sum_push;")
+
+		case 0x1e:
+			wrline("pop_bool2float_push;") // if input == 0 ? 1.0 : 0.0
+
+		case 0x21:
+			wrline("pop_float2int_push;")
+
 		case 0x23:
 			wrline("pop_int2float_push;")
+		case 0x24:
+			wrline("pop_push_bool_if_zero;")
+		case 0x25:
+			wrline("pop_pop_push_bool_logical_and;")
 
+		case 0x2b:
+			wrline("pop_pop_push_bool_if_not_less;")
+
+		case 0x2e:
+			wrline("pop_pop_push_bool_if_less;")
+
+		case 0x30:
+			wrline("pop_pop_strcmp_push_bool_if_less_then_zero;")
+		case 0x31:
+			wrline("pop_pop_push_bool_if_not_less")
+
+		case 0x33:
+			wrline("pop_pop_strcmp_push_bool_if_not_zero;")
+		case 0x34, 0x36:
+			wrline("pop_pop_push_bool_if_equal;")
+
+		case 0x37:
+			wrline("pop_pop_strcmp_push_bool_if_string_equal;")
 		case 0x38:
 			wrline("pop_result;")
+
 		default:
 			wrline("unknown opcode 0x%x;", opcode)
 			fail = true
@@ -165,7 +239,7 @@ type Entity struct {
 	OpcodesStreamsSize uint16
 
 	Name     string
-	Handlers map[uint16]OpcodesStream
+	Handlers map[uint16]EntityHandler
 }
 
 func EntityFromBytes(b []byte) *Entity {
@@ -179,13 +253,13 @@ func EntityFromBytes(b []byte) *Entity {
 		HandlersCount:      binary.LittleEndian.Uint16(b[0x4e:]),
 		Field_0x50:         binary.LittleEndian.Uint16(b[0x50:]),
 		OpcodesStreamsSize: binary.LittleEndian.Uint16(b[0x52:]),
-		Handlers:           make(map[uint16]OpcodesStream),
+		Handlers:           make(map[uint16]EntityHandler),
 	}
 
 	textStart := 0x54 + e.OpcodesStreamsSize + e.HandlersCount*4 + e.Field_0x50*2
 	e.Name = utils.BytesToString(b[textStart:])
 
-	utils.Dump(e.Name, e.EntityType)
+	//utils.Dump(e.Name, e.EntityType)
 
 	opcodesDescrStart := uint16(0x54)
 	opcodesStreamStart := int(opcodesDescrStart + e.HandlersCount*4 + e.Field_0x50*2 + 2)
@@ -197,11 +271,11 @@ func EntityFromBytes(b []byte) *Entity {
 
 		id := binary.LittleEndian.Uint16(b[opcodesDescrStart+i*4:])
 
-		function := OpcodesStream{Stream: opcodesStream, Start: int(start)}
+		function := EntityHandler{Stream: opcodesStream, Start: int(start)}
 		function.Decompile()
 		e.Handlers[id] = function
 
-		fmt.Printf("============ handler %d ============ \n%s", id, function.Decompiled)
+		//fmt.Printf("============ handler %d ============ \n%s", id, function.Decompiled)
 	}
 
 	utils.ReadBytes(&e.Matrix, b[:0x40])

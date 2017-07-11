@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 
 	"github.com/go-gl/mathgl/mgl32"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/collision"
 	"github.com/mogaika/god_of_war_browser/pack/wad/mdl"
+	"github.com/mogaika/god_of_war_browser/pack/wad/scr"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -287,13 +289,15 @@ type ObjMarshal struct {
 	Data      *Object
 	Model     interface{}
 	Collision interface{}
+	Script    interface{}
 }
 
 func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	mrshl := &ObjMarshal{Data: obj}
 	for _, id := range node.SubNodes {
 		nd := wd.Node(id).ResolveLink()
-		if nd.Format == mdl.MODEL_MAGIC || nd.Format == collision.COLLISION_MAGIC {
+		switch nd.Format {
+		case mdl.MODEL_MAGIC, scr.SCRIPT_MAGIC, collision.COLLISION_MAGIC:
 			subFile, err := wd.Get(id)
 			if err == nil {
 				if subFileMarshled, err := subFile.Marshal(wd, nd); err != nil {
@@ -303,7 +307,11 @@ func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) 
 					case mdl.MODEL_MAGIC:
 						mrshl.Model = subFileMarshled
 					case collision.COLLISION_MAGIC:
-						mrshl.Collision = subFileMarshled
+						if strings.HasPrefix(nd.Name, "ENV_") {
+							mrshl.Collision = subFileMarshled
+						}
+					case scr.SCRIPT_MAGIC:
+						mrshl.Script = subFileMarshled
 					}
 				}
 			}

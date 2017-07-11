@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"log"
 
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -57,13 +56,6 @@ func NewBallHull(f io.ReaderAt, wrtw io.Writer) (*ShapeBallHull, error) {
 			panic(err)
 		}
 	}
-
-	var medusaObj = mgl32.Mat4{0.0022545615, 0, 0.6209665, 0, 0, 0.6209706, 0, 0, -0.6209665, 0, 0.0022545615, 0, -467.78577, 427.11475, 198.80093, 1}
-	log.Println(mgl32.TransformCoordinate(bh.Vector.Vec3(), medusaObj))
-
-	var medusaInst = mgl32.Mat4{0.003626258810982108, 0, -0.9999935030937195, 0, 0, 1, 0, 0, 0.9999935030937195, 0, 0.003626258810982108, 0, -158.70399475097656, -343.90899658203125, -377.2359924316406, 1}
-	log.Println(medusaInst.Mul4(medusaObj))
-	log.Println(mgl32.TransformCoordinate(bh.Vector.Vec3(), medusaInst.Mul4(medusaObj)))
 
 	return bh, nil
 }

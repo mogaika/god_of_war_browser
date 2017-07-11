@@ -13,19 +13,24 @@ import (
 )
 
 type Flags struct {
-	FilterLinear             bool // when false, then near filter used. may affect only wheb texture expanded (LOD < 0)
-	DisableDepthWrite        bool
-	RenderingAdditive        bool
-	RenderingUsual           bool // handle transparency
-	RenderingSubstract       bool
-	RenderingStrangeBlendedd bool // I'm do not know
+	FilterLinear            bool // when false, then near filter used. may affect only wheb texture expanded (LOD < 0)
+	DisableDepthWrite       bool
+	RenderingAdditive       bool
+	RenderingUsual          bool // handle transparency
+	RenderingSubstract      bool
+	RenderingStrangeBlended bool // I'm do not know
+	HaveTexture             bool
+
+	AnimationEnabled  bool
+	AnimationEnabled2 bool // ATHN04A.WAD/378
 }
 
 type Layer struct {
 	Texture     string
 	Flags       [4]uint32
-	Floats      [5]float32
-	Unkn        uint32
+	BlendColor  [4]float32
+	FloatUnk    float32
+	GameFlags   uint32
 	ParsedFlags Flags
 }
 
@@ -43,14 +48,19 @@ const HEADER_SIZE = 0x38
 const LAYER_SIZE = 0x40
 
 func (l *Layer) ParseFlags() error {
+	l.ParsedFlags.HaveTexture = (l.Flags[0]>>7)&1 != 0
+
 	l.ParsedFlags.FilterLinear = (l.Flags[0]>>16)&1 != 0
 
 	l.ParsedFlags.DisableDepthWrite = (l.Flags[0]>>19)&1 != 0
 
-	l.ParsedFlags.RenderingStrangeBlendedd = (l.Flags[0]>>24)&1 != 0
+	l.ParsedFlags.RenderingStrangeBlended = (l.Flags[0]>>24)&1 != 0
 	l.ParsedFlags.RenderingSubstract = (l.Flags[0]>>25)&1 != 0
 	l.ParsedFlags.RenderingUsual = (l.Flags[0]>>26)&1 != 0
 	l.ParsedFlags.RenderingAdditive = (l.Flags[0]>>27)&1 != 0
+
+	l.ParsedFlags.AnimationEnabled = l.GameFlags&1 != 0
+	l.ParsedFlags.AnimationEnabled2 = l.GameFlags&2 != 0
 
 	cnt := 0
 	for i := uint(0); i < 4; i++ {
@@ -101,15 +111,16 @@ func NewFromData(fmat io.ReaderAt) (*Material, error) {
 		}
 		mat.Layers[iTex].Texture = utils.BytesToString(tbuf[16:40])
 
-		mat.Layers[iTex].Floats = [5]float32{
+		mat.Layers[iTex].BlendColor = [4]float32{
 			math.Float32frombits(binary.LittleEndian.Uint32(tbuf[40:44])),
 			math.Float32frombits(binary.LittleEndian.Uint32(tbuf[44:48])),
 			math.Float32frombits(binary.LittleEndian.Uint32(tbuf[48:52])),
 			math.Float32frombits(binary.LittleEndian.Uint32(tbuf[52:56])),
-			math.Float32frombits(binary.LittleEndian.Uint32(tbuf[56:60])),
 		}
 
-		mat.Layers[iTex].Unkn = binary.LittleEndian.Uint32(tbuf[60:64])
+		mat.Layers[iTex].FloatUnk = math.Float32frombits(binary.LittleEndian.Uint32(tbuf[56:60]))
+
+		mat.Layers[iTex].GameFlags = binary.LittleEndian.Uint32(tbuf[60:64])
 
 		if err := mat.Layers[iTex].ParseFlags(); err != nil {
 			return nil, fmt.Errorf("Error paring layer %d: %v", iTex, err)
@@ -120,16 +131,18 @@ func NewFromData(fmat io.ReaderAt) (*Material, error) {
 }
 
 type Ajax struct {
-	Mat      *Material
-	Textures []interface{}
-	Refs     map[string]int
+	Mat             *Material
+	Textures        []interface{}
+	TexturesBlended []interface{}
+	Refs            map[string]int
 }
 
 func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := Ajax{
-		Mat:      mat,
-		Textures: make([]interface{}, len(mat.Layers)),
-		Refs:     make(map[string]int),
+		Mat:             mat,
+		Textures:        make([]interface{}, len(mat.Layers)),
+		TexturesBlended: make([]interface{}, len(mat.Layers)),
+		Refs:            make(map[string]int),
 	}
 
 	for i := range mat.Layers {
@@ -141,12 +154,17 @@ func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, erro
 				return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", tn.Name, node.Name, err)
 			}
 
-			dat, err := txr.(*file_txr.Texture).Marshal(tn.Wad, tn)
-			if err != nil {
+			if dat, err := txr.(*file_txr.Texture).Marshal(tn.Wad, tn); err != nil {
 				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", tn.Name, node.Name, err)
+			} else {
+				res.Textures[i] = dat
 			}
 
-			res.Textures[i] = dat
+			if dat, err := txr.(*file_txr.Texture).MarshalBlend(mat.Layers[i].BlendColor[:], tn.Wad, tn); err != nil {
+				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", tn.Name, node.Name, err)
+			} else {
+				res.TexturesBlended[i] = dat
+			}
 		}
 	}
 	return res, nil
