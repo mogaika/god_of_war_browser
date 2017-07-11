@@ -3,9 +3,11 @@ Tool helps to investigate files formats of the game.
 Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*
 
 ## Instruction
-- Download latest release from [releases page](https://github.com/mogaika/god_of_war_browser/releases).
-- Open console and launch binary with ```-game "Path_to_game_directory_with_GODOFWAR_TOC_file"``` if you have part1.pak or part2.pak and godofwar.tok files. Or with ```-unpacked -game "Path_to_directory_with_WAD_files"``` if you have directory with wad/vpk files.
-- Then open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)
+- Install golang compiler ([official instruction](https://golang.org/doc/install))
+- `go get -u github.com/mogaika/god_of_war_browser` (this command download code and dependencies)
+- Go to directory with required [tool](https://github.com/mogaika/god_of_war_browser/tree/dev/tools) and run `go build` to compile
+- Do not forget read README
+- If you encounter any problem or have a question - welcome to our friendly [gitter chat](https://gitter.im/god_of_war/)
 
 ## What if I want to mod game?
 You can! But it is hard at this point :(
