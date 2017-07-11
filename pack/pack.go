@@ -7,38 +7,58 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/mogaika/god_of_war_browser/utils"
+
+	"github.com/mogaika/udf"
 )
 
 const PACK_FILE_SIZE = 24
+const PACK_PARTS_COUNT = 2
+
+// Actually structs for second layer starts from 0x0fdf98000
+// Because boot-space for iso/udf fs is 0x8000 we get 0x0fdf90000 as layer start
+// But 0x0fdf92000 is end of part1 on my iso
+// What i'm doin wrong?
+var IsoSecondLayerStart int64 = 0x0fdf90000
+
+const (
+	PACK_STORE_ISO = iota // Iso
+	PACK_STORE_TOK        // Directory with tok and packs
+	PACK_STORE_DIR        // Wads in directory
+)
 
 type FileLoader func(pk *Pack, pf *PackFile, r io.ReaderAt) (interface{}, error)
 
-var cacheHandlers map[string]FileLoader = make(map[string]FileLoader, 0)
+var gHandlers map[string]FileLoader = make(map[string]FileLoader, 0)
 
 func SetHandler(format string, ldr FileLoader) {
-	cacheHandlers[format] = ldr
+	gHandlers[format] = ldr
+}
+
+type PackFileEncounter struct {
+	Pack  uint8
+	Start int64
 }
 
 type PackFile struct {
-	Name  string
-	Pack  uint32
-	Size  int64
-	Start int64
-
-	Count int
-	Cache interface{} `json:"-"`
+	Name       string
+	Size       int64
+	Encounters []PackFileEncounter
+	Instance   interface{} `json:"-"`
 }
 
 type Pack struct {
-	Files           map[string]*PackFile
-	AlreadyUnpacked bool
-	GamePath        string `json:"-"`
-	stream          [2]*os.File
+	Files     map[string]*PackFile
+	GamePath  string `json:"-"`
+	StoreType int8
+
+	stream [PACK_PARTS_COUNT]io.ReaderAt
 }
 
 func (p *Pack) Get(name string) (interface{}, error) {
@@ -46,27 +66,27 @@ func (p *Pack) Get(name string) (interface{}, error) {
 	if !ex {
 		return nil, fmt.Errorf("File %s not exists in pack", name)
 	}
-	if file.Cache != nil {
-		return file.Cache, nil
+	if file.Instance != nil {
+		return file.Instance, nil
 	}
 
-	if han, ex := cacheHandlers[name[len(name)-4:]]; ex {
+	if han, ex := gHandlers[name[len(name)-4:]]; ex {
 		rdr, err := p.GetFileReader(name)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting file reader: %v", err)
 		}
-		cache, err := han(p, file, rdr)
-		file.Cache = cache
-		return cache, err
+		instance, err := han(p, file, rdr)
+		file.Instance = instance
+		return instance, err
 	} else {
 		return nil, utils.ErrHandlerNotFound
 	}
 }
 
-func NewPackUnpacked(gamePath string) (*Pack, error) {
+func NewPackFromDirectory(filesPath string) (*Pack, error) {
 	files := make(map[string]*PackFile, 0)
 
-	dirfiles, err := ioutil.ReadDir(gamePath)
+	dirfiles, err := ioutil.ReadDir(filesPath)
 	if err != nil {
 		return nil, err
 	}
@@ -82,29 +102,22 @@ func NewPackUnpacked(gamePath string) (*Pack, error) {
 	}
 
 	pack := &Pack{
-		Files:           files,
-		GamePath:        gamePath,
-		AlreadyUnpacked: true,
+		Files:     files,
+		GamePath:  filesPath,
+		StoreType: PACK_STORE_DIR,
 	}
 
 	return pack, nil
 }
 
-func NewPack(gamePath string) (*Pack, error) {
+func (pack *Pack) parseTokAndParts(tokStream io.ReaderAt) error {
 	var buffer [PACK_FILE_SIZE]byte
-	files := make(map[string]*PackFile, 0)
-
-	tokStream, err := os.Open(path.Join(gamePath, "GODOFWAR.TOC"))
-	if err != nil {
-		return nil, err
-	}
 
 	for pos := int64(0); ; pos += PACK_FILE_SIZE {
-		_, err := tokStream.ReadAt(buffer[:], pos)
-		if err == io.EOF {
+		if _, err := tokStream.ReadAt(buffer[:], pos); err == io.EOF {
 			break
 		} else if err != nil {
-			return nil, err
+			return err
 		}
 
 		name := utils.BytesToString(buffer[0:12])
@@ -112,57 +125,130 @@ func NewPack(gamePath string) (*Pack, error) {
 			break
 		}
 
-		file := &PackFile{
-			Name:  name,
-			Pack:  binary.LittleEndian.Uint32(buffer[12:16]),
-			Size:  int64(binary.LittleEndian.Uint32(buffer[16:20])),
-			Start: int64(binary.LittleEndian.Uint32(buffer[20:24])) * utils.SECTOR_SIZE,
-			Count: 1,
-		}
+		fileSize := int64(binary.LittleEndian.Uint32(buffer[16:20]))
 
-		if _, ok := files[name]; ok {
-			files[name].Count++
-			if files[name].Size != file.Size {
-				return nil, fmt.Errorf("Files has same names, but different sizes: %s", name)
-			}
+		var file *PackFile
+		if existFile, ok := pack.Files[name]; ok {
+			file = existFile
 		} else {
-			files[name] = file
+			file = &PackFile{
+				Name:       name,
+				Size:       int64(binary.LittleEndian.Uint32(buffer[16:20])),
+				Encounters: make([]PackFileEncounter, 0),
+			}
+			pack.Files[name] = file
+		}
+
+		if fileSize != file.Size {
+			log.Printf("[pack] Finded same file but with different size! '%s' %d!=%d", name, fileSize, file.Size)
+		}
+
+		file.Encounters = append(file.Encounters, PackFileEncounter{
+			Pack:  uint8(binary.LittleEndian.Uint32(buffer[12:16])),
+			Start: int64(binary.LittleEndian.Uint32(buffer[20:24])) * utils.SECTOR_SIZE,
+		})
+	}
+	return nil
+}
+
+func NewPackFromTok(gamePath string) (*Pack, error) {
+	pack := &Pack{
+		Files:     make(map[string]*PackFile, 0),
+		StoreType: PACK_STORE_TOK,
+	}
+
+	tokStream, err := os.Open(path.Join(gamePath, "GODOFWAR.TOC"))
+	if err != nil {
+		return nil, err
+	}
+	defer tokStream.Close()
+
+	log.Printf("[pack] Using gamedir: '%s'", gamePath)
+	for i := 0; i < PACK_PARTS_COUNT; i++ {
+		pio, err := os.Open(filepath.Join(gamePath, fmt.Sprintf("PART%d.PAK", i+1)))
+		if err != nil {
+			log.Printf("[pack] WARNING! Cannot open part%d.pak: %v", i+1, err)
+		} else {
+			pack.stream[i] = pio
 		}
 	}
 
+	return pack, pack.parseTokAndParts(tokStream)
+}
+
+func NewPackFromIso(isoPath string) (*Pack, error) {
 	pack := &Pack{
-		Files:           files,
-		GamePath:        gamePath,
-		AlreadyUnpacked: false,
+		Files:     make(map[string]*PackFile, 0),
+		StoreType: PACK_STORE_TOK,
 	}
 
-	return pack, nil
+	fiso, err := os.Open(isoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var layers [2]*udf.Udf
+	layers[0] = udf.NewUdfFromReader(fiso)
+
+	isoinfo, err := fiso.Stat()
+	if err == nil {
+		if isoinfo.Size() > IsoSecondLayerStart {
+			r := io.NewSectionReader(fiso, IsoSecondLayerStart, isoinfo.Size()-IsoSecondLayerStart)
+			log.Printf("[pack] Detected second layer of iso file (size:%d)", r.Size())
+			layers[1] = udf.NewUdfFromReader(r)
+		}
+	}
+
+	tryOpen := func(fname string) (*io.SectionReader, error) {
+		for _, u := range layers {
+			for _, fe := range u.ReadDir(nil) {
+				if strings.ToLower(fe.Name()) == strings.ToLower(fname) {
+					return fe.NewReader(), nil
+				}
+			}
+		}
+		return nil, os.ErrNotExist
+	}
+
+	for i := 0; i < PACK_PARTS_COUNT; i++ {
+		pio, err := tryOpen(fmt.Sprintf("PART%d.PAK", i+1))
+		if err != nil {
+			log.Printf("[pack] WARNING! Cannot open part%d.pak: %v", i+1, err)
+		} else {
+			pack.stream[i] = pio
+		}
+	}
+
+	tokStream, err := tryOpen("GODOFWAR.TOC")
+	if err != nil {
+		return nil, err
+	}
+
+	return pack, pack.parseTokAndParts(tokStream)
 }
 
 func (p *Pack) GetFileReader(fname string) (*io.SectionReader, error) {
 	if file, ex := p.Files[fname]; ex {
-		if p.AlreadyUnpacked {
+		switch p.StoreType {
+		case PACK_STORE_DIR:
 			arr, err := ioutil.ReadFile(filepath.Join(p.GamePath, fname))
 			if err != nil {
 				return nil, err
 			}
 			file.Size = int64(len(arr))
 			return io.NewSectionReader(bytes.NewReader(arr), 0, int64(len(arr))), nil
-		} else {
-			if p.stream[file.Pack] == nil {
-				pio, err := os.Open(filepath.Join(p.GamePath, fmt.Sprintf("PART%d.PAK", file.Pack+1)))
-				if err != nil {
-					return nil, err
-				} else {
-					p.stream[file.Pack] = pio
+		case PACK_STORE_TOK:
+			for iFenc := range file.Encounters {
+				fec := &file.Encounters[iFenc]
+				if p.stream[fec.Pack] != nil {
+					return io.NewSectionReader(p.stream[fec.Pack], fec.Start, file.Size), nil
 				}
 			}
+			return nil, fmt.Errorf("[pack] Cannot find source for '%s' file :(")
 		}
-
-		return io.NewSectionReader(p.stream[file.Pack], file.Start, file.Size), nil
-	} else {
-		return nil, errors.New("Cannot find specifed file")
 	}
+	return nil, errors.New("[pack] Cannot find specifed file")
+
 }
 
 // Function support only 1-pack
@@ -241,14 +327,5 @@ func (p *Pack) SaveWithReplacement(outTok, outPack io.Writer, filesToReplaceOrAd
 
 	outTok.Write(zerobytes[:0x10])
 
-	return nil
-}
-
-func (p *Pack) Close() error {
-	for _, s := range p.stream {
-		if s != nil {
-			return s.Close()
-		}
-	}
 	return nil
 }

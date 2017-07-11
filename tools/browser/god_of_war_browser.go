@@ -25,27 +25,27 @@ import (
 )
 
 func main() {
-	var addr, game string
-	var unpacked bool
+	var addr, tok, dir, iso string
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
-	flag.StringVar(&game, "game", "", "Path to game folder")
-	flag.BoolVar(&unpacked, "unpacked", false, "Pack data already unpacked")
+	flag.StringVar(&tok, "tok", "", "Path to folder with tok file")
+	flag.StringVar(&dir, "dir", "", "Path to unpacked wads and other stuff")
+	flag.StringVar(&iso, "iso", "", "Pack to iso file")
 	flag.Parse()
 
 	var p *pack.Pack
 	var err error
 
-	if game != "" {
-		if unpacked {
-			p, err = pack.NewPackUnpacked(game)
-		} else {
-			p, err = pack.NewPack(game)
-		}
+	if iso != "" {
+		p, err = pack.NewPackFromIso(iso)
+	} else if tok != "" {
+		p, err = pack.NewPackFromTok(tok)
+	} else if dir != "" {
+		p, err = pack.NewPackFromDirectory(dir)
 	} else {
-		p, err = pack.NewPackUnpacked("./wads")
+		flag.PrintDefaults()
+		return
 	}
 
-	defer p.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
