@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"io"
 	"math"
@@ -20,10 +21,9 @@ type Texture struct {
 	GfxName       string
 	PalName       string
 	SubTxrName    string
-	UnkCoeff      int32
-	UnkMultiplier float32
-	UnkFlags1     uint16
-	UnkFlags2     uint16
+	LODParamK     int32
+	LODMultiplier float32
+	Flags         uint32
 }
 
 const FILE_SIZE = 0x58
@@ -40,28 +40,25 @@ func NewFromData(fin io.ReaderAt) (*Texture, error) {
 		GfxName:       utils.BytesToString(buf[4:28]),
 		PalName:       utils.BytesToString(buf[28:52]),
 		SubTxrName:    utils.BytesToString(buf[52:76]),
-		UnkCoeff:      int32(binary.LittleEndian.Uint32(buf[76:80])),
-		UnkMultiplier: math.Float32frombits(binary.LittleEndian.Uint32(buf[80:84])),
-		UnkFlags1:     binary.LittleEndian.Uint16(buf[84:86]),
-		UnkFlags2:     binary.LittleEndian.Uint16(buf[86:88]),
+		LODParamK:     int32(binary.LittleEndian.Uint32(buf[76:80])),
+		LODMultiplier: math.Float32frombits(binary.LittleEndian.Uint32(buf[80:84])),
+		Flags:         binary.LittleEndian.Uint32(buf[84:88]),
 	}
 
 	if tex.Magic != TXR_MAGIC {
 		return nil, errors.New("Wrong magic.")
 	}
 
-	if tex.UnkCoeff > 0 {
-		return nil, fmt.Errorf("Unkonwn coeff %d", tex.UnkCoeff)
-	}
-
 	// 0 - any; 8000 - alpha channel
-	if tex.UnkFlags1 != 0 && tex.UnkFlags1 != 0x8000 {
-		return nil, fmt.Errorf("Unkonwn unkFlags1 0x%.4x != 0", tex.UnkFlags1)
+	flags1 := tex.Flags & 0xffff
+	if flags1 != 0 && flags1 != 0x8000 {
+		return nil, fmt.Errorf("Unkonwn unkFlags 0x%.4x != 0", flags1)
 	}
 
-	// 1 - mask; 5d - alpha channel; 51 - font
-	if tex.UnkFlags2 != 1 && tex.UnkFlags2 != 0x41 && tex.UnkFlags2 != 0x5d && tex.UnkFlags2 != 0x51 && tex.UnkFlags2 != 0x11 {
-		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51,0x11)", tex.UnkFlags2)
+	// 1 - no alpha; 5d - alpha channel; 51 - font
+	flags2 := tex.Flags >> 16
+	if flags2 != 1 && flags2 != 0x41 && flags2 != 0x5d && flags2 != 0x51 && flags2 != 0x11 {
+		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51,0x11)", flags2)
 	}
 
 	return tex, nil
@@ -135,12 +132,10 @@ type AjaxImage struct {
 }
 
 type Ajax struct {
-	Data            *Texture
-	Images          []AjaxImage
-	UsedGfx         int
-	UsedPal         int
-	HaveTransparent bool
-	Refs            map[string]int
+	Data         *Texture
+	Images       []AjaxImage
+	FilterLinear bool
+	Refs         map[string]int
 }
 
 func (a *Ajax) addRef(node *wad.WadNode, name string) {
@@ -151,11 +146,38 @@ func (a *Ajax) addRef(node *wad.WadNode, name string) {
 	}
 }
 
-func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func blendImg(img *image.RGBA, clrBlend []float32) {
+	if clrBlend != nil {
+		bounds := img.Bounds()
+		width, height := bounds.Max.X, bounds.Max.Y
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				r, g, b, a := img.At(x, y).RGBA()
+
+				clamp := func(a float32) uint8 {
+					if a > 255.0 {
+						return 0xff
+					} else {
+						return uint8(a)
+					}
+				}
+
+				img.Set(x, y, color.RGBA{
+					R: clamp(float32(r/0x101) / 255.0 * clrBlend[0] * 255.0),
+					G: clamp(float32(g/0x101) / 255.0 * clrBlend[1] * 255.0),
+					B: clamp(float32(b/0x101) / 255.0 * clrBlend[2] * 255.0),
+					A: clamp(float32(a/0x101) / 255.0 * clrBlend[3] * 255.0),
+				})
+			}
+		}
+	}
+}
+
+func (txr *Texture) MarshalBlend(clrBlend []float32, wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 	res := &Ajax{
-		Data:            txr,
-		HaveTransparent: false,
-		Refs:            make(map[string]int),
+		Data:         txr,
+		FilterLinear: txr.Flags&1 == 0,
+		Refs:         make(map[string]int),
 	}
 
 	defer func() {
@@ -182,9 +204,6 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 		res.Refs[gfxn.Name] = gfxn.Id
 		res.Refs[paln.Name] = paln.Id
 
-		res.UsedGfx = gfxn.Id
-		res.UsedPal = paln.Id
-
 		gfxc, err := wad.Get(gfxn.Id)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting gfx %s: %v", txr.GfxName, err)
@@ -208,9 +227,7 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 					return nil, err
 				}
 
-				if !res.HaveTransparent {
-					res.HaveTransparent = !img.Opaque()
-				}
+				blendImg(img, clrBlend)
 
 				var bufImage bytes.Buffer
 				png.Encode(&bufImage, img)
@@ -220,11 +237,13 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 				res.Images[i].Image = bufImage.Bytes()
 
 				if clrOnly, _ := txr.ImageOnlyColor(gfx, pal, iGfx, iPal); clrOnly != nil {
+					blendImg(clrOnly, clrBlend)
 					var bufImageClrOnly bytes.Buffer
 					png.Encode(&bufImageClrOnly, clrOnly)
 					res.Images[i].ColorOnly = bufImageClrOnly.Bytes()
 				}
 				if alphaOnly, _ := txr.ImageOnlyAlpha(gfx, pal, iGfx, iPal); alphaOnly != nil {
+					blendImg(alphaOnly, clrBlend)
 					var bufImageAlphaOnly bytes.Buffer
 					png.Encode(&bufImageAlphaOnly, alphaOnly)
 					res.Images[i].AlphaOnly = bufImageAlphaOnly.Bytes()
@@ -235,6 +254,10 @@ func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 		}
 	}
 	return res, nil
+}
+
+func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+	return txr.MarshalBlend(nil, wad, node)
 }
 
 func init() {

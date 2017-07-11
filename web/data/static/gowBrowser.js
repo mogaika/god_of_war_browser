@@ -12,6 +12,18 @@ String.prototype.replaceAll = function(search, replace) {
     return this.replace(new RegExp('[' + search + ']', 'g'), replace);
 };
 
+function treeInputFilterHandler() {
+	var filterText = $(this).val().toLowerCase();
+	$(this).parent().find("div li label").each(function(a1, a2, a3) {
+		var p = $(this).parent();
+		if ($(this).text().toLowerCase().includes(filterText)) {
+			p.show();
+		} else {
+			p.hide();
+		}
+	});
+};
+
 function set3dVisible(show) {
     if (show) {
         view3d.show();
@@ -60,18 +72,7 @@ function packLoad() {
             packLoadFile($(this).parent().attr('filename'));
         });
 
-		$('#view-pack-filter').on('input', function() {
-			var filterText = $(this).val().toLowerCase();
-			$('#view-pack ol li label').each(function(a1, a2, a3) {
-				var label = $(a2);
-				var p = label.parent();
-				if (label.text().toLowerCase().includes(filterText)) {
-					p.show();
-				} else {
-					p.hide();
-				}
-			});
-		}).val('.wad').trigger('input');
+		$('#view-pack-filter').trigger('input');
 
         console.log('pack loaded');
     })
@@ -170,9 +171,12 @@ function treeLoadWad(data) {
 		}
 		
 	}
+	
+	$('#view-item-filter').trigger('input');
     
 	if (defferedLoadingWadNode) {
 		treeLoadWadNode(data.Name, parseInt(defferedLoadingWadNode));
+		defferedLoadingWadNode = undefined;
 	} else {
 		setLocation(data.Name, '#/' + data.Name);
 	}
@@ -240,6 +244,16 @@ function treeLoadWadNode(wad, nodeid) {
 	                case 0x00000008: // material
 	                    summaryLoadWadMat(data);
 	                    break;
+					case 0x00000011: // collision
+						gr_instance.destroyModels();
+					    set3dVisible(true);
+					    
+						var mdl = new grModel();
+						loadCollisionFromAjax(mdl, data);
+						
+						gr_instance.models.push(mdl);
+					    gr_instance.requestRedraw();
+						break;
 	                case 0x0001000f: // mesh
 	                    summaryLoadWadMesh(data);
 	                    break;
@@ -462,25 +476,40 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
 	for (var i in data.Materials) {
 		var material = new grMaterial();
 		
-		var textures = data.Materials[i].Textures;
+		var textures = data.Materials[i].TexturesBlended;
 		var rawMat = data.Materials[i].Mat;
 		if (rawMat && rawMat.Color) {
 			material.setColor(rawMat.Color);
 		}
+		var layerId = undefined;
 		if (rawMat.Layers && rawMat.Layers.length) {
-			var zl = rawMat.Layers[0];
-			if (zl.ParsedFlags.RenderingStrangeBlendedd === true) { material.setMethodUnknown(); }
+			for (var i in rawMat.Layers) {
+				layerId = i;
+				if (rawMat.Layers[i].ParsedFlags.RenderingStrangeBlended === true) {
+					break;
+				}
+			}
+		}
+		if (layerId !== undefined) {
+			var zl = rawMat.Layers[layerId];
+			if (zl.ParsedFlags.RenderingStrangeBlended === true) { material.setMethodUnknown(); }
 			if (zl.ParsedFlags.RenderingSubstract === true) { material.setMethodSubstract(); }
 			if (zl.ParsedFlags.RenderingUsual === true) { material.setMethodNormal(); }
 			if (zl.ParsedFlags.RenderingAdditive === true) { material.setMethodAdditive(); }
+
+	        if (textures && textures.length && textures[layerId]) {
+	            var imgs = textures[layerId].Images;
+	            if (imgs && imgs.length && imgs[0]) {
+					var img = imgs[0].Image;
+					if (rawMat.Layers[layerId].ParsedFlags.RenderingStrangeBlended === true) {
+						console.log('COLORONLY ONE');
+						img = imgs[0].ColorOnly;
+					}
+					material.setDiffuse(new grTexture('data:image/png;base64,' + img));
+					material.setHasAlphaAttribute(textures[layerId].HaveTransparent);
+	            }
+	        }
 		}
-        if (textures && textures.length && textures[0]) {
-            var imgs = textures[0].Images;
-            if (imgs && imgs.length && imgs[0]) {
-				material.setDiffuse(new grTexture('data:image/png;base64,' + imgs[0].Image));
-				material.setHasAlphaAttribute(textures[0].HaveTransparent);
-            }
-        }
 		mdl.addMaterial(material);
     }
 	
@@ -492,7 +521,7 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
 					mdl.setType("sky");
 					break;
 				default:
-					console.warn("Unknown SCR target: " + scr.TargetScript, data, mdl, scr);
+					console.warn("Unknown SCR target: " + scr.TargetName, data, mdl, scr);
 					break;
 			}
 		}
@@ -534,19 +563,23 @@ function summaryLoadWadTxr(data) {
     set3dVisible(false);
     var table = $('<table>');
     $.each(data.Data, function(k, val) {
+		if (k == 'Flags') {
+			val = '0x' + val.toString(16);
+		}
         table.append($('<tr>')
             .append($('<td>').append(k))
             .append($('<td>').append(val)));
     });
-	table.append($('<tr>')
-        .append($('<td>').append('Have transparent'))
-        .append($('<td>').append(data.HaveTransparent?"true":"false")));
-    table.append($('<tr>')
-        .append($('<td>').append('Used gfx'))
-        .append($('<td>').append(data.UsedGfx)));
-    table.append($('<tr>')
-        .append($('<td>').append('Used pal'))
-        .append($('<td>').append(data.UsedPal)));
+	
+	table.append($('<tr>').append($('<td>').attr('colspan', 2).append('Parsed flags')));
+	
+	$.each(data, function(k, val) {
+		if (k != 'Data' && k != 'Images' && k != 'Refs') {
+			table.append($('<tr>')
+		        .append($('<td>').append(k))
+		        .append($('<td>').append(val.toString())));
+		}
+	});
 
     dataSummary.append(table);
     for (var i in data.Images) {
@@ -585,17 +618,27 @@ function summaryLoadWadMat(data) {
 					}
 					td.append(str);
 					break;
-                case 'Floats':
-                    td.append(JSON.stringify(v, undefined, 2));
+                case 'BlendColor':
+					var r = Array(4);
+					for (var i in data.Mat.Color) {
+						r[i] = v[i] * data.Mat.Color[i];
+					}
+                    td.attr('style', 'background-color: rgb('+parseInt(r[0]*255)+','+parseInt(r[1]*255)+','+parseInt(r[2]*255)+')')
+						.append(JSON.stringify(v, undefined, 2) + ';  result:' + JSON.stringify(r, undefined, 2));
                     break;
                 case 'Texture':
                     td.append(v);
                     if (v != '') {
                         var txrobj = data.Textures[l];
-                        td.append(' \\ ' + txrobj.Data.GfxName + ' \\ ' + txrobj.Data.PalName);
-                        td.append('<br>').append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].Image));
-						td.append('<br>').append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].AlphaOnly));
+						var txrblndobj = data.TexturesBlended[l];
+                        td.append(' \\ ' + txrobj.Data.GfxName + ' \\ ' + txrobj.Data.PalName).append('<br>');
+						td.append('Color + Alpha \\ Color only \\ Alpha(green=100%) ').append('<br>');
+                        td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].Image));
 						td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].ColorOnly));
+						td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].AlphaOnly));
+						td.append('<br>').append(' BLENDED Color + Alpha \\ BLENDED Color only ').append('<br>');
+						td.append($('<img>').attr('src', 'data:image/png;base64,' + txrblndobj.Images[0].Image));
+						td.append($('<img>').attr('src', 'data:image/png;base64,' + txrblndobj.Images[0].ColorOnly));
                     }
                     break;
 				case 'ParsedFlags':
@@ -617,18 +660,18 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
+function loadCollisionFromAjax(mdl, data) {
+	if (data.ShapeName == "BallHull") {
+		var vec = data.Shape.Vector;
+		mdl.addMesh(grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3]*2, 7, 7));
+	}
+}
+
 function loadObjFromAjax(mdl, data, parseScripts=false) {
 	if (data.Model) {
 		loadMdlFromAjax(mdl, data.Model, parseScripts);
 	} else if (data.Collision) {
-		/*
-		console.log(data);
-		var col = data.Collision;
-		if (col.ShapeName == "BallHull") {
-			var vec = col.Shape.Vector;
-			mdl.addMesh(grHelper_Cube(vec[0], vec[1], vec[2], vec[3]));
-		}
-		*/
+		loadCollisionFromAjax(mdl, data.Collision);
 	}	
 	mdl.loadSkeleton(data.Data.Joints);
 }
@@ -664,7 +707,6 @@ function summaryLoadWadObj(data) {
 	dataSummary.append(jointsTable);
 	
 	if (data.Model || data.Collision) {
-		console.log("CATCHDED");
     	set3dVisible(true);
     
 		var mdl = new grModel();
@@ -702,9 +744,10 @@ function loadCxtFromAjax(data, parseScripts=true) {
 		// same as above
 		var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
 
-		console.log(inst.Object, instMat);
-		//if (obj && (obj.Model || (obj.Collision && inst.Object.includes("message")))) {
-		if (obj && (obj.Model)) {
+		//console.log(inst.Object, instMat);
+		//if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {
+		//if (obj && (obj.Model)) {
+		if (obj && (obj.Model || obj.Collision)) {
 			var mdl = new grModel();
 			loadObjFromAjax(mdl, obj, true);
 			mdl.matrix = instMat;
@@ -753,6 +796,11 @@ $(document).ready(function(){
     dataSummary = viewSummary.children('.view-item-container');
     data3d = view3d.children('.view-item-container');
     
+
+	$('#view-pack-filter').on('input', treeInputFilterHandler).val('.wad');
+	$('#view-item-filter').on('input', treeInputFilterHandler);
+
+	
 	var urlParts = decodeURI(window.location.hash).split("/");
 	if (urlParts.length > 1) {
 		if (urlParts[1].length > 0) {

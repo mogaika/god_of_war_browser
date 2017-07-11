@@ -208,7 +208,7 @@ grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSk
 		//gl.uniform1i(this.uOnlyOpaqueRender, 1);
 		var undrawedDrawed = this.renderModels(ctrl, mdls, __mdl_mesh_undrawed_tester, useSkelet);
 		if (undrawedDrawed) {
-			console.warn(undrawedDrawed + ' miss filter')
+			//console.warn(undrawedDrawed + ' miss filter')
 		}
 		this.renderModels(ctrl, mdls, __mdl_mesh_normal_nonalpha_tester, useSkelet);
 		

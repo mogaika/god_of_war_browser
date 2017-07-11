@@ -50,7 +50,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := web.StartServer(addr, p); err != nil {
+	if err := web.StartServer(addr, p, "../../web"); err != nil {
 		log.Fatal(err)
 	}
 }
