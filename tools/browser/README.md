@@ -1,0 +1,2 @@
+- Open console and launch binary with ```-game "Path_to_game_directory_with_GODOFWAR_TOC_file"``` if you have part1.pak or part2.pak and godofwar.tok files. Or with ```-unpacked -game "Path_to_directory_with_WAD_files"``` if you have directory with wad/vpk files.
+- Then open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)
