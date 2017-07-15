@@ -99,7 +99,7 @@ func (anm *Animations) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, er
 }
 
 func init() {
-	wad.SetHandler(ANIMATIONS_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(ANIMATIONS_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		data := make([]byte, node.Size)
 		_, err := r.ReadAt(data, 0)
 		if err != nil {

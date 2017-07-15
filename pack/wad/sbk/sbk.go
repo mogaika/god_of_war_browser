@@ -11,7 +11,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/ps2/vagp"
 	"github.com/mogaika/god_of_war_browser/utils"
-	"github.com/mogaika/god_of_war_browser/web/webutils"
+	"github.com/mogaika/god_of_war_browser/webutils"
 )
 
 const SBK_SBLK_MAGIC = 0x18
@@ -194,10 +194,10 @@ func (sbk *SBK) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(SBK_SBLK_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(SBK_SBLK_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewFromData(r, true, node.Size)
 	})
-	wad.SetHandler(SBK_VAG_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(SBK_VAG_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewFromData(r, false, node.Size)
 	})
 }

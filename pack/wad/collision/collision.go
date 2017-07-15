@@ -57,7 +57,7 @@ func (c *Collision) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error
 }
 
 func init() {
-	wad.SetHandler(COLLISION_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(COLLISION_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.enz.obj", node.Id, node.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)

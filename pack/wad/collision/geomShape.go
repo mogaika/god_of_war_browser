@@ -72,7 +72,7 @@ func (gs *GeomShape) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, erro
 }
 
 func init() {
-	wad.SetTagHandler(MESH_TAG, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetTagHandler(MESH_TAG, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewGeomShapeFromData(io.NewSectionReader(r, 0, int64(node.Size)))
 	})
 }

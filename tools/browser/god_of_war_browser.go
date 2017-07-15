@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/mogaika/god_of_war_browser/pack"
-	"github.com/mogaika/god_of_war_browser/web"
+	"github.com/mogaika/god_of_war_browser/tools/browser/web"
 
 	_ "github.com/mogaika/god_of_war_browser/pack/vag"
 	_ "github.com/mogaika/god_of_war_browser/pack/vpk"
@@ -13,6 +13,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/anm"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/collision"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/cxt"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/flp"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/inst"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/mat"
@@ -22,6 +23,9 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/sbk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/txr"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func main() {
@@ -32,15 +36,15 @@ func main() {
 	flag.StringVar(&iso, "iso", "", "Pack to iso file")
 	flag.Parse()
 
-	var p *pack.Pack
+	var p pack.PackDriver
 	var err error
 
 	if iso != "" {
-		p, err = pack.NewPackFromIso(iso)
+		//		p, err = pack.NewPackFromIso(iso)
 	} else if tok != "" {
 		p, err = pack.NewPackFromTok(tok)
 	} else if dir != "" {
-		p, err = pack.NewPackFromDirectory(dir)
+		//s	p, err = pack.NewPackFromDirectory(dir)
 	} else {
 		flag.PrintDefaults()
 		return
@@ -50,7 +54,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := web.StartServer(addr, p, "../../web"); err != nil {
+	go http.ListenAndServe(":7777", http.DefaultServeMux)
+
+	if err := web.StartServer(addr, p, "web"); err != nil {
 		log.Fatal(err)
 	}
 }

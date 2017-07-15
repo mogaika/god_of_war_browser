@@ -95,7 +95,7 @@ func (vpk *VPK) AsWave(r io.Reader, w io.Writer) (int, error) {
 }
 
 func init() {
-	pack.SetHandler(".VPK", func(p *pack.Pack, pf *pack.PackFile, r io.ReaderAt) (interface{}, error) {
+	pack.SetHandler(".VPK", func(p pack.PackFile, r *io.SectionReader) (interface{}, error) {
 		return NewVPKFromReader(r)
 	})
 }

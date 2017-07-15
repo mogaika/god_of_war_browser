@@ -12,6 +12,14 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
+/*
+Info that may help:
+https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnmaterial.htm
+https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnenvmap.htm
+https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnmaterial.htm
+
+*/
+
 type Flags struct {
 	FilterLinear            bool // when false, then near filter used. may affect only wheb texture expanded (LOD < 0)
 	DisableDepthWrite       bool
@@ -171,7 +179,7 @@ func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, erro
 }
 
 func init() {
-	wad.SetHandler(MAT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(MAT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewFromData(r)
 	})
 }

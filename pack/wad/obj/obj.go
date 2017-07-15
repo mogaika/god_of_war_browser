@@ -163,6 +163,8 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 		}
 
 		flags := binary.LittleEndian.Uint32(jointBuf[0:4])
+		// if flags & 0x6000 != 0
+		// then make strange calculation with matrix invert
 
 		isInvMat := flags&0xa0 == 0xa0 || obj.jointsCount == obj.Mat3count
 		obj.Joints[i] = Joint{
@@ -322,7 +324,7 @@ func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) 
 }
 
 func init() {
-	wad.SetHandler(OBJECT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(OBJECT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		obj, err := NewFromData(r)
 		/*
 			exPath := filepath.Join("gojbs", w.Name, fmt.Sprintf("%d_%s.gobj", node.Id, node.Name))

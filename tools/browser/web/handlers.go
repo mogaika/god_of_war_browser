@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -13,16 +14,18 @@ import (
 	file_vpk "github.com/mogaika/god_of_war_browser/pack/vpk"
 	file_wad "github.com/mogaika/god_of_war_browser/pack/wad"
 	file_vagp "github.com/mogaika/god_of_war_browser/ps2/vagp"
-	"github.com/mogaika/god_of_war_browser/web/webutils"
+	"github.com/mogaika/god_of_war_browser/webutils"
 )
 
 func HandlerAjaxPack(w http.ResponseWriter, r *http.Request) {
-	webutils.WriteJson(w, ServerPack)
+	files := ServerPack.GetFileNamesList()
+	sort.Strings(files)
+	webutils.WriteJson(w, files)
 }
 
 func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
-	data, err := ServerPack.Get(file)
+	data, err := ServerPack.GetInstance(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -39,7 +42,7 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
-	data, err := ServerPack.Get(file)
+	data, err := ServerPack.GetInstance(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -76,7 +79,7 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 
 func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
-	reader, err := ServerPack.GetFileReader(file)
+	_, reader, err := ServerPack.GetFileReader(file)
 	if err == nil {
 		webutils.WriteFile(w, reader, file)
 	} else {
@@ -87,7 +90,7 @@ func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
-	data, err := ServerPack.Get(file)
+	data, err := ServerPack.GetInstance(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -113,7 +116,7 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 			}
 		case ".VPK":
 			vpk := data.(*file_vpk.VPK)
-			fr, err := ServerPack.GetFileReader(file)
+			_, fr, err := ServerPack.GetFileReader(file)
 			if err != nil {
 				panic(err)
 			}
@@ -134,7 +137,7 @@ func HandlerDumpPackParamSubFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
 	subfile := mux.Vars(r)["subfile"]
-	data, err := ServerPack.Get(file)
+	data, err := ServerPack.GetInstance(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)

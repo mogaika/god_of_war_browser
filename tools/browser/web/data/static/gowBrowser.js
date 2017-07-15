@@ -49,10 +49,10 @@ function setLocation(title, hash) {
 
 function packLoad() {
     dataPack.empty();
-    $.getJSON('/json/pack', function(data) {
+    $.getJSON('/json/pack', function(files) {
         var list = $('<ol>');
-        for (var i in data.Files) {
-            var fileName = data.Files[i].Name;
+        for (var i in files) {
+            var fileName = files[i];
 			if (true || fileName.endsWith("WAD")) {
 	            list.append($('<li>')
 	                    .attr('filename', fileName)

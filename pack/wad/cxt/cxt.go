@@ -62,7 +62,7 @@ func (cxt *Chunk) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) 
 }
 
 func init() {
-	wad.SetHandler(CHUNK_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(CHUNK_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewFromData(r)
 	})
 }

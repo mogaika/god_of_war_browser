@@ -18,7 +18,7 @@ type File interface {
 	Marshal(wad *Wad, node *WadNode) (interface{}, error)
 }
 
-type FileLoader func(wad *Wad, node *WadNode, r io.ReaderAt) (File, error)
+type FileLoader func(wad *Wad, node *WadNode, r *io.SectionReader) (File, error)
 
 var cacheHandlers map[uint32]FileLoader = make(map[uint32]FileLoader, 0)
 var cacheTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
@@ -227,7 +227,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			// if name start with space, then name ignored (unnamed)
 			// overwrite previous instance with same name
 			if nd != nil && nd.Parent == currentNode {
-				log.Printf("Finded copy of %s->%d", nd.Name, nd.Id)
+				//log.Printf("Finded copy of %s->%d", nd.Name, nd.Id)
 			}
 
 			// size cannot be 0, because game store server id in first uint16
@@ -249,7 +249,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 			}
 		case 0x18: // entity count
 			// Game also adding empty named node to nodedirectory
-			log.Printf("%s Entity count: %v", wadName, size)
+			//log.Printf("%s Entity count: %v", wadName, size)
 			size = 0
 		case 0x006e: // MC_DATA   < R_PERM.WAD
 			// Just add node to nodedirectory
@@ -298,7 +298,7 @@ func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
 }
 
 func init() {
-	pack.SetHandler(".WAD", func(p *pack.Pack, pf *pack.PackFile, r io.ReaderAt) (interface{}, error) {
-		return NewWad(r, pf.Name)
+	pack.SetHandler(".WAD", func(p pack.PackFile, r *io.SectionReader) (interface{}, error) {
+		return NewWad(r, p.Name())
 	})
 }
