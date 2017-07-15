@@ -12,9 +12,9 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack"
 )
 
-var ServerPack *pack.Pack
+var ServerPack pack.PackDriver
 
-func StartServer(addr string, _pack *pack.Pack, webPath string) error {
+func StartServer(addr string, _pack pack.PackDriver, webPath string) error {
 	ServerPack = _pack
 
 	r := mux.NewRouter()

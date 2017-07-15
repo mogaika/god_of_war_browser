@@ -53,7 +53,7 @@ func (inst *Instance) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, err
 }
 
 func init() {
-	wad.SetHandler(INSTANCE_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(INSTANCE_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewFromData(r)
 	})
 }

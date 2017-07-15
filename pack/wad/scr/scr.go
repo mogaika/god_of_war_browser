@@ -44,7 +44,7 @@ func (sp *ScriptParams) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, e
 }
 
 func init() {
-	wad.SetHandler(SCRIPT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(SCRIPT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		return NewFromData(r, node.Size)
 	})
 }

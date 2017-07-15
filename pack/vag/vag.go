@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	pack.SetHandler(".VAG", func(p *pack.Pack, pf *pack.PackFile, r io.ReaderAt) (interface{}, error) {
-		return vagp.NewVAGPFromReader(io.NewSectionReader(r, 0, pf.Size))
+	pack.SetHandler(".VAG", func(p pack.PackFile, r *io.SectionReader) (interface{}, error) {
+		return vagp.NewVAGPFromReader(r)
 	})
 }

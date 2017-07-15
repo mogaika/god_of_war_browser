@@ -230,7 +230,7 @@ func (gfx *GFX) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(GFX_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(GFX_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		gfx, err := NewFromData(r)
 		if err != nil {
 			return gfx, err

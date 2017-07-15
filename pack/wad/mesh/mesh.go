@@ -193,7 +193,7 @@ func (m *Mesh) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(MESH_MAGIC, func(w *wad.Wad, node *wad.WadNode, r io.ReaderAt) (wad.File, error) {
+	wad.SetHandler(MESH_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
 		fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.mesh.log", node.Id, node.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)

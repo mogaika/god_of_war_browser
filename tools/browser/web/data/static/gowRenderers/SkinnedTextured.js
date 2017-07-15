@@ -208,7 +208,7 @@ grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSk
 		//gl.uniform1i(this.uOnlyOpaqueRender, 1);
 		var undrawedDrawed = this.renderModels(ctrl, mdls, __mdl_mesh_undrawed_tester, useSkelet);
 		if (undrawedDrawed) {
-			//console.warn(undrawedDrawed + ' miss filter')
+			console.warn(undrawedDrawed + ' miss filter')
 		}
 		this.renderModels(ctrl, mdls, __mdl_mesh_normal_nonalpha_tester, useSkelet);
 		
@@ -216,6 +216,8 @@ grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSk
 		gl.depthMask(true);	
 		//gl.enable(gl.BLEND);
 		gl.uniform1i(this.uOnlyOpaqueRender, 0);
+		
+		gl.enable(gl.BLEND);
 			
 		//gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 		//gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -225,7 +227,7 @@ grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSk
 		this.renderModels(ctrl, mdls, __mdl_mesh_normal_alpha_tester, useSkelet);
 
 		gl.depthMask(false);
-		gl.enable(gl.BLEND);
+
 		//gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
 		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
