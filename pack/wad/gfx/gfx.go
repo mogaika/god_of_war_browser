@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
-	"io"
 	"log"
 	"math"
 
@@ -186,12 +185,7 @@ func (gfx *GFX) GetPSM() int {
 	return -1
 }
 
-func NewFromData(fgfx io.ReaderAt) (*GFX, error) {
-	buf := make([]byte, HEADER_SIZE)
-	if _, err := fgfx.ReadAt(buf, 0); err != nil {
-		return nil, err
-	}
-
+func NewFromData(buf []byte) (*GFX, error) {
 	gfx := &GFX{
 		Magic:      binary.LittleEndian.Uint32(buf[0:4]),
 		Width:      binary.LittleEndian.Uint32(buf[4:8]),
@@ -207,17 +201,15 @@ func NewFromData(fgfx io.ReaderAt) (*GFX, error) {
 		return nil, errors.New("Wrong magic.")
 	}
 
-	dataBlockCount := int(binary.LittleEndian.Uint32(buf[20:24]))
+	pos := uint32(24)
+	log.Printf("Gfx datas count: %v; bpi: %v; w: %v; h: %v, enc: %v",
+		gfx.DatasCount, gfx.Bpi, gfx.Width, gfx.Height, gfx.Encoding)
+	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
+		size := (gfx.Width * gfx.Height * gfx.Bpi) / 8
+		gfx.Data[iData] = buf[pos : pos+size]
 
-	for iData := 0; iData < dataBlockCount; iData++ {
-		data := make([]byte, (gfx.Width*gfx.Height*gfx.Bpi)/8)
-
-		_, err := fgfx.ReadAt(data, HEADER_SIZE)
-		if err != nil {
-			return nil, err
-		}
-
-		gfx.Data[iData] = data
+		// TODO : fix logic
+		// pos += size
 	}
 
 	gfx.Psm = GsPsm[gfx.GetPSM()]
@@ -225,13 +217,14 @@ func NewFromData(fgfx io.ReaderAt) (*GFX, error) {
 	return gfx, nil
 }
 
-func (gfx *GFX) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (gfx *GFX) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return gfx, nil
 }
 
 func init() {
-	wad.SetHandler(GFX_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		gfx, err := NewFromData(r)
+	wad.SetHandler(GFX_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		log.Println(wrsrc.Name())
+		gfx, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return gfx, err
 		}

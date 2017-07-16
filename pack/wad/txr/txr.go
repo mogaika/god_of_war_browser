@@ -8,7 +8,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"io"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -29,12 +28,7 @@ type Texture struct {
 const FILE_SIZE = 0x58
 const TXR_MAGIC = 0x00000007
 
-func NewFromData(fin io.ReaderAt) (*Texture, error) {
-	buf := make([]byte, FILE_SIZE)
-	if _, err := fin.ReadAt(buf, 0); err != nil {
-		return nil, err
-	}
-
+func NewFromData(buf []byte) (*Texture, error) {
 	tex := &Texture{
 		Magic:         binary.LittleEndian.Uint32(buf[0:4]),
 		GfxName:       utils.BytesToString(buf[4:28]),
@@ -135,15 +129,6 @@ type Ajax struct {
 	Data         *Texture
 	Images       []AjaxImage
 	FilterLinear bool
-	Refs         map[string]int
-}
-
-func (a *Ajax) addRef(node *wad.WadNode, name string) {
-	if name != "" {
-		if nd := node.FindNode(name); nd != nil {
-			a.Refs[nd.Name] = nd.Id
-		}
-	}
 }
 
 func blendImg(img *image.RGBA, clrBlend []float32) {
@@ -173,26 +158,21 @@ func blendImg(img *image.RGBA, clrBlend []float32) {
 	}
 }
 
-func (txr *Texture) MarshalBlend(clrBlend []float32, wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (txr *Texture) MarshalBlend(clrBlend []float32, wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	res := &Ajax{
 		Data:         txr,
 		FilterLinear: txr.Flags&1 == 0,
-		Refs:         make(map[string]int),
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
-			panic(fmt.Errorf("Panic when marshaling texture %s: %v", node.Name, r))
+			panic(fmt.Errorf("Panic when marshaling texture %s: %v", wrsrc.Tag.Name, r))
 		}
 	}()
 
-	res.addRef(node, txr.GfxName)
-	res.addRef(node, txr.PalName)
-	res.addRef(node, txr.SubTxrName)
-
 	if txr.GfxName != "" && txr.PalName != "" {
-		gfxn := node.FindNode(txr.GfxName)
-		paln := node.FindNode(txr.PalName)
+		gfxn := wrsrc.Wad.GetNodeByName(txr.GfxName, wrsrc.Node.Id, false)
+		paln := wrsrc.Wad.GetNodeByName(txr.PalName, wrsrc.Node.Id, false)
 		if gfxn == nil {
 			return nil, fmt.Errorf("Cannot find gfx: %s", txr.GfxName)
 		}
@@ -201,15 +181,12 @@ func (txr *Texture) MarshalBlend(clrBlend []float32, wad *wad.Wad, node *wad.Wad
 			return nil, fmt.Errorf("Cannot find pal: %s", txr.PalName)
 		}
 
-		res.Refs[gfxn.Name] = gfxn.Id
-		res.Refs[paln.Name] = paln.Id
-
-		gfxc, err := wad.Get(gfxn.Id)
+		gfxc, _, err := wrsrc.Wad.GetInstanceFromNode(gfxn.Id)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting gfx %s: %v", txr.GfxName, err)
 		}
 
-		palc, err := wad.Get(paln.Id)
+		palc, _, err := wrsrc.Wad.GetInstanceFromNode(paln.Id)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting pal %s: %v", txr.PalName, err)
 		}
@@ -256,12 +233,12 @@ func (txr *Texture) MarshalBlend(clrBlend []float32, wad *wad.Wad, node *wad.Wad
 	return res, nil
 }
 
-func (txr *Texture) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
-	return txr.MarshalBlend(nil, wad, node)
+func (t *Texture) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
+	return t.MarshalBlend(nil, wrsrc)
 }
 
 func init() {
-	wad.SetHandler(TXR_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		return NewFromData(r)
+	wad.SetHandler(TXR_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }

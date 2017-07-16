@@ -188,23 +188,28 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 	return mesh, nil
 }
 
-func (m *Mesh) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return m, nil
 }
 
 func init() {
-	wad.SetHandler(MESH_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.mesh.log", node.Id, node.Name))
+	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
 		defer f.Close()
 
-		file := make([]byte, node.Size)
-		_, err := r.ReadAt(file, 0)
-		if err != nil {
-			return nil, err
+		m, err := NewFromData(wrsrc.Tag.Data, f)
+
+		if err == nil {
+			objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
+			os.MkdirAll(filepath.Dir(objpath), 0777)
+			fMesh, _ := os.Create(objpath)
+			defer fMesh.Close()
+
+			m.ExportObj(fMesh, nil, nil)
 		}
 
-		return NewFromData(file, f)
+		return m, err
 	})
 }

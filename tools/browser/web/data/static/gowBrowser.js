@@ -53,14 +53,12 @@ function packLoad() {
         var list = $('<ol>');
         for (var i in files) {
             var fileName = files[i];
-			if (true || fileName.endsWith("WAD")) {
-	            list.append($('<li>')
-	                    .attr('filename', fileName)
-	                    .append($('<label>').append(fileName))
-	                    .append($('<a download>')
-	                            .addClass('button-dump')
-	                            .attr('href', '/dump/pack/' + fileName)) );
-			}
+            list.append($('<li>')
+                    .attr('filename', fileName)
+                    .append($('<label>').append(fileName))
+                    .append($('<a download>')
+                            .addClass('button-dump')
+                            .attr('href', '/dump/pack/' + fileName)) );
         }
         dataPack.append(list);
 
@@ -84,7 +82,7 @@ function packLoadFile(filename) {
         var ext = filename.slice(-3).toLowerCase();
         switch (ext) {
             case 'wad':
-                treeLoadWad(data);  
+                treeLoadWad(filename, data);  
                 break;
 			case 'vag':
 			case 'vpk':
@@ -114,76 +112,56 @@ function treeLoadVagVpk(data, filename) {
     setLocation(filename, '#/' + filename);
 }
 
-function treeLoadWad(data) {
+function treeLoadWad(wadName, data) {
+	if (defferedLoadingWadNode) {
+		treeLoadWadNode(wadName, parseInt(defferedLoadingWadNode));
+		defferedLoadingWadNode = undefined;
+	} else {
+		setLocation(wadName, '#/' + wadName);
+	}
+	
 	var addNodes = function(nodes) {
-        var ol = $('<ol>').attr('wadname', data.Name);
+        var ol = $('<ol>');
         for (var sn in nodes) {
             var node = data.Nodes[nodes[sn]];
             var li = $('<li>')
-                    .attr('nodeid', node.Id)
-                    .attr('nodeformat', node.Format)
-                    .attr('nodename', node.Name)
-					.attr('nodetag', node.Tag)
-                    .append($('<label>').append(("0000" + node.Id).substr(-4,4) + '.' + node.Name));
+                    .attr('nodeid', node.Tag.Id)
+                    .attr('nodename', node.Tag.Name)
+					.attr('nodetag', node.Tag.Tag)
+                    .append($('<label>').append(("0000" + node.Tag.Id).substr(-4,4) + '.' + node.Tag.Name));
 
-            if (node.IsLink) {
-				li.addClass('wad-node-link');
-            } else {
-				if (node.Tag == 0x1e) {
-					li.addClass('wad-node-data');
+			if (node.Tag.Tag == 0x1e) {
+				if (node.Tag.Size == 0) {
+					li.addClass('wad-node-link');
 				} else {
-					li.append(' [' + node.Tag + ']');
+					li.addClass('wad-node-data');
 				}
-                li.append($('<a download>')
-                        .addClass('button-dump')
-                        .attr('href', '/dump/pack/' + data.Name + '/' + node.Id))
-                if (node.SubNodes) {
-                    li.append(addNodes(node.SubNodes));
-                }
+			} else {
+				li.append(' [' + node.Tag.Tag + ']');
+			}
+            
+			li.append($('<a download>')
+                    .addClass('button-dump')
+                    .attr('href', '/dump/pack/' + wadName + '/' + node.Tag.Id))
+
+            if (node.SubGroupNodes) {
+                li.append(addNodes(node.SubGroupNodes));
             }
             ol.append(li);
         }
         return ol;
     }
     
-    setTitle(viewTree, data.Name);
+    setTitle(viewTree, wadName);
     
     if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
-		
-		if (!defferedLoadingWadNode) {
-			set3dVisible(true);
-			gr_instance.destroyModels();
-			for (var sn in data.Roots) {
-				var node = data.Nodes[data.Roots[sn]];
-				if (node.Name.startsWith("CXT_") && node.Format == 0x80000001) {
-					$.getJSON('/json/pack/' + data.Name +'/' + node.Id, function(resp) {
-						var data = resp.Data;
-						var node = resp.Node;
-						if (node.Format == 0x80000001) {
-							loadCxtFromAjax(data);
-							gr_instance.requestRedraw();
-						}
-						console.log("loaded wad part: " + node.Name); 
-					});
-				}
-			}
-		}
-		
 	}
 	
 	$('#view-item-filter').trigger('input');
-    
-	if (defferedLoadingWadNode) {
-		treeLoadWadNode(data.Name, parseInt(defferedLoadingWadNode));
-		defferedLoadingWadNode = undefined;
-	} else {
-		setLocation(data.Name, '#/' + data.Name);
-	}
-	
     $('#view-tree ol li label').click(function(ev) {
         var node_element = $(this).parent();
-        treeLoadWadNode(dataTree.children().attr('wadname'), parseInt(node_element.attr('nodeid')));
+        treeLoadWadNode(wadName, parseInt(node_element.attr('nodeid')));
     });
 }
 
@@ -217,7 +195,7 @@ function treeLoadWadNode(wad, nodeid) {
     dataSummary.empty();
     $.getJSON('/json/pack/' + wad +'/' + nodeid, function(resp) {
         var data = resp.Data;
-        var node = resp.Node;
+        var tag = resp.Tag;
 		
 		var needHexDump = false;
 		var needMarshalDump = false;
@@ -228,11 +206,11 @@ function treeLoadWadNode(wad, nodeid) {
             dataSummary.append(resp.error);
 			needHexDump = true;
         } else {
-            setTitle(viewSummary, node.Name);
-			setLocation(wad + " => " + node.Name, '#/' + wad + '/' + nodeid);
+            setTitle(viewSummary, tag.Name);
+			setLocation(wad + " => " + tag.Name, '#/' + wad + '/' + nodeid);
 			
-			if (node.Tag == 0x1e) {
-	            switch (node.Format) {
+			if (tag.Tag == 0x1e) {
+	            switch (resp.ServerId) {
 					case 0x00000018: // sbk blk
 					case 0x00040018: // sbk vag
 						summaryLoadWadSbk(data, wad, nodeid);
@@ -281,12 +259,12 @@ function treeLoadWadNode(wad, nodeid) {
 						needHexDump = true;
 	                    break;
 	            }
-			} else if (node.Tag == 112) {
+			} else if (tag.Tag == 112) {
 				summaryLoadWadGeomShape(data);
 			} else {
 				needHexDump = true;
 			}
-            console.log('wad ' + wad + ' file (' + node.Name + ')' + node.Id + ' loaded. format:' + node.Format);
+            console.log('wad ' + wad + ' file (' + tag.Name + ')' + tag.Id + ' loaded. serverid:' + resp.ServerId);
         }
 
 		if (needMarshalDump) {
@@ -514,6 +492,7 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
     }
 	
 	if (parseScripts) {
+		console.log(data.Scripts);
 		for (var i in data.Scripts) {
 			var scr = data.Scripts[i];
 			switch (scr.TargetName) {
@@ -749,7 +728,7 @@ function loadCxtFromAjax(data, parseScripts=true) {
 		//if (obj && (obj.Model)) {
 		if (obj && (obj.Model || obj.Collision)) {
 			var mdl = new grModel();
-			loadObjFromAjax(mdl, obj, true);
+			loadObjFromAjax(mdl, obj, parseScripts);
 			mdl.matrix = instMat;
 			gr_instance.models.push(mdl);
 		}

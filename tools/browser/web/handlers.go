@@ -35,11 +35,6 @@ func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
-	type Result struct {
-		Node *file_wad.WadNode
-		Data interface{}
-	}
-
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
 	data, err := ServerPack.GetInstance(file)
@@ -47,28 +42,29 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
 	} else {
-		switch file[len(file)-4:] {
-		case ".WAD":
+		switch data.(type) {
+		case *file_wad.Wad:
 			wad := data.(*file_wad.Wad)
 			id, err := strconv.Atoi(param)
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				node := wad.Node(id).ResolveLink()
-				if node != nil {
-					data, err := wad.Get(node.Id)
-					if err == nil {
-						val, err := data.Marshal(wad, node)
-						if err != nil {
-							webutils.WriteError(w, fmt.Errorf("Error Marshaling node %d from %s: %v", id, file, err.(error)))
-						} else {
-							webutils.WriteJson(w, &Result{Node: node, Data: val})
-						}
+				node := wad.GetNodeById(wad.GetTagById(file_wad.TagId(id)).Node.Id)
+				data, serverId, err := wad.GetInstanceFromNode(node.Id)
+				if err == nil {
+					type Result struct {
+						Tag      *file_wad.Tag
+						Data     interface{}
+						ServerId uint32
+					}
+					val, err := data.Marshal(wad.GetNodeResourceByTagId(node.Tag.Id))
+					if err != nil {
+						webutils.WriteError(w, fmt.Errorf("Error marshaling node %d from %s: %v", id, file, err.(error)))
 					} else {
-						webutils.WriteError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
+						webutils.WriteJson(w, &Result{Tag: node.Tag, Data: val, ServerId: serverId})
 					}
 				} else {
-					webutils.WriteError(w, fmt.Errorf("Cannot find node %d in %s", id, wad.Name))
+					webutils.WriteError(w, fmt.Errorf("File %s-%d[%s] parsing error: %v", file, node.Tag.Id, node.Tag.Name, err))
 				}
 			}
 		default:
@@ -102,11 +98,8 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				if rdr, err := wad.GetFileReader(id); err == nil {
-					webutils.WriteFile(w, rdr, wad.Nodes[id].Name)
-				} else {
-					webutils.WriteError(w, fmt.Errorf("cannot get wad '%s' file %d reader", file, id))
-				}
+				tag := wad.GetTagById(file_wad.TagId(id))
+				webutils.WriteFile(w, bytes.NewBuffer(tag.Data), tag.Name)
 			}
 		case ".VAG":
 			if wav, err := data.(*file_vagp.VAGP).AsWave(); err != nil {
@@ -149,29 +142,22 @@ func HandlerDumpPackParamSubFile(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				node := wad.Node(id).ResolveLink()
-				if node != nil {
-					data, err := wad.Get(node.Id)
-					if err == nil {
-						rt := reflect.TypeOf(data)
-						method, has := rt.MethodByName("SubfileGetter")
-						if !has {
-							webutils.WriteError(w, fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name()))
-						} else {
-							method.Func.Call([]reflect.Value{
-								reflect.ValueOf(data),
-								reflect.ValueOf(w),
-								reflect.ValueOf(r),
-								reflect.ValueOf(wad),
-								reflect.ValueOf(node),
-								reflect.ValueOf(subfile),
-							}[:])
-						}
+				id := file_wad.TagId(id)
+				if inst, _, err := wad.GetInstanceFromTag(id); err == nil {
+					rt := reflect.TypeOf(inst)
+					method, has := rt.MethodByName("SubfileGetter")
+					if !has {
+						webutils.WriteError(w, fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name()))
 					} else {
-						webutils.WriteError(w, fmt.Errorf("File %s-%d[%s] reading error: %v", file, id, wad.Nodes[id].Name, err))
+						method.Func.Call([]reflect.Value{
+							reflect.ValueOf(inst),
+							reflect.ValueOf(w),
+							reflect.ValueOf(wad.GetNodeResourceByTagId(id)),
+							reflect.ValueOf(subfile),
+						}[:])
 					}
 				} else {
-					webutils.WriteError(w, fmt.Errorf("Cannot find node %d in %s", id, wad.Name))
+					webutils.WriteError(w, fmt.Errorf("File %s-%d instance getting error: %v", file, id, err))
 				}
 			}
 		default:

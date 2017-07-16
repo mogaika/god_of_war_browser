@@ -10,6 +10,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/vag"
 	_ "github.com/mogaika/god_of_war_browser/pack/vpk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad"
+
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/anm"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/collision"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/cxt"
@@ -23,9 +24,6 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/sbk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/txr"
-
-	"net/http"
-	_ "net/http/pprof"
 )
 
 func main() {
@@ -54,9 +52,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go http.ListenAndServe(":7777", http.DefaultServeMux)
-
 	if err := web.StartServer(addr, p, "web"); err != nil {
 		log.Fatal(err)
 	}
+
 }

@@ -2,7 +2,6 @@ package cxt
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/inst"
@@ -14,7 +13,7 @@ const FILE_SIZE = 0x34
 
 type Chunk struct{}
 
-func NewFromData(r io.ReaderAt) (*Chunk, error) {
+func NewFromData(buf []byte) (*Chunk, error) {
 	return &Chunk{}, nil
 }
 
@@ -23,37 +22,34 @@ type Ajax struct {
 	Objects   map[string]interface{}
 }
 
-func (cxt *Chunk) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (cxt *Chunk) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	ajax := Ajax{}
 
-	for _, iSubNode := range node.SubNodes {
-		subnode := wad.Node(iSubNode)
-		if subnode.IsLink {
-			subnode = subnode.ResolveLink()
-			instance, err := wad.Get(subnode.Id)
-			if err != nil {
-				return nil, fmt.Errorf("Error getting instance: %v", err)
-			}
-			ajax.Instances = append(ajax.Instances, instance.(*inst.Instance))
+	for _, iSubNode := range wrsrc.Node.SubGroupNodes {
+		instance, _, err := wrsrc.Wad.GetInstanceFromNode(iSubNode)
+		if err != nil {
+			continue
+			//return nil, fmt.Errorf("Error getting instance: %v", err)
 		}
+		ajax.Instances = append(ajax.Instances, instance.(*inst.Instance))
 	}
 
 	ajax.Objects = make(map[string]interface{}, int(len(ajax.Instances)))
 
 	for _, instance := range ajax.Instances {
 		if _, ok := ajax.Objects[instance.Object]; !ok {
-			object := wad.FindNode(instance.Object, -1, node.Id)
+			object := wrsrc.Wad.GetNodeByName(instance.Object, wrsrc.Node.Id-1, false)
 			if object == nil {
 				continue
 				//return nil, fmt.Errorf("Cannot find object '%s'", instance.Object)
 			}
-			objectData, err := wad.Get(object.Id)
+			objectData, _, err := wrsrc.Wad.GetInstanceFromNode(object.Id)
 			if err != nil {
 				return nil, fmt.Errorf("Cannot parse object '%s'", instance.Object)
 			}
-			ajax.Objects[object.Name], err = objectData.(*obj.Object).Marshal(object.Wad, object)
+			ajax.Objects[object.Tag.Name], err = objectData.(*obj.Object).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(object.Id))
 			if err != nil {
-				return nil, fmt.Errorf("Error when marshaling '%s'", object.Name)
+				return nil, fmt.Errorf("Error when marshaling '%s'", object.Tag.Name)
 			}
 		}
 	}
@@ -62,7 +58,7 @@ func (cxt *Chunk) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) 
 }
 
 func init() {
-	wad.SetHandler(CHUNK_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		return NewFromData(r)
+	wad.SetHandler(CHUNK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }

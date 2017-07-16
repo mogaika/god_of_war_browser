@@ -177,7 +177,7 @@ func (p *TokDriver) GetInstance(fileName string) (interface{}, error) {
 		return cached, nil
 	}
 
-	inst, err := CallHandler(f, r)
+	inst, err := CallHandler(&PackResSrc{p: p, pf: f}, r)
 	if err != nil {
 		return nil, fmt.Errorf("Handler error: %v", err)
 	}

@@ -2,11 +2,10 @@ package wad
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math"
+	"os"
 
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -15,290 +14,364 @@ import (
 const WAD_ITEM_SIZE = 0x20
 
 type File interface {
-	Marshal(wad *Wad, node *WadNode) (interface{}, error)
+	Marshal(rsrc *WadNodeRsrc) (interface{}, error)
 }
 
-type FileLoader func(wad *Wad, node *WadNode, r *io.SectionReader) (File, error)
+type FileLoader func(rsrc *WadNodeRsrc) (File, error)
 
-var cacheHandlers map[uint32]FileLoader = make(map[uint32]FileLoader, 0)
-var cacheTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
+var gHandlers map[uint32]FileLoader = make(map[uint32]FileLoader, 0)
 
 func SetHandler(format uint32, ldr FileLoader) {
-	cacheHandlers[format] = ldr
+	gHandlers[format] = ldr
 }
+
+var gTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
 
 func SetTagHandler(tag uint16, ldr FileLoader) {
-	cacheTagHandlers[tag] = ldr
+	gTagHandlers[tag] = ldr
 }
+
+type NodeId int
+type TagId int
 
 type Wad struct {
-	Name   string
-	Reader io.ReaderAt `json:"-"`
-	Nodes  []*WadNode
-	Roots  []int
+	Source utils.ResourceSource `json:"-"`
+	Tags   []Tag                `json:"-"`
+	Nodes  []Node
+	Roots  []NodeId
+
+	EntityCount uint32
 }
 
-func (wad *Wad) Node(id int) *WadNode {
-	if id > len(wad.Nodes) || id < 0 {
-		return nil
-	} else {
-		nd := wad.Nodes[id]
-		return nd
-	}
+type Tag struct {
+	Id    TagId // our internal id to identify tags
+	Tag   uint16
+	Flags uint16
+	Size  uint32
+	Name  string
+	Data  []byte `json:"-"`
+	Node  *Node  `json:"-"`
 }
 
-func (link *WadNode) ResolveLink() *WadNode {
-	for link != nil && link.IsLink {
-		link = link.FindNode(link.Name)
-	}
-	return link
+type Node struct {
+	Id             NodeId // our internal id to identify nodes
+	Tag            *Tag
+	Parent         *Node `json:"-"`
+	SubGroupNodes  []NodeId
+	Cache          File `json:"-"`
+	CachedServerId uint32
 }
 
-func (wad *Wad) Get(id int) (File, error) {
-	node := wad.Node(id).ResolveLink()
+func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
+	var h FileLoader
+	var serverId uint32
 
-	if node == nil {
-		return nil, errors.New("Node not found")
+	n := w.GetNodeById(id)
+	if han, ex := gTagHandlers[n.Tag.Tag]; ex {
+		h = han
+	} else if n.Tag.Tag == 0x1e {
+		if n.Tag.Data != nil && len(n.Tag.Data) >= 4 {
+			serverId = binary.LittleEndian.Uint32(n.Tag.Data)
+			if han, ex := gHandlers[serverId]; ex {
+				h = han
+			}
+		}
+	}
+	if h == nil {
+		return nil, serverId, fmt.Errorf("Cannot find handler for tag %.4x (%s)", n.Tag.Tag, n.Tag.Name)
 	}
 
+	log.Printf("Calling handler %s", n.Tag.Name)
+	instance, err := h(w.GetNodeResourceByNodeId(n.Id))
+	if err != nil {
+		return nil, serverId, fmt.Errorf("Handler return error: %v", err)
+	}
+	n.Cache = instance
+	n.CachedServerId = serverId
+	return instance, serverId, nil
+}
+
+func (w *Wad) GetInstanceFromTag(tagId TagId) (File, uint32, error) {
+	tag := w.GetTagById(tagId)
+	return w.GetInstanceFromNode(tag.Node.Id)
+}
+
+func (w *Wad) GetInstanceFromNode(nodeId NodeId) (File, uint32, error) {
+	node := w.GetNodeById(nodeId)
 	if node.Cache != nil {
-		return node.Cache, nil
-	}
-
-	evaulateHandler := func(han FileLoader) (File, error) {
-		rdr, err := wad.GetFileReader(node.Id)
-		if err != nil {
-			return nil, fmt.Errorf("Error getting wad '%s' node %d(%s)reader: %v", wad.Name, node.Id, node.Name, err)
-		}
-
-		cache, err := han(wad, node, rdr)
-		if err == nil {
-			node.Cache = cache
-		}
-		return cache, err
-	}
-
-	if han, ex := cacheTagHandlers[node.Tag]; ex {
-		return evaulateHandler(han)
-	} else if han, ex := cacheHandlers[node.Format]; ex {
-		return evaulateHandler(han)
+		return node.Cache, node.CachedServerId, nil
 	} else {
-		return nil, utils.ErrHandlerNotFound
+		return w.CallHandler(node.Id)
 	}
 }
 
-type WadNode struct {
-	Id       int
-	Name     string // can be empty
-	IsLink   bool
-	Parent   int
-	SubNodes []int
-	Flags    uint16
-	Wad      *Wad `json:"-"`
-	Size     uint32
-	Start    int64
-	Tag      uint16
-
-	Cached bool `json:"-"`
-	Cache  File `json:"-"`
-
-	Format uint32 // first 4 bytes of data
-}
-
-func (wad *Wad) NewNode(name string, isLink bool, parent int, flags uint16) *WadNode {
-	node := &WadNode{
-		Id:     len(wad.Nodes),
-		Name:   name,
-		IsLink: isLink,
-		Parent: parent,
-		Wad:    wad,
-		Flags:  flags,
-	}
-
-	wad.Nodes = append(wad.Nodes, node)
-	if parent >= 0 {
-		pnode := wad.Node(parent)
-		pnode.SubNodes = append(pnode.SubNodes, node.Id)
-	} else {
-		wad.Roots = append(wad.Roots, node.Id)
-	}
-	return node
-}
-
-func (wad *Wad) FindNode(name string, parent int, end_at int) *WadNode {
-	var result *WadNode = nil
-	if parent < 0 {
-		for _, n := range wad.Roots {
-			if n >= end_at {
-				return result
-			}
-			nd := wad.Node(n)
-			if nd.Name == name {
-				result = nd
-			}
-		}
-		return result
-	} else {
-		if wad.Nodes != nil {
-			for _, n := range wad.Node(parent).SubNodes {
-				if n >= end_at {
-					if result != nil {
-						return result
-					} else {
-						break
-					}
-				}
-				nd := wad.Node(n)
-				if nd.Name == name {
-					result = nd
-				}
-			}
-		}
-		return wad.FindNode(name, wad.Node(parent).Parent, parent)
+func UnmarshalTag(buf []byte) Tag {
+	return Tag{
+		Tag:   binary.LittleEndian.Uint16(buf[0:2]),
+		Flags: binary.LittleEndian.Uint16(buf[2:4]),
+		Size:  binary.LittleEndian.Uint32(buf[4:8]),
+		Name:  utils.BytesToString(buf[8:32]),
 	}
 }
 
-func (wad *Wad) GetFileReader(id int) (*io.SectionReader, error) {
-	node := wad.Node(id)
-	return io.NewSectionReader(wad.Reader, node.Start, int64(node.Size)), nil
+func MarshalTag(t *Tag) []byte {
+	buf := make([]byte, WAD_ITEM_SIZE)
+	binary.LittleEndian.PutUint16(buf[0:2], t.Tag)
+	binary.LittleEndian.PutUint16(buf[2:4], t.Flags)
+	binary.LittleEndian.PutUint32(buf[4:8], t.Size)
+	copy(buf[8:32], utils.StringToBytes(t.Name, 24, false))
+	return buf
 }
 
-func (node *WadNode) FindNode(name string) *WadNode {
-	return node.Wad.FindNode(name, node.Parent, node.Id)
+func (wad *Wad) Name() string {
+	return wad.Source.Name()
 }
 
-func NewWad(r io.ReaderAt, wadName string) (*Wad, error) {
-	wad := &Wad{
-		Reader: r,
-		Name:   wadName,
-	}
+func (w *Wad) GetNodeResourceByNodeId(id NodeId) *WadNodeRsrc {
+	return w.GetNodeResourceByTagId(w.GetNodeById(id).Tag.Id)
+}
 
+func (w *Wad) GetNodeResourceByTagId(id TagId) *WadNodeRsrc {
+	tag := w.GetTagById(id)
+	return &WadNodeRsrc{Wad: w, Node: tag.Node, Tag: tag}
+}
+
+func (w *Wad) loadTags(r io.ReadSeeker) error {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("Wad parsing error: %v", err)
 		}
 	}()
 
-	item := make([]byte, WAD_ITEM_SIZE)
-
-	newGroupTag := false
-	currentNode := -1
-
-	pos := int64(0)
-	for {
-		_, err := r.ReadAt(item, pos)
+	w.Tags = make([]Tag, 0)
+	var buf [WAD_ITEM_SIZE]byte
+	for id := TagId(0); ; id++ {
+		_, err := r.Read(buf[:])
 		if err != nil {
 			if err == io.EOF {
 				break
 			} else {
-				return nil, fmt.Errorf("Error reading from wad: %v", err)
+				return fmt.Errorf("Error reading from wad: %v", err)
 			}
 		}
+		t := UnmarshalTag(buf[:])
+		t.Id = id
 
-		tag := binary.LittleEndian.Uint16(item[0:2])
-		flags := binary.LittleEndian.Uint16(item[2:4])
-		size := binary.LittleEndian.Uint32(item[4:8])
-		name := utils.BytesToString(item[8:32])
-
-		nd := wad.FindNode(name, currentNode, len(wad.Nodes))
-
-		addNode := func(isLink bool, hasFormat bool) *WadNode {
-			data_pos := pos + WAD_ITEM_SIZE
-			node := wad.NewNode(name, isLink, currentNode, flags)
-			if !isLink {
-				if hasFormat {
-					var bfmt [4]byte
-					if _, err := r.ReadAt(bfmt[:], data_pos); err != nil {
-						panic(err)
-					}
-					node.Format = binary.LittleEndian.Uint32(bfmt[0:4])
-				}
-			}
-			node.Size = size
-			node.Start = data_pos
-			node.Tag = tag
-			return node
+		if t.Tag == 0x18 {
+			// entity count
+			w.EntityCount = t.Size
+			t.Size = 0
 		}
 
-		switch tag {
+		if t.Size != 0 {
+			t.Data = make([]byte, t.Size)
+			if _, err := r.Read(t.Data); err != nil {
+				return fmt.Errorf("Error when reading tag '%s' body: %v", t.Name, err)
+			}
+		}
+		w.Tags = append(w.Tags, t)
+
+		if pos, err := r.Seek(0, os.SEEK_CUR); err == nil {
+			pos = ((pos + 15) / 16) * 16
+			if _, err := r.Seek(pos, os.SEEK_SET); err != nil {
+				return fmt.Errorf("Error when seek_set: %v", err)
+			}
+		} else {
+			return fmt.Errorf("Error when seek_cur: %v", err)
+		}
+
+	}
+
+	return nil
+}
+
+func (w *Wad) addNode(tag *Tag) *Node {
+	w.Nodes = append(w.Nodes, Node{
+		Tag: tag,
+		Id:  NodeId(len(w.Nodes)),
+	})
+	n := &w.Nodes[len(w.Nodes)-1]
+	tag.Node = n
+	return n
+}
+
+func (w *Wad) parseTags() error {
+	newGroupTag := false
+	var currentNode *Node
+	w.Nodes = make([]Node, 0)
+	w.Roots = make([]NodeId, 0)
+
+	addNode := func(tag *Tag) *Node {
+		n := w.addNode(tag)
+
+		n.Parent = currentNode
+		if n.Parent == nil {
+			w.Roots = append(w.Roots, n.Id)
+		} else {
+			p := n.Parent
+			if p.SubGroupNodes == nil {
+				p.SubGroupNodes = make([]NodeId, 0)
+			}
+			p.SubGroupNodes = append(p.SubGroupNodes, n.Id)
+		}
+		return n
+	}
+
+	for id := range w.Tags {
+		tag := w.GetTagById(TagId(id))
+		switch tag.Tag {
 		case 0x1e: // file data packet
 			// Tell file server (server determined by first uint16)
 			// that new file is loaded
 			// if name start with space, then name ignored (unnamed)
 			// overwrite previous instance with same name
-			if nd != nil && nd.Parent == currentNode {
-				//log.Printf("Finded copy of %s->%d", nd.Name, nd.Id)
-			}
-
-			// size cannot be 0, because game store server id in first uint16
-			node := addNode(size == 0, true)
+			n := addNode(tag)
 
 			if newGroupTag {
 				newGroupTag = false
-				currentNode = node.Id
+				currentNode = n
 			}
 		case 0x28: // file data group start
 			newGroupTag = true // same realization in game
 		case 0x32: // file data group end
 			// Tell server about group ended
 			newGroupTag = false
-			if currentNode < 0 {
-				return nil, errors.New("Trying to end not started group")
+			if currentNode == nil {
+				return fmt.Errorf("Trying to end not started group id%d-%s", tag.Id, tag.Name)
 			} else {
-				currentNode = wad.Nodes[currentNode].Parent
+				currentNode = currentNode.Parent
 			}
 		case 0x18: // entity count
-			// Game also adding empty named node to nodedirectory
-			//log.Printf("%s Entity count: %v", wadName, size)
-			size = 0
+			// Game also add empty named node to nodedirectory?
 		case 0x006e: // MC_DATA   < R_PERM.WAD
 			// Just add node to nodedirectory
-			addNode(false, false)
+			addNode(tag)
 		case 0x006f: // MC_ICON   < R_PERM.WAD
 			// Like 0x006e, but also store size of data
-			addNode(false, false)
+			addNode(tag)
 		case 0x0070: // MSH_BDepoly6Shape
 			// Add node to nodedirectory only if
 			// another node with this name not exists
-			if nd == nil {
-				addNode(false, false)
-			}
+			addNode(tag)
 		case 0x0071: // TWK_Cloth_195
 			// Tweaks affect VFS of game
 			// AI logics, animation
 			// exec twk asap?
-			addNode(false, false)
+			addNode(tag)
 		case 0x0072: // TWK_CombatFile_328
 			// Affect VFS too
 			// store twk in mem?
-			addNode(false, false)
+			addNode(tag)
 		case 0x01f4: // RSRCS
 			// probably affect WadReader
 			// (internally transformed to R_RSRCS)
-			addNode(false, false)
-		case 0x029a: // file data start
+			addNode(tag)
+		case 0x029a, 0x50, 0x309: // file data start
 			// synonyms - 0x50, 0x309
 			// PopBatchServerStack of server from first uint16
+			addNode(tag)
 		case 0x0378: // file header start
 			// create new memory namespace and push to memorystack
 			// create new nodedirectory and push to nodestack
 			// data loading init
+			addNode(tag)
 		case 0x03e7: // file header pop heap
 			// data loading structs cleanup
+			addNode(tag)
 		default:
-			log.Printf("unknown wad tag %.4x size %.8x name %s at %v", tag, size, name, pos)
-			//return nil, fmt.Errorf("unknown tag")
+			return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s", tag.Id, tag.Tag, tag.Name)
 		}
+	}
+	return nil
+}
 
-		off := (size + 15) & (15 ^ math.MaxUint32)
-		pos = int64(off) + pos + 0x20
+func (w *Wad) GetTagById(id TagId) *Tag {
+	return &w.Tags[id]
+}
+
+func (w *Wad) GetTagByName(name string, searchStart TagId, searchForward bool) *Tag {
+	if searchForward {
+		for i := searchStart; int(i) < len(w.Tags); i++ {
+			if t := w.GetTagById(i); t.Name == name {
+				return t
+			}
+		}
+	} else {
+		for i := searchStart; i >= 0; i-- {
+			if t := w.GetTagById(i); t.Name == name {
+				return t
+			}
+		}
+	}
+	return nil
+}
+
+func (w *Wad) GetNodeById(nodeId NodeId) *Node {
+	n := &w.Nodes[nodeId]
+	if n.Tag.Tag == 0x1e {
+		if n.Tag.Size == 0 {
+			linked := w.GetNodeByName(n.Tag.Name, n.Id-1, false)
+			if linked != nil && linked.Tag.Data != nil && len(linked.Tag.Data) >= 4 {
+				return linked
+			}
+		}
+	}
+	return n
+}
+
+func (w *Wad) GetNodeByName(name string, searchStart NodeId, searchForward bool) *Node {
+	if searchForward {
+		for i := searchStart; int(i) < len(w.Nodes); i++ {
+			if w.Nodes[i].Tag.Name == name {
+				if n := w.GetNodeById(i); n.Parent == nil {
+					return n
+				}
+			}
+		}
+	} else {
+		for i := searchStart; i >= 0; i-- {
+			if w.Nodes[i].Tag.Name == name {
+				if n := w.GetNodeById(i); n.Parent == nil {
+					return n
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {
+	w := &Wad{
+		Source: rsrc,
 	}
 
-	return wad, nil
+	if err := w.loadTags(r); err != nil {
+		return nil, fmt.Errorf("Error when loading tags: %v", err)
+	}
+
+	if err := w.parseTags(); err != nil {
+		return nil, fmt.Errorf("Error when parsing tags: %v", err)
+	}
+
+	return w, nil
+}
+
+type WadNodeRsrc struct {
+	Node *Node
+	Wad  *Wad
+	Tag  *Tag
+}
+
+func (r *WadNodeRsrc) Name() string {
+	return r.Node.Tag.Name
+}
+
+func (r *WadNodeRsrc) Size() int64 {
+	return int64(r.Node.Tag.Size)
 }
 
 func init() {
-	pack.SetHandler(".WAD", func(p pack.PackFile, r *io.SectionReader) (interface{}, error) {
-		return NewWad(r, p.Name())
+	pack.SetHandler(".WAD", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
+		return NewWad(r, p)
 	})
 }

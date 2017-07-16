@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
-	"strings"
 
 	"github.com/go-gl/mathgl/mgl32"
 
@@ -108,35 +106,14 @@ func (obj *Object) StringTree() string {
 	return buffer.String()
 }
 
-func NewFromData(rdr io.ReaderAt) (*Object, error) {
-	var file [HEADER_SIZE]byte
-	_, err := rdr.ReadAt(file[:], 0)
-	if err != nil {
-		return nil, err
-	}
-
+func NewFromData(buf []byte) (*Object, error) {
 	obj := new(Object)
 
-	/*
-		log.Printf(" OBJ: %.8x %.8x %.8x   %.8x %.8x %.8x",
-			binary.LittleEndian.Uint32(file[0x4:0x8]),
-			binary.LittleEndian.Uint32(file[0x8:0xc]),
-			binary.LittleEndian.Uint32(file[0xc:0x10]),
-			binary.LittleEndian.Uint32(file[0x10:0x14]),
-			binary.LittleEndian.Uint32(file[0x14:0x18]),
-			binary.LittleEndian.Uint32(file[0x18:0x1c]))
-	*/
-
-	obj.jointsCount = binary.LittleEndian.Uint32(file[0x1c:0x20])
-	obj.dataOffset = binary.LittleEndian.Uint32(file[0x28:0x2c])
-
+	obj.jointsCount = binary.LittleEndian.Uint32(buf[0x1c:0x20])
+	obj.dataOffset = binary.LittleEndian.Uint32(buf[0x28:0x2c])
 	obj.Joints = make([]Joint, obj.jointsCount)
 
-	var matdata [DATA_HEADER_SIZE]byte
-	_, err = rdr.ReadAt(matdata[:], int64(obj.dataOffset))
-	if err != nil {
-		return nil, err
-	}
+	matdata := buf[obj.dataOffset : obj.dataOffset+DATA_HEADER_SIZE]
 
 	obj.Mat1count = binary.LittleEndian.Uint32(matdata[0:4])
 	obj.Vec2offset = binary.LittleEndian.Uint32(matdata[4:8])
@@ -150,17 +127,11 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 
 	invid := int16(0)
 	for i := range obj.Joints {
-		var jointBuf [0x10]byte
-		var nameBuf [0x18]byte
+		jointBufStart := HEADER_SIZE + i*0x10
+		jointBuf := buf[jointBufStart : jointBufStart+0x10]
 
-		_, err = rdr.ReadAt(jointBuf[:], int64(HEADER_SIZE+i*0x10))
-		if err != nil {
-			return nil, err
-		}
-		_, err = rdr.ReadAt(nameBuf[:], int64(HEADER_SIZE+int(obj.jointsCount)*0x10+i*0x18))
-		if err != nil {
-			return nil, err
-		}
+		nameBufStart := HEADER_SIZE + int(obj.jointsCount)*0x10 + i*0x18
+		nameBuf := buf[nameBufStart : nameBufStart+0x18]
 
 		flags := binary.LittleEndian.Uint32(jointBuf[0:4])
 		// if flags & 0x6000 != 0
@@ -191,35 +162,13 @@ func NewFromData(rdr io.ReaderAt) (*Object, error) {
 	obj.Vectors6 = make([]mgl32.Vec4, obj.Mat1count)
 	obj.Vectors7 = make([]mgl32.Vec4, obj.Mat1count)
 
-	mat1buf := make([]byte, len(obj.Matrixes1)*0x40)
-	vec2buf := make([]byte, len(obj.Vectors2)*0x10)
-	mat3buf := make([]byte, len(obj.Matrixes3)*0x40)
-	vec4buf := make([]byte, len(obj.Vectors4)*0x10)
-	vec5buf := make([]byte, len(obj.Vectors5)*0x10)
-	vec6buf := make([]byte, len(obj.Vectors6)*0x10)
-	vec7buf := make([]byte, len(obj.Vectors7)*0x10)
-
-	if _, err = rdr.ReadAt(mat1buf[:], int64(obj.dataOffset+DATA_HEADER_SIZE)); err != nil {
-		return nil, err
-	}
-	if _, err = rdr.ReadAt(vec2buf[:], int64(obj.dataOffset+obj.Vec2offset)); err != nil {
-		return nil, err
-	}
-	if _, err = rdr.ReadAt(mat3buf[:], int64(obj.dataOffset+obj.Mat3offset)); err != nil {
-		return nil, err
-	}
-	if _, err = rdr.ReadAt(vec4buf[:], int64(obj.dataOffset+obj.Vec4offset)); err != nil {
-		return nil, err
-	}
-	if _, err = rdr.ReadAt(vec5buf[:], int64(obj.dataOffset+obj.Vec5offset)); err != nil {
-		return nil, err
-	}
-	if _, err = rdr.ReadAt(vec6buf[:], int64(obj.dataOffset+obj.Vec6offset)); err != nil {
-		return nil, err
-	}
-	if _, err = rdr.ReadAt(vec7buf[:], int64(obj.dataOffset+obj.Vec7offset)); err != nil {
-		return nil, err
-	}
+	mat1buf := buf[obj.dataOffset+DATA_HEADER_SIZE : obj.dataOffset+DATA_HEADER_SIZE+uint32(len(obj.Matrixes1))*0x40]
+	vec2buf := buf[obj.dataOffset+obj.Vec2offset : obj.dataOffset+obj.Vec2offset+uint32(len(obj.Vectors2))*0x10]
+	mat3buf := buf[obj.dataOffset+obj.Mat3offset : obj.dataOffset+obj.Mat3offset+uint32(len(obj.Matrixes3))*0x40]
+	vec4buf := buf[obj.dataOffset+obj.Vec4offset : obj.dataOffset+obj.Vec4offset+uint32(len(obj.Vectors4))*0x10]
+	vec5buf := buf[obj.dataOffset+obj.Vec5offset : obj.dataOffset+obj.Vec5offset+uint32(len(obj.Vectors5))*0x10]
+	vec6buf := buf[obj.dataOffset+obj.Vec6offset : obj.dataOffset+obj.Vec6offset+uint32(len(obj.Vectors6))*0x10]
+	vec7buf := buf[obj.dataOffset+obj.Vec7offset : obj.dataOffset+obj.Vec7offset+uint32(len(obj.Vectors7))*0x10]
 
 	for i := range obj.Matrixes1 {
 		if err := binary.Read(bytes.NewReader(mat1buf[i*0x40:i*0x40+0x40]), binary.LittleEndian, &obj.Matrixes1[i]); err != nil {
@@ -294,25 +243,22 @@ type ObjMarshal struct {
 	Script    interface{}
 }
 
-func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	mrshl := &ObjMarshal{Data: obj}
-	for _, id := range node.SubNodes {
-		nd := wd.Node(id).ResolveLink()
-		switch nd.Format {
-		case mdl.MODEL_MAGIC, scr.SCRIPT_MAGIC, collision.COLLISION_MAGIC:
-			subFile, err := wd.Get(id)
-			if err == nil {
-				if subFileMarshled, err := subFile.Marshal(wd, nd); err != nil {
+	for _, id := range wrsrc.Node.SubGroupNodes {
+		n := wrsrc.Wad.GetNodeById(id)
+		if inst, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id); err == nil {
+			switch inst.(type) {
+			case *mdl.Model, *scr.ScriptParams, *collision.Collision:
+				if subFileMarshled, err := inst.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
 					panic(err)
 				} else {
-					switch nd.Format {
-					case mdl.MODEL_MAGIC:
+					switch inst.(type) {
+					case *mdl.Model:
 						mrshl.Model = subFileMarshled
-					case collision.COLLISION_MAGIC:
-						if strings.HasPrefix(nd.Name, "ENV_") {
-							mrshl.Collision = subFileMarshled
-						}
-					case scr.SCRIPT_MAGIC:
+					case *collision.Collision:
+						mrshl.Collision = subFileMarshled
+					case *scr.ScriptParams:
 						mrshl.Script = subFileMarshled
 					}
 				}
@@ -324,18 +270,7 @@ func (obj *Object) Marshal(wd *wad.Wad, node *wad.WadNode) (interface{}, error) 
 }
 
 func init() {
-	wad.SetHandler(OBJECT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		obj, err := NewFromData(r)
-		/*
-			exPath := filepath.Join("gojbs", w.Name, fmt.Sprintf("%d_%s.gobj", node.Id, node.Name))
-			if err = os.MkdirAll(filepath.Dir(exPath), 0777); err != nil {
-				log.Printf("Error creating dir: %v", err)
-			} else {
-				if err := obj.ExportGobj(exPath, w, node); err != nil {
-					log.Printf("Error exporiting: %v", err)
-				}
-			}
-		*/
-		return obj, err
+	wad.SetHandler(OBJECT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }

@@ -1,6 +1,7 @@
 package sbk
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -142,11 +143,8 @@ func NewFromData(f io.ReaderAt, isSblk bool, size uint32) (*SBK, error) {
 	return sbk, nil
 }
 
-func (sbk *SBK) SubfileGetter(w http.ResponseWriter, r *http.Request, wad *wad.Wad, node *wad.WadNode, subfile string) {
-	rdr, err := wad.GetFileReader(node.Id)
-	if err != nil {
-		panic(err)
-	}
+func (sbk *SBK) SubfileGetter(w http.ResponseWriter, r *http.Request, wrsrc *wad.WadNodeRsrc, subfile string) {
+	rdr := bytes.NewReader(wrsrc.Tag.Data)
 
 	needWav := false
 	if strings.HasSuffix(subfile, "@wav@") {
@@ -158,7 +156,7 @@ func (sbk *SBK) SubfileGetter(w http.ResponseWriter, r *http.Request, wad *wad.W
 	if sbk.IsVagFiles {
 		for iSnd, snd := range sbk.Sounds {
 			if snd.Name == subfile {
-				end := node.Size
+				end := uint32(rdr.Size())
 				if iSnd != len(sbk.Sounds)-1 {
 					end = sbk.Sounds[iSnd+1].StreamId
 				}
@@ -185,19 +183,19 @@ func (sbk *SBK) SubfileGetter(w http.ResponseWriter, r *http.Request, wad *wad.W
 		webutils.WriteError(w, errors.New("Cannot find sound"))
 	} else {
 		start := int64(8 + len(sbk.Sounds)*28)
-		webutils.WriteFile(w, io.NewSectionReader(rdr, start, int64(node.Size)-start), node.Name+".SBK")
+		webutils.WriteFile(w, io.NewSectionReader(rdr, start, int64(rdr.Size())-start), wrsrc.Name()+".SBK")
 	}
 }
 
-func (sbk *SBK) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (sbk *SBK) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return sbk, nil
 }
 
 func init() {
-	wad.SetHandler(SBK_SBLK_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		return NewFromData(r, true, node.Size)
+	wad.SetHandler(SBK_SBLK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), true, wrsrc.Tag.Size)
 	})
-	wad.SetHandler(SBK_VAG_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		return NewFromData(r, false, node.Size)
+	wad.SetHandler(SBK_VAG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), false, wrsrc.Tag.Size)
 	})
 }

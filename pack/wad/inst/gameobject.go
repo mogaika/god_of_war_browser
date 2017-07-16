@@ -3,7 +3,6 @@ package inst
 import (
 	"bytes"
 	"encoding/binary"
-	"io"
 
 	"github.com/go-gl/mathgl/mgl32"
 
@@ -24,12 +23,7 @@ type Instance struct {
 	Unk       [3]uint32
 }
 
-func NewFromData(fmat io.ReaderAt) (*Instance, error) {
-	buf := make([]byte, FILE_SIZE)
-	if _, err := fmat.ReadAt(buf, 0); err != nil {
-		return nil, err
-	}
-
+func NewFromData(buf []byte) (*Instance, error) {
 	inst := &Instance{
 		Object: utils.BytesToString(buf[0x4:0x1c]),
 		Id:     binary.LittleEndian.Uint16(buf[0x1c:0x1e]),
@@ -48,12 +42,12 @@ func NewFromData(fmat io.ReaderAt) (*Instance, error) {
 	return inst, nil
 }
 
-func (inst *Instance) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return inst, nil
 }
 
 func init() {
-	wad.SetHandler(INSTANCE_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		return NewFromData(r)
+	wad.SetHandler(INSTANCE_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }
