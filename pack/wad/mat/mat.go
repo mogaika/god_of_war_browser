@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -14,10 +13,8 @@ import (
 
 /*
 Info that may help:
-https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnmaterial.htm
 https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnenvmap.htm
 https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnmaterial.htm
-
 */
 
 type Flags struct {
@@ -83,12 +80,7 @@ func (l *Layer) ParseFlags() error {
 	return nil
 }
 
-func NewFromData(fmat io.ReaderAt) (*Material, error) {
-	buf := make([]byte, HEADER_SIZE)
-	if _, err := fmat.ReadAt(buf, 0); err != nil {
-		return nil, err
-	}
-
+func NewFromData(buf []byte) (*Material, error) {
 	magic := binary.LittleEndian.Uint32(buf[:4])
 	if magic != MAT_MAGIC {
 		return nil, errors.New("Wrong magic.")
@@ -105,11 +97,8 @@ func NewFromData(fmat io.ReaderAt) (*Material, error) {
 	})
 
 	for iTex := range mat.Layers {
-		tbuf := make([]byte, LAYER_SIZE)
-
-		if _, err := fmat.ReadAt(tbuf, int64(iTex*LAYER_SIZE+HEADER_SIZE)); err != nil {
-			return nil, err
-		}
+		start := iTex*LAYER_SIZE + HEADER_SIZE
+		tbuf := buf[start : start+LAYER_SIZE]
 
 		mat.Layers[iTex].Flags = [4]uint32{
 			binary.LittleEndian.Uint32(tbuf[0:4]),
@@ -142,34 +131,31 @@ type Ajax struct {
 	Mat             *Material
 	Textures        []interface{}
 	TexturesBlended []interface{}
-	Refs            map[string]int
 }
 
-func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (mat *Material) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	res := Ajax{
 		Mat:             mat,
 		Textures:        make([]interface{}, len(mat.Layers)),
 		TexturesBlended: make([]interface{}, len(mat.Layers)),
-		Refs:            make(map[string]int),
 	}
 
 	for i := range mat.Layers {
-		tn := node.FindNode(mat.Layers[i].Texture)
-		if tn != nil {
-			res.Refs[tn.Name] = tn.Id
-			txr, err := wad.Get(tn.Id)
+		n := wrsrc.Wad.GetNodeByName(mat.Layers[i].Texture, wrsrc.Node.Id-1, false)
+		if n != nil {
+			txr, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 			if err != nil {
-				return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", tn.Name, node.Name, err)
+				return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
 			}
 
-			if dat, err := txr.(*file_txr.Texture).Marshal(tn.Wad, tn); err != nil {
-				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", tn.Name, node.Name, err)
+			if dat, err := txr.(*file_txr.Texture).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
+				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
 			} else {
 				res.Textures[i] = dat
 			}
 
-			if dat, err := txr.(*file_txr.Texture).MarshalBlend(mat.Layers[i].BlendColor[:], tn.Wad, tn); err != nil {
-				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", tn.Name, node.Name, err)
+			if dat, err := txr.(*file_txr.Texture).MarshalBlend(mat.Layers[i].BlendColor[:], wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
+				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
 			} else {
 				res.TexturesBlended[i] = dat
 			}
@@ -179,7 +165,7 @@ func (mat *Material) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, erro
 }
 
 func init() {
-	wad.SetHandler(MAT_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		return NewFromData(r)
+	wad.SetHandler(MAT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }

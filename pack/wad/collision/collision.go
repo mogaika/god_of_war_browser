@@ -1,6 +1,7 @@
 package collision
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -52,18 +53,17 @@ func NewFromData(f io.ReaderAt, wrtr io.Writer) (c *Collision, err error) {
 	return
 }
 
-func (c *Collision) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (c *Collision) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return c, nil
 }
 
 func init() {
-	wad.SetHandler(COLLISION_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.enz.obj", node.Id, node.Name))
+	wad.SetHandler(COLLISION_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.enz.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
 		defer f.Close()
 
-		enz, err := NewFromData(r, f)
-		return enz, err
+		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), f)
 	})
 }

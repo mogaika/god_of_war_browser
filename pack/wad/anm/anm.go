@@ -2,8 +2,6 @@ package anm
 
 import (
 	"encoding/binary"
-	"io"
-	"log"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -70,7 +68,6 @@ func NewFromData(data []byte) (*Animations, error) {
 		for j := range g.Acts {
 			act := &g.Acts[j]
 			act.Offset = u32(rawGroup, uint32(0x30+j*4))
-			log.Println(i, j, act, len(rawGroup))
 
 			// TODO : Thereis issue with size cheking
 			if act.Offset+0x30 < uint32(len(rawGroup)) {
@@ -94,17 +91,12 @@ func NewFromData(data []byte) (*Animations, error) {
 	return a, nil
 }
 
-func (anm *Animations) Marshal(wad *wad.Wad, node *wad.WadNode) (interface{}, error) {
+func (anm *Animations) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return anm, nil
 }
 
 func init() {
-	wad.SetHandler(ANIMATIONS_MAGIC, func(w *wad.Wad, node *wad.WadNode, r *io.SectionReader) (wad.File, error) {
-		data := make([]byte, node.Size)
-		_, err := r.ReadAt(data, 0)
-		if err != nil {
-			return nil, err
-		}
-		return NewFromData(data)
+	wad.SetHandler(ANIMATIONS_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type PackDriver interface {
@@ -21,7 +23,7 @@ type PackFile interface {
 	Size() int64
 }
 
-type FileLoader func(pf PackFile, r *io.SectionReader) (interface{}, error)
+type FileLoader func(src utils.ResourceSource, r *io.SectionReader) (interface{}, error)
 
 var gHandlers map[string]FileLoader = make(map[string]FileLoader, 0)
 
@@ -29,11 +31,11 @@ func SetHandler(format string, ldr FileLoader) {
 	gHandlers[strings.ToUpper(format)] = ldr
 }
 
-func CallHandler(pf PackFile, r *io.SectionReader) (interface{}, error) {
-	ext := strings.ToUpper(filepath.Ext(pf.Name()))
+func CallHandler(s utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
+	ext := strings.ToUpper(filepath.Ext(s.Name()))
 
 	if h, found := gHandlers[ext]; found {
-		return h(pf, r)
+		return h(s, r)
 	} else {
 		return nil, fmt.Errorf("Cannot find handler for '%s' extension", ext)
 	}
@@ -45,7 +47,7 @@ type InstanceCacheEntry struct {
 }
 
 type InstanceCache struct {
-	Cache [8]*InstanceCacheEntry
+	Cache [16]*InstanceCacheEntry
 	Pos   int
 }
 
@@ -78,4 +80,20 @@ func (ic *InstanceCache) Add(name string, val interface{}) {
 			runtime.GC()
 		}
 	}
+}
+
+type PackResSrc struct {
+	pf PackFile
+	p  PackDriver
+}
+
+func (s *PackResSrc) Name() string {
+	return s.pf.Name()
+}
+
+func (s *PackResSrc) Size() int64 {
+	return s.pf.Size()
+}
+func (s *PackResSrc) Save(in *io.SectionReader) error {
+	return s.p.UpdateFile(s.pf.Name(), in)
 }

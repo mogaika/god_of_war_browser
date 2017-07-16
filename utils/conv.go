@@ -3,15 +3,12 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
 )
 
 const SECTOR_SIZE = 0x800
-
-var ErrHandlerNotFound = errors.New("File handler not found")
 
 func BytesToString(bs []byte) string {
 	n := bytes.IndexByte(bs, 0)
