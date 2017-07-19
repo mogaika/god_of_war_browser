@@ -221,7 +221,7 @@ function treeLoadWadNode(wad, nodeid) {
 						needMarshalDump = true;
 						break;
 	                case 0x00000007: // txr
-	                    summaryLoadWadTxr(data);
+	                    summaryLoadWadTxr(data, wad, nodeid);
 	                    break;
 	                case 0x00000008: // material
 	                    summaryLoadWadMat(data);
@@ -243,7 +243,7 @@ function treeLoadWadNode(wad, nodeid) {
 	                    summaryLoadWadMdl(data, wad, nodeid);
 	                    break;
 	                case 0x00040001: // obj
-	                    summaryLoadWadObj(data);
+	                    summaryLoadWadObj(data, wad, nodeid);
 	                    break;
 	                case 0x80000001: // cxt
 	                    summaryLoadWadCxt(data);
@@ -547,7 +547,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     gr_instance.requestRedraw();
 }
 
-function summaryLoadWadTxr(data) {
+function summaryLoadWadTxr(data, wad, nodeid) {
     set3dVisible(false);
     var table = $('<table>');
     $.each(data.Data, function(k, val) {
@@ -577,6 +577,12 @@ function summaryLoadWadTxr(data) {
                 .attr('src', 'data:image/png;base64,' + img.Image)
                 .attr('alt', 'gfx:' + img.Gfx + '  pal:' + img.Pal));
     }
+	
+	var form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'upload') + '" method="post" enctype="multipart/form-data">');
+	form.append($('<input type="file" name="img">'));
+	form.append($('<input type="submit" value="Replace texture">'));
+	
+	dataSummary.append(form);
 }
 
 function summaryLoadWadMat(data) {
@@ -664,8 +670,11 @@ function loadObjFromAjax(mdl, data, parseScripts=false) {
 	mdl.loadSkeleton(data.Data.Joints);
 }
 
-function summaryLoadWadObj(data) {
+function summaryLoadWadObj(data, wad, nodeid) {
 	gr_instance.destroyModels();
+
+	var dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
+	dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
 
     var jointsTable = $('<table>');
 

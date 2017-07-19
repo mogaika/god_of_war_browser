@@ -1,8 +1,10 @@
 package pack
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -26,24 +28,24 @@ type IsoDriver struct {
 	Cache       *InstanceCache
 }
 
-func (p *IsoDriver) openIsoFile(name string) *udf.File {
+func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
 	name = strings.ToLower(name)
-	for _, layer := range p.IsoLayers {
+	for iLayer, layer := range p.IsoLayers {
 		if layer != nil {
 			for _, f := range layer.ReadDir(nil) {
 				if strings.ToLower(f.Name()) == name {
-					return &f
+					return &f, iLayer
 				}
 			}
 		}
 	}
-	return nil
+	return nil, -1
 }
 
 func (p *IsoDriver) prepareStreams() error {
 	if p.IsoFile == nil || p.IsoLayers[0] == nil {
 		var err error
-		if p.IsoFile, err = os.Open(p.IsoPath); err != nil {
+		if p.IsoFile, err = os.OpenFile(p.IsoPath, os.O_RDWR|os.O_SYNC, 0666); err != nil {
 			return err
 		}
 
@@ -59,7 +61,7 @@ func (p *IsoDriver) prepareStreams() error {
 		}
 
 		for i := range p.PackStreams {
-			if f := p.openIsoFile(tok.GenPartFileName(i)); f != nil {
+			if f, _ := p.openIsoFile(tok.GenPartFileName(i)); f != nil {
 				p.PackStreams[i] = f.NewReader()
 			} else {
 				p.PackStreams[i] = nil
@@ -70,8 +72,11 @@ func (p *IsoDriver) prepareStreams() error {
 }
 
 func (p *IsoDriver) parseFilesFromTok() error {
+	if err := p.prepareStreams(); err != nil {
+		return err
+	}
 	var err error
-	tokIso := p.openIsoFile(tok.FILE_NAME)
+	tokIso, _ := p.openIsoFile(tok.FILE_NAME)
 	p.Files, err = tok.ParseFiles(tokIso.NewReader())
 	return err
 }
@@ -108,8 +113,65 @@ func (p *IsoDriver) GetInstance(fileName string) (interface{}, error) {
 	return defaultGetInstanceCachedHandler(p, p.Cache, fileName)
 }
 
+func (p *IsoDriver) closeStreams() {
+	for i := range p.IsoLayers {
+		p.IsoLayers[i] = nil
+	}
+	log.Println("Close: ", p.IsoFile.Close())
+	p.IsoFile = nil
+}
+
+type IsoFileWriterAt struct {
+	f   *os.File
+	off int64
+}
+
+func (ifw *IsoFileWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
+	n, err = ifw.f.WriteAt(p, ifw.off+off)
+	log.Println("Writing at ", off, "=", ifw.off+off, " size:", len(p), " err:", err)
+	return n, err
+}
+
+func (p *IsoDriver) openIsoFileWriterAt(file string) *IsoFileWriterAt {
+	fstr, layer := p.openIsoFile(file)
+	filestart := udf.SECTOR_SIZE * (int64(fstr.FileEntry().AllocationDescriptors[0].Location) + int64(fstr.Udf.PartitionStart()))
+	if layer == 1 {
+		filestart += IsoSecondLayerStart
+	}
+	log.Println("filestart ", file, filestart)
+	return &IsoFileWriterAt{
+		f:   p.IsoFile,
+		off: filestart,
+	}
+}
+
 func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
-	return fmt.Errorf("Not supported yet")
+	tokUdf, _ := p.openIsoFile(tok.FILE_NAME)
+	tokOriginal, err := ioutil.ReadAll(tokUdf.NewReader())
+	if err != nil {
+		panic(err)
+	}
+
+	f := p.Files[fileName]
+
+	defer func() {
+		p.parseFilesFromTok()
+		p.Cache = &InstanceCache{}
+	}()
+
+	var tokbuf bytes.Buffer
+
+	var packStreams [tok.PARTS_COUNT]io.WriterAt
+	for i := range packStreams {
+		packStreams[i] = p.openIsoFileWriterAt(tok.GenPartFileName(i))
+	}
+
+	if err := tok.UpdateFile(bytes.NewBuffer(tokOriginal), &tokbuf, packStreams, f, in); err == nil {
+		_, err = p.openIsoFileWriterAt(tok.FILE_NAME).WriteAt(tokbuf.Bytes(), 0)
+	} else {
+		panic(err)
+	}
+	return err
 }
 
 func NewPackFromIso(isoPath string) (*IsoDriver, error) {

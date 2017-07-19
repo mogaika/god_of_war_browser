@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -103,16 +102,17 @@ func ParseFiles(tokStream io.Reader) (map[string]*File, error) {
 	return files, nil
 }
 
-func UpdateFile(fTok io.ReadWriteSeeker, partStreams [PARTS_COUNT]io.WriterAt, f *File, in *io.SectionReader) error {
+func UpdateFile(fTokOriginal io.Reader, fTokNew io.Writer, partStreams [PARTS_COUNT]io.WriterAt, f *File, in *io.SectionReader) error {
 	if in.Size()/utils.SECTOR_SIZE > f.Size()/utils.SECTOR_SIZE {
 		return fmt.Errorf("Size increase above sector boundary is not supported yet")
 	}
 
+	log.Println("Reading tok")
 	// update sizes in tok file, if changed
 	if in.Size() != f.Size() {
 		var buf []byte
 		for {
-			if _, err := fTok.Read(buf[:]); err == io.EOF {
+			if _, err := fTokOriginal.Read(buf[:]); err == io.EOF {
 				break
 			} else if err != nil {
 				return err
@@ -127,28 +127,24 @@ func UpdateFile(fTok io.ReadWriteSeeker, partStreams [PARTS_COUNT]io.WriterAt, f
 					e.Name, e.Size, f.Size())
 			}
 			if e.Name == f.Name() {
-				if _, err := fTok.Seek(-ENTRY_SIZE, os.SEEK_CUR); err != nil {
-					return err
-				}
 				e.Size = in.Size()
-				if _, err := fTok.Write(MarshalTokEntry(&e)); err != nil {
-					return err
-				}
 			}
+			fTokNew.Write(MarshalTokEntry(&e))
 		}
 	}
-
+	log.Println("Reading file")
 	var fileBuffer bytes.Buffer
 	if _, err := io.Copy(&fileBuffer, in); err != nil {
 		return err
 	}
-
+	log.Println("Changing encounters")
 	for iPart, fPart := range partStreams {
 		for _, enc := range f.Encounters {
 			if enc.Pack == iPart {
 				if fPart == nil {
 					return fmt.Errorf("For updating file required all part streams that contain this file. Stream %d = nil", iPart)
 				}
+				log.Println(enc)
 				if _, err := fPart.WriteAt(fileBuffer.Bytes(), enc.Start); err != nil {
 					return err
 				}

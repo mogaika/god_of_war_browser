@@ -26,7 +26,7 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 	wi := func(format string, args ...interface{}) {
 		facesBuff.WriteString(fmt.Sprintf(format+"\n", args...))
 	}
-
+	lastb := uint32(0)
 	for iPart, part := range m.Parts {
 		for iGroup, group := range part.Groups {
 			wi("o p%.2dg%.2d", iPart, iGroup)
@@ -45,8 +45,13 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 							vertex := mgl32.Vec3{b.Trias.X[iVertex], b.Trias.Y[iVertex], b.Trias.Z[iVertex]}
 
 							if bones != nil && b.Joints != nil && object.JointMapper != nil {
-								jointId := int(part.JointId + b.Joints[iVertex])
+								jointId := int(b.Joints[iVertex])
 								bone := bones[object.JointMapper[jointId]]
+								if lastb != object.JointMapper[jointId] {
+									log.Println(jointId, object.JointMapper[jointId], part.JointId)
+									log.Println(bone)
+									lastb = object.JointMapper[jointId]
+								}
 								vertex = mgl32.TransformCoordinate(vertex, bone)
 							}
 

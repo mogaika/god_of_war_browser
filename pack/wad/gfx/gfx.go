@@ -217,6 +217,23 @@ func NewFromData(buf []byte) (*GFX, error) {
 	return gfx, nil
 }
 
+func (gfx *GFX) MarshalToBinary() ([]byte, error) {
+	if gfx.DatasCount != 1 {
+		return nil, fmt.Errorf("Not support gfx.ToBinary where gfx.DatasCount != 1 (%d)", gfx.DatasCount)
+	}
+	buf := make([]byte, 24+len(gfx.Data[0]))
+
+	binary.LittleEndian.PutUint32(buf[0:4], gfx.Magic)
+	binary.LittleEndian.PutUint32(buf[4:8], gfx.Width)
+	binary.LittleEndian.PutUint32(buf[8:12], gfx.Height)
+	binary.LittleEndian.PutUint32(buf[12:16], gfx.Encoding)
+	binary.LittleEndian.PutUint32(buf[16:20], gfx.Bpi)
+	binary.LittleEndian.PutUint32(buf[20:24], gfx.DatasCount)
+	copy(buf[24:], gfx.Data[0])
+
+	return buf, nil
+}
+
 func (gfx *GFX) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return gfx, nil
 }

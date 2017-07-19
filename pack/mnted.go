@@ -1,8 +1,10 @@
 package pack
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,10 +53,11 @@ func (p *TokDriver) prepareStream(packNumber int) error {
 }
 
 func (p *TokDriver) closeStreams() {
-	for _, f := range p.Streams {
+	for i, f := range p.Streams {
 		if f != nil {
 			f.Close()
 		}
+		p.Streams[i] = nil
 	}
 }
 
@@ -93,6 +96,8 @@ func (p *TokDriver) GetInstance(fileName string) (interface{}, error) {
 }
 
 func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
+	defer p.parseTokFile()
+
 	f, err := p.getFile(fileName)
 	if err != nil {
 		return err
@@ -121,7 +126,10 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	}
 	defer fTok.Close()
 
-	err = tok.UpdateFile(fTok, partWriters, f, in)
+	ftokoriginal, _ := ioutil.ReadAll(fTok)
+	fTok.Seek(0, os.SEEK_SET)
+
+	err = tok.UpdateFile(bytes.NewReader(ftokoriginal), fTok, partWriters, f, in)
 
 	p.Cache = &InstanceCache{}
 
