@@ -1,6 +1,7 @@
 package wad
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -337,6 +338,36 @@ func (w *Wad) GetNodeByName(name string, searchStart NodeId, searchForward bool)
 		}
 	}
 	return nil
+}
+
+func (w *Wad) UpdateTagsData(updateData map[TagId][]byte) error {
+	var buf bytes.Buffer
+
+	for _, t := range w.Tags {
+		data := t.Data
+		if t.Tag == 0x18 {
+			t.Size = w.EntityCount
+		} else {
+			if newdata, ex := updateData[t.Id]; ex {
+				data = newdata
+			}
+		}
+
+		buf.Write(MarshalTag(&t))
+		if data != nil && len(data) != 0 {
+			buf.Write(data)
+
+			targetPos := ((buf.Len() + 15) / 16) * 16
+			buf.Write(make([]byte, targetPos-buf.Len()))
+		}
+	}
+
+	// To prevent usage of this wad instance
+	w.Tags = nil
+	w.Nodes = nil
+	w.Roots = nil
+
+	return w.Source.Save(io.NewSectionReader(bytes.NewReader(buf.Bytes()), 0, int64(buf.Len())))
 }
 
 func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {
