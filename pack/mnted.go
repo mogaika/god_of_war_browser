@@ -1,19 +1,18 @@
 package pack
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/mogaika/god_of_war_browser/utils"
+	"github.com/mogaika/god_of_war_browser/tok"
 )
 
 type TokDriver struct {
-	Files     map[string]*TokFile
-	Streams   [TOK_PARTS_COUNT]*os.File
+	Files     map[string]*tok.File
+	Streams   [tok.PARTS_COUNT]*os.File
 	Directory string
 	Cache     *InstanceCache
 }
@@ -22,7 +21,7 @@ func (p *TokDriver) GetFileNamesList() []string {
 	return getFileNamesListFromTokMap(p.Files)
 }
 
-func getFileNamesListFromTokMap(files map[string]*TokFile) []string {
+func getFileNamesListFromTokMap(files map[string]*tok.File) []string {
 	result := make([]string, len(files))
 	i := 0
 	for name := range files {
@@ -33,11 +32,11 @@ func getFileNamesListFromTokMap(files map[string]*TokFile) []string {
 }
 
 func (p *TokDriver) tokGetFileName() string {
-	return filepath.Join(p.Directory, "GODOFWAR.TOC")
+	return filepath.Join(p.Directory, tok.FILE_NAME)
 }
 
 func (p *TokDriver) partGetFileName(packNumber int) string {
-	return filepath.Join(p.Directory, fmt.Sprintf("PART%d.PAK", packNumber+1))
+	return filepath.Join(p.Directory, tok.GenPartFileName(packNumber))
 }
 
 func (p *TokDriver) prepareStream(packNumber int) error {
@@ -59,7 +58,7 @@ func (p *TokDriver) closeStreams() {
 	}
 }
 
-func (p *TokDriver) getFile(fileName string) (*TokFile, error) {
+func (p *TokDriver) getFile(fileName string) (*tok.File, error) {
 	if f, exists := p.Files[fileName]; exists {
 		return f, nil
 	} else {
@@ -98,80 +97,42 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	if err != nil {
 		return err
 	}
-
-	if in.Size()/utils.SECTOR_SIZE > f.Size()/utils.SECTOR_SIZE {
-		return fmt.Errorf("Size increase above sector boundary is not supported yet")
-	}
-
 	p.closeStreams()
 
-	// update sizes in tok file, if changed
-	if in.Size() != f.Size() {
-		fTok, err := os.OpenFile(p.tokGetFileName(), os.O_RDWR, 0666)
-		if err != nil {
-			return fmt.Errorf("Cannot open '%s' for writing: %v", p.tokGetFileName(), err)
-		}
-		defer fTok.Close()
-
-		var buf [TOK_ENCOUNTER_SIZE]byte
-		for {
-			if _, err := fTok.Read(buf[:]); err == io.EOF {
-				break
-			} else if err != nil {
-				return err
-			}
-
-			name, size, enc := unmarshalTokEntry(buf[:])
-			if name == "" {
-				break
-			}
-			if size != in.Size() {
-				log.Printf("[pack] Warning! Tok entry '%s': incorrect file size, file may be unconsistent: %d != %d",
-					name, size, in.Size())
-			}
-			if name == fileName {
-				if _, err := fTok.Seek(-TOK_ENCOUNTER_SIZE, os.SEEK_CUR); err != nil {
-					return err
-				}
-				if _, err := fTok.Write(marshalTokEntry(name, in.Size(), enc)); err != nil {
-					return err
-				}
+	var fParts [tok.PARTS_COUNT]*os.File
+	var partWriters [tok.PARTS_COUNT]io.WriterAt
+	defer func() {
+		for _, part := range fParts {
+			if part != nil {
+				part.Close()
 			}
 		}
-	}
-
-	var fileBuffer bytes.Buffer
-	if _, err := io.Copy(&fileBuffer, in); err != nil {
-		return err
-	}
-
-	for iPart := 0; iPart < TOK_PARTS_COUNT; iPart++ {
-		fPart, err := os.OpenFile(p.partGetFileName(iPart), os.O_RDWR, 0666)
-		defer fPart.Close()
-		if err == nil {
-			for _, enc := range f.Encounters {
-				if enc.Pack == iPart {
-					if _, err := fPart.WriteAt(fileBuffer.Bytes(), enc.Start); err != nil {
-						return err
-					}
-				}
-			}
-		} else {
-			log.Printf("[pack] Error opening '%s' for writing: %v", p.partGetFileName(iPart), err)
+	}()
+	for iPart := range fParts {
+		if fParts[iPart], err = os.OpenFile(p.partGetFileName(iPart), os.O_RDWR, 0666); err != nil {
+			return fmt.Errorf("Cannot open '%s' for writing", p.partGetFileName(iPart))
 		}
-		fPart.Close()
+		partWriters[iPart] = fParts[iPart]
 	}
+
+	fTok, err := os.OpenFile(p.tokGetFileName(), os.O_RDWR, 0666)
+	if err != nil {
+		return fmt.Errorf("Cannot open '%s' for writing: %v", p.tokGetFileName(), err)
+	}
+	defer fTok.Close()
+
+	err = tok.UpdateFile(fTok, partWriters, f, in)
 
 	p.Cache = &InstanceCache{}
 
-	return nil
+	return err
 }
 
 func (p *TokDriver) parseTokFile() error {
 	if tokStream, err := os.Open(p.tokGetFileName()); err == nil {
 		defer tokStream.Close()
 		log.Printf("[pack] Parsing tok '%s'", p.tokGetFileName())
-		p.Files, err = tokPartsParseFiles(tokStream)
+		p.Files, err = tok.ParseFiles(tokStream)
 		return err
 	} else {
 		return err
