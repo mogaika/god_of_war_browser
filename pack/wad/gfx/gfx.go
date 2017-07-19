@@ -202,8 +202,8 @@ func NewFromData(buf []byte) (*GFX, error) {
 	}
 
 	pos := uint32(24)
-	log.Printf("Gfx datas count: %v; bpi: %v; w: %v; h: %v, enc: %v",
-		gfx.DatasCount, gfx.Bpi, gfx.Width, gfx.Height, gfx.Encoding)
+	//log.Printf("Gfx datas count: %v; bpi: %v; w: %v; h: %v, enc: %v",
+	//	gfx.DatasCount, gfx.Bpi, gfx.Width, gfx.Height, gfx.Encoding)
 	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
 		size := (gfx.Width * gfx.Height * gfx.Bpi) / 8
 		gfx.Data[iData] = buf[pos : pos+size]
@@ -223,7 +223,7 @@ func (gfx *GFX) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(GFX_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		log.Println(wrsrc.Name())
+		//log.Println(wrsrc.Name())
 		gfx, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return gfx, err

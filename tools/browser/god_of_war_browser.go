@@ -38,7 +38,7 @@ func main() {
 	var err error
 
 	if iso != "" {
-		//		p, err = pack.NewPackFromIso(iso)
+		p, err = pack.NewPackFromIso(iso)
 	} else if tok != "" {
 		p, err = pack.NewPackFromTok(tok)
 	} else if dir != "" {
