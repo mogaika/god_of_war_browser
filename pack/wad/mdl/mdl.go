@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"reflect"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -87,28 +85,30 @@ func init() {
 	wad.SetHandler(MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		mdl, err := NewFromData(wrsrc.Tag.Data)
 		if err == nil {
-			fprefx := fmt.Sprintf("%.4d-%s", wrsrc.Tag.Id, wrsrc.Tag.Name)
+			/*
+				fprefx := fmt.Sprintf("%.4d-%s", wrsrc.Tag.Id, wrsrc.Tag.Name)
 
-			mdlpath := filepath.Join("mdl", wrsrc.Wad.Name(), fprefx+".obj")
-			os.MkdirAll(filepath.Dir(mdlpath), 0777)
-			fMdl, _ := os.Create(mdlpath)
-			defer fMdl.Close()
+				mdlpath := filepath.Join("mdl", wrsrc.Wad.Name(), fprefx+".obj")
+				os.MkdirAll(filepath.Dir(mdlpath), 0777)
+				fMdl, _ := os.Create(mdlpath)
+				defer fMdl.Close()
 
-			mtlPath := filepath.Join("mdl", wrsrc.Wad.Name(), fprefx+".mtl")
-			fMtl, _ := os.Create(mtlPath)
-			defer fMtl.Close()
+				mtlPath := filepath.Join("mdl", wrsrc.Wad.Name(), fprefx+".mtl")
+				fMtl, _ := os.Create(mtlPath)
+				defer fMtl.Close()
 
-			textures, err := mdl.ExportObj(wrsrc, nil, mtlPath, fMdl, fMtl)
-			if err == nil {
-				for tname, t := range textures {
-					pngPath := filepath.Join("mdl", wrsrc.Wad.Name(), tname+".png")
-					f, err := os.Create(pngPath)
-					if err == nil {
-						defer f.Close()
-						f.Write(t)
+				textures, err := mdl.ExportObj(wrsrc, nil, mtlPath, fMdl, fMtl)
+				if err == nil {
+					for tname, t := range textures {
+						pngPath := filepath.Join("mdl", wrsrc.Wad.Name(), tname+".png")
+						f, err := os.Create(pngPath)
+						if err == nil {
+							defer f.Close()
+							f.Write(t)
+						}
 					}
 				}
-			}
+			*/
 		}
 		return mdl, err
 	})

@@ -112,6 +112,16 @@ a {
     word-break: break-all;
 }
 
+#view-summary a:hover {
+	text-decoration: underline;
+}
+
+#view-summary .center {
+	display: block;
+	margin: 7px auto;
+	text-align: center;
+}
+
 #view-summary table {
     color: inherit;
     margin: 4px;

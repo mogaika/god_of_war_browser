@@ -18,11 +18,10 @@ func StartServer(addr string, _pack pack.PackDriver, webPath string) error {
 	ServerPack = _pack
 
 	r := mux.NewRouter()
+	r.HandleFunc("/action/{file}/{param}/{action}", HandlerAactionPackFileParam)
 	r.HandleFunc("/json/pack/{file}/{param}", HandlerAjaxPackFileParam)
 	r.HandleFunc("/json/pack/{file}", HandlerAjaxPackFile)
 	r.HandleFunc("/json/pack", HandlerAjaxPack)
-
-	r.HandleFunc("/dump/pack/{file}/{param}/{subfile}", HandlerDumpPackParamSubFile)
 	r.HandleFunc("/dump/pack/{file}/{param}", HandlerDumpPackParamFile)
 	r.HandleFunc("/dump/pack/{file}", HandlerDumpPackFile)
 
