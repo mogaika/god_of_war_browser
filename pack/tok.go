@@ -2,7 +2,6 @@ package pack
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -12,30 +11,6 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
-const (
-	TOK_ENCOUNTER_SIZE = 24
-	TOK_PARTS_COUNT    = 2
-)
-
-type TokFile struct {
-	name       string
-	size       int64
-	Encounters []TokFileEncounter
-}
-
-func (tf *TokFile) Name() string {
-	return tf.name
-}
-
-func (tf *TokFile) Size() int64 {
-	return tf.size
-}
-
-type TokFileEncounter struct {
-	Pack  int
-	Start int64
-}
-
 type TokDriver struct {
 	Files     map[string]*TokFile
 	Streams   [TOK_PARTS_COUNT]*os.File
@@ -43,67 +18,14 @@ type TokDriver struct {
 	Cache     *InstanceCache
 }
 
-func unmarshalTokEntry(buffer []byte) (name string, size int64, enc TokFileEncounter) {
-	name = utils.BytesToString(buffer[0:12])
-	size = int64(binary.LittleEndian.Uint32(buffer[16:20]))
-	enc = TokFileEncounter{
-		Pack:  int(binary.LittleEndian.Uint32(buffer[12:16])),
-		Start: int64(binary.LittleEndian.Uint32(buffer[20:24])) * utils.SECTOR_SIZE,
-	}
-	return
-}
-
-func marshalTokEntry(name string, size int64, enc TokFileEncounter) []byte {
-	buf := make([]byte, TOK_ENCOUNTER_SIZE)
-	copy(buf[:12], utils.StringToBytes(name, 12, false))
-	binary.LittleEndian.PutUint32(buf[12:16], uint32(enc.Pack))
-	binary.LittleEndian.PutUint32(buf[16:20], uint32(size))
-	binary.LittleEndian.PutUint32(buf[20:24], uint32((enc.Start+utils.SECTOR_SIZE-1)/utils.SECTOR_SIZE))
-	return buf
-}
-
-func tokPartsParseFiles(tokStream io.Reader) (map[string]*TokFile, error) {
-	var buffer [TOK_ENCOUNTER_SIZE]byte
-
-	files := make(map[string]*TokFile)
-
-	for {
-		if _, err := tokStream.Read(buffer[:]); err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-
-		name, size, enc := unmarshalTokEntry(buffer[:])
-		if name == "" {
-			break
-		}
-
-		var file *TokFile
-		if existFile, ok := files[name]; ok {
-			file = existFile
-		} else {
-			file = &TokFile{
-				name:       name,
-				size:       size,
-				Encounters: make([]TokFileEncounter, 0),
-			}
-			files[name] = file
-		}
-
-		if size != file.Size() {
-			log.Printf("[pack] Finded same file but with different size! '%s' %d!=%d", name, size, file.Size)
-		}
-
-		file.Encounters = append(file.Encounters, enc)
-	}
-	return files, nil
-}
-
 func (p *TokDriver) GetFileNamesList() []string {
-	result := make([]string, len(p.Files))
+	return getFileNamesListFromTokMap(p.Files)
+}
+
+func getFileNamesListFromTokMap(files map[string]*TokFile) []string {
+	result := make([]string, len(files))
 	i := 0
-	for name := range p.Files {
+	for name := range files {
 		result[i] = name
 		i++
 	}
@@ -168,21 +90,7 @@ func (p *TokDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader,
 }
 
 func (p *TokDriver) GetInstance(fileName string) (interface{}, error) {
-	f, r, err := p.GetFileReader(fileName)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot get instance of '%s': %v", fileName, err)
-	}
-
-	if cached := p.Cache.Get(fileName); cached != nil {
-		return cached, nil
-	}
-
-	inst, err := CallHandler(&PackResSrc{p: p, pf: f}, r)
-	if err != nil {
-		return nil, fmt.Errorf("Handler error: %v", err)
-	}
-	p.Cache.Add(fileName, inst)
-	return inst, nil
+	return defaultGetInstanceCachedHandler(p, p.Cache, fileName)
 }
 
 func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {

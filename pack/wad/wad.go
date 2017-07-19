@@ -81,7 +81,6 @@ func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
 		return nil, serverId, fmt.Errorf("Cannot find handler for tag %.4x (%s)", n.Tag.Tag, n.Tag.Name)
 	}
 
-	log.Printf("Calling handler %s", n.Tag.Name)
 	instance, err := h(w.GetNodeResourceByNodeId(n.Id))
 	if err != nil {
 		return nil, serverId, fmt.Errorf("Handler return error: %v", err)
