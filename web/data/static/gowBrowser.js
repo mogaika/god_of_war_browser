@@ -580,7 +580,26 @@ function summaryLoadWadTxr(data, wad, nodeid) {
 	
 	var form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'upload') + '" method="post" enctype="multipart/form-data">');
 	form.append($('<input type="file" name="img">'));
-	form.append($('<input type="submit" value="Replace texture">'));
+	var replaceBtn = $('<input type="button" value="Replace texture">')
+	replaceBtn.click(function() {
+		var form = $(this).parent();
+	    $.ajax({
+	        url: form.attr('action'),
+	        type: 'post',
+	        data: new FormData(form[0]),
+			processData: false,
+        	contentType: false,
+	        success:function(a1) {
+				if (a1 !== "") {
+					alert('Error replacing: ' + a1);
+				} else {
+					alert('Success!');
+					window.location.reload();
+				}
+			}
+	    });
+	});
+	form.append(replaceBtn);
 	
 	dataSummary.append(form);
 }
