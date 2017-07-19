@@ -4,8 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
+	"net/http"
 
 	"github.com/go-gl/mathgl/mgl32"
+
+	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/webutils"
 )
 
 func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) error {
@@ -48,7 +53,7 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 							w("v %f %f %f", vertex[0], vertex[1], vertex[2])
 							iV++
 							if haveUV {
-								w("vt %f %f", b.Uvs.U[iVertex], b.Uvs.V[iVertex])
+								w("vt %f %f", b.Uvs.U[iVertex], 1.0-b.Uvs.V[iVertex])
 								iT++
 							}
 							if haveNorm {
@@ -80,4 +85,13 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 	_w.Write(facesBuff.Bytes())
 
 	return nil
+}
+
+func (mesh *Mesh) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
+	switch action {
+	case "obj":
+		var buf bytes.Buffer
+		log.Println("Error when exporting mesh: %v", mesh.ExportObj(&buf, nil, nil))
+		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".obj")
+	}
 }

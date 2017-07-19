@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/mogaika/god_of_war_browser/pack"
-	"github.com/mogaika/god_of_war_browser/tools/browser/web"
+	"github.com/mogaika/god_of_war_browser/web"
 
 	_ "github.com/mogaika/god_of_war_browser/pack/vag"
 	_ "github.com/mogaika/god_of_war_browser/pack/vpk"

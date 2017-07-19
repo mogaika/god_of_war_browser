@@ -1,11 +1,10 @@
 package mesh
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -194,21 +193,27 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
-		os.MkdirAll(filepath.Dir(fpath), 0777)
-		f, _ := os.Create(fpath)
-		defer f.Close()
+		/*
+			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+			os.MkdirAll(filepath.Dir(fpath), 0777)
+			f, _ := os.Create(fpath)
+			defer f.Close()
+		*/
 
-		m, err := NewFromData(wrsrc.Tag.Data, f)
+		exlognil := bytes.NewBuffer(nil)
 
-		if err == nil {
-			objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
-			os.MkdirAll(filepath.Dir(objpath), 0777)
-			fMesh, _ := os.Create(objpath)
-			defer fMesh.Close()
+		m, err := NewFromData(wrsrc.Tag.Data, exlognil)
 
-			m.ExportObj(fMesh, nil, nil)
-		}
+		/*
+			if err == nil {
+				objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
+				os.MkdirAll(filepath.Dir(objpath), 0777)
+				fMesh, _ := os.Create(objpath)
+				defer fMesh.Close()
+
+				m.ExportObj(fMesh, nil, nil)
+			}
+		*/
 
 		return m, err
 	})

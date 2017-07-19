@@ -1,5 +1,0 @@
-- Open console and launch binary with
-  - ```-iso "Path_to_game_ISO_file"``` if you have iso file (detection of second layer implemented)
-  - ```-tok "Path_to_directory_with_GODOFWAR.TOK_and_PART?.pak_files"``` if you have unpacked iso
-  - ```-dir "Path_to_directory_with_WAD_files"``` if you have unpacked wad/vpk files
-- Then open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)

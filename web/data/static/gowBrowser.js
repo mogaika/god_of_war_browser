@@ -12,6 +12,10 @@ String.prototype.replaceAll = function(search, replace) {
     return this.replace(new RegExp('[' + search + ']', 'g'), replace);
 };
 
+function getActionLinkForWadNode(wad, nodeid, action, params = '') {
+	return '/action/' + wad +'/' + nodeid + '/' + action + '?' + params;
+}
+
 function treeInputFilterHandler() {
 	var filterText = $(this).val().toLowerCase();
 	$(this).parent().find("div li label").each(function(a1, a2, a3) {
@@ -233,10 +237,10 @@ function treeLoadWadNode(wad, nodeid) {
 					    gr_instance.requestRedraw();
 						break;
 	                case 0x0001000f: // mesh
-	                    summaryLoadWadMesh(data);
+	                    summaryLoadWadMesh(data, wad, nodeid);
 	                    break;
 	                case 0x0002000f: // mdl
-	                    summaryLoadWadMdl(data);
+	                    summaryLoadWadMdl(data, wad, nodeid);
 	                    break;
 	                case 0x00040001: // obj
 	                    summaryLoadWadObj(data);
@@ -431,14 +435,16 @@ function loadMeshFromAjax(model, data, needTable = false) {
 	return table;
 }
 
-function summaryLoadWadMesh(data) {
+function summaryLoadWadMesh(data, wad, nodeid) {
 	gr_instance.destroyModels();
     set3dVisible(true);
-    
+   
 	var mdl = new grModel();
-	
+
+	var dumplink = getActionLinkForWadNode(wad, nodeid, 'obj');
+	dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .obj (xyz+norm+uv)'));
+
 	var table = loadMeshFromAjax(mdl, data, true);
-	
 	dataSummary.append(table);
 	
 	gr_instance.models.push(mdl);
@@ -508,7 +514,7 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
 	return table;
 }
 
-function summaryLoadWadMdl(data) {
+function summaryLoadWadMdl(data, wad, nodeid) {
 	gr_instance.destroyModels();
     set3dVisible(true);
     
@@ -531,6 +537,9 @@ function summaryLoadWadMdl(data) {
     }
     dataSummary.append(table);
     
+	var dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
+	dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
+		
 	var table = loadMdlFromAjax(mdl, data, false, true);
 	dataSummary.append(table);
 	
@@ -749,10 +758,14 @@ function summaryLoadWadSbk(data, wad, nodeid) {
 	var list = $("<ul>");
 	for (var i = 0; i < data.Sounds.length; i++) {
 		var snd = data.Sounds[i];
-		var link = '/dump/pack/' + wad +'/' + nodeid + '/' + snd.Name;
+		var link = '/action/' + wad +'/' + nodeid + '/';
+		
+		var getSndLink = function(type) {
+			return getActionLinkForWadNode(wad, nodeid, type, 'snd='+snd.Name);
+		};
 
-		var vaglink = $("<a>").append(snd.Name).attr('href', link);
-		var wavlink = $("<audio controls>").attr("preload","none").append($("<source>").attr("src", link+'@wav@'));	
+		var vaglink = $("<a>").append(snd.Name).attr('href', getSndLink('vag'));
+		var wavlink = $("<audio controls>").attr("preload","none").append($("<source>").attr("src", getSndLink('wav')));	
 
 		var li = $("<li>").append(vaglink);
 

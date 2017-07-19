@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/ps2/vagp"
@@ -143,25 +142,16 @@ func NewFromData(f io.ReaderAt, isSblk bool, size uint32) (*SBK, error) {
 	return sbk, nil
 }
 
-func (sbk *SBK) SubfileGetter(w http.ResponseWriter, r *http.Request, wrsrc *wad.WadNodeRsrc, subfile string) {
-	rdr := bytes.NewReader(wrsrc.Tag.Data)
-
-	needWav := false
-	if strings.HasSuffix(subfile, "@wav@") {
-		subfile = strings.TrimSuffix(subfile, "@wav@")
-		needWav = true
-	}
-	log.Println(subfile)
-
+func (sbk *SBK) httpSendSound(w http.ResponseWriter, wrsrc *wad.WadNodeRsrc, sndName string, needWav bool) {
 	if sbk.IsVagFiles {
 		for iSnd, snd := range sbk.Sounds {
-			if snd.Name == subfile {
-				end := uint32(rdr.Size())
+			if snd.Name == sndName {
+				end := uint32(len(wrsrc.Tag.Data))
 				if iSnd != len(sbk.Sounds)-1 {
 					end = sbk.Sounds[iSnd+1].StreamId
 				}
-
-				vagpReader := io.NewSectionReader(rdr, int64(snd.StreamId), int64(end-snd.StreamId))
+				log.Println(len(wrsrc.Tag.Data), snd.StreamId, end, end-snd.StreamId)
+				vagpReader := bytes.NewReader(wrsrc.Tag.Data[snd.StreamId:end])
 				if needWav {
 					vag, err := vagp.NewVAGPFromReader(vagpReader)
 					if err != nil {
@@ -171,20 +161,34 @@ func (sbk *SBK) SubfileGetter(w http.ResponseWriter, r *http.Request, wrsrc *wad
 						if err != nil {
 							webutils.WriteError(w, err)
 						} else {
-							webutils.WriteFile(w, wav, subfile+".WAV")
+							webutils.WriteFile(w, wav, sndName+".WAV")
 						}
 					}
 				} else {
-					webutils.WriteFile(w, vagpReader, subfile+".VAG")
+					webutils.WriteFile(w, vagpReader, sndName+".VAG")
 				}
 				return
 			}
 		}
 		webutils.WriteError(w, errors.New("Cannot find sound"))
 	} else {
-		start := int64(8 + len(sbk.Sounds)*28)
-		webutils.WriteFile(w, io.NewSectionReader(rdr, start, int64(rdr.Size())-start), wrsrc.Name()+".SBK")
+		start := int(8 + len(sbk.Sounds)*28)
+		webutils.WriteFile(w, bytes.NewReader(wrsrc.Tag.Data[start:]), wrsrc.Name()+".SBK")
 	}
+}
+
+func (sbk *SBK) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
+	sndName := r.URL.Query().Get("snd")
+
+	switch action {
+	case "wav":
+		sbk.httpSendSound(w, wrsrc, sndName, true)
+	case "vag":
+		sbk.httpSendSound(w, wrsrc, sndName, false)
+	default:
+		log.Println("Unknown action: %v", action)
+	}
+
 }
 
 func (sbk *SBK) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {

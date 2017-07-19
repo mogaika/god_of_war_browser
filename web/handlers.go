@@ -91,8 +91,8 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
 	} else {
-		switch file[len(file)-4:] {
-		case ".WAD":
+		switch data.(type) {
+		case *file_wad.Wad:
 			wad := data.(*file_wad.Wad)
 			id, err := strconv.Atoi(param)
 			if err != nil {
@@ -101,13 +101,13 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 				tag := wad.GetTagById(file_wad.TagId(id))
 				webutils.WriteFile(w, bytes.NewBuffer(tag.Data), tag.Name)
 			}
-		case ".VAG":
+		case *file_vagp.VAGP:
 			if wav, err := data.(*file_vagp.VAGP).AsWave(); err != nil {
 				webutils.WriteError(w, fmt.Errorf("Error converting to wav: %v", err))
 			} else {
 				webutils.WriteFile(w, wav, file+".WAV")
 			}
-		case ".VPK":
+		case *file_vpk.VPK:
 			vpk := data.(*file_vpk.VPK)
 			_, fr, err := ServerPack.GetFileReader(file)
 			if err != nil {
@@ -126,17 +126,17 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandlerDumpPackParamSubFile(w http.ResponseWriter, r *http.Request) {
+func HandlerAactionPackFileParam(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
-	subfile := mux.Vars(r)["subfile"]
+	action := mux.Vars(r)["action"]
 	data, err := ServerPack.GetInstance(file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
 	} else {
-		switch file[len(file)-4:] {
-		case ".WAD":
+		switch data.(type) {
+		case *file_wad.Wad:
 			wad := data.(*file_wad.Wad)
 			id, err := strconv.Atoi(param)
 			if err != nil {
@@ -145,15 +145,16 @@ func HandlerDumpPackParamSubFile(w http.ResponseWriter, r *http.Request) {
 				id := file_wad.TagId(id)
 				if inst, _, err := wad.GetInstanceFromTag(id); err == nil {
 					rt := reflect.TypeOf(inst)
-					method, has := rt.MethodByName("SubfileGetter")
+					method, has := rt.MethodByName("HttpAction")
 					if !has {
 						webutils.WriteError(w, fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name()))
 					} else {
 						method.Func.Call([]reflect.Value{
 							reflect.ValueOf(inst),
-							reflect.ValueOf(w),
 							reflect.ValueOf(wad.GetNodeResourceByTagId(id)),
-							reflect.ValueOf(subfile),
+							reflect.ValueOf(w),
+							reflect.ValueOf(r),
+							reflect.ValueOf(action),
 						}[:])
 					}
 				} else {
