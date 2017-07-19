@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mogaika/god_of_war_browser/tok"
 	"github.com/mogaika/udf"
 )
 
@@ -17,10 +18,10 @@ import (
 var IsoSecondLayerStart int64 = 0x0fdf90000
 
 type IsoDriver struct {
-	Files       map[string]*TokFile
+	Files       map[string]*tok.File
 	IsoFile     *os.File
 	IsoLayers   [2]*udf.Udf
-	PackStreams [TOK_PARTS_COUNT]*io.SectionReader
+	PackStreams [tok.PARTS_COUNT]*io.SectionReader
 	IsoPath     string
 	Cache       *InstanceCache
 }
@@ -58,7 +59,7 @@ func (p *IsoDriver) prepareStreams() error {
 		}
 
 		for i := range p.PackStreams {
-			if f := p.openIsoFile(fmt.Sprintf("PART%d.PAK", i+1)); f != nil {
+			if f := p.openIsoFile(tok.GenPartFileName(i)); f != nil {
 				p.PackStreams[i] = f.NewReader()
 			} else {
 				p.PackStreams[i] = nil
@@ -70,8 +71,8 @@ func (p *IsoDriver) prepareStreams() error {
 
 func (p *IsoDriver) parseFilesFromTok() error {
 	var err error
-	tok := p.openIsoFile("GODOFWAR.TOC").NewReader()
-	p.Files, err = tokPartsParseFiles(tok)
+	tokIso := p.openIsoFile(tok.FILE_NAME)
+	p.Files, err = tok.ParseFiles(tokIso.NewReader())
 	return err
 }
 
