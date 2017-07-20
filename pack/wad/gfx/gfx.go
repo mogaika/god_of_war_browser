@@ -62,7 +62,7 @@ var GsPsm map[int]string = map[int]string{
 func (gfx *GFX) AsRawPallet(idx int) ([]uint32, error) {
 	palbuf := gfx.Data[idx]
 
-	colors := gfx.Width * gfx.Height
+	colors := gfx.Width * gfx.Height / gfx.DatasCount
 
 	pallet := make([]uint32, colors)
 	remap := []int{0, 2, 1, 3}
@@ -185,7 +185,7 @@ func (gfx *GFX) GetPSM() int {
 	return -1
 }
 
-func NewFromData(buf []byte) (*GFX, error) {
+func NewFromData(name string, buf []byte) (*GFX, error) {
 	gfx := &GFX{
 		Magic:      binary.LittleEndian.Uint32(buf[0:4]),
 		Width:      binary.LittleEndian.Uint32(buf[4:8]),
@@ -204,12 +204,22 @@ func NewFromData(buf []byte) (*GFX, error) {
 	pos := uint32(24)
 	//log.Printf("Gfx datas count: %v; bpi: %v; w: %v; h: %v, enc: %v",
 	//	gfx.DatasCount, gfx.Bpi, gfx.Width, gfx.Height, gfx.Encoding)
+	dataSize := (gfx.Width * gfx.Height * gfx.Bpi) / 8
+	dataSize /= gfx.DatasCount
 	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
-		size := (gfx.Width * gfx.Height * gfx.Bpi) / 8
-		gfx.Data[iData] = buf[pos : pos+size]
+
+		/*
+			if pos >= uint32(len(buf)) {
+				log.Printf("WARNING: gfx '%s' datacount inconsistency: %d >= %d; datacount: %d\n%v",
+					name, pos, len(buf), gfx.DatasCount, gfx)
+				pos -= dataSize
+			}
+
+		*/
+		gfx.Data[iData] = buf[pos : pos+dataSize]
 
 		// TODO : fix logic
-		// pos += size
+		pos += dataSize
 	}
 
 	gfx.Psm = GsPsm[gfx.GetPSM()]
@@ -241,7 +251,7 @@ func (gfx *GFX) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 func init() {
 	wad.SetHandler(GFX_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		//log.Println(wrsrc.Name())
-		gfx, err := NewFromData(wrsrc.Tag.Data)
+		gfx, err := NewFromData(wrsrc.Name(), wrsrc.Tag.Data)
 		if err != nil {
 			return gfx, err
 		}

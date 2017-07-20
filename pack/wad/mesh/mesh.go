@@ -1,12 +1,14 @@
 package mesh
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type stBlock struct {
@@ -85,11 +87,20 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 		pPart := u32(0x50 + uint32(iPart)*4)
 		groupsCount := u16(pPart + 2)
 
+		rGroupsCount := groupsCount
+		if u16(pPart+4+uint32(groupsCount)*4) != 0 {
+			//rGroupsCount = 0
+		}
+
 		part := &MeshPart{
 			FileStruct: pPart,
-			Groups:     make([]*MeshGroup, groupsCount),
+			Groups:     make([]*MeshGroup, rGroupsCount),
 			JointId:    u16(pPart + 4 + uint32(groupsCount)*4),
 		}
+
+		fmt.Printf("%x unkn:%d jid:", pPart+4+uint32(groupsCount)*4, u16(pPart))
+		fmt.Println(part.JointId, groupsCount, 4+uint32(groupsCount)*4)
+		//utils.Dump(file[pPart : pPart+48])
 		parts[iPart] = part
 
 		//log.Printf("part %d: %.8x: %.8x  ...  %.8x", iPart, pPart, u32(pPart), u32(pPart+4+uint32(groupsCount)*4))
@@ -127,10 +138,6 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 
 				group.Objects[iObject] = object
 
-				//log.Printf("- - object %d: %.8x:", iObject, pObject)
-				//log.Printf("         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
-				//log.Printf("         %.8x         %.8x         %.8x           %.8x", u32(pObject+16), u32(pObject+20), u32(pObject+24), u32(pObject+28))
-
 				fmt.Fprintf(exlog, "- - object %d: %.8x:\n", iObject, pObject)
 				fmt.Fprintf(exlog, "         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x\n", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
 				fmt.Fprintf(exlog, "         %.8x         %.8x         %.8x           %.8x\n", u32(pObject+16), u32(pObject+20), u32(pObject+24), u32(pObject+28))
@@ -161,7 +168,9 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 
 					if object.BonesUsed > 0 && len(object.Blocks) > 0 {
 						object.JointMapper = make([]uint32, object.BonesUsed)
+
 						pJointMapRaw := pObject + 0x20 + packetsCount*0x10*u32(pObject+0xc)*uint32(u8(pObject+0x18))
+						utils.Dump(file[pJointMapRaw-16 : pJointMapRaw+64])
 						for jointMapIndex := uint32(0); jointMapIndex < uint32(object.BonesUsed); jointMapIndex++ {
 							object.JointMapper[jointMapIndex] = u32(pJointMapRaw + jointMapIndex*4)
 							if object.JointMapper[jointMapIndex] > 0x17f {
@@ -172,6 +181,8 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 					} else if object.BonesUsed == 0 && len(object.Blocks) > 0 {
 						fmt.Errorf(">>>>>>> MISSED JOINTMAPPER VALUE <<<<<<< for %d blocks", len(object.Blocks))
 					}
+					_ = utils.Dump
+					fmt.Printf("flags: %x, bones: %v\n", u32(pObject+0x10), object.JointMapper)
 				} else {
 					return nil, fmt.Errorf("Unknown mesh format %")
 				}
@@ -193,14 +204,13 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		/*
-			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
-			os.MkdirAll(filepath.Dir(fpath), 0777)
-			f, _ := os.Create(fpath)
-			defer f.Close()
-		*/
 
-		exlognil := bytes.NewBuffer(nil)
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+		os.MkdirAll(filepath.Dir(fpath), 0777)
+		f, _ := os.Create(fpath)
+		defer f.Close()
+
+		exlognil := f // bytes.NewBuffer(nil)
 
 		m, err := NewFromData(wrsrc.Tag.Data, exlognil)
 
