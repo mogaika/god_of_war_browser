@@ -207,18 +207,7 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 	dataSize := (gfx.Width * gfx.Height * gfx.Bpi) / 8
 	dataSize /= gfx.DatasCount
 	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
-
-		/*
-			if pos >= uint32(len(buf)) {
-				log.Printf("WARNING: gfx '%s' datacount inconsistency: %d >= %d; datacount: %d\n%v",
-					name, pos, len(buf), gfx.DatasCount, gfx)
-				pos -= dataSize
-			}
-
-		*/
 		gfx.Data[iData] = buf[pos : pos+dataSize]
-
-		// TODO : fix logic
 		pos += dataSize
 	}
 
