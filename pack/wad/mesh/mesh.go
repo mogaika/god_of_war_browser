@@ -1,14 +1,12 @@
 package mesh
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
-	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type stBlock struct {
@@ -98,8 +96,8 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 			JointId:    u16(pPart + 4 + uint32(groupsCount)*4),
 		}
 
-		fmt.Printf("%x unkn:%d jid:", pPart+4+uint32(groupsCount)*4, u16(pPart))
-		fmt.Println(part.JointId, groupsCount, 4+uint32(groupsCount)*4)
+		//fmt.Printf("%x unkn:%d jid:", pPart+4+uint32(groupsCount)*4, u16(pPart))
+		//fmt.Println(part.JointId, groupsCount, 4+uint32(groupsCount)*4)
 		//utils.Dump(file[pPart : pPart+48])
 		parts[iPart] = part
 
@@ -170,7 +168,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						object.JointMapper = make([]uint32, object.BonesUsed)
 
 						pJointMapRaw := pObject + 0x20 + packetsCount*0x10*u32(pObject+0xc)*uint32(u8(pObject+0x18))
-						utils.Dump(file[pJointMapRaw-16 : pJointMapRaw+64])
+						//utils.Dump(file[pJointMapRaw-16 : pJointMapRaw+64])
 						for jointMapIndex := uint32(0); jointMapIndex < uint32(object.BonesUsed); jointMapIndex++ {
 							object.JointMapper[jointMapIndex] = u32(pJointMapRaw + jointMapIndex*4)
 							if object.JointMapper[jointMapIndex] > 0x17f {
@@ -181,8 +179,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 					} else if object.BonesUsed == 0 && len(object.Blocks) > 0 {
 						fmt.Errorf(">>>>>>> MISSED JOINTMAPPER VALUE <<<<<<< for %d blocks", len(object.Blocks))
 					}
-					_ = utils.Dump
-					fmt.Printf("flags: %x, bones: %v\n", u32(pObject+0x10), object.JointMapper)
+					//	fmt.Printf("flags: %x, bones: %v\n", u32(pObject+0x10), object.JointMapper)
 				} else {
 					return nil, fmt.Errorf("Unknown mesh format %")
 				}
@@ -204,13 +201,14 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-
-		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
-		os.MkdirAll(filepath.Dir(fpath), 0777)
-		f, _ := os.Create(fpath)
-		defer f.Close()
-
-		exlognil := f // bytes.NewBuffer(nil)
+		/*
+			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+			os.MkdirAll(filepath.Dir(fpath), 0777)
+			f, _ := os.Create(fpath)
+			defer f.Close()
+			exlognil := f
+		*/
+		exlognil := bytes.NewBuffer(nil)
 
 		m, err := NewFromData(wrsrc.Tag.Data, exlognil)
 
