@@ -44,11 +44,11 @@ func main() {
 	log.Println("This can take a lot of time. Please be patient...")
 	outTok, err := os.Create(filepath.Join(outDir, tok.FILE_NAME))
 	if err != nil {
-		log.Fatal("Cannot create file '%s' in dir '%s':%v", tok.FILE_NAME, outDir, err)
+		log.Fatalf("Cannot create file '%s' in dir '%s':%v", tok.FILE_NAME, outDir, err)
 	}
 	outPack, err := os.Create(filepath.Join(outDir, tok.GenPartFileName(0)))
 	if err != nil {
-		log.Fatal("Cannot create file '%s' in dir '%s':%v", tok.GenPartFileName(0), outDir, err)
+		log.Fatalf("Cannot create file '%s' in dir '%s':%v", tok.GenPartFileName(0), outDir, err)
 	}
 	defer func() {
 		outPack.Close()

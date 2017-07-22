@@ -26,7 +26,7 @@ func clrToUint32(c color.Color) uint32 {
 	return r | g<<8 | b<<16 | a<<24
 }
 
-func imgToPalleteAndIndex(img image.Image) (color.Palette, []byte) {
+func imgToPaletteAndIndex(img image.Image) (color.Palette, []byte) {
 	type clrCounter struct {
 		uc     uint32
 		c      color.Color
@@ -77,7 +77,7 @@ func imgToPalleteAndIndex(img image.Image) (color.Palette, []byte) {
 		}
 	}
 
-	log.Println("Swizzle pallete")
+	log.Println("Swizzle palette")
 	swizzledpal := make(color.Palette, 256)
 	for i := range pal {
 		swizzledpal[i] = pal[file_gfx.IndexSwizzlePalette(i)]
@@ -86,7 +86,7 @@ func imgToPalleteAndIndex(img image.Image) (color.Palette, []byte) {
 	return swizzledpal, idx
 }
 
-func palleteToBytearray(p color.Palette) []byte {
+func paletteToBytearray(p color.Palette) []byte {
 	buf := make([]byte, len(p)*4)
 	pos := 0
 	for _, c := range p {
@@ -125,7 +125,7 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 
 	b := img.Bounds().Max
 	log.Println("Calculating palette...")
-	newPal, newIdx := imgToPalleteAndIndex(img)
+	newPal, newIdx := imgToPaletteAndIndex(img)
 	log.Println("done")
 
 	gfxc.Data[0] = newIdx
@@ -134,7 +134,7 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	gfxc.Width = uint32(b.X)
 	gfxc.Height = uint32(b.Y)
 
-	palc.Data[0] = palleteToBytearray(newPal)
+	palc.Data[0] = paletteToBytearray(newPal)
 	palc.Width = 16
 	palc.Height = (uint32(len(newPal)) / palc.Width) * palc.DatasCount
 	palc.Encoding = 0
@@ -142,7 +142,7 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 
 	if palc.DatasCount == 2 {
 		log.Println("Detected grayscale palette. Calculating new grayscale palette...")
-		if err := gfxSecondPalleteToGrayscale(palc); err != nil {
+		if err := gfxSecondPaletteToGrayscale(palc); err != nil {
 			return fmt.Errorf("Error when calculating grayscale palette: %v", err)
 		}
 		log.Println("done")
@@ -164,14 +164,14 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	})
 }
 
-func gfxSecondPalleteToGrayscale(palc *file_gfx.GFX) error {
+func gfxSecondPaletteToGrayscale(palc *file_gfx.GFX) error {
 	if palc.DatasCount != 2 {
 		return fmt.Errorf("DatasCount != 2 (%d)", palc.DatasCount)
 	}
 
-	pal, err := palc.AsPallet(0, false)
+	pal, err := palc.AsPalette(0, false)
 	if err != nil {
-		return fmt.Errorf("Getting pallete fail: %v", err)
+		return fmt.Errorf("Getting palette fail: %v", err)
 	}
 	d := palc.Data[1]
 	for i := range pal {

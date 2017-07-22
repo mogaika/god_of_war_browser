@@ -67,36 +67,36 @@ func IndexSwizzlePalette(i int) int {
 	return blockpos + (remap[blockid%4]+(blockid/4)*4)*8
 }
 
-func (gfx *GFX) AsRawPallet(idx int) ([]uint32, error) {
+func (gfx *GFX) AsRawPalette(idx int) ([]uint32, error) {
 	palbuf := gfx.Data[idx]
 
 	colors := gfx.Width * gfx.Height / gfx.DatasCount
 
-	pallet := make([]uint32, colors)
+	palette := make([]uint32, colors)
 
-	for i := range pallet {
+	for i := range palette {
 		clr := binary.LittleEndian.Uint32(palbuf[i*4 : i*4+4])
 		switch gfx.Height {
 		case 2:
-			pallet[i] = clr
+			palette[i] = clr
 		case 32:
 			fallthrough
 		case 16:
-			pallet[IndexSwizzlePalette(i)] = clr
+			palette[IndexSwizzlePalette(i)] = clr
 		default:
-			return nil, fmt.Errorf("Wrong pallet height: %d", gfx.Height)
+			return nil, fmt.Errorf("Wrong palette height: %d", gfx.Height)
 		}
 	}
-	return pallet, nil
+	return palette, nil
 }
 
-func (gfx *GFX) AsPallet(idx int, convertAlphaToPCformat bool) ([]color.NRGBA, error) {
-	rawPal, err := gfx.AsRawPallet(idx)
+func (gfx *GFX) AsPalette(idx int, convertAlphaToPCformat bool) ([]color.NRGBA, error) {
+	rawPal, err := gfx.AsRawPalette(idx)
 	if err != nil {
 		return nil, err
 	}
 
-	pallet := make([]color.NRGBA, len(rawPal))
+	palette := make([]color.NRGBA, len(rawPal))
 	for i, raw := range rawPal {
 		clr := color.NRGBA{
 			R: uint8(raw),
@@ -107,10 +107,10 @@ func (gfx *GFX) AsPallet(idx int, convertAlphaToPCformat bool) ([]color.NRGBA, e
 		if convertAlphaToPCformat {
 			clr.A = uint8(float32(clr.A) * (255.0 / 128.0))
 		}
-		pallet[i] = clr
+		palette[i] = clr
 	}
 
-	return pallet, nil
+	return palette, nil
 }
 
 func IndexUnswizzleTexture(x, y, width uint32) uint32 {
@@ -123,7 +123,7 @@ func IndexUnswizzleTexture(x, y, width uint32) uint32 {
 	return block_location + column_location + byte_num
 }
 
-func (gfx *GFX) AsPalletIndexes(idx int) []byte {
+func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 	data := gfx.Data[idx]
 
 	indexes := make([]byte, gfx.Width*gfx.Height)
@@ -157,7 +157,7 @@ func (gfx *GFX) AsPalletIndexes(idx int) []byte {
 			}
 		}
 	default:
-		panic("Unknown pallete indexes encoding case")
+		panic("Unknown palette indexes encoding case")
 	}
 	return indexes
 }

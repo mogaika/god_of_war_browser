@@ -186,7 +186,7 @@ func (sbk *SBK) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *htt
 	case "vag":
 		sbk.httpSendSound(w, wrsrc, sndName, false)
 	default:
-		log.Println("Unknown action: %v", action)
+		log.Printf("Unknown action: %v", action)
 	}
 
 }

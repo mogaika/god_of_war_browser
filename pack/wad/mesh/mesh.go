@@ -177,11 +177,11 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						}
 						fmt.Fprintf(exlog, "    >> jointmap: 0x%.8x => %#+v\n", pJointMapRaw, object.JointMapper)
 					} else if object.BonesUsed == 0 && len(object.Blocks) > 0 {
-						fmt.Errorf(">>>>>>> MISSED JOINTMAPPER VALUE <<<<<<< for %d blocks", len(object.Blocks))
+						fmt.Printf(">>>>>>> MISSED JOINTMAPPER VALUE <<<<<<< for %d blocks", len(object.Blocks))
 					}
 					//	fmt.Printf("flags: %x, bones: %v\n", u32(pObject+0x10), object.JointMapper)
 				} else {
-					return nil, fmt.Errorf("Unknown mesh format %")
+					return nil, fmt.Errorf("Unknown mesh object type %d", objectType)
 				}
 			}
 		}
