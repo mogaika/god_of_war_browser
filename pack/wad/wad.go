@@ -35,29 +35,31 @@ func SetTagHandler(tag uint16, ldr FileLoader) {
 type NodeId int
 type TagId int
 
+const NODE_INVALID = -1
+
 type Wad struct {
 	Source utils.ResourceSource `json:"-"`
 	Tags   []Tag                `json:"-"`
-	Nodes  []Node
+	Nodes  []*Node
 	Roots  []NodeId
 
 	EntityCount uint32
 }
 
 type Tag struct {
-	Id    TagId // our internal id to identify tags
-	Tag   uint16
-	Flags uint16
-	Size  uint32
-	Name  string
-	Data  []byte `json:"-"`
-	Node  *Node  `json:"-"`
+	Id     TagId // our internal id to identify tags
+	Tag    uint16
+	Flags  uint16
+	Size   uint32
+	Name   string
+	Data   []byte `json:"-"`
+	NodeId NodeId
 }
 
 type Node struct {
 	Id             NodeId // our internal id to identify nodes
 	Tag            *Tag
-	Parent         *Node `json:"-"`
+	Parent         NodeId
 	SubGroupNodes  []NodeId
 	Cache          File `json:"-"`
 	CachedServerId uint32
@@ -93,7 +95,7 @@ func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
 
 func (w *Wad) GetInstanceFromTag(tagId TagId) (File, uint32, error) {
 	tag := w.GetTagById(tagId)
-	return w.GetInstanceFromNode(tag.Node.Id)
+	return w.GetInstanceFromNode(tag.NodeId)
 }
 
 func (w *Wad) GetInstanceFromNode(nodeId NodeId) (File, uint32, error) {
@@ -107,10 +109,11 @@ func (w *Wad) GetInstanceFromNode(nodeId NodeId) (File, uint32, error) {
 
 func UnmarshalTag(buf []byte) Tag {
 	return Tag{
-		Tag:   binary.LittleEndian.Uint16(buf[0:2]),
-		Flags: binary.LittleEndian.Uint16(buf[2:4]),
-		Size:  binary.LittleEndian.Uint32(buf[4:8]),
-		Name:  utils.BytesToString(buf[8:32]),
+		Tag:    binary.LittleEndian.Uint16(buf[0:2]),
+		Flags:  binary.LittleEndian.Uint16(buf[2:4]),
+		Size:   binary.LittleEndian.Uint32(buf[4:8]),
+		Name:   utils.BytesToString(buf[8:32]),
+		NodeId: NODE_INVALID,
 	}
 }
 
@@ -133,7 +136,7 @@ func (w *Wad) GetNodeResourceByNodeId(id NodeId) *WadNodeRsrc {
 
 func (w *Wad) GetNodeResourceByTagId(id TagId) *WadNodeRsrc {
 	tag := w.GetTagById(id)
-	return &WadNodeRsrc{Wad: w, Node: tag.Node, Tag: tag}
+	return &WadNodeRsrc{Wad: w, Node: w.GetNodeById(tag.NodeId), Tag: tag}
 }
 
 func (w *Wad) loadTags(r io.ReadSeeker) error {
@@ -169,6 +172,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 				return fmt.Errorf("Error when reading tag '%s' body: %v", t.Name, err)
 			}
 		}
+
 		w.Tags = append(w.Tags, t)
 
 		if pos, err := r.Seek(0, os.SEEK_CUR); err == nil {
@@ -186,29 +190,28 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 }
 
 func (w *Wad) addNode(tag *Tag) *Node {
-	w.Nodes = append(w.Nodes, Node{
+	n := &Node{
 		Tag: tag,
-		Id:  NodeId(len(w.Nodes)),
-	})
-	n := &w.Nodes[len(w.Nodes)-1]
-	tag.Node = n
+		Id:  NodeId(len(w.Nodes))}
+	n.Parent = NODE_INVALID
+	w.Nodes = append(w.Nodes, n)
+	tag.NodeId = n.Id
 	return n
 }
 
 func (w *Wad) parseTags() error {
 	newGroupTag := false
-	var currentNode *Node
-	w.Nodes = make([]Node, 0)
+	currentNode := NodeId(NODE_INVALID)
+	w.Nodes = make([]*Node, 0)
 	w.Roots = make([]NodeId, 0)
 
 	addNode := func(tag *Tag) *Node {
 		n := w.addNode(tag)
-
 		n.Parent = currentNode
-		if n.Parent == nil {
+		if n.Parent == NODE_INVALID {
 			w.Roots = append(w.Roots, n.Id)
 		} else {
-			p := n.Parent
+			p := w.GetNodeById(n.Parent)
 			if p.SubGroupNodes == nil {
 				p.SubGroupNodes = make([]NodeId, 0)
 			}
@@ -226,20 +229,23 @@ func (w *Wad) parseTags() error {
 			// if name start with space, then name ignored (unnamed)
 			// overwrite previous instance with same name
 			n := addNode(tag)
-
 			if newGroupTag {
 				newGroupTag = false
-				currentNode = n
+				currentNode = n.Id
 			}
 		case 0x28: // file data group start
 			newGroupTag = true // same realization in game
+			log.Println("group start")
 		case 0x32: // file data group end
 			// Tell server about group ended
-			newGroupTag = false
-			if currentNode == nil {
-				return fmt.Errorf("Trying to end not started group id%d-%s", tag.Id, tag.Name)
+			if !newGroupTag {
+				// theres been some nodes and we change currentNode
+				if currentNode == NODE_INVALID {
+					return fmt.Errorf("Trying to end not started group id%d-%s", tag.Id, tag.Name)
+				}
+				currentNode = w.GetNodeById(currentNode).Parent
 			} else {
-				currentNode = currentNode.Parent
+				newGroupTag = false
 			}
 		case 0x18: // entity count
 			// Game also add empty named node to nodedirectory?
@@ -282,6 +288,14 @@ func (w *Wad) parseTags() error {
 			return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s", tag.Id, tag.Tag, tag.Name)
 		}
 	}
+
+	for _, n := range w.Nodes {
+		if n.SubGroupNodes != nil {
+			t := n.Tag
+			log.Printf("%.4d %.4x %s %v", t.Id, t.Tag, t.Name, n.SubGroupNodes)
+		}
+	}
+
 	return nil
 }
 
@@ -307,7 +321,10 @@ func (w *Wad) GetTagByName(name string, searchStart TagId, searchForward bool) *
 }
 
 func (w *Wad) GetNodeById(nodeId NodeId) *Node {
-	n := &w.Nodes[nodeId]
+	if nodeId == NODE_INVALID {
+		return nil
+	}
+	n := w.Nodes[nodeId]
 	if n.Tag.Tag == 0x1e {
 		if n.Tag.Size == 0 {
 			linked := w.GetNodeByName(n.Tag.Name, n.Id-1, false)
@@ -323,7 +340,7 @@ func (w *Wad) GetNodeByName(name string, searchStart NodeId, searchForward bool)
 	if searchForward {
 		for i := searchStart; int(i) < len(w.Nodes); i++ {
 			if w.Nodes[i].Tag.Name == name {
-				if n := w.GetNodeById(i); n.Parent == nil {
+				if n := w.GetNodeById(i); n.Parent == NODE_INVALID {
 					return n
 				}
 			}
@@ -331,7 +348,7 @@ func (w *Wad) GetNodeByName(name string, searchStart NodeId, searchForward bool)
 	} else {
 		for i := searchStart; i >= 0; i-- {
 			if w.Nodes[i].Tag.Name == name {
-				if n := w.GetNodeById(i); n.Parent == nil {
+				if n := w.GetNodeById(i); n.Parent == NODE_INVALID {
 					return n
 				}
 			}

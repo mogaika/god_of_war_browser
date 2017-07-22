@@ -49,7 +49,8 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				node := wad.GetNodeById(wad.GetTagById(file_wad.TagId(id)).Node.Id)
+				tag := wad.GetTagById(file_wad.TagId(id))
+				node := wad.GetNodeById(tag.NodeId)
 				data, serverId, err := wad.GetInstanceFromNode(node.Id)
 				if err == nil {
 					type Result struct {
