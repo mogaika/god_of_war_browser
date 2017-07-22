@@ -169,7 +169,7 @@ function mshFromSklt(sklt, key="OurJointToIdleMat") {
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-	this.addMesh(mshFromSklt(sklt));
+	//this.addMesh(mshFromSklt(sklt));
 	this.skeleton = [];
 
 	for (var i in sklt) {

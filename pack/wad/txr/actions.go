@@ -71,19 +71,16 @@ func imgToPalleteAndIndex(img image.Image) (color.Palette, []byte) {
 	idx := make([]byte, b.X*b.Y)
 	for y := 0; y < b.Y; y++ {
 		for x := 0; x < b.X; x++ {
-			idx[y*b.X+x] = byte(pal.Index(img.At(x, y)))
+			swizzledpos := file_gfx.IndexUnswizzleTexture(uint32(x), uint32(y), uint32(b.X))
+			//idx[y*b.X+x] = byte(pal.Index(img.At(x, y)))
+			idx[swizzledpos] = byte(pal.Index(img.At(x, y)))
 		}
 	}
 
 	log.Println("Swizzle pallete")
-	remap := []int{0, 2, 1, 3}
 	swizzledpal := make(color.Palette, 256)
 	for i := range pal {
-		blockid := i / 8
-		blockpos := i % 8
-
-		newpos := blockpos + (remap[blockid%4]+(blockid/4)*4)*8
-		swizzledpal[i] = pal[newpos]
+		swizzledpal[i] = pal[file_gfx.IndexSwizzlePalette(i)]
 	}
 
 	return swizzledpal, idx
@@ -122,48 +119,76 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	gfxc := gfxcw.(*file_gfx.GFX)
 	palc := palcw.(*file_gfx.GFX)
 
-	if gfxc.DatasCount != 1 || palc.DatasCount != 1 {
-		return fmt.Errorf("Do not support pal or gfx with DatasCount != 1")
+	if gfxc.DatasCount != 1 {
+		return fmt.Errorf("Do not support gfx with DatasCount != 1")
 	}
 
 	b := img.Bounds().Max
 	log.Println("Calculating palette...")
 	newPal, newIdx := imgToPalleteAndIndex(img)
 	log.Println("done")
+
 	gfxc.Data[0] = newIdx
 	gfxc.Bpi = 8
-	gfxc.Encoding = 2
+	gfxc.Encoding = 0 // swizzled
 	gfxc.Width = uint32(b.X)
 	gfxc.Height = uint32(b.Y)
 
 	palc.Data[0] = palleteToBytearray(newPal)
-	palc.Height = 16
-	palc.Width = uint32(len(newPal)) / palc.Height
+	palc.Width = 16
+	palc.Height = (uint32(len(newPal)) / palc.Width) * palc.DatasCount
 	palc.Encoding = 0
 	palc.Bpi = 32
+
+	if palc.DatasCount == 2 {
+		log.Println("Detected grayscale palette. Calculating new grayscale palette...")
+		if err := gfxSecondPalleteToGrayscale(palc); err != nil {
+			return fmt.Errorf("Error when calculating grayscale palette: %v", err)
+		}
+		log.Println("done")
+	}
 
 	gfxBinRaw, err := gfxc.MarshalToBinary()
 	if err != nil {
 		return fmt.Errorf("gfxc.MarshalToBinary(): %v", err)
 	}
 
-	log.Println("Updating wad...")
 	palBinRaw, err := palc.MarshalToBinary()
-	log.Println("done")
 	if err != nil {
 		return fmt.Errorf("palc.MarshalToBinary(): %v", err)
 	}
-
+	log.Println("Updating wad...")
 	return wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
 		gfxcn.Tag.Id: gfxBinRaw,
 		palcn.Tag.Id: palBinRaw,
 	})
 }
 
+func gfxSecondPalleteToGrayscale(palc *file_gfx.GFX) error {
+	if palc.DatasCount != 2 {
+		return fmt.Errorf("DatasCount != 2 (%d)", palc.DatasCount)
+	}
+
+	pal, err := palc.AsPallet(0, false)
+	if err != nil {
+		return fmt.Errorf("Getting pallete fail: %v", err)
+	}
+	d := palc.Data[1]
+	for i := range pal {
+		c := pal[file_gfx.IndexSwizzlePalette(i)]
+
+		y := byte(0.299*float32(c.R) + 0.587*float32(c.G) + 0.114*float32(c.B))
+		d[i*4] = y
+		d[i*4+1] = y
+		d[i*4+2] = y
+		d[i*4+3] = 0x80
+	}
+	return nil
+}
+
 func (txr *Texture) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
 	switch action {
 	case "upload":
-		log.Println(r.Method)
 		fImg, _, err := r.FormFile("img")
 		if err != nil {
 			fmt.Fprintln(w, err)

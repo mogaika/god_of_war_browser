@@ -110,7 +110,7 @@ func UpdateFile(fTokOriginal io.Reader, fTokNew io.Writer, partStreams [PARTS_CO
 	log.Println("Reading tok")
 	// update sizes in tok file, if changed
 	if in.Size() != f.Size() {
-		var buf []byte
+		var buf [ENTRY_SIZE]byte
 		for {
 			if _, err := fTokOriginal.Read(buf[:]); err == io.EOF {
 				break
