@@ -46,13 +46,13 @@ func NewFromData(buf []byte) (*Texture, error) {
 	// 0 - any; 8000 - alpha channel
 	flags1 := tex.Flags & 0xffff
 	if flags1 != 0 && flags1 != 0x8000 {
-		return nil, fmt.Errorf("Unkonwn unkFlags 0x%.4x != 0", flags1)
+		return nil, fmt.Errorf("Unknown unkFlags 0x%.4x != 0", flags1)
 	}
 
 	// 1 - no alpha; 5d - alpha channel; 51 - font
 	flags2 := tex.Flags >> 16
 	if flags2 != 1 && flags2 != 0x41 && flags2 != 0x5d && flags2 != 0x51 && flags2 != 0x11 {
-		return nil, fmt.Errorf("Unkonwn unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51,0x11)", flags2)
+		return nil, fmt.Errorf("Unknown unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51,0x11)", flags2)
 	}
 
 	return tex, nil
@@ -71,17 +71,17 @@ func (txr *Texture) image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal i
 	height := int(gfx.Height)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	pallete, err := pal.AsPallet(ipal, image_type != TEXTURE_IMAGE_A)
+	palette, err := pal.AsPalette(ipal, image_type != TEXTURE_IMAGE_A)
 
 	if err != nil {
 		return nil, err
 	}
 
-	palidx := gfx.AsPalletIndexes(igfx)
+	palidx := gfx.AsPaletteIndexes(igfx)
 
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			clr := pallete[palidx[x+y*width]]
+			clr := palette[palidx[x+y*width]]
 			switch image_type {
 			case TEXTURE_IMAGE_RGB:
 				clr.A = 255

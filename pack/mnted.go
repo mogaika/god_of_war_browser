@@ -79,7 +79,7 @@ func (p *TokDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader,
 			for _, enc := range f.Encounters {
 				if enc.Pack == packNumber {
 					if err := p.prepareStream(packNumber); err != nil {
-						log.Println("WARNING: Cannot open pack stream '%s': %v", err)
+						log.Printf("WARNING: Cannot open pack stream %d: %v", packNumber, err)
 					}
 					return f, io.NewSectionReader(p.Streams[packNumber], enc.Start, f.Size()), nil
 				}

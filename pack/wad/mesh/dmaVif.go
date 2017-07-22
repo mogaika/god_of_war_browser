@@ -274,145 +274,144 @@ type MeshParserState struct {
 }
 
 func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stBlock, error) {
-	if state.XYZW != nil {
-		currentBlock := &stBlock{HasTransparentBlending: false}
-		currentBlock.DebugPos = debugPos
-
-		countTrias := len(state.XYZW) / 8
-		currentBlock.Trias.X = make([]float32, countTrias)
-		currentBlock.Trias.Y = make([]float32, countTrias)
-		currentBlock.Trias.Z = make([]float32, countTrias)
-		currentBlock.Trias.Skip = make([]bool, countTrias)
-		for i := range currentBlock.Trias.X {
-			bp := i * 8
-			currentBlock.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixed12Point4Delimeter
-			currentBlock.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixed12Point4Delimeter
-			currentBlock.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixed12Point4Delimeter
-			currentBlock.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
-		}
-
-		if state.UV != nil {
-			switch state.UVWidth {
-			case 2:
-				uvCount := len(state.UV) / 4
-				currentBlock.Uvs.U = make([]float32, uvCount)
-				currentBlock.Uvs.V = make([]float32, uvCount)
-				for i := range currentBlock.Uvs.U {
-					bp := i * 4
-					currentBlock.Uvs.U[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp:bp+2]))) / GSFixed12Point4Delimeter1000
-					currentBlock.Uvs.V[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp+2:bp+4]))) / GSFixed12Point4Delimeter1000
-				}
-			case 4:
-				uvCount := len(state.UV) / 8
-				currentBlock.Uvs.U = make([]float32, uvCount)
-				currentBlock.Uvs.V = make([]float32, uvCount)
-				for i := range currentBlock.Uvs.U {
-					bp := i * 8
-					currentBlock.Uvs.U[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp:bp+4]))) / GSFixed12Point4Delimeter1000
-					currentBlock.Uvs.V[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp+4:bp+8]))) / GSFixed12Point4Delimeter1000
-				}
-			}
-		}
-
-		if state.Norm != nil {
-			normcnt := len(state.Norm) / 3
-			currentBlock.Norms.X = make([]float32, normcnt)
-			currentBlock.Norms.Y = make([]float32, normcnt)
-			currentBlock.Norms.Z = make([]float32, normcnt)
-			for i := range currentBlock.Norms.X {
-				bp := i * 3
-				currentBlock.Norms.X[i] = float32(int8(state.Norm[bp])) / 100.0
-				currentBlock.Norms.Y[i] = float32(int8(state.Norm[bp+1])) / 100.0
-				currentBlock.Norms.Z[i] = float32(int8(state.Norm[bp+2])) / 100.0
-			}
-		}
-
-		if state.RGBA != nil {
-			rgbacnt := len(state.RGBA) / 4
-			currentBlock.Blend.R = make([]uint16, rgbacnt)
-			currentBlock.Blend.G = make([]uint16, rgbacnt)
-			currentBlock.Blend.B = make([]uint16, rgbacnt)
-			currentBlock.Blend.A = make([]uint16, rgbacnt)
-			for i := range currentBlock.Blend.R {
-				bp := i * 4
-				currentBlock.Blend.R[i] = uint16(state.RGBA[bp])
-				currentBlock.Blend.G[i] = uint16(state.RGBA[bp+1])
-				currentBlock.Blend.B[i] = uint16(state.RGBA[bp+2])
-				currentBlock.Blend.A[i] = uint16(state.RGBA[bp+3])
-			}
-			for _, a := range currentBlock.Blend.A {
-				if a < 0x80 {
-					currentBlock.HasTransparentBlending = true
-					break
-				}
-			}
-		}
-
-		if state.VertexMeta != nil {
-			blocks := len(state.VertexMeta) / 16
-			vertexes := len(currentBlock.Trias.X)
-
-			currentBlock.Joints = make([]uint16, vertexes)
-
-			vertnum := 0
-			for i := 0; i < blocks; i++ {
-				block := state.VertexMeta[i*16 : i*16+16]
-				if i == 0 && block[4] == 4 {
-					currentBlock.Joints2 = make([]uint16, vertexes)
-				}
-
-				block_verts := int(block[0])
-
-				for j := 0; j < block_verts; j++ {
-					currentBlock.Joints[vertnum+j] = uint16(block[13] >> 4)
-					if currentBlock.Joints2 != nil {
-						currentBlock.Joints2[vertnum+j] = uint16(block[12] >> 2)
-					}
-				}
-
-				vertnum += block_verts
-
-				if block[1]&0x80 != 0 {
-					if i != blocks-1 {
-						return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
-					}
-				}
-			}
-			if vertnum != vertexes {
-				return nil, fmt.Errorf("Vertnum != vertexes count: %v <= %v", vertnum, vertexes)
-			}
-		}
-
-		fmt.Fprintf(debugOut, "    = Flush xyzw:%t, rgba:%t, uv:%t, norm:%t, vmeta:%t (%d)\n",
-			state.XYZW != nil, state.RGBA != nil, state.UV != nil,
-			state.Norm != nil, state.VertexMeta != nil, len(currentBlock.Trias.X))
-
-		atoStr := func(a []byte) string {
-			u16 := func(barr []byte, id int) uint16 {
-				return binary.LittleEndian.Uint16(barr[id*2 : id*2+2])
-			}
-			return fmt.Sprintf("%.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %4x",
-				u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3),
-				u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
-			)
-		}
-
-		fmt.Fprintf(debugOut, "  Vertex Meta:\n")
-		for i := 0; i < len(state.VertexMeta)/16; i++ {
-			fmt.Fprintf(debugOut, "  %s\n", atoStr(state.VertexMeta[i*16:i*16]))
-		}
-
-		fmt.Fprintf(debugOut, "         Meta:\n")
-		for i := 0; i < len(state.Meta)/16; i++ {
-			fmt.Fprintf(debugOut, "  %s\n", atoStr(state.Meta[i*16:i*16]))
-		}
-
-		return currentBlock, nil
-	} else {
+	if state.XYZW == nil {
 		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
-			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: %x. State: %+#v", debugPos)
+			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: %x. State: %+#v", debugPos, state)
 		}
 		return nil, nil
 	}
-	return nil, nil
+
+	currentBlock := &stBlock{HasTransparentBlending: false}
+	currentBlock.DebugPos = debugPos
+
+	countTrias := len(state.XYZW) / 8
+	currentBlock.Trias.X = make([]float32, countTrias)
+	currentBlock.Trias.Y = make([]float32, countTrias)
+	currentBlock.Trias.Z = make([]float32, countTrias)
+	currentBlock.Trias.Skip = make([]bool, countTrias)
+	for i := range currentBlock.Trias.X {
+		bp := i * 8
+		currentBlock.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixed12Point4Delimeter
+		currentBlock.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixed12Point4Delimeter
+		currentBlock.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixed12Point4Delimeter
+		currentBlock.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
+	}
+
+	if state.UV != nil {
+		switch state.UVWidth {
+		case 2:
+			uvCount := len(state.UV) / 4
+			currentBlock.Uvs.U = make([]float32, uvCount)
+			currentBlock.Uvs.V = make([]float32, uvCount)
+			for i := range currentBlock.Uvs.U {
+				bp := i * 4
+				currentBlock.Uvs.U[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp:bp+2]))) / GSFixed12Point4Delimeter1000
+				currentBlock.Uvs.V[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp+2:bp+4]))) / GSFixed12Point4Delimeter1000
+			}
+		case 4:
+			uvCount := len(state.UV) / 8
+			currentBlock.Uvs.U = make([]float32, uvCount)
+			currentBlock.Uvs.V = make([]float32, uvCount)
+			for i := range currentBlock.Uvs.U {
+				bp := i * 8
+				currentBlock.Uvs.U[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp:bp+4]))) / GSFixed12Point4Delimeter1000
+				currentBlock.Uvs.V[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp+4:bp+8]))) / GSFixed12Point4Delimeter1000
+			}
+		}
+	}
+
+	if state.Norm != nil {
+		normcnt := len(state.Norm) / 3
+		currentBlock.Norms.X = make([]float32, normcnt)
+		currentBlock.Norms.Y = make([]float32, normcnt)
+		currentBlock.Norms.Z = make([]float32, normcnt)
+		for i := range currentBlock.Norms.X {
+			bp := i * 3
+			currentBlock.Norms.X[i] = float32(int8(state.Norm[bp])) / 100.0
+			currentBlock.Norms.Y[i] = float32(int8(state.Norm[bp+1])) / 100.0
+			currentBlock.Norms.Z[i] = float32(int8(state.Norm[bp+2])) / 100.0
+		}
+	}
+
+	if state.RGBA != nil {
+		rgbacnt := len(state.RGBA) / 4
+		currentBlock.Blend.R = make([]uint16, rgbacnt)
+		currentBlock.Blend.G = make([]uint16, rgbacnt)
+		currentBlock.Blend.B = make([]uint16, rgbacnt)
+		currentBlock.Blend.A = make([]uint16, rgbacnt)
+		for i := range currentBlock.Blend.R {
+			bp := i * 4
+			currentBlock.Blend.R[i] = uint16(state.RGBA[bp])
+			currentBlock.Blend.G[i] = uint16(state.RGBA[bp+1])
+			currentBlock.Blend.B[i] = uint16(state.RGBA[bp+2])
+			currentBlock.Blend.A[i] = uint16(state.RGBA[bp+3])
+		}
+		for _, a := range currentBlock.Blend.A {
+			if a < 0x80 {
+				currentBlock.HasTransparentBlending = true
+				break
+			}
+		}
+	}
+
+	if state.VertexMeta != nil {
+		blocks := len(state.VertexMeta) / 16
+		vertexes := len(currentBlock.Trias.X)
+
+		currentBlock.Joints = make([]uint16, vertexes)
+
+		vertnum := 0
+		for i := 0; i < blocks; i++ {
+			block := state.VertexMeta[i*16 : i*16+16]
+			if i == 0 && block[4] == 4 {
+				currentBlock.Joints2 = make([]uint16, vertexes)
+			}
+
+			block_verts := int(block[0])
+
+			for j := 0; j < block_verts; j++ {
+				currentBlock.Joints[vertnum+j] = uint16(block[13] >> 4)
+				if currentBlock.Joints2 != nil {
+					currentBlock.Joints2[vertnum+j] = uint16(block[12] >> 2)
+				}
+			}
+
+			vertnum += block_verts
+
+			if block[1]&0x80 != 0 {
+				if i != blocks-1 {
+					return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
+				}
+			}
+		}
+		if vertnum != vertexes {
+			return nil, fmt.Errorf("Vertnum != vertexes count: %v <= %v", vertnum, vertexes)
+		}
+	}
+
+	fmt.Fprintf(debugOut, "    = Flush xyzw:%t, rgba:%t, uv:%t, norm:%t, vmeta:%t (%d)\n",
+		state.XYZW != nil, state.RGBA != nil, state.UV != nil,
+		state.Norm != nil, state.VertexMeta != nil, len(currentBlock.Trias.X))
+
+	atoStr := func(a []byte) string {
+		u16 := func(barr []byte, id int) uint16 {
+			return binary.LittleEndian.Uint16(barr[id*2 : id*2+2])
+		}
+		return fmt.Sprintf("%.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %4x",
+			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3),
+			u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
+		)
+	}
+
+	fmt.Fprintf(debugOut, "  Vertex Meta:\n")
+	for i := 0; i < len(state.VertexMeta)/16; i++ {
+		fmt.Fprintf(debugOut, "  %s\n", atoStr(state.VertexMeta[i*16:i*16]))
+	}
+
+	fmt.Fprintf(debugOut, "         Meta:\n")
+	for i := 0; i < len(state.Meta)/16; i++ {
+		fmt.Fprintf(debugOut, "  %s\n", atoStr(state.Meta[i*16:i*16]))
+	}
+
+	return currentBlock, nil
 }

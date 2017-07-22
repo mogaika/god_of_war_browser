@@ -94,7 +94,7 @@ func ParseFiles(tokStream io.Reader) (map[string]*File, error) {
 		}
 
 		if e.Size != file.Size() {
-			log.Printf("[tok] Tok file corrupted! Finded same file but with different size! '%s' %d!=%d", e.Name, e.Size, file.Size)
+			log.Printf("[tok] Tok file corrupted! Finded same file but with different size! '%s' %d!=%d", e.Name, e.Size, file.Size())
 		}
 
 		file.Encounters = append(file.Encounters, e.Enc)
@@ -123,7 +123,7 @@ func UpdateFile(fTokOriginal io.Reader, fTokNew io.Writer, partStreams [PARTS_CO
 				break
 			}
 			if e.Size != f.Size() {
-				log.Printf("[pack] Warning! Tok entry '%s': incorrect file size, file may be unconsistent: %d != %d",
+				log.Printf("[pack] Warning! Tok entry '%s': incorrect file size, file may be inconsistent: %d != %d",
 					e.Name, e.Size, f.Size())
 			}
 			if e.Name == f.Name() {

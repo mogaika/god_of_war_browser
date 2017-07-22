@@ -25,7 +25,7 @@ func WriteJson(w http.ResponseWriter, data interface{}) {
 func WriteResult(w http.ResponseWriter, data []byte) {
 	_, err := w.Write(data)
 	if err != nil {
-		log.Printf("Error when writing reponse: %v", err)
+		log.Printf("Error when writing response: %v", err)
 	}
 }
 

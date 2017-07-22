@@ -36,7 +36,7 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 					wi("usemtl %s", materials[object.MaterialId])
 				}
 
-				for i, _ := range object.Blocks {
+				for i := range object.Blocks {
 					for _, b := range object.Blocks[i] {
 						haveUV := b.Uvs.U != nil
 						haveNorm := b.Norms.X != nil
@@ -96,7 +96,7 @@ func (mesh *Mesh) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *h
 	switch action {
 	case "obj":
 		var buf bytes.Buffer
-		log.Println("Error when exporting mesh: %v", mesh.ExportObj(&buf, nil, nil))
+		log.Printf("Error when exporting mesh: %v", mesh.ExportObj(&buf, nil, nil))
 		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".obj")
 	}
 }
