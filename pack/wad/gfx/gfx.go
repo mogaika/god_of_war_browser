@@ -22,6 +22,7 @@ type GFX struct {
 	Encoding   uint32
 	Bpi        uint32
 	DatasCount uint32
+	DataSize   uint32
 	Data       [][]byte `json:"-"`
 }
 
@@ -59,13 +60,19 @@ var GsPsm map[int]string = map[int]string{
 	GS_PSM_PSMZ16S:  "GS_PSM_PSMZ16S",
 }
 
+func IndexSwizzlePalette(i int) int {
+	remap := []int{0, 2, 1, 3}
+	blockid := i / 8
+	blockpos := i % 8
+	return blockpos + (remap[blockid%4]+(blockid/4)*4)*8
+}
+
 func (gfx *GFX) AsRawPallet(idx int) ([]uint32, error) {
 	palbuf := gfx.Data[idx]
 
 	colors := gfx.Width * gfx.Height / gfx.DatasCount
 
 	pallet := make([]uint32, colors)
-	remap := []int{0, 2, 1, 3}
 
 	for i := range pallet {
 		clr := binary.LittleEndian.Uint32(palbuf[i*4 : i*4+4])
@@ -75,12 +82,7 @@ func (gfx *GFX) AsRawPallet(idx int) ([]uint32, error) {
 		case 32:
 			fallthrough
 		case 16:
-			blockid := i / 8
-			blockpos := i % 8
-
-			newpos := blockpos + (remap[blockid%4]+(blockid/4)*4)*8
-			pallet[newpos] = clr
-
+			pallet[IndexSwizzlePalette(i)] = clr
 		default:
 			return nil, fmt.Errorf("Wrong pallet height: %d", gfx.Height)
 		}
@@ -88,7 +90,7 @@ func (gfx *GFX) AsRawPallet(idx int) ([]uint32, error) {
 	return pallet, nil
 }
 
-func (gfx *GFX) AsPallet(idx int, adjustAlpha bool) ([]color.NRGBA, error) {
+func (gfx *GFX) AsPallet(idx int, convertAlphaToPCformat bool) ([]color.NRGBA, error) {
 	rawPal, err := gfx.AsRawPallet(idx)
 	if err != nil {
 		return nil, err
@@ -102,7 +104,7 @@ func (gfx *GFX) AsPallet(idx int, adjustAlpha bool) ([]color.NRGBA, error) {
 			B: uint8(raw >> 16),
 			A: uint8(raw >> 24),
 		}
-		if adjustAlpha {
+		if convertAlphaToPCformat {
 			clr.A = uint8(float32(clr.A) * (255.0 / 128.0))
 		}
 		pallet[i] = clr
@@ -111,11 +113,11 @@ func (gfx *GFX) AsPallet(idx int, adjustAlpha bool) ([]color.NRGBA, error) {
 	return pallet, nil
 }
 
-func (gfx *GFX) UnswizzlePosition(x, y uint32) uint32 {
-	block_location := (y&(math.MaxUint32^0xf))*gfx.Width + (x&(math.MaxUint32^0xf))*2
+func IndexUnswizzleTexture(x, y, width uint32) uint32 {
+	block_location := (y&(math.MaxUint32^0xf))*width + (x&(math.MaxUint32^0xf))*2
 	swap_selector := (((y + 2) >> 2) & 0x1) * 4
 	posY := (((y & (math.MaxUint32 ^ 3)) >> 1) + (y & 1)) & 0x7
-	column_location := posY*gfx.Width*2 + ((x+swap_selector)&0x7)*4
+	column_location := posY*width*2 + ((x+swap_selector)&0x7)*4
 
 	byte_num := ((y >> 1) & 1) + ((x >> 2) & 2)
 	return block_location + column_location + byte_num
@@ -132,7 +134,7 @@ func (gfx *GFX) AsPalletIndexes(idx int) []byte {
 		for y := uint32(0); y < gfx.Height; y++ {
 			for x := uint32(0); x < gfx.Width; x++ {
 				if gfx.Encoding&2 == 0 {
-					pos := gfx.UnswizzlePosition(x, y)
+					pos := IndexUnswizzleTexture(x, y, gfx.Width)
 					if pos < uint32(len(data)) {
 						indexes[x+y*gfx.Width] = data[pos]
 					} else {
@@ -196,31 +198,24 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 	}
 
 	gfx.Data = make([][]byte, gfx.DatasCount)
+	gfx.Psm = GsPsm[gfx.GetPSM()]
 
 	if gfx.Magic != GFX_MAGIC {
 		return nil, errors.New("Wrong magic.")
 	}
 
 	pos := uint32(24)
-	//log.Printf("Gfx datas count: %v; bpi: %v; w: %v; h: %v, enc: %v",
-	//	gfx.DatasCount, gfx.Bpi, gfx.Width, gfx.Height, gfx.Encoding)
-	dataSize := (gfx.Width * gfx.Height * gfx.Bpi) / 8
-	dataSize /= gfx.DatasCount
+	gfx.DataSize = ((((gfx.Width * gfx.Height) / gfx.DatasCount) * gfx.Bpi) / 8)
 	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
-		gfx.Data[iData] = buf[pos : pos+dataSize]
-		pos += dataSize
+		gfx.Data[iData] = buf[pos : pos+gfx.DataSize]
+		pos += gfx.DataSize
 	}
-
-	gfx.Psm = GsPsm[gfx.GetPSM()]
 
 	return gfx, nil
 }
 
 func (gfx *GFX) MarshalToBinary() ([]byte, error) {
-	if gfx.DatasCount != 1 {
-		return nil, fmt.Errorf("Not support gfx.ToBinary where gfx.DatasCount != 1 (%d)", gfx.DatasCount)
-	}
-	buf := make([]byte, 24+len(gfx.Data[0]))
+	buf := make([]byte, 24+gfx.DataSize*gfx.DatasCount)
 
 	binary.LittleEndian.PutUint32(buf[0:4], gfx.Magic)
 	binary.LittleEndian.PutUint32(buf[4:8], gfx.Width)
@@ -228,7 +223,12 @@ func (gfx *GFX) MarshalToBinary() ([]byte, error) {
 	binary.LittleEndian.PutUint32(buf[12:16], gfx.Encoding)
 	binary.LittleEndian.PutUint32(buf[16:20], gfx.Bpi)
 	binary.LittleEndian.PutUint32(buf[20:24], gfx.DatasCount)
-	copy(buf[24:], gfx.Data[0])
+
+	pos := uint32(24)
+	for i := range gfx.Data {
+		copy(buf[pos:pos+gfx.DataSize], gfx.Data[i])
+		pos += gfx.DataSize
+	}
 
 	return buf, nil
 }

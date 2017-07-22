@@ -484,10 +484,11 @@ function loadMdlFromAjax(mdl, data, parseScripts=false, needTable=false) {
 	        if (textures && textures.length && textures[layerId]) {
 	            var imgs = textures[layerId].Images;
 	            if (imgs && imgs.length && imgs[0]) {
+					//var img = imgs[imgs.length-1].Image;
 					var img = imgs[0].Image;
 					if (rawMat.Layers[layerId].ParsedFlags.RenderingStrangeBlended === true) {
 						console.log('COLORONLY ONE');
-						img = imgs[0].ColorOnly;
+						img = img.ColorOnly;
 					}
 					material.setDiffuse(new grTexture('data:image/png;base64,' + img));
 					material.setHasAlphaAttribute(textures[layerId].HaveTransparent);
