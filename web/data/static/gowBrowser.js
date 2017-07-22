@@ -143,12 +143,13 @@ function treeLoadWad(wadName, data) {
 			} else {
 				li.append(' [' + node.Tag.Tag + ']');
 			}
-            
+
 			li.append($('<a download>')
                     .addClass('button-dump')
                     .attr('href', '/dump/pack/' + wadName + '/' + node.Tag.Id))
 
             if (node.SubGroupNodes) {
+				console.log(node);
                 li.append(addNodes(node.SubGroupNodes));
             }
             ol.append(li);
