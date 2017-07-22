@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/mogaika/god_of_war_browser)](https://goreportcard.com/report/github.com/mogaika/god_of_war_browser)
+
 # God of War game browser
 Tool helps to investigate files formats of the game.
 Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*
