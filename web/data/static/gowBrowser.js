@@ -149,7 +149,6 @@ function treeLoadWad(wadName, data) {
                     .attr('href', '/dump/pack/' + wadName + '/' + node.Tag.Id))
 
             if (node.SubGroupNodes) {
-				console.log(node);
                 li.append(addNodes(node.SubGroupNodes));
             }
             ol.append(li);

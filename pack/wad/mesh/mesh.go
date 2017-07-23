@@ -208,6 +208,7 @@ func init() {
 			defer f.Close()
 			exlognil := f
 		*/
+
 		exlognil := bytes.NewBuffer(nil)
 
 		m, err := NewFromData(wrsrc.Tag.Data, exlognil)

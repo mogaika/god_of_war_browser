@@ -26,7 +26,7 @@ func clrToUint32(c color.Color) uint32 {
 	return r | g<<8 | b<<16 | a<<24
 }
 
-func imgToPaletteAndIndex(img image.Image) (color.Palette, []byte) {
+func imgToPaletteAndIndex(img image.Image, swizzleGfx bool) (color.Palette, []byte) {
 	type clrCounter struct {
 		uc     uint32
 		c      color.Color
@@ -71,9 +71,11 @@ func imgToPaletteAndIndex(img image.Image) (color.Palette, []byte) {
 	idx := make([]byte, b.X*b.Y)
 	for y := 0; y < b.Y; y++ {
 		for x := 0; x < b.X; x++ {
-			swizzledpos := file_gfx.IndexUnswizzleTexture(uint32(x), uint32(y), uint32(b.X))
-			//idx[y*b.X+x] = byte(pal.Index(img.At(x, y)))
-			idx[swizzledpos] = byte(pal.Index(img.At(x, y)))
+			if swizzleGfx {
+				idx[file_gfx.IndexUnswizzleTexture(uint32(x), uint32(y), uint32(b.X))] = byte(pal.Index(img.At(x, y)))
+			} else {
+				idx[y*b.X+x] = byte(pal.Index(img.At(x, y)))
+			}
 		}
 	}
 
@@ -125,12 +127,12 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 
 	b := img.Bounds().Max
 	log.Println("Calculating palette...")
-	newPal, newIdx := imgToPaletteAndIndex(img)
+	newPal, newIdx := imgToPaletteAndIndex(img, gfxc.Encoding == 0)
 	log.Println("done")
 
 	gfxc.Data[0] = newIdx
 	gfxc.Bpi = 8
-	gfxc.Encoding = 0 // swizzled
+	// gfxc.Encoding = do not change
 	gfxc.Width = uint32(b.X)
 	gfxc.Height = uint32(b.Y)
 

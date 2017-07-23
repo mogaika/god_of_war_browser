@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/mogaika/god_of_war_browser/ps2/dma"
 	"github.com/mogaika/god_of_war_browser/ps2/vif"
@@ -397,20 +398,32 @@ func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stB
 		u16 := func(barr []byte, id int) uint16 {
 			return binary.LittleEndian.Uint16(barr[id*2 : id*2+2])
 		}
-		return fmt.Sprintf("%.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %4x",
+		u32 := func(barr []byte, id int) uint32 {
+			return binary.LittleEndian.Uint32(barr[id*4 : id*4+4])
+		}
+		f32 := func(barr []byte, id int) float32 {
+			return math.Float32frombits(u32(barr, id))
+		}
+		return fmt.Sprintf(" %.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %.4x   |  %.8x %.8x %.8x %.8x |  %f  %f  %f  %f",
 			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3),
 			u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
+			u32(a, 0), u32(a, 1), u32(a, 2), u32(a, 3),
+			f32(a, 0), f32(a, 1), f32(a, 2), f32(a, 3),
 		)
 	}
 
-	fmt.Fprintf(debugOut, "  Vertex Meta:\n")
-	for i := 0; i < len(state.VertexMeta)/16; i++ {
-		fmt.Fprintf(debugOut, "  %s\n", atoStr(state.VertexMeta[i*16:i*16]))
+	if len(state.VertexMeta) != 0 {
+		fmt.Fprintf(debugOut, "  Vertex Meta:\n")
+		for i := 0; i < len(state.VertexMeta)/16; i++ {
+			fmt.Fprintf(debugOut, "  %s\n", atoStr(state.VertexMeta[i*16:i*16]))
+		}
 	}
 
-	fmt.Fprintf(debugOut, "         Meta:\n")
-	for i := 0; i < len(state.Meta)/16; i++ {
-		fmt.Fprintf(debugOut, "  %s\n", atoStr(state.Meta[i*16:i*16]))
+	if len(state.Meta) != 0 {
+		fmt.Fprintf(debugOut, "         Meta:\n")
+		for i := 0; i < len(state.Meta)/16; i++ {
+			fmt.Fprintf(debugOut, "  %s\n            ", atoStr(state.Meta[i*16:i*16]))
+		}
 	}
 
 	return currentBlock, nil
