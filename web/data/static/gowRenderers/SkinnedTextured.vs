@@ -18,7 +18,9 @@ varying mediump vec2 vVertexUV;
 void main(void) {
 	vec4 pos = vec4(aVertexPos, 1.0);
 	if (uUseJoints) {
-		pos = umJoints[int(aVertexJointID)] * pos;
+		pos = umJoints[int(aVertexJointID)] * pos +  umJoints[int(aVertexJointID2)] * pos;
+		pos *= 0.5;
+		//pos = umJoints[int(aVertexJointID2)] * pos;
 	}
 	if (uUseModelTransform) {
 		pos = vec4((umModelTransform * pos).xyz, 1.0);

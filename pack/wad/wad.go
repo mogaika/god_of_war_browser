@@ -43,7 +43,7 @@ type Wad struct {
 	Nodes  []*Node
 	Roots  []NodeId
 
-	EntityCount uint32
+	HeapSizes map[string]uint32
 }
 
 type Tag struct {
@@ -147,6 +147,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 	}()
 
 	w.Tags = make([]Tag, 0)
+	w.HeapSizes = make(map[string]uint32)
 	var buf [WAD_ITEM_SIZE]byte
 	for id := TagId(0); ; id++ {
 		_, err := r.Read(buf[:])
@@ -162,7 +163,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 
 		if t.Tag == 0x18 {
 			// entity count
-			w.EntityCount = t.Size
+			w.HeapSizes[t.Name] = t.Size
 			t.Size = 0
 		}
 
@@ -235,7 +236,6 @@ func (w *Wad) parseTags() error {
 			}
 		case 0x28: // file data group start
 			newGroupTag = true // same realization in game
-			log.Println("group start")
 		case 0x32: // file data group end
 			// Tell server about group ended
 			if !newGroupTag {
@@ -286,13 +286,6 @@ func (w *Wad) parseTags() error {
 			addNode(tag)
 		default:
 			return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s", tag.Id, tag.Tag, tag.Name)
-		}
-	}
-
-	for _, n := range w.Nodes {
-		if n.SubGroupNodes != nil {
-			t := n.Tag
-			log.Printf("%.4d %.4x %s %v", t.Id, t.Tag, t.Name, n.SubGroupNodes)
 		}
 	}
 
@@ -363,7 +356,7 @@ func (w *Wad) UpdateTagsData(updateData map[TagId][]byte) error {
 	for _, t := range w.Tags {
 		data := t.Data
 		if t.Tag == 0x18 {
-			t.Size = w.EntityCount
+			t.Size = w.HeapSizes[t.Name]
 		} else {
 			if newdata, ex := updateData[t.Id]; ex {
 				data = newdata
