@@ -215,6 +215,10 @@ function treeLoadWadNode(wad, nodeid) {
 			
 			if (tag.Tag == 0x1e) {
 	            switch (resp.ServerId) {
+					case 0x00000021: // flp
+						set3dVisible(false);
+						needMarshalDump = true;
+						break;
 					case 0x00000018: // sbk blk
 					case 0x00040018: // sbk vag
 						summaryLoadWadSbk(data, wad, nodeid);
