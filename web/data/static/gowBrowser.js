@@ -82,15 +82,20 @@ function packLoad() {
 
 function packLoadFile(filename) {
     dataTree.empty();
+	dataSummary.empty();
     $.getJSON('/json/pack/' + filename, function(data) {
         var ext = filename.slice(-3).toLowerCase();
         switch (ext) {
             case 'wad':
                 treeLoadWad(filename, data);  
                 break;
+			case 'psw':
+			case 'pss':
+				treeLoadPswPss(filename, data);
+				break;
 			case 'vag':
 			case 'vpk':
-				treeLoadVagVpk(data, filename);
+				treeLoadVagVpk(filename, data);
 				break;
             default:
                 dataTree.append(JSON.stringify(data, undefined, 2).replaceAll('\n', '<br>'));
@@ -100,7 +105,7 @@ function packLoadFile(filename) {
     });
 }
 
-function treeLoadVagVpk(data, filename) {
+function treeLoadVagVpk(filename, data) {
 	set3dVisible(false);
 	setTitle(viewTree, filename);
 	var list = $("<ul>");
@@ -115,6 +120,26 @@ function treeLoadVagVpk(data, filename) {
 	
     setLocation(filename, '#/' + filename);
 }
+
+function treeLoadPswPss(filename, data) {
+	set3dVisible(false);
+	setTitle(viewTree, filename);
+	var wavPath = '/dump/pack/' + filename;
+	
+	var o = $('<EMBED pluginspage="http://www.videolan.org"\
+	    type="application/x-vlc-plugin"\
+	    version="VideoLAN.VLCPlugin.2"\
+	    width="640"\
+	    height="360"\
+	    toolbar="true"\
+	    loop="false"\
+	    name="vlc">');
+	o.attr('target', wavPath);
+	dataSummary.append(o);
+	
+    setLocation(filename, '#/' + filename);
+}
+
 
 function treeLoadWad(wadName, data) {
 	if (defferedLoadingWadNode) {
