@@ -23,6 +23,14 @@ func BytesToString(bs []byte) string {
 	return string(s)
 }
 
+func BytesStringLength(bs []byte) int {
+	if l := bytes.IndexByte(bs, 0); l == -1 {
+		return len(bs)
+	} else {
+		return l
+	}
+}
+
 func StringToBytes(s string, bufSize int, nilTerminate bool) []byte {
 	bs, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(s))
 	if err != nil {

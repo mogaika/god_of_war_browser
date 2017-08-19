@@ -28,7 +28,15 @@ const (
 )
 
 func posPad4(pos int) int {
-	return pos + (pos % 4)
+	if pos%4 != 0 {
+		newPos := pos + 4 - pos%4
+		if newPos&3 != 0 {
+			panic(fmt.Sprintf("How it even possible? %x + 4 - %x = %x", pos, pos%4, newPos))
+		}
+		return newPos
+	} else {
+		return pos
+	}
 }
 
 type Data1 struct {
@@ -56,9 +64,8 @@ func (d2 *Data2) FromBuf(buf []byte) int {
 func (d2 *Data2) Parse(buf []byte, pos int) int {
 	for j := range d2.Sub1s {
 		d2.Sub1s[j] = Data2Subtype1{
-			Color: binary.LittleEndian.Uint32(buf[pos:]),
-			Int1:  int16(binary.LittleEndian.Uint16(buf[pos+4:])),
-			Int2:  int16(binary.LittleEndian.Uint16(buf[pos+6:])),
+			Color:         binary.LittleEndian.Uint32(buf[pos:]),
+			TextureNameId: binary.LittleEndian.Uint32(buf[pos+4:]),
 		}
 		pos += DATA2_SUBTYPE1_ELEMENT_SIZE
 	}
@@ -66,8 +73,9 @@ func (d2 *Data2) Parse(buf []byte, pos int) int {
 }
 
 type Data2Subtype1 struct {
-	Color      uint32 //maybe
-	Int1, Int2 int16
+	// Texture Linkage
+	Color         uint32 //maybe
+	TextureNameId uint32
 }
 
 type Data3 struct {
@@ -139,9 +147,12 @@ func (d4 *Data4) Parse(buf []byte, pos int) int {
 	return posPad4(pos + copy(d4.Payload, buf[pos:pos+len(d4.Payload)]))
 }
 
-type Data5 struct{}
+type Data5 struct {
+	Payload []byte
+}
 
 func (d5 *Data5) FromBuf(buf []byte) int {
+	d5.Payload = buf
 	return DATA5_ELEMENT_SIZE
 }
 
@@ -156,11 +167,12 @@ func (d6 *Data6) FromBuf(buf []byte) int {
 }
 
 func (d6 *Data6) Parse(buf []byte, pos int) int {
-	log.Printf("d6 parsing pos: %#x", pos)
-	pos += d6.Sub1.FromBuf(buf)
+	pos = posPad4(pos)
+	pos += d6.Sub1.FromBuf(buf[pos:])
 	pos = d6.Sub1.Parse(buf, pos)
+
 	for i := range d6.Sub2s {
-		pos += d6.Sub2s[i].FromBuf(buf)
+		pos += d6.Sub2s[i].FromBuf(buf[pos:])
 	}
 	for i := range d6.Sub2s {
 		pos = d6.Sub2s[i].Parse(buf, pos)
@@ -180,23 +192,26 @@ func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
 }
 
 func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
-	for i := range d6s1.Sub1s {
-		pos += d6s1.Sub1s[i].FromBuf(buf)
-	}
+	/*
+		log.Printf("d6sub1 parsing pos: %#x {%d,%d} < b34c,b3bc,b608,e694,f214,f5e8,f720,f84c,fa20,fd0c,12398,123ac",
+			pos, len(d6s1.Sub1s), len(d6s1.Sub2s))
+	*/
 	pos = posPad4(pos)
+	for i := range d6s1.Sub1s {
+		pos += d6s1.Sub1s[i].FromBuf(buf[pos:])
+	}
 	for i := range d6s1.Sub1s {
 		pos = d6s1.Sub1s[i].Parse(buf, pos)
 	}
+
 	pos = posPad4(pos)
 	for i := range d6s1.Sub2s {
-		pos += d6s1.Sub2s[i].FromBuf(buf)
+		pos += d6s1.Sub2s[i].FromBuf(buf[pos:])
 	}
-	pos = posPad4(pos)
-	log.Printf("d6sub2 parsing pos: %#x", pos)
 	for i := range d6s1.Sub2s {
+		log.Printf("d6sub1sub2 %d parsing pos: %#x << [0x123cc,0x124b0,0x124d6]", i, pos)
 		pos = d6s1.Sub2s[i].Parse(buf, pos)
 	}
-	pos = posPad4(pos)
 	return pos
 }
 
@@ -210,15 +225,20 @@ func (d6s1s1 *Data6Subtype1Subtype1) FromBuf(buf []byte) int {
 }
 
 func (d6s1s1 *Data6Subtype1Subtype1) Parse(buf []byte, pos int) int {
+	//log.Printf("d6sub1sub1 parsing pos: %#x {%d} < b354,b3c4,b4e4,b610,e69c,f21c,f5f0,f728,f854,fa28,fd14", pos, len(d6s1s1.Subs))
+	pos = posPad4(pos)
 	for i := range d6s1s1.Subs {
-		pos += d6s1s1.Subs[i].FromBuf(buf)
+		pos += d6s1s1.Subs[i].FromBuf(buf[pos:])
 	}
-	return posPad4(pos)
+	return pos
 }
 
-type Data6Subtype1Subtype1Subtype1 struct{}
+type Data6Subtype1Subtype1Subtype1 struct {
+	Data []byte
+}
 
 func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) FromBuf(buf []byte) int {
+	d6s1s1s1.Data = buf[:DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE]
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
 
@@ -232,8 +252,9 @@ func (d6s1s2 *Data6Subtype1Subtype2) FromBuf(buf []byte) int {
 }
 
 func (d6s1s2 *Data6Subtype1Subtype2) Parse(buf []byte, pos int) int {
+	pos = posPad4(pos)
 	for i := range d6s1s2.Subs {
-		pos += d6s1s2.Subs[i].FromBuf(buf)
+		pos += d6s1s2.Subs[i].FromBuf(buf[pos:])
 	}
 	return pos
 }
@@ -247,7 +268,8 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
 	return DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE
 }
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
-	return posPad4(pos + copy(d6s1s2s1.Payload, buf[pos:pos+len(d6s1s2s1.Payload)]))
+	pos = posPad4(pos)
+	return pos + copy(d6s1s2s1.Payload, buf[pos:pos+len(d6s1s2s1.Payload)])
 }
 
 type Data6Subtype2 struct {
@@ -260,12 +282,13 @@ func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 }
 
 func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
-	return posPad4(pos + copy(d6s2.Payload, buf[pos:pos+len(d6s2.Payload)]))
+	pos = posPad4(pos)
+	return pos + copy(d6s2.Payload, buf[pos:pos+len(d6s2.Payload)])
 }
 
 type FLP struct {
 	Datas1 []Data1
-	Datas2 []Data2
+	Datas2 []Data2 // Textures
 	Datas3 []Data3
 	Datas4 []Data4
 	Datas5 []Data5
@@ -309,16 +332,12 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	for i := range f.Datas5 {
 		pos += f.Datas5[i].FromBuf(buf[pos:])
 	}
-	log.Printf("after fdata5: %#x", pos)
 
 	for i := range f.Datas6 {
 		pos += f.Datas6[i].FromBuf(buf[pos:])
 	}
 	for i := range f.Datas6 {
 		pos = f.Datas6[i].Parse(buf, pos)
-		if i == 3 {
-			return nil
-		}
 	}
 	log.Printf("after fdata6: %#x", pos)
 
