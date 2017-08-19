@@ -83,6 +83,9 @@ func GetEscFunc(scope, fid uint16) string {
 		case 0x7:
 			return "Goto? (s1)"
 
+		case 0x9:
+			return "AbortCutscene? (bool)"
+
 		case 0xa:
 			return "Print text on screen(type, messageID)"
 
@@ -228,41 +231,46 @@ func DecompileEscScript(b []byte, pointer int) string {
 type Entity struct {
 	Matrix mgl32.Mat4
 
-	Field_0x40         uint16
-	Size               uint16
-	EntityType         uint16
-	EntityUniqueID     uint16
-	Field_0x4a         uint16
-	Field_0x4c         uint16
-	HandlersCount      uint16
-	Field_0x50         uint16
-	OpcodesStreamsSize uint16
+	Field_0x40           uint16
+	Size                 uint16
+	EntityType           uint16
+	EntityUniqueID       uint16
+	Field_0x4a           uint16
+	StringsCount         uint16
+	HandlersCount        uint16
+	DependsEntitiesCount uint16
+	OpcodesStreamsSize   uint16
 
-	Name     string
-	Handlers map[uint16]EntityHandler
+	DependsEntitiesIds []uint16
+	Name               string
+	Handlers           map[uint16]EntityHandler
 }
 
 func EntityFromBytes(b []byte) *Entity {
 	e := &Entity{
-		Field_0x40:         binary.LittleEndian.Uint16(b[0x40:]),
-		Size:               binary.LittleEndian.Uint16(b[0x44:]),
-		EntityType:         binary.LittleEndian.Uint16(b[0x46:]),
-		EntityUniqueID:     binary.LittleEndian.Uint16(b[0x48:]),
-		Field_0x4a:         binary.LittleEndian.Uint16(b[0x4a:]),
-		Field_0x4c:         binary.LittleEndian.Uint16(b[0x4c:]),
-		HandlersCount:      binary.LittleEndian.Uint16(b[0x4e:]),
-		Field_0x50:         binary.LittleEndian.Uint16(b[0x50:]),
-		OpcodesStreamsSize: binary.LittleEndian.Uint16(b[0x52:]),
-		Handlers:           make(map[uint16]EntityHandler),
+		Field_0x40:           binary.LittleEndian.Uint16(b[0x40:]),
+		Size:                 binary.LittleEndian.Uint16(b[0x44:]),
+		EntityType:           binary.LittleEndian.Uint16(b[0x46:]),
+		EntityUniqueID:       binary.LittleEndian.Uint16(b[0x48:]),
+		Field_0x4a:           binary.LittleEndian.Uint16(b[0x4a:]),
+		StringsCount:         binary.LittleEndian.Uint16(b[0x4c:]),
+		HandlersCount:        binary.LittleEndian.Uint16(b[0x4e:]),
+		DependsEntitiesCount: binary.LittleEndian.Uint16(b[0x50:]),
+		OpcodesStreamsSize:   binary.LittleEndian.Uint16(b[0x52:]),
+		Handlers:             make(map[uint16]EntityHandler),
 	}
 
-	textStart := 0x54 + e.OpcodesStreamsSize + e.HandlersCount*4 + e.Field_0x50*2
+	textStart := int(0x54 + e.OpcodesStreamsSize + e.HandlersCount*4 + e.DependsEntitiesCount*2)
 	e.Name = utils.BytesToString(b[textStart:])
 
-	//utils.Dump(e.Name, e.EntityType)
-
 	opcodesDescrStart := uint16(0x54)
-	opcodesStreamStart := int(opcodesDescrStart + e.HandlersCount*4 + e.Field_0x50*2 + 2)
+
+	e.DependsEntitiesIds = make([]uint16, e.DependsEntitiesCount)
+	for i := range e.DependsEntitiesIds {
+		e.DependsEntitiesIds[i] = binary.LittleEndian.Uint16(b[opcodesDescrStart+e.HandlersCount*4+uint16(i*2):])
+	}
+
+	opcodesStreamStart := int(opcodesDescrStart + e.HandlersCount*4 + e.DependsEntitiesCount*2 + 2)
 
 	opcodesStream := b[opcodesStreamStart:]
 

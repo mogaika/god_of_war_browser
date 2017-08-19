@@ -927,9 +927,12 @@ function summaryLoadWadScript(data) {
                             .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
                     }
                 } else {
-                    if (j == "Matrix") {
-                        v = JSON.stringify(v);
-                    }
+					switch (j) {
+						case "Matrix":
+						case "DependsEntitiesIds":
+							v = JSON.stringify(v);
+							break;
+					}
                     ht.append(
                         $("<tr>").append($("<td>").append(j))
                         .append($("<td>").append(v)));
