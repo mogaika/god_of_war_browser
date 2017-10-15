@@ -20,7 +20,7 @@ Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*
 
 ## What if I want to mod game?
 You can! But it is hard at this point :(
-- You can change textures in browser! Open TXR_ resource and use upload form (png,jpg,gif support)
+- You can change textures in browser! Open TXR_ resource and use upload form (png,jpg,gif support). But first time you upload larger texture, it takes a while (~3-10min, depends on hard drive and memory) to rearrange resources in pack file to create free space.
 - For other files follow:
   - Download required wads using god_of_war_browser web interface
   - Use [wadunpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadunpack) to unpack wad where you want to make change
