@@ -138,7 +138,7 @@ func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 					if pos < uint32(len(data)) {
 						indexes[x+y*gfx.Width] = data[pos]
 					} else {
-						log.Printf("Warning: Texture missed var: len=%v < pos=%v, x=%v, y=%v", len(data), pos, x, y)
+						//log.Printf("Warning: Texture missed var: len=%v < pos=%v, x=%v, y=%v. w=%v h=%v", len(data), pos, x, y, gfx.Width, gfx.Height)
 					}
 				} else {
 					indexes[x+y*gfx.Width] = data[x+y*gfx.Width]
@@ -225,8 +225,11 @@ func (gfx *GFX) MarshalToBinary() ([]byte, error) {
 	binary.LittleEndian.PutUint32(buf[20:24], gfx.DatasCount)
 
 	pos := uint32(24)
-	for i := range gfx.Data {
-		copy(buf[pos:pos+gfx.DataSize], gfx.Data[i])
+	for i, data := range gfx.Data {
+		if len(data) != int(gfx.DataSize) {
+			log.Println("WARNING: GFX.MarshalToBinary: data ", i, "datasize != len(data): ", gfx.DataSize, len(data))
+		}
+		copy(buf[pos:pos+gfx.DataSize], data)
 		pos += gfx.DataSize
 	}
 

@@ -72,7 +72,7 @@ func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
 	n := w.GetNodeById(id)
 	if han, ex := gTagHandlers[n.Tag.Tag]; ex {
 		h = han
-	} else if n.Tag.Tag == 0x1e {
+	} else if n.Tag.Tag == TAG_SERVER_INSTANCE {
 		if n.Tag.Data != nil && len(n.Tag.Data) >= 4 {
 			serverId = binary.LittleEndian.Uint32(n.Tag.Data)
 			if han, ex := gHandlers[serverId]; ex {
@@ -224,7 +224,7 @@ func (w *Wad) parseTags() error {
 	for id := range w.Tags {
 		tag := w.GetTagById(TagId(id))
 		switch tag.Tag {
-		case 0x1e: // file data packet
+		case TAG_SERVER_INSTANCE: // file data packet
 			// Tell file server (server determined by first uint16)
 			// that new file is loaded
 			// if name start with space, then name ignored (unnamed)
@@ -234,9 +234,9 @@ func (w *Wad) parseTags() error {
 				newGroupTag = false
 				currentNode = n.Id
 			}
-		case 0x28: // file data group start
+		case TAG_FILE_GROUP_START: // file data group start
 			newGroupTag = true // same realization in game
-		case 0x32: // file data group end
+		case TAG_FILE_GROUP_END: // file data group end
 			// Tell server about group ended
 			if !newGroupTag {
 				// theres been some nodes and we change currentNode
@@ -247,41 +247,40 @@ func (w *Wad) parseTags() error {
 			} else {
 				newGroupTag = false
 			}
-		case 0x18: // entity count
+		case TAG_ENTITY_COUNT: // entity count
 			// Game also add empty named node to nodedirectory?
-		case 0x006e: // MC_DATA   < R_PERM.WAD
+		case TAG_FILE_MC_DATA: // MC_DATA   < R_PERM.WAD
 			// Just add node to nodedirectory
 			addNode(tag)
-		case 0x006f: // MC_ICON   < R_PERM.WAD
+		case TAG_FILE_MC_ICON: // MC_ICON   < R_PERM.WAD
 			// Like 0x006e, but also store size of data
 			addNode(tag)
-		case 0x0070: // MSH_BDepoly6Shape
+		case TAG_FILE_RAW_DATA: // MSH_BDepoly6Shape
 			// Add node to nodedirectory only if
 			// another node with this name not exists
 			addNode(tag)
-		case 0x0071: // TWK_Cloth_195
+		case TAG_TWK_INSTANCE: // TWK_Cloth_195
 			// Tweaks affect VFS of game
 			// AI logics, animation
 			// exec twk asap?
 			addNode(tag)
-		case 0x0072: // TWK_CombatFile_328
+		case TAG_TWK_OBJECT: // TWK_CombatFile_328
 			// Affect VFS too
 			// store twk in mem?
 			addNode(tag)
-		case 0x01f4: // RSRCS
+		case TAG_RSRCS: // RSRCS
 			// probably affect WadReader
 			// (internally transformed to R_RSRCS)
 			addNode(tag)
-		case 0x029a, 0x50, 0x309: // file data start
-			// synonyms - 0x50, 0x309
+		case TAG_DATA_START1, TAG_DATA_START2, TAG_DATA_START3: // file data start
 			// PopBatchServerStack of server from first uint16
 			addNode(tag)
-		case 0x0378: // file header start
+		case TAG_HEADER_START: // file header start
 			// create new memory namespace and push to memorystack
 			// create new nodedirectory and push to nodestack
 			// data loading init
 			addNode(tag)
-		case 0x03e7: // file header pop heap
+		case TAG_HEADER_POP: // file header pop heap
 			// data loading structs cleanup
 			addNode(tag)
 		default:
@@ -318,7 +317,7 @@ func (w *Wad) GetNodeById(nodeId NodeId) *Node {
 		return nil
 	}
 	n := w.Nodes[nodeId]
-	if n.Tag.Tag == 0x1e {
+	if n.Tag.Tag == TAG_SERVER_INSTANCE {
 		if n.Tag.Size == 0 {
 			linked := w.GetNodeByName(n.Tag.Name, n.Id-1, false)
 			if linked != nil && linked.Tag.Data != nil && len(linked.Tag.Data) >= 4 {
@@ -355,12 +354,14 @@ func (w *Wad) UpdateTagsData(updateData map[TagId][]byte) error {
 
 	for _, t := range w.Tags {
 		data := t.Data
-		if t.Tag == 0x18 {
+		if t.Tag == TAG_ENTITY_COUNT {
 			t.Size = w.HeapSizes[t.Name]
 		} else {
 			if newdata, ex := updateData[t.Id]; ex {
 				data = newdata
+				log.Println("Changing size from ", t.Size, " to ", len(data))
 			}
+			t.Size = uint32(len(data))
 		}
 
 		buf.Write(MarshalTag(&t))

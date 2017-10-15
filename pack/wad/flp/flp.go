@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 const (
@@ -39,14 +40,15 @@ func posPad4(pos int) int {
 	}
 }
 
+// Mesh instance linkage?
 type Data1 struct {
-	Off_0 uint16
-	Off_2 uint16
+	Type              uint16
+	IdInThatTypeArray uint16
 }
 
 func (d1 *Data1) FromBuf(buf []byte) int {
-	d1.Off_0 = binary.LittleEndian.Uint16(buf[:])
-	d1.Off_2 = binary.LittleEndian.Uint16(buf[2:])
+	d1.Type = binary.LittleEndian.Uint16(buf[:])
+	d1.IdInThatTypeArray = binary.LittleEndian.Uint16(buf[2:])
 	return DATA1_ELEMENT_SIZE
 }
 
@@ -56,6 +58,7 @@ type Data2 struct {
 }
 
 func (d2 *Data2) FromBuf(buf []byte) int {
+	utils.LogDump(buf[:DATA2_ELEMENT_SIZE])
 	d2.Off_0 = binary.LittleEndian.Uint16(buf[:])
 	d2.Sub1s = make([]Data2Subtype1, binary.LittleEndian.Uint16(buf[2:]))
 	return DATA2_ELEMENT_SIZE
@@ -64,8 +67,8 @@ func (d2 *Data2) FromBuf(buf []byte) int {
 func (d2 *Data2) Parse(buf []byte, pos int) int {
 	for j := range d2.Sub1s {
 		d2.Sub1s[j] = Data2Subtype1{
-			Color:         binary.LittleEndian.Uint32(buf[pos:]),
-			TextureNameId: binary.LittleEndian.Uint32(buf[pos+4:]),
+			Color:             binary.LittleEndian.Uint32(buf[pos:]),
+			TextureNameSecOff: binary.LittleEndian.Uint32(buf[pos+4:]),
 		}
 		pos += DATA2_SUBTYPE1_ELEMENT_SIZE
 	}
@@ -74,29 +77,39 @@ func (d2 *Data2) Parse(buf []byte, pos int) int {
 
 type Data2Subtype1 struct {
 	// Texture Linkage
-	Color         uint32 //maybe
-	TextureNameId uint32
+	Color             uint32 //maybe
+	TextureNameSecOff uint32
+	TextureName       string
+}
+
+func (d2s1 *Data2Subtype1) SetNameFromStringSector(stringsSector []byte) {
+	if d2s1.TextureNameSecOff != 0xffff {
+		d2s1.TextureName = utils.BytesToString(stringsSector[d2s1.TextureNameSecOff:])
+	}
 }
 
 type Data3 struct {
-	Off_0 uint32
+	CharsCount uint32
+	// Flags
+	// & 1 != 0 => CharNumberToSymbolIdMap contain 0x100 elements of symbol=>char map
+	// & 1 == 0 => CharNumberToSymbolIdMap contain CharsCount elements of char=>symbol map
 	Flags uint16
 
-	Flag2Datas2          []Data2
-	Flag4Datas2          []Data2
-	SomeInfoForDatas2    []int16
-	AnotherInfoForDatas2 []int16
+	Flag2Datas2             []Data2
+	Flag4Datas2             []Data2
+	SymbolWidths            []int16
+	CharNumberToSymbolIdMap []int16 // Char to glyph map?
 }
 
 func (d3 *Data3) FromBuf(buf []byte) int {
-	d3.Off_0 = binary.LittleEndian.Uint32(buf[:])
+	d3.CharsCount = binary.LittleEndian.Uint32(buf[:])
 	d3.Flags = binary.LittleEndian.Uint16(buf[0xc:])
 	return DATA3_ELEMENT_SIZE
 }
 
 func (d3 *Data3) Parse(buf []byte, pos int) int {
 	if d3.Flags&2 != 0 {
-		d3.Flag2Datas2 = make([]Data2, d3.Off_0)
+		d3.Flag2Datas2 = make([]Data2, d3.CharsCount)
 		for i := range d3.Flag2Datas2 {
 			pos += d3.Flag2Datas2[i].FromBuf(buf[pos:])
 		}
@@ -105,7 +118,7 @@ func (d3 *Data3) Parse(buf []byte, pos int) int {
 		}
 	}
 	if d3.Flags&4 != 0 {
-		d3.Flag4Datas2 = make([]Data2, d3.Off_0)
+		d3.Flag4Datas2 = make([]Data2, d3.CharsCount)
 		for i := range d3.Flag4Datas2 {
 			pos += d3.Flag4Datas2[i].FromBuf(buf[pos:])
 		}
@@ -114,20 +127,20 @@ func (d3 *Data3) Parse(buf []byte, pos int) int {
 		}
 	}
 
-	d3.SomeInfoForDatas2 = make([]int16, d3.Off_0)
-	for i := range d3.SomeInfoForDatas2 {
-		d3.SomeInfoForDatas2[i] = int16(binary.LittleEndian.Uint16(buf[pos+i*2:]))
+	d3.SymbolWidths = make([]int16, d3.CharsCount)
+	for i := range d3.SymbolWidths {
+		d3.SymbolWidths[i] = int16(binary.LittleEndian.Uint16(buf[pos+i*2:]))
 		pos += 2
 	}
 	pos = posPad4(pos)
 
 	if d3.Flags&1 != 0 {
-		d3.AnotherInfoForDatas2 = make([]int16, 0x100)
+		d3.CharNumberToSymbolIdMap = make([]int16, 0x100)
 	} else {
-		d3.AnotherInfoForDatas2 = make([]int16, d3.Off_0)
+		d3.CharNumberToSymbolIdMap = make([]int16, d3.CharsCount)
 	}
-	for i := range d3.AnotherInfoForDatas2 {
-		d3.AnotherInfoForDatas2[i] = int16(binary.LittleEndian.Uint16(buf[pos+i*2:]))
+	for i := range d3.CharNumberToSymbolIdMap {
+		d3.CharNumberToSymbolIdMap[i] = int16(binary.LittleEndian.Uint16(buf[pos+i*2:]))
 		pos += 2
 	}
 
@@ -191,11 +204,16 @@ func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
 	return DATA6_SUBTYPE1_ELEMENT_SIZE
 }
 
+func (d6s1 *Data6Subtype1) SetNameFromStringSector(stringsSector []byte) {
+	for i := range d6s1.Sub1s {
+		d6s1.Sub1s[i].SetNameFromStringSector(stringsSector)
+	}
+}
+
 func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
-	/*
-		log.Printf("d6sub1 parsing pos: %#x {%d,%d} < b34c,b3bc,b608,e694,f214,f5e8,f720,f84c,fa20,fd0c,12398,123ac",
-			pos, len(d6s1.Sub1s), len(d6s1.Sub2s))
-	*/
+	log.Printf("d6sub1 parsing pos: %#x {%d,%d} < b34c,b3bc,b608,e694,f214,f5e8,f720,f84c,fa20,fd0c,12398,123ac,12448,124f3,1278f",
+		pos, len(d6s1.Sub1s), len(d6s1.Sub2s))
+
 	pos = posPad4(pos)
 	for i := range d6s1.Sub1s {
 		pos += d6s1.Sub1s[i].FromBuf(buf[pos:])
@@ -225,7 +243,7 @@ func (d6s1s1 *Data6Subtype1Subtype1) FromBuf(buf []byte) int {
 }
 
 func (d6s1s1 *Data6Subtype1Subtype1) Parse(buf []byte, pos int) int {
-	//log.Printf("d6sub1sub1 parsing pos: %#x {%d} < b354,b3c4,b4e4,b610,e69c,f21c,f5f0,f728,f854,fa28,fd14", pos, len(d6s1s1.Subs))
+	log.Printf("d6sub1sub1 parsing pos: %#x {%d} < b354,b3c4,b4e4,b610,e69c,f21c,f5f0,f728,f854,fa28,fd14,123a0,123b4,12458", pos, len(d6s1s1.Subs))
 	pos = posPad4(pos)
 	for i := range d6s1s1.Subs {
 		pos += d6s1s1.Subs[i].FromBuf(buf[pos:])
@@ -233,13 +251,31 @@ func (d6s1s1 *Data6Subtype1Subtype1) Parse(buf []byte, pos int) int {
 	return pos
 }
 
+func (d6s1s1 *Data6Subtype1Subtype1) SetNameFromStringSector(stringsSector []byte) {
+	for i := range d6s1s1.Subs {
+		d6s1s1.Subs[i].SetNameFromStringSector(stringsSector)
+	}
+}
+
+// Special symbol (mesh + text?)
 type Data6Subtype1Subtype1Subtype1 struct {
-	Data []byte
+	IdexInData1Array uint16
+	NameSecOff       uint16
+	Name             string
+	Data             []byte
 }
 
 func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) FromBuf(buf []byte) int {
 	d6s1s1s1.Data = buf[:DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE]
+	d6s1s1s1.IdexInData1Array = binary.LittleEndian.Uint16(buf[0:])
+	d6s1s1s1.NameSecOff = binary.LittleEndian.Uint16(buf[8:])
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
+}
+
+func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) SetNameFromStringSector(stringsSector []byte) {
+	if d6s1s1s1.NameSecOff != 0xffff {
+		d6s1s1s1.Name = utils.BytesToString(stringsSector[d6s1s1s1.NameSecOff:])
+	}
 }
 
 type Data6Subtype1Subtype2 struct {
@@ -255,6 +291,9 @@ func (d6s1s2 *Data6Subtype1Subtype2) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
 	for i := range d6s1s2.Subs {
 		pos += d6s1s2.Subs[i].FromBuf(buf[pos:])
+	}
+	for i := range d6s1s2.Subs {
+		pos = d6s1s2.Subs[i].Parse(buf, pos)
 	}
 	return pos
 }
@@ -287,12 +326,15 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 }
 
 type FLP struct {
-	Datas1 []Data1
-	Datas2 []Data2 // Textures
-	Datas3 []Data3
-	Datas4 []Data4
-	Datas5 []Data5
-	Datas6 []Data6
+	Datas1  []Data1
+	Datas2  []Data2 // Textures
+	Datas3  []Data3
+	Datas4  []Data4
+	Datas5  []Data5
+	Datas6  []Data6
+	Datas7  []Data6Subtype1
+	Data8   Data6Subtype1
+	Strings []string
 }
 
 func (f *FLP) fromBuffer(buf []byte) error {
@@ -302,6 +344,8 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	f.Datas4 = make([]Data4, binary.LittleEndian.Uint32(buf[0x24:]))
 	f.Datas5 = make([]Data5, binary.LittleEndian.Uint32(buf[0x2c:]))
 	f.Datas6 = make([]Data6, binary.LittleEndian.Uint32(buf[0x34:]))
+	f.Datas7 = make([]Data6Subtype1, binary.LittleEndian.Uint32(buf[0x3c:]))
+	f.Strings = make([]string, 0)
 
 	pos := HEADER_SIZE
 	for i := range f.Datas1 {
@@ -339,9 +383,72 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	for i := range f.Datas6 {
 		pos = f.Datas6[i].Parse(buf, pos)
 	}
-	log.Printf("after fdata6: %#x", pos)
+	log.Printf("after fdata6: %#x == 0xffdf", pos)
+
+	pos = posPad4(pos)
+	for i := range f.Datas7 {
+		pos += f.Datas7[i].FromBuf(buf[pos:])
+	}
+	log.Printf("fdata7count: %#x == 0x17d  | after fdata7buf: %#x == 0x12398", len(f.Datas7), pos)
+	for i := range f.Datas7 {
+		pos = f.Datas7[i].Parse(buf, pos)
+	}
+	log.Printf("after fdata7: %#x == 0x3e570", pos)
+
+	pos = posPad4(pos)
+	pos += f.Data8.FromBuf(buf[pos:])
+	pos = f.Data8.Parse(buf, pos)
+
+	pos = posPad4(pos)
+
+	// more sections that we ignore
+	pos += int(binary.LittleEndian.Uint16(buf[0x48:])) * 0x14
+	pos += int(binary.LittleEndian.Uint16(buf[0x50:])) * 8
+
+	stringsSectorStart := pos
+	log.Printf("string sec start: %#x == 0x72cf8  {size? or strings count: %#x}", pos, binary.LittleEndian.Uint16(buf[0x58:]))
+	for {
+		if pos >= len(buf)-1 {
+			break
+		}
+		s := utils.BytesToString(buf[pos:])
+		pos += utils.BytesStringLength(buf[pos:])
+		pos += 1
+		f.Strings = append(f.Strings, s)
+	}
+
+	f.SetNameFromStringSector(buf[stringsSectorStart:])
 
 	return nil
+}
+
+func (f *FLP) SetNameFromStringSector(stringsSector []byte) {
+	for i := range f.Datas2 {
+		for j := range f.Datas2[i].Sub1s {
+			f.Datas2[i].Sub1s[j].SetNameFromStringSector(stringsSector)
+		}
+	}
+	for i := range f.Datas3 {
+		for j := range f.Datas3[i].Flag4Datas2 {
+			for k := range f.Datas3[i].Flag4Datas2[j].Sub1s {
+				f.Datas3[i].Flag4Datas2[j].Sub1s[k].SetNameFromStringSector(stringsSector)
+			}
+		}
+		for j := range f.Datas3[i].Flag2Datas2 {
+			for k := range f.Datas3[i].Flag2Datas2[j].Sub1s {
+				f.Datas3[i].Flag2Datas2[j].Sub1s[k].SetNameFromStringSector(stringsSector)
+			}
+		}
+	}
+
+	for i := range f.Datas6 {
+		f.Datas6[i].Sub1.SetNameFromStringSector(stringsSector)
+	}
+
+	for i := range f.Datas7 {
+		f.Datas7[i].SetNameFromStringSector(stringsSector)
+	}
+	f.Data8.SetNameFromStringSector(stringsSector)
 }
 
 func NewFromData(buf []byte) (*FLP, error) {

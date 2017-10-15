@@ -23,7 +23,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 
     this.bufferIndex = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufferIndex);
-    this.bufferIndexType = (indexArray.length > 254) ? gl.UNSIGNED_BYTE : gl.UNSIGNED_SHORT;
+    this.bufferIndexType = (indexArray.length > 254) ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, (this.bufferIndexType === gl.UNSIGNED_SHORT) ? (new Uint16Array(indexArray)) : (new Uint8Array(indexArray)), gl.STATIC_DRAW);
 
     this.bufferBlendColor = undefined;
@@ -66,7 +66,6 @@ grMesh.prototype.setUVs = function(data) {
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferUV);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
-
 }
 
 grMesh.prototype.setMaterialID = function(materialIndex) {
@@ -142,7 +141,7 @@ grModel.prototype.addMaterial = function(material) {
     this.materials.push(material);
 }
 
-function mshFromSklt(sklt, key = "OurJointToIdleMat") {
+function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
     var vrtxs = [];
     var indxs = [];
     var clrs = [];
@@ -173,7 +172,7 @@ function mshFromSklt(sklt, key = "OurJointToIdleMat") {
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-    //this.addMesh(mshFromSklt(sklt));
+    //this.addMesh(grModel__mshFromSklt(sklt));
     this.skeleton = [];
 
     for (var i in sklt) {
@@ -222,7 +221,12 @@ function grTexture(src, wait = false) {
         grTexture__handleLoading(img, _this);
     };
 }
-
+grTexture.prototype.markAsFontTexture = function() {
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+}
 grTexture.prototype.free = function() {
     if (this.txr) gl.deleteTexture(this.txr);
 }
@@ -275,6 +279,89 @@ grMaterial.prototype.free = function() {
     if (this.textureDiffuse) {
         this.textureDiffuse.free();
     }
+}
+
+function grTextMesh(text=undefined, x=0, y=0, z=0, is3d=false) {
+	this.refs = 0;
+	this.position = [x, y, z];
+	this.is3d = is3d;
+	this.color = [1, 1, 1, 1];
+	this.indexesCount = 0;
+	this.bufferIndexType = undefined;
+	this.bufferVertex = gl.createBuffer();
+	this.bufferIndex = gl.createBuffer();
+	this.bufferUV = gl.createBuffer();
+	this.setText(text);
+}
+grTextMesh.prototype.set3d = function(is3d) {
+	this.is3d = is3d;
+}
+grTextMesh.prototype.setColor = function(r, g, b, a) {
+	this.color = [r, g, b, a];
+}
+grTextMesh.prototype.setPosition = function(x, y, z) {
+    this.position = [x, y, z];
+}
+grTextMesh.prototype.setText = function(text, charBoxSize=9) {
+	if (text == undefined) {
+		this.bufferIndexType = undefined;
+		
+	}
+	var vrtxs = [];
+	var uvs = [];
+	var indxs = [];
+	var chsz = 1/16; // char size in texture units
+	var x = 0;
+	var y = 0;
+		
+	for (var i = 0; i < text.length; i++) {
+		var char = text.charCodeAt(i);
+		if (char > 0xff) {
+			char = 182; // ¶
+		}
+
+		vrtxs.push(x);             vrtxs.push(y);
+		vrtxs.push(x+charBoxSize); vrtxs.push(y);
+		vrtxs.push(x);             vrtxs.push(y+charBoxSize);
+		vrtxs.push(x+charBoxSize); vrtxs.push(y+charBoxSize);
+		x += charBoxSize;
+	
+		var tx = Math.floor(char % 16) / 16;
+		var ty = Math.floor(char / 16) / 16;
+		uvs.push(tx);      uvs.push(ty+chsz);
+		uvs.push(tx+chsz); uvs.push(ty+chsz);
+		uvs.push(tx);      uvs.push(ty);
+		uvs.push(tx+chsz); uvs.push(ty);
+		
+		var idx = i * 4;
+		indxs.push(idx);   indxs.push(idx+1); indxs.push(idx+2);
+		indxs.push(idx+1); indxs.push(idx+2); indxs.push(idx+3);
+	}
+	
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferVertex);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vrtxs), gl.STATIC_DRAW);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferUV);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+
+	this.bufferIndexType = (vrtxs.length > 254) ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
+	this.indexesCount = indxs.length;
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufferIndex);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, (this.bufferIndexType === gl.UNSIGNED_SHORT) ? (new Uint16Array(indxs)) : (new Uint8Array(indxs)), gl.STATIC_DRAW);
+	
+}
+grTextMesh.prototype.claim = function() {
+    this.refs++;
+}
+grTextMesh.prototype.unclaim = function() {
+    if (--this.refs == 0) {
+        this.free();
+    }
+}
+grTextMesh.prototype.free = function() {
+	gl.deleteBuffer(this.bufferVertex);
+	gl.deleteBuffer(this.bufferIndex);
+	gl.deleteBuffer(this.bufferUV);
 }
 
 function grCameraTargeted() {
@@ -340,15 +427,19 @@ function grController(viewDomObject) {
 
     this.renderChain = undefined;
     this.models = [];
+	this.texts = [];
     this.helpers = [
         grHelper_Pivot(),
     ];
     this.camera = new grCameraTargeted();
+	this.orthoMatrix = mat4.create();
     this.rectX = gl.canvas.width;
     this.rectY = gl.canvas.height;
     this.mouseDown = [false, false];
     this.mouseLastPos = [0, 0];
     this.emptyTexture = new grTexture("/static/emptytexture.png", true);
+	this.fontTexture = new grTexture("/static/font2.png", true);
+	this.fontTexture.markAsFontTexture();
 
     canvas.mousewheel(function(event) {
         gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);
@@ -408,6 +499,7 @@ grController.prototype.onResize = function() {
     gl.canvas.width = this.rectX = gl.canvas.clientWidth;
     gl.canvas.height = this.rectY = gl.canvas.clientHeight;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+	this.orthoMatrix = mat4.ortho(this.orthoMatrix, 0, this.rectX, 0, this.rectY, -1, 1);
 }
 grController.prototype._onResize = function() {
     gr_instance.onResize();
@@ -438,6 +530,18 @@ grController.prototype.destroyModels = function() {
         this.models[i].free(this);
     }
     this.models.length = 0;
+}
+
+grController.prototype.destroyTexts = function() {
+    for (var i in this.texts) {
+        this.texts[i].free(this);
+    }
+    this.texts.length = 0;
+}
+
+grController.prototype.cleanup = function() {
+    this.destroyTexts();
+	this.destroyModels();
 }
 
 grController.prototype.downloadFile = function(link, async) {

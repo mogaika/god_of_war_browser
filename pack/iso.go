@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mogaika/god_of_war_browser/tok"
+	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/udf"
 )
 
@@ -77,7 +78,7 @@ func (p *IsoDriver) parseFilesFromTok() error {
 	}
 	var err error
 	tokIso, _ := p.openIsoFile(tok.FILE_NAME)
-	p.Files, err = tok.ParseFiles(tokIso.NewReader())
+	p.Files, _, err = tok.ParseFiles(tokIso.NewReader())
 	return err
 }
 
@@ -121,27 +122,37 @@ func (p *IsoDriver) closeStreams() {
 	p.IsoFile = nil
 }
 
-type IsoFileWriterAt struct {
-	f   *os.File
-	off int64
+type IsoFileReaderWriterAt struct {
+	f    *os.File
+	off  int64
+	isof *udf.File
 }
 
-func (ifw *IsoFileWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
+func (ifw *IsoFileReaderWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
 	n, err = ifw.f.WriteAt(p, ifw.off+off)
 	log.Println("Writing at ", off, "=", ifw.off+off, " size:", len(p), " err:", err)
 	return n, err
 }
 
-func (p *IsoDriver) openIsoFileWriterAt(file string) *IsoFileWriterAt {
+func (ifw *IsoFileReaderWriterAt) ReadAt(p []byte, off int64) (n int, err error) {
+	return ifw.f.ReadAt(p, ifw.off+off)
+}
+
+func (ifw *IsoFileReaderWriterAt) Size() int64 {
+	return ifw.isof.Size()
+}
+
+func (p *IsoDriver) openIsoFileReaderWriterAt(file string) *IsoFileReaderWriterAt {
 	fstr, layer := p.openIsoFile(file)
 	filestart := udf.SECTOR_SIZE * (int64(fstr.FileEntry().AllocationDescriptors[0].Location) + int64(fstr.Udf.PartitionStart()))
 	if layer == 1 {
 		filestart += IsoSecondLayerStart
 	}
 	log.Println("filestart ", file, filestart)
-	return &IsoFileWriterAt{
-		f:   p.IsoFile,
-		off: filestart,
+	return &IsoFileReaderWriterAt{
+		f:    p.IsoFile,
+		off:  filestart,
+		isof: fstr,
 	}
 }
 
@@ -161,13 +172,13 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 
 	var tokbuf bytes.Buffer
 
-	var packStreams [tok.PARTS_COUNT]io.WriterAt
+	var packStreams [tok.PARTS_COUNT]utils.ReaderWriterAt
 	for i := range packStreams {
-		packStreams[i] = p.openIsoFileWriterAt(tok.GenPartFileName(i))
+		packStreams[i] = p.openIsoFileReaderWriterAt(tok.GenPartFileName(i))
 	}
 
 	if err := tok.UpdateFile(bytes.NewBuffer(tokOriginal), &tokbuf, packStreams, f, in); err == nil {
-		_, err = p.openIsoFileWriterAt(tok.FILE_NAME).WriteAt(tokbuf.Bytes(), 0)
+		_, err = p.openIsoFileReaderWriterAt(tok.FILE_NAME).WriteAt(tokbuf.Bytes(), 0)
 	} else {
 		panic(err)
 	}

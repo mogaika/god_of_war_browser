@@ -49,23 +49,8 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				tag := wad.GetTagById(file_wad.TagId(id))
-				node := wad.GetNodeById(tag.NodeId)
-				data, serverId, err := wad.GetInstanceFromNode(node.Id)
-				if err == nil {
-					type Result struct {
-						Tag      *file_wad.Tag
-						Data     interface{}
-						ServerId uint32
-					}
-					val, err := data.Marshal(wad.GetNodeResourceByTagId(node.Tag.Id))
-					if err != nil {
-						webutils.WriteError(w, fmt.Errorf("Error marshaling node %d from %s: %v", id, file, err.(error)))
-					} else {
-						webutils.WriteJson(w, &Result{Tag: node.Tag, Data: val, ServerId: serverId})
-					}
-				} else {
-					webutils.WriteError(w, fmt.Errorf("File %s-%d[%s] parsing error: %v", file, node.Tag.Id, node.Tag.Name, err))
+				if err := wad.WebHandlerForNodeByTagId(w, file_wad.TagId(id)); err != nil {
+					webutils.WriteError(w, fmt.Errorf("wad web handler return error: %v", err))
 				}
 			}
 		default:

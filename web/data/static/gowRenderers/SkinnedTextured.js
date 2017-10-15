@@ -240,6 +240,53 @@ grRenderChain_SkinnedTextured.prototype.renderCycle = function(ctrl, mdls, useSk
     }
 }
 
+grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
+	gl.enable(gl.BLEND);
+ 	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+	gl.depthMask(false);
+	gl.disable(gl.DEPTH_TEST);
+
+	gl.disableVertexAttribArray(this.aVertexColor);
+    gl.disableVertexAttribArray(this.aVertexJointID);
+    gl.disableVertexAttribArray(this.aVertexJointID2);
+	
+	gl.uniformMatrix4fv(this.umProjectionView, false, ctrl.orthoMatrix);
+	gl.uniform1i(this.uUseMaterialDiffuseSampler, 1);
+	gl.uniform1i(this.uUseVertexColor, 0);
+	gl.uniform1i(this.uUseJoints, 0);
+	gl.uniform1i(this.uOnlyOpaqueRender, 0);
+
+	gl.activeTexture(gl.TEXTURE0);
+	gl.bindTexture(gl.TEXTURE_2D, ctrl.fontTexture.get());
+
+	for (var i = 0; i < ctrl.texts.length; i++) {
+		var text = ctrl.texts[i];
+		
+		gl.enableVertexAttribArray(this.aVertexPos);
+		gl.bindBuffer(gl.ARRAY_BUFFER, text.bufferVertex);
+        gl.vertexAttribPointer(this.aVertexPos, 2, gl.FLOAT, false, 0, 0);
+		
+		gl.enableVertexAttribArray(this.aVertexUV);
+		gl.bindBuffer(gl.ARRAY_BUFFER, text.bufferUV);
+        gl.vertexAttribPointer(this.aVertexUV, 2, gl.FLOAT, false, 0, 0);
+
+		var mat = mat4.identity(mat4.create());
+		if (text.is3d) {
+			var pos3d = vec3.fromValues(text.position[0], text.position[1], text.position[2]);
+			var pos2d = vec3.transformMat4(vec3.create(), pos3d, ctrl.camera.getProjViewMatrix());
+			var pos = [(pos2d[0]+1)*0.5*gl.drawingBufferWidth, (pos2d[1]+1)*0.5*gl.drawingBufferHeight, 0];
+			mat = mat4.translate(mat4.create(), mat, pos);
+		} else {
+			mat = mat4.translate(mat4.create(), mat, text.position);
+		}
+		
+		gl.uniformMatrix4fv(this.umModelTransform, false, mat);
+		gl.uniform4f(this.uMaterialColor, text.color[0], text.color[1], text.color[2], text.color[3]);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, text.bufferIndex);
+    	gl.drawElements(gl.TRIANGLES, text.indexesCount, text.bufferIndexType, 0);
+	}
+}
+
 grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.uniformMatrix4fv(this.umModelTransform, false, mat4.create());
@@ -280,4 +327,6 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
         this.renderCycle(ctrl, mdls);
     }
     console.info("redrawed");
+	
+	this.renderText(ctrl);
 }
