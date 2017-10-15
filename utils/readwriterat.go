@@ -2,6 +2,7 @@ package utils
 
 import (
 	"io"
+	"os"
 )
 
 type ReaderWriterAt interface {
@@ -30,4 +31,12 @@ func (rwi *ReaderWriterAtImplementation) ReadAt(p []byte, off int64) (n int, err
 
 func NewReaderWriterAt(r io.ReaderAt, w io.WriterAt, size int64) *ReaderWriterAtImplementation {
 	return &ReaderWriterAtImplementation{r: r, w: w}
+}
+
+func NewReaderWriterAtFromFile(f *os.File) *ReaderWriterAtImplementation {
+	if s, err := f.Stat(); err != nil {
+		panic(err)
+	} else {
+		return &ReaderWriterAtImplementation{r: f, w: f, size: s.Size()}
+	}
 }

@@ -112,6 +112,8 @@ func ParseFiles(tokStream io.Reader) (map[string]*File, []Entry, error) {
 	return ParseEntiesArray(entries), entries, nil
 }
 
+var dataCopyPreallocatedBuffer [512 * utils.SECTOR_SIZE]byte
+
 // Copy data between or packs inside one pack
 // Allowing overlap destination and source
 // size parameter must be in bytes count, not in sectors count
@@ -127,14 +129,14 @@ func CopyDataBetweenPackStreams(to FileEncounter, from FileEncounter, size int64
 	if to.Pack != from.Pack || to.Start+sizeInSectors*utils.SECTOR_SIZE < from.Start {
 		// There is no overlaps, just copy data
 		// using bunches of 512 sectors
-		bunchSize = 512 * utils.SECTOR_SIZE
+		bunchSize = 512
 	} else {
 		// Source and target overlapped
 		// Copy sector by sector
 		bunchSize = 1
 	}
 
-	var realBuf = make([]byte, bunchSize*utils.SECTOR_SIZE)
+	var realBuf = dataCopyPreallocatedBuffer[:bunchSize*utils.SECTOR_SIZE]
 	var pos int64 = 0
 	var left int64 = size
 	for left > 0 {
@@ -169,6 +171,7 @@ func shrinkPackFiles(originalToksEntries []Entry, partStreams [PARTS_COUNT]utils
 
 	for _, oldE := range originalToksEntries {
 		if _, already := alreadyProcessedFiles[oldE.Name]; !already || oldE.Name == SANITY_FILE_NAME {
+			log.Println("Shrinking: ", oldE.Name)
 			// find place where we can move file
 			targetPack := -1
 			for i := range partStreams {
@@ -192,6 +195,8 @@ func shrinkPackFiles(originalToksEntries []Entry, partStreams [PARTS_COUNT]utils
 			streamOffsetsSectors[targetPack] += utils.GetRequiredSectorsCount(e.Size)
 			alreadyProcessedFiles[oldE.Name] = e
 			partsTokens[targetPack] = append(partsTokens[targetPack], e)
+		} else {
+			log.Println("Already shrinked: ", oldE.Name)
 		}
 	}
 
