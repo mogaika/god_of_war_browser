@@ -131,6 +131,7 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	log.Println("done")
 
 	gfxc.Data[0] = newIdx
+	gfxc.DataSize = uint32(len(gfxc.Data[0]))
 	gfxc.Bpi = 8
 	// gfxc.Encoding = do not change
 	gfxc.Width = uint32(b.X)
@@ -139,6 +140,7 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	palc.Data[0] = paletteToBytearray(newPal)
 	palc.Width = 16
 	palc.Height = (uint32(len(newPal)) / palc.Width) * palc.DatasCount
+	palc.DataSize = uint32(len(palc.Data[0]))
 	palc.Encoding = 0
 	palc.Bpi = 32
 

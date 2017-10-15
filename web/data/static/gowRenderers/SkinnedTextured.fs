@@ -15,7 +15,7 @@ void main(void) {
 				clr *= 0.5;
 			}
 		}
-		gl_FragColor = clr;
+		gl_FragColor = clr * uMaterialColor;
 	} else {
 		gl_FragColor = vVertexColor * uMaterialColor;
 	}

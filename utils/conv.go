@@ -10,6 +10,10 @@ import (
 
 const SECTOR_SIZE = 0x800
 
+func GetRequiredSectorsCount(size int64) int64 {
+	return (size + SECTOR_SIZE - 1) / SECTOR_SIZE
+}
+
 func BytesToString(bs []byte) string {
 	n := bytes.IndexByte(bs, 0)
 	if n < 0 {

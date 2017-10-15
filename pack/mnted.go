@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/tok"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type TokDriver struct {
@@ -105,7 +106,7 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	p.closeStreams()
 
 	var fParts [tok.PARTS_COUNT]*os.File
-	var partWriters [tok.PARTS_COUNT]io.WriterAt
+	var partWriters [tok.PARTS_COUNT]utils.ReaderWriterAt
 	defer func() {
 		for _, part := range fParts {
 			if part != nil {
@@ -114,15 +115,21 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 		}
 	}()
 	for iPart := range fParts {
-		if fParts[iPart], err = os.OpenFile(p.partGetFileName(iPart), os.O_RDWR, 0666); err != nil {
-			return fmt.Errorf("Cannot open '%s' for writing", p.partGetFileName(iPart))
+		if part, err := os.OpenFile(p.partGetFileName(iPart), os.O_RDWR, 0666); err == nil {
+			if finfo, err := part.Stat(); err == nil {
+				fParts[iPart] = part
+				partWriters[iPart] = utils.NewReaderWriterAt(part, part, finfo.Size())
+			} else {
+				return fmt.Errorf("Cannot stat '%s' for writing: %v", p.partGetFileName(iPart), err)
+			}
+		} else {
+			return fmt.Errorf("Cannot open '%s' for writing: %v", p.partGetFileName(iPart), err)
 		}
-		partWriters[iPart] = fParts[iPart]
 	}
 
 	fTok, err := os.OpenFile(p.tokGetFileName(), os.O_RDWR, 0666)
 	if err != nil {
-		return fmt.Errorf("Cannot open '%s' for writing: %v", p.tokGetFileName(), err)
+		return fmt.Errorf("Cannot open tokfile '%s' for writing: %v", p.tokGetFileName(), err)
 	}
 	defer fTok.Close()
 
@@ -140,7 +147,7 @@ func (p *TokDriver) parseTokFile() error {
 	if tokStream, err := os.Open(p.tokGetFileName()); err == nil {
 		defer tokStream.Close()
 		log.Printf("[pack] Parsing tok '%s'", p.tokGetFileName())
-		p.Files, err = tok.ParseFiles(tokStream)
+		p.Files, _, err = tok.ParseFiles(tokStream)
 		return err
 	} else {
 		return err

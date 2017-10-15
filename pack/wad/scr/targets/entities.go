@@ -106,6 +106,9 @@ func GetEscFunc(scope, fid uint16) string {
 
 		case 0x1f:
 			return "Print text on screen(unkn, type, messageID)"
+
+		case 0x2f:
+			return "Comlete Game"
 		}
 	}
 	return ""

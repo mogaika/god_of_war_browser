@@ -185,6 +185,24 @@ function treeLoadWad(wadName, data) {
 
     if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
+		
+		if (!defferedLoadingWadNode) {
+			set3dVisible(true);
+			gr_instance.cleanup();
+			for (var sn in data.Roots) {
+				var node = data.Nodes[data.Roots[sn]];
+				var tag = node.Tag;
+				if (tag.Name.startsWith("CXT_") && tag.Tag == 30) {
+					$.getJSON('/json/pack/' + wadName +'/' + tag.Id, function(resp) {
+						if (resp.ServerId == 0x80000001) {
+							loadCxtFromAjax(resp.Data);
+							gr_instance.requestRedraw();
+							console.log("loaded wad part: " + resp.Tag.Name); 
+						}
+					});
+				}
+			}
+		}
     }
 
     $('#view-item-filter').trigger('input');
@@ -214,14 +232,33 @@ function hexdump(buffer, blockSize) {
         var tr = $('<tr>');
         tr.append($('<td>').append(("000000" + blockPos.toString(16)).slice(-6)));
         tr.append($('<td>').append(line));
-        tr.append($('<td>').append(chars));
+        tr.append($('<td>').text(chars));
         table.append(tr);
     }
     return table;
 }
 
+function displayResourceHexDump(wad, nodeid) {
+	$.ajax({
+       url: '/dump/pack/' + wad + '/' + nodeid,
+       type: 'GET',
+       dataType: 'binary',
+       processData: false,
+       success: function(blob) {
+           var fileReader = new FileReader();
+           fileReader.onload = function() {
+               var arr = new Uint8Array(this.result);
+               dataSummary.append($("<h5>").append('File size:' + arr.length));
+               dataSummary.append(hexdump(arr));
+           };
+           fileReader.readAsArrayBuffer(blob);
+       }
+   });
+}
+
 function treeLoadWadNode(wad, nodeid) {
     dataSummary.empty();
+
     $.getJSON('/json/pack/' + wad + '/' + nodeid, function(resp) {
         var data = resp.Data;
         var tag = resp.Tag;
@@ -256,7 +293,7 @@ function treeLoadWadNode(wad, nodeid) {
                         summaryLoadWadMat(data);
                         break;
                     case 0x00000011: // collision
-                        gr_instance.destroyModels();
+                        gr_instance.cleanup();
                         set3dVisible(true);
 
                         var mdl = new grModel();
@@ -275,7 +312,7 @@ function treeLoadWadNode(wad, nodeid) {
                         summaryLoadWadObj(data, wad, nodeid);
                         break;
                     case 0x80000001: // cxt
-                        summaryLoadWadCxt(data);
+                        summaryLoadWadCxt(data, wad, nodeid);
                         break;
                     case 0x00020001: // gameObject
                         summaryLoadWadGameObject(data);
@@ -305,21 +342,7 @@ function treeLoadWadNode(wad, nodeid) {
         }
 
         if (needHexDump) {
-            $.ajax({
-                url: '/dump/pack/' + wad + '/' + nodeid,
-                type: 'GET',
-                dataType: 'binary',
-                processData: false,
-                success: function(blob) {
-                    var fileReader = new FileReader();
-                    fileReader.onload = function() {
-                        var arr = new Uint8Array(this.result);
-                        dataSummary.append($("<h5>").append('File size:' + arr.length));
-                        dataSummary.append(hexdump(arr));
-                    };
-                    fileReader.readAsArrayBuffer(blob);
-                }
-            });
+            displayResourceHexDump(wad, nodeid);
         }
     });
 }
@@ -465,7 +488,7 @@ function loadMeshFromAjax(model, data, needTable = false) {
 }
 
 function summaryLoadWadMesh(data, wad, nodeid) {
-    gr_instance.destroyModels();
+    gr_instance.cleanup();
     set3dVisible(true);
 
     var mdl = new grModel();
@@ -536,7 +559,6 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
     }
 
     if (parseScripts) {
-        console.log(data.Scripts);
         for (var i in data.Scripts) {
             var scr = data.Scripts[i];
             switch (scr.TargetName) {
@@ -553,7 +575,7 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
 }
 
 function summaryLoadWadMdl(data, wad, nodeid) {
-    gr_instance.destroyModels();
+    gr_instance.cleanup();
     set3dVisible(true);
 
     var mdl = new grModel();
@@ -718,17 +740,55 @@ function loadCollisionFromAjax(mdl, data) {
     }
 }
 
-function loadObjFromAjax(mdl, data, parseScripts = false) {
+function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
     if (data.Model) {
         loadMdlFromAjax(mdl, data.Model, parseScripts);
     } else if (data.Collision) {
         loadCollisionFromAjax(mdl, data.Collision);
     }
+
+	if (data.Script) {
+		if (data.Script.TargetName == "SCR_Entities") {
+			$.each(data.Script.Data.Array, function(entity_id, entity) {
+				var objMat = new Float32Array(data.Data.Joints[0].RenderMat);
+				var entityMat = new Float32Array(entity.Matrix);
+
+				if (matrix) {
+					// obj = obj * transformMat
+					objMat = mat4.mul(mat4.create(), matrix, objMat);
+				}
+				// mat = obj * entity
+				var mat = mat4.mul(mat4.create(), objMat, entityMat);
+
+				var pos = mat4.getTranslation(vec3.create(), mat);
+
+				var text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
+				
+				var alpha = 1;
+				switch (entity_id % 3) {
+					case 0:
+						text3d.setColor(1, 0, 0, alpha);
+						break;
+					case 1:
+						text3d.setColor(0, 1, 0, alpha);
+						break;
+					case 2:
+						text3d.setColor(1, 1, 0, alpha);
+						break;
+				}
+				gr_instance.texts.push(text3d);
+			});
+		}
+	}
+
     mdl.loadSkeleton(data.Data.Joints);
+	if (matrix) {
+		mdl.matrix = matrix;
+	}
 }
 
 function summaryLoadWadObj(data, wad, nodeid) {
-    gr_instance.destroyModels();
+    gr_instance.cleanup();
 
     var dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
@@ -775,7 +835,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
 
 function summaryLoadWadGameObject(data) {
-    gr_instance.destroyModels();
+    gr_instance.cleanup();
     set3dVisible(false);
     var table = $('<table>');
     for (var k in data) {
@@ -803,20 +863,23 @@ function loadCxtFromAjax(data, parseScripts = true) {
         //if (obj && (obj.Model)) {
         if (obj && (obj.Model || obj.Collision)) {
             var mdl = new grModel();
-            loadObjFromAjax(mdl, obj, parseScripts);
-            mdl.matrix = instMat;
+            loadObjFromAjax(mdl, obj, instMat, parseScripts);
             gr_instance.models.push(mdl);
         }
     }
 }
 
-function summaryLoadWadCxt(data) {
-    gr_instance.destroyModels();
-    set3dVisible(true);
-
-    loadCxtFromAjax(data);
-
-    gr_instance.requestRedraw();
+function summaryLoadWadCxt(data, wad, nodeid) {
+    gr_instance.cleanup();
+    
+	if (data.Instances !== null && data.Instances.length) {
+		set3dVisible(true);
+		loadCxtFromAjax(data);
+		gr_instance.requestRedraw();
+	} else {
+		set3dVisible(false);
+    	displayResourceHexDump(wad, nodeid);
+	}
 }
 
 function summaryLoadWadSbk(data, wad, nodeid) {
@@ -878,7 +941,7 @@ $(document).ready(function() {
 
 
 function summaryLoadWadGeomShape(data) {
-    gr_instance.destroyModels();
+    gr_instance.cleanup();
     set3dVisible(true);
 
     var m_vertexes = [];
@@ -909,7 +972,7 @@ function summaryLoadWadGeomShape(data) {
 }
 
 function summaryLoadWadScript(data) {
-    gr_instance.destroyModels();
+    gr_instance.cleanup();
 
     dataSummary.append($("<h3>").append("Scirpt " + data.TargetName));
 
