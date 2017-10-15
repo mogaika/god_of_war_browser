@@ -116,12 +116,8 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	}()
 	for iPart := range fParts {
 		if part, err := os.OpenFile(p.partGetFileName(iPart), os.O_RDWR, 0666); err == nil {
-			if finfo, err := part.Stat(); err == nil {
-				fParts[iPart] = part
-				partWriters[iPart] = utils.NewReaderWriterAt(part, part, finfo.Size())
-			} else {
-				return fmt.Errorf("Cannot stat '%s' for writing: %v", p.partGetFileName(iPart), err)
-			}
+			fParts[iPart] = part
+			partWriters[iPart] = utils.NewReaderWriterAtFromFile(part)
 		} else {
 			return fmt.Errorf("Cannot open '%s' for writing: %v", p.partGetFileName(iPart), err)
 		}

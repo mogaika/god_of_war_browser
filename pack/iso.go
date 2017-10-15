@@ -130,7 +130,6 @@ type IsoFileReaderWriterAt struct {
 
 func (ifw *IsoFileReaderWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
 	n, err = ifw.f.WriteAt(p, ifw.off+off)
-	log.Println("Writing at ", off, "=", ifw.off+off, " size:", len(p), " err:", err)
 	return n, err
 }
 
