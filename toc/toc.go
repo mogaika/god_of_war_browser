@@ -70,7 +70,7 @@ func GenPartFileName(partIndex int) string {
 	}
 }
 
-func UnmarshalTokEntry(buffer []byte) Entry {
+func UnmarshalTocEntry(buffer []byte) Entry {
 	return Entry{
 		Name: utils.BytesToString(buffer[0:12]),
 		Size: int64(binary.LittleEndian.Uint32(buffer[16:20])),
@@ -80,7 +80,7 @@ func UnmarshalTokEntry(buffer []byte) Entry {
 		}}
 }
 
-func MarshalTokEntry(e *Entry) []byte {
+func MarshalTocEntry(e *Entry) []byte {
 	buf := make([]byte, ENTRY_SIZE)
 	copy(buf[:12], utils.StringToBytes(e.Name, 12, false))
 	binary.LittleEndian.PutUint32(buf[12:16], uint32(e.Enc.Pack))
@@ -105,7 +105,7 @@ func ParseEntiesArray(entries []Entry) map[string]*File {
 		}
 
 		if e.Size != file.Size() {
-			log.Printf("[tok] Tok file corrupted! Finded same file but with different size! '%s' %d!=%d", e.Name, e.Size, file.Size())
+			log.Printf("[toc] Toc file corrupted! Finded same file but with different size! '%s' %d!=%d", e.Name, e.Size, file.Size())
 		}
 
 		file.Encounters = append(file.Encounters, e.Enc)
@@ -113,18 +113,18 @@ func ParseEntiesArray(entries []Entry) map[string]*File {
 	return files
 }
 
-func ParseFiles(tokStream io.Reader) (map[string]*File, []Entry, error) {
+func ParseFiles(tocStream io.Reader) (map[string]*File, []Entry, error) {
 	var buffer [ENTRY_SIZE]byte
 	entries := make([]Entry, 0)
 
 	for {
-		if _, err := tokStream.Read(buffer[:]); err == io.EOF {
+		if _, err := tocStream.Read(buffer[:]); err == io.EOF {
 			break
 		} else if err != nil {
 			return nil, nil, err
 		}
 
-		e := UnmarshalTokEntry(buffer[:])
+		e := UnmarshalTocEntry(buffer[:])
 		if e.Name == "" {
 			break
 		}
@@ -183,15 +183,15 @@ func CopyDataBetweenPackStreams(to FileEncounter, from FileEncounter, size int64
 // Shrink files in pack
 // Move files in begin of packs (first pack have priority over next)
 // Reading on dvd disk ps2 version slowed after shrinkig :(
-func shrinkPackFiles(originalToksEntries []Entry, partStreams [PARTS_COUNT]utils.ReaderWriterAt) ([]Entry, error) {
+func shrinkPackFiles(originalTocsEntries []Entry, partStreams [PARTS_COUNT]utils.ReaderWriterAt) ([]Entry, error) {
 	var streamOffsetsSectors [PARTS_COUNT]int64
-	var partsTokens [PARTS_COUNT][]Entry
-	for i := range partsTokens {
-		partsTokens[i] = make([]Entry, 0)
+	var partsTocens [PARTS_COUNT][]Entry
+	for i := range partsTocens {
+		partsTocens[i] = make([]Entry, 0)
 	}
 	alreadyProcessedFiles := make(map[string]Entry)
 
-	for _, oldE := range originalToksEntries {
+	for _, oldE := range originalTocsEntries {
 		if _, already := alreadyProcessedFiles[oldE.Name]; !already || oldE.Name == SANITY_FILE_NAME {
 			log.Println("Shrinking: ", oldE.Name)
 			// find place where we can move file
@@ -216,24 +216,24 @@ func shrinkPackFiles(originalToksEntries []Entry, partStreams [PARTS_COUNT]utils
 
 			streamOffsetsSectors[targetPack] += utils.GetRequiredSectorsCount(e.Size)
 			alreadyProcessedFiles[oldE.Name] = e
-			partsTokens[targetPack] = append(partsTokens[targetPack], e)
+			partsTocens[targetPack] = append(partsTocens[targetPack], e)
 		} else {
 			log.Println("Already shrinked: ", oldE.Name)
 		}
 	}
 
-	resultTokens := make([]Entry, 0)
-	for _, partTokens := range partsTokens {
-		resultTokens = append(resultTokens, partTokens...)
+	resultTocens := make([]Entry, 0)
+	for _, partTocens := range partsTocens {
+		resultTocens = append(resultTocens, partTocens...)
 	}
-	return resultTokens, nil
+	return resultTocens, nil
 }
 
-func updateFileWithIncreacingSize(fTokOriginal io.Reader, fTokNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
-	log.Println("Updating tok+parts with increacing required sectors count")
-	_, originalEntries, err := ParseFiles(fTokOriginal)
+func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
+	log.Println("Updating toc+parts with increacing required sectors count")
+	_, originalEntries, err := ParseFiles(fTocOriginal)
 	if err != nil {
-		return fmt.Errorf("Error when parsing tok: %v", err)
+		return fmt.Errorf("Error when parsing toc: %v", err)
 	}
 
 	// delete our file from entries array
@@ -301,44 +301,44 @@ func updateFileWithIncreacingSize(fTokOriginal io.Reader, fTokNew io.Writer, par
 	}
 
 	writed := false
-	marshaledEntry := MarshalTokEntry(&Entry{
+	marshaledEntry := MarshalTocEntry(&Entry{
 		Name: filename,
 		Size: in.Size(),
 		Enc:  *newEncounter})
 	for _, e := range entriesWithoutOurFile {
 		if !writed {
-			// Write our file entry to tok file
+			// Write our file entry to toc file
 			if e.Enc.Pack > newEncounter.Pack || (e.Enc.Pack == newEncounter.Pack && e.Enc.Start > newEncounter.Start) {
-				if _, err := fTokNew.Write(marshaledEntry); err != nil {
-					return fmt.Errorf("Error when writing new tok entry: %v", err)
+				if _, err := fTocNew.Write(marshaledEntry); err != nil {
+					return fmt.Errorf("Error when writing new toc entry: %v", err)
 				}
 				writed = true
 			}
 		}
-		if _, err := fTokNew.Write(MarshalTokEntry(&e)); err != nil {
-			return fmt.Errorf("Error when writing old tok entry: %v", err)
+		if _, err := fTocNew.Write(MarshalTocEntry(&e)); err != nil {
+			return fmt.Errorf("Error when writing old toc entry: %v", err)
 		}
 	}
 	if !writed {
-		if _, err := fTokNew.Write(marshaledEntry); err != nil {
-			return fmt.Errorf("Error when writing new tok entry at end of file: %v", err)
+		if _, err := fTocNew.Write(marshaledEntry); err != nil {
+			return fmt.Errorf("Error when writing new toc entry at end of file: %v", err)
 		}
 	}
 
-	if _, err := fTokNew.Write(ZEROENTRY[:]); err != nil {
-		return fmt.Errorf("Error when writing last zeros in tok: %v", err)
+	if _, err := fTocNew.Write(ZEROENTRY[:]); err != nil {
+		return fmt.Errorf("Error when writing last zeros in toc: %v", err)
 	}
 
 	return nil
 }
 
 // do not reorder files in pack
-func updateFileWithoutIncreacingSize(fTokOriginal io.Reader, fTokNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
-	log.Println("Updating tok+parts without increacing required sectors count")
-	// update sizes in tok file, if changed
-	files, entries, err := ParseFiles(fTokOriginal)
+func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
+	log.Println("Updating toc+parts without increacing required sectors count")
+	// update sizes in toc file, if changed
+	files, entries, err := ParseFiles(fTocOriginal)
 	if err != nil {
-		return fmt.Errorf("Error when parsing tok: %v", err)
+		return fmt.Errorf("Error when parsing toc: %v", err)
 	}
 	f := files[filename]
 	if in.Size() != f.Size() {
@@ -347,7 +347,7 @@ func updateFileWithoutIncreacingSize(fTokOriginal io.Reader, fTokNew io.Writer, 
 			if e.Name == filename {
 				e.Size = in.Size()
 			}
-			fTokNew.Write(MarshalTokEntry(&e))
+			fTocNew.Write(MarshalTocEntry(&e))
 		}
 	}
 	log.Println("Reading file")
@@ -372,10 +372,10 @@ func updateFileWithoutIncreacingSize(fTokOriginal io.Reader, fTokNew io.Writer, 
 	return nil
 }
 
-func UpdateFile(fTokOriginal io.Reader, fTokNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, f *File, in *io.SectionReader) error {
+func UpdateFile(fTocOriginal io.Reader, fTocNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, f *File, in *io.SectionReader) error {
 	if in.Size()/utils.SECTOR_SIZE > f.Size()/utils.SECTOR_SIZE {
-		return updateFileWithIncreacingSize(fTokOriginal, fTokNew, partStreams, f.Name(), in)
+		return updateFileWithIncreacingSize(fTocOriginal, fTocNew, partStreams, f.Name(), in)
 	} else {
-		return updateFileWithoutIncreacingSize(fTokOriginal, fTokNew, partStreams, f.Name(), in)
+		return updateFileWithoutIncreacingSize(fTocOriginal, fTocNew, partStreams, f.Name(), in)
 	}
 }

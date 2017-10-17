@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mogaika/god_of_war_browser/tok"
+	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -42,17 +42,17 @@ func main() {
 
 	log.Println("Starting saving to catalog ", outDir)
 	log.Println("This can take a lot of time. Please be patient...")
-	outTok, err := os.Create(filepath.Join(outDir, tok.FILE_NAME))
+	outToc, err := os.Create(filepath.Join(outDir, toc.GetTocFileName()))
 	if err != nil {
-		log.Fatalf("Cannot create file '%s' in dir '%s':%v", tok.FILE_NAME, outDir, err)
+		log.Fatalf("Cannot create file '%s' in dir '%s':%v", toc.GetTocFileName(), outDir, err)
 	}
-	outPack, err := os.Create(filepath.Join(outDir, tok.GenPartFileName(0)))
+	outPack, err := os.Create(filepath.Join(outDir, toc.GenPartFileName(0)))
 	if err != nil {
-		log.Fatalf("Cannot create file '%s' in dir '%s':%v", tok.GenPartFileName(0), outDir, err)
+		log.Fatalf("Cannot create file '%s' in dir '%s':%v", toc.GenPartFileName(0), outDir, err)
 	}
 	defer func() {
 		outPack.Close()
-		outTok.Close()
+		outToc.Close()
 	}()
 
 	var offset int64
@@ -75,10 +75,10 @@ func main() {
 			}
 		}
 
-		outTok.Write(tok.MarshalTokEntry(&tok.Entry{
+		outToc.Write(toc.MarshalTocEntry(&toc.Entry{
 			Name: file.Name(),
 			Size: file.Size(),
-			Enc: tok.FileEncounter{
+			Enc: toc.FileEncounter{
 				Pack:  0,
 				Start: offset,
 			},
