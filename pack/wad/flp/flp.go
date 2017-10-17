@@ -166,9 +166,7 @@ func (d4 *Data4) Parse(buf []byte, pos int) int {
 }
 
 type Data5 struct {
-	Id          uint16
-	SomeOtherId uint16
-	Payload     []byte
+	Payload []byte
 }
 
 func (d5 *Data5) FromBuf(buf []byte) int {
@@ -215,11 +213,14 @@ func (d6s1 *Data6Subtype1) SetNameFromStringSector(stringsSector []byte) {
 	for i := range d6s1.Sub1s {
 		d6s1.Sub1s[i].SetNameFromStringSector(stringsSector)
 	}
+	for i := range d6s1.Sub2s {
+		d6s1.Sub2s[i].SetNameFromStringSector(stringsSector)
+	}
 }
 
 func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
-	log.Printf("d6sub1 parsing pos: %#x {%d,%d} < b34c,b3bc,b608,e694,f214,f5e8,f720,f84c,fa20,fd0c,12398,123ac,12448,124f3,1278f",
-		pos, len(d6s1.Sub1s), len(d6s1.Sub2s))
+	//log.Printf("d6sub1 parsing pos: %#x {%d,%d} < b34c,b3bc,b608,e694,f214,f5e8,f720,f84c,fa20,fd0c,12398,123ac,12448,124f3,1278f",
+	//	pos, len(d6s1.Sub1s), len(d6s1.Sub2s))
 
 	pos = posPad4(pos)
 	for i := range d6s1.Sub1s {
@@ -234,13 +235,14 @@ func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
 		pos += d6s1.Sub2s[i].FromBuf(buf[pos:])
 	}
 	for i := range d6s1.Sub2s {
-		log.Printf("d6sub1sub2 %d parsing pos: %#x << [0x123cc,0x124b0,0x124d6]", i, pos)
+		//log.Printf("d6sub1sub2 %d parsing pos: %#x << [0x123cc,0x124b0,0x124d6]", i, pos)
 		pos = d6s1.Sub2s[i].Parse(buf, pos)
 	}
 	return pos
 }
 
 type Data6Subtype1Subtype1 struct {
+	// FRAMES PROBABLY (way of animation)
 	Subs []Data6Subtype1Subtype1Subtype1
 }
 
@@ -250,7 +252,7 @@ func (d6s1s1 *Data6Subtype1Subtype1) FromBuf(buf []byte) int {
 }
 
 func (d6s1s1 *Data6Subtype1Subtype1) Parse(buf []byte, pos int) int {
-	log.Printf("d6sub1sub1 parsing pos: %#x {%d} < b354,b3c4,b4e4,b610,e69c,f21c,f5f0,f728,f854,fa28,fd14,123a0,123b4,12458", pos, len(d6s1s1.Subs))
+	//log.Printf("d6sub1sub1 parsing pos: %#x {%d} < b354,b3c4,b4e4,b610,e69c,f21c,f5f0,f728,f854,fa28,fd14,123a0,123b4,12458", pos, len(d6s1s1.Subs))
 	pos = posPad4(pos)
 	for i := range d6s1s1.Subs {
 		pos += d6s1s1.Subs[i].FromBuf(buf[pos:])
@@ -267,7 +269,7 @@ func (d6s1s1 *Data6Subtype1Subtype1) SetNameFromStringSector(stringsSector []byt
 // Special symbol (mesh + text?)
 type Data6Subtype1Subtype1Subtype1 struct {
 	IdexInData1Array uint16
-	NameSecOff       uint16
+	NameSecOff       int16
 	Name             string
 	Data             []byte
 }
@@ -275,22 +277,26 @@ type Data6Subtype1Subtype1Subtype1 struct {
 func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) FromBuf(buf []byte) int {
 	d6s1s1s1.Data = buf[:DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE]
 	d6s1s1s1.IdexInData1Array = binary.LittleEndian.Uint16(buf[0:])
-	d6s1s1s1.NameSecOff = binary.LittleEndian.Uint16(buf[8:])
+	d6s1s1s1.NameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
 
 func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) SetNameFromStringSector(stringsSector []byte) {
-	if d6s1s1s1.NameSecOff != 0xffff {
+	if d6s1s1s1.NameSecOff != -1 {
 		d6s1s1s1.Name = utils.BytesToString(stringsSector[d6s1s1s1.NameSecOff:])
 	}
 }
 
 type Data6Subtype1Subtype2 struct {
-	Subs []Data6Subtype1Subtype2Subtype1
+	// Frame
+	NameSecOff int16
+	Name       string
+	Subs       []Data6Subtype1Subtype2Subtype1
 }
 
 func (d6s1s2 *Data6Subtype1Subtype2) FromBuf(buf []byte) int {
 	d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
+	d6s1s2.NameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -305,7 +311,14 @@ func (d6s1s2 *Data6Subtype1Subtype2) Parse(buf []byte, pos int) int {
 	return pos
 }
 
+func (d6s1s2 *Data6Subtype1Subtype2) SetNameFromStringSector(stringsSector []byte) {
+	if d6s1s2.NameSecOff != -1 {
+		d6s1s2.Name = utils.BytesToString(stringsSector[d6s1s2.NameSecOff:])
+	}
+}
+
 type Data6Subtype1Subtype2Subtype1 struct {
+	Script  *Script
 	Payload []byte
 }
 
@@ -315,6 +328,8 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
 }
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
+	// utils.Dump("d6s1s2s1 _ PAYLOAD", buf[pos:pos+len(d6s1s2s1.Payload)])
+	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+len(d6s1s2s1.Payload)])
 	return pos + copy(d6s1s2s1.Payload, buf[pos:pos+len(d6s1s2s1.Payload)])
 }
 

@@ -9,22 +9,22 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mogaika/god_of_war_browser/tok"
+	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
-type TokDriver struct {
-	Files     map[string]*tok.File
-	Streams   [tok.PARTS_COUNT]*os.File
+type TocDriver struct {
+	Files     map[string]*toc.File
+	Streams   [toc.PARTS_COUNT]*os.File
 	Directory string
 	Cache     *InstanceCache
 }
 
-func (p *TokDriver) GetFileNamesList() []string {
-	return getFileNamesListFromTokMap(p.Files)
+func (p *TocDriver) GetFileNamesList() []string {
+	return getFileNamesListFromTocMap(p.Files)
 }
 
-func getFileNamesListFromTokMap(files map[string]*tok.File) []string {
+func getFileNamesListFromTocMap(files map[string]*toc.File) []string {
 	result := make([]string, len(files))
 	i := 0
 	for name := range files {
@@ -34,15 +34,15 @@ func getFileNamesListFromTokMap(files map[string]*tok.File) []string {
 	return result
 }
 
-func (p *TokDriver) tokGetFileName() string {
-	return filepath.Join(p.Directory, tok.FILE_NAME)
+func (p *TocDriver) tocGetFileName() string {
+	return filepath.Join(p.Directory, toc.GetTocFileName())
 }
 
-func (p *TokDriver) partGetFileName(packNumber int) string {
-	return filepath.Join(p.Directory, tok.GenPartFileName(packNumber))
+func (p *TocDriver) partGetFileName(packNumber int) string {
+	return filepath.Join(p.Directory, toc.GenPartFileName(packNumber))
 }
 
-func (p *TokDriver) prepareStream(packNumber int) error {
+func (p *TocDriver) prepareStream(packNumber int) error {
 	if p.Streams[packNumber] == nil {
 		if f, err := os.Open(p.partGetFileName(packNumber)); err != nil {
 			return err
@@ -53,7 +53,7 @@ func (p *TokDriver) prepareStream(packNumber int) error {
 	return nil
 }
 
-func (p *TokDriver) closeStreams() {
+func (p *TocDriver) closeStreams() {
 	for i, f := range p.Streams {
 		if f != nil {
 			f.Close()
@@ -62,7 +62,7 @@ func (p *TokDriver) closeStreams() {
 	}
 }
 
-func (p *TokDriver) getFile(fileName string) (*tok.File, error) {
+func (p *TocDriver) getFile(fileName string) (*toc.File, error) {
 	if f, exists := p.Files[fileName]; exists {
 		return f, nil
 	} else {
@@ -70,11 +70,11 @@ func (p *TokDriver) getFile(fileName string) (*tok.File, error) {
 	}
 }
 
-func (p *TokDriver) GetFile(fileName string) (PackFile, error) {
+func (p *TocDriver) GetFile(fileName string) (PackFile, error) {
 	return p.getFile(fileName)
 }
 
-func (p *TokDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader, error) {
+func (p *TocDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader, error) {
 	if f, err := p.getFile(fileName); err == nil {
 		for packNumber := range p.Streams {
 			for _, enc := range f.Encounters {
@@ -92,12 +92,12 @@ func (p *TokDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader,
 	}
 }
 
-func (p *TokDriver) GetInstance(fileName string) (interface{}, error) {
+func (p *TocDriver) GetInstance(fileName string) (interface{}, error) {
 	return defaultGetInstanceCachedHandler(p, p.Cache, fileName)
 }
 
-func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
-	defer p.parseTokFile()
+func (p *TocDriver) UpdateFile(fileName string, in *io.SectionReader) error {
+	defer p.parseTocFile()
 
 	f, err := p.getFile(fileName)
 	if err != nil {
@@ -105,8 +105,8 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	}
 	p.closeStreams()
 
-	var fParts [tok.PARTS_COUNT]*os.File
-	var partWriters [tok.PARTS_COUNT]utils.ReaderWriterAt
+	var fParts [toc.PARTS_COUNT]*os.File
+	var partWriters [toc.PARTS_COUNT]utils.ReaderWriterAt
 	defer func() {
 		for _, part := range fParts {
 			if part != nil {
@@ -123,38 +123,38 @@ func (p *TokDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 		}
 	}
 
-	fTok, err := os.OpenFile(p.tokGetFileName(), os.O_RDWR, 0666)
+	fToc, err := os.OpenFile(p.tocGetFileName(), os.O_RDWR, 0666)
 	if err != nil {
-		return fmt.Errorf("Cannot open tokfile '%s' for writing: %v", p.tokGetFileName(), err)
+		return fmt.Errorf("Cannot open tocfile '%s' for writing: %v", p.tocGetFileName(), err)
 	}
-	defer fTok.Close()
+	defer fToc.Close()
 
-	ftokoriginal, _ := ioutil.ReadAll(fTok)
-	fTok.Seek(0, os.SEEK_SET)
+	ftocoriginal, _ := ioutil.ReadAll(fToc)
+	fToc.Seek(0, os.SEEK_SET)
 
-	err = tok.UpdateFile(bytes.NewReader(ftokoriginal), fTok, partWriters, f, in)
+	err = toc.UpdateFile(bytes.NewReader(ftocoriginal), fToc, partWriters, f, in)
 
 	p.Cache = &InstanceCache{}
 
 	return err
 }
 
-func (p *TokDriver) parseTokFile() error {
-	if tokStream, err := os.Open(p.tokGetFileName()); err == nil {
-		defer tokStream.Close()
-		log.Printf("[pack] Parsing tok '%s'", p.tokGetFileName())
-		p.Files, _, err = tok.ParseFiles(tokStream)
+func (p *TocDriver) parseTocFile() error {
+	if tocStream, err := os.Open(p.tocGetFileName()); err == nil {
+		defer tocStream.Close()
+		log.Printf("[pack] Parsing toc '%s'", p.tocGetFileName())
+		p.Files, _, err = toc.ParseFiles(tocStream)
 		return err
 	} else {
 		return err
 	}
 }
 
-func NewPackFromTok(gamePath string) (*TokDriver, error) {
-	p := &TokDriver{
+func NewPackFromToc(gamePath string) (*TocDriver, error) {
+	p := &TocDriver{
 		Directory: gamePath,
 		Cache:     &InstanceCache{},
 	}
 
-	return p, p.parseTokFile()
+	return p, p.parseTocFile()
 }

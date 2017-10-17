@@ -1,4 +1,4 @@
-package tok
+package toc
 
 import (
 	"bytes"
@@ -11,11 +11,13 @@ import (
 )
 
 var ZEROENTRY [0xc]byte
+var tocFileNameOverride string
+var packFileNamesOverrides [PARTS_COUNT]string
 
 const (
 	ENTRY_SIZE       = 24
 	PARTS_COUNT      = 2
-	FILE_NAME        = "GODOFWAR.TOC"
+	TOC_FILE_NAME    = "GODOFWAR.TOC"
 	SANITY_FILE_NAME = "SANITY.TXT"
 )
 
@@ -44,8 +46,28 @@ type Entry struct {
 	Enc  FileEncounter
 }
 
+func TocNameOverride(newName string) {
+	tocFileNameOverride = newName
+}
+
+func PartNameOverride(partIndex int, newName string) {
+	packFileNamesOverrides[partIndex] = newName
+}
+
+func GetTocFileName() string {
+	if tocFileNameOverride != "" {
+		return tocFileNameOverride
+	} else {
+		return TOC_FILE_NAME
+	}
+}
+
 func GenPartFileName(partIndex int) string {
-	return fmt.Sprintf("PART%d.PAK", partIndex+1)
+	if packName := packFileNamesOverrides[partIndex]; packName == "" {
+		return fmt.Sprintf("PART%d.PAK", partIndex+1)
+	} else {
+		return packName
+	}
 }
 
 func UnmarshalTokEntry(buffer []byte) Entry {
@@ -175,7 +197,7 @@ func shrinkPackFiles(originalToksEntries []Entry, partStreams [PARTS_COUNT]utils
 			// find place where we can move file
 			targetPack := -1
 			for i := range partStreams {
-				if partStreams[i].Size()-streamOffsetsSectors[i]*utils.SECTOR_SIZE >= oldE.Size {
+				if partStreams[i] != nil && partStreams[i].Size()-streamOffsetsSectors[i]*utils.SECTOR_SIZE >= oldE.Size {
 					targetPack = i
 					break
 				}
@@ -238,6 +260,9 @@ func updateFileWithIncreacingSize(fTokOriginal io.Reader, fTokNew io.Writer, par
 			}
 		}
 		for iPack, packStream := range partStreams {
+			if packStream == nil {
+				continue
+			}
 			log.Println("<= Detecting free space in ", iPack, " pack =>")
 			log.Println("Pack stream size: ", packStream.Size())
 			log.Println("Pack stream sectors: ", packStream.Size()/utils.SECTOR_SIZE)
