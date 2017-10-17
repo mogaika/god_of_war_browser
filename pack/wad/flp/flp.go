@@ -53,13 +53,13 @@ func (d1 *Data1) FromBuf(buf []byte) int {
 }
 
 type Data2 struct {
-	Off_0 uint16
-	Sub1s []Data2Subtype1
+	MeshPartIndex int16
+	Sub1s         []Data2Subtype1
 }
 
 func (d2 *Data2) FromBuf(buf []byte) int {
 	utils.LogDump(buf[:DATA2_ELEMENT_SIZE])
-	d2.Off_0 = binary.LittleEndian.Uint16(buf[:])
+	d2.MeshPartIndex = int16(binary.LittleEndian.Uint16(buf[:]))
 	d2.Sub1s = make([]Data2Subtype1, binary.LittleEndian.Uint16(buf[2:]))
 	return DATA2_ELEMENT_SIZE
 }
@@ -328,7 +328,7 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 type FLP struct {
 	Datas1  []Data1
 	Datas2  []Data2 // Textures
-	Datas3  []Data3
+	Datas3  []Data3 // Font declaration
 	Datas4  []Data4
 	Datas5  []Data5
 	Datas6  []Data6
