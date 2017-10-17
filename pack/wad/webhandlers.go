@@ -1,8 +1,10 @@
 package wad
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
@@ -27,4 +29,30 @@ func (wad *Wad) WebHandlerForNodeByTagId(w http.ResponseWriter, tagId TagId) err
 		return fmt.Errorf("File %s-%d[%s] parsing error: %v", wad.Name(), node.Tag.Id, node.Tag.Name, err)
 	}
 	return nil
+}
+
+func (wad *Wad) WebHandlerDumpTagData(w http.ResponseWriter, id TagId) {
+	tag := wad.GetTagById(id)
+	webutils.WriteFile(w, bytes.NewBuffer(tag.Data), tag.Name)
+}
+
+func (wad *Wad) WebHandlerCallResourceHttpAction(w http.ResponseWriter, r *http.Request, id TagId, action string) error {
+	if inst, _, err := wad.GetInstanceFromTag(id); err == nil {
+		rt := reflect.TypeOf(inst)
+		method, has := rt.MethodByName("HttpAction")
+		if !has {
+			return fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name())
+		} else {
+			method.Func.Call([]reflect.Value{
+				reflect.ValueOf(inst),
+				reflect.ValueOf(wad.GetNodeResourceByTagId(id)),
+				reflect.ValueOf(w),
+				reflect.ValueOf(r),
+				reflect.ValueOf(action),
+			}[:])
+			return nil
+		}
+	} else {
+		return fmt.Errorf("File %d instance getting error: %v", id, err)
+	}
 }

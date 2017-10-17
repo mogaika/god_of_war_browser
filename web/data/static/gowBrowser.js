@@ -38,8 +38,8 @@ function set3dVisible(show) {
     }
 }
 
-function setTitle(viewHeh, title) {
-    $(viewHeh).children(".view-item-title").text(title);
+function setTitle(view, title) {
+    $(view).children(".view-item-title").text(title);
 }
 
 function setLocation(title, hash) {
@@ -62,8 +62,14 @@ function packLoad() {
                 .append($('<label>').append(fileName))
                 .append($('<a download>')
                     .addClass('button-dump')
-                    .attr('href', '/dump/pack/' + fileName)));
-        }
+					.attr('title', 'Download file')
+                    .attr('href', '/dump/pack/' + fileName))
+				.append($('<div>')
+	                .addClass('button-upload')
+					.attr('title', 'Upload your version of file')
+					.attr("href", '/upload/pack/' + fileName)
+					.click(uploadAjaxHandler)));
+	    }
         dataPack.append(list);
 
         if (defferedLoadingWad) {
@@ -78,6 +84,37 @@ function packLoad() {
 
         console.log('pack loaded');
     })
+}
+
+function uploadAjaxHandler() {
+	console.log(this);
+	var link = $(this).attr("href");
+	var form = $('<form action="' + link + '" method="post" enctype="multipart/form-data">');
+	var fileInput = $('<input type="file" name="data">');
+	form.append(fileInput);
+
+	fileInput.trigger("click");
+	fileInput.change(function() {
+		if (fileInput[0].files.length == 0) {
+			return;
+		}
+	
+	    $.ajax({
+	        url: form.attr('action'),
+	        type: 'post',
+	        data: new FormData(form[0]),
+	        processData: false,
+	        contentType: false,
+	        success: function(a1) {
+	            if (a1 !== "") {
+	                alert('Error uploading: ' + a1);
+	            } else {
+	                alert('Success!');
+	                window.location.reload();
+	            }
+	        }
+	    });
+	});
 }
 
 function packLoadFile(filename) {
@@ -97,6 +134,9 @@ function packLoadFile(filename) {
             case 'vpk':
                 treeLoadVagVpk(filename, data);
                 break;
+			case 'txt':
+				treeLoadTxt(filename, data);
+				break;
             default:
                 dataTree.append(JSON.stringify(data, undefined, 2).replaceAll('\n', '<br>'));
                 break;
@@ -120,6 +160,14 @@ function treeLoadVagVpk(filename, data) {
 
     setLocation(filename, '#/' + filename);
 }
+
+function treeLoadTxt(filename, data) {
+    set3dVisible(false);
+    setTitle(viewTree, filename);
+	dataSummary.append($("<p>").append(data));
+    setLocation(filename, '#/' + filename);
+}
+
 
 function treeLoadPswPss(filename, data) {
     set3dVisible(false);
@@ -169,8 +217,15 @@ function treeLoadWad(wadName, data) {
                 li.append(' [' + node.Tag.Tag + ']');
             }
 
-            li.append($('<a download>')
+			li.append($('<div>')
+                .addClass('button-upload')
+				.attr('title', 'Upload your version of wad tag data')
+				.attr('href', '/upload/pack/' + wadName + '/' + node.Tag.Id)
+				.click(uploadAjaxHandler));
+
+            li.append($('<a>')
                 .addClass('button-dump')
+				.attr('title', 'Download wad tag data')
                 .attr('href', '/dump/pack/' + wadName + '/' + node.Tag.Id))
 
             if (node.SubGroupNodes) {

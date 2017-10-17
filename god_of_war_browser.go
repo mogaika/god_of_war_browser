@@ -7,6 +7,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/web"
 
+	_ "github.com/mogaika/god_of_war_browser/pack/txt"
 	_ "github.com/mogaika/god_of_war_browser/pack/vag"
 	_ "github.com/mogaika/god_of_war_browser/pack/vpk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad"
