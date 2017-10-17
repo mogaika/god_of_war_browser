@@ -8,8 +8,7 @@ Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*
 ## Instruction
 - Install golang compiler ([official instruction](https://golang.org/doc/install))
 - `go get -u github.com/mogaika/god_of_war_browser` (this command download code and dependencies)
-- Go to directory with required [tool](https://github.com/mogaika/god_of_war_browser/tree/master/tools) and run `go build` to compile
-- Do not forget read README
+- Go to directory with project (%GOROOT%/github.com/mogaika/god_of_war_browser) and run `go build` to compile
 - If you encounter any problem or have a question - welcome to our friendly [gitter chat](https://gitter.im/god_of_war/)
 
 ## Instruction to god_of_war_browser
@@ -23,7 +22,7 @@ You can! But it is hard at this point :(
 - First time you upload larger file, it takes a while (~1-5min, depends on hard drive and memory) to rearrange resources in pack file to create free space.
 - You can download resources, changing them in hex editors and reupload back using browser.
 - Also you can change textures in browser! Open TXR_ resource and use upload form (png,jpg,gif support).
-- For other files follow (legacy):
+- Legacy flow of file replacing:
   - Download required wads using god_of_war_browser web interface
   - Use [wadunpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadunpack) to unpack wad where you want to make change
   - Add/remove/modify game files, do not forget to modify *wad_meta.txt*. Some info about file formats you can find in [sources](https://github.com/mogaika/god_of_war_browser/tree/master/pack/wad) of god_of_war_browser.
