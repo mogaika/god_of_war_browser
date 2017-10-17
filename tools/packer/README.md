@@ -2,7 +2,7 @@
 Tool allow create your own pack files for God of War game
 
 ### Usage
-./packer -i "Path to directory with files" -o "Path to directory, where pak and tok files been created"
+./packer -i "Path to directory with files" -o "Path to directory, where pak and toc files been created"
 
 Minimal complect of files, required to run menu and character graveyard:
 

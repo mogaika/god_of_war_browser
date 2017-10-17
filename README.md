@@ -15,13 +15,15 @@ Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*
 ## Instruction to god_of_war_browser
 - Open console and launch binary with
   - ```-iso "Path_to_game_ISO_file"``` if you have iso file (detection of second layer implemented)
-  - ```-tok "Path_to_directory_with_GODOFWAR.TOK_and_PART?.pak_files"``` if you have unpacked iso
+  - ```-toc "Path_to_directory_with_GODOFWAR.TOC_and_PART?.pak_files"``` if you have unpacked iso
 - Then open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)
 
 ## What if I want to mod game?
 You can! But it is hard at this point :(
-- You can change textures in browser! Open TXR_ resource and use upload form (png,jpg,gif support). But first time you upload larger texture, it takes a while (~1-5min, depends on hard drive and memory) to rearrange resources in pack file to create free space.
-- For other files follow:
+- First time you upload larger file, it takes a while (~1-5min, depends on hard drive and memory) to rearrange resources in pack file to create free space.
+- You can download resources, changing them in hex editors and reupload back using browser.
+- Also you can change textures in browser! Open TXR_ resource and use upload form (png,jpg,gif support).
+- For other files follow (legacy):
   - Download required wads using god_of_war_browser web interface
   - Use [wadunpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadunpack) to unpack wad where you want to make change
   - Add/remove/modify game files, do not forget to modify *wad_meta.txt*. Some info about file formats you can find in [sources](https://github.com/mogaika/god_of_war_browser/tree/master/pack/wad) of god_of_war_browser.
