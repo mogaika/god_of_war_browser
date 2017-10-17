@@ -359,7 +359,7 @@ func (w *Wad) UpdateTagsData(updateData map[TagId][]byte) error {
 		} else {
 			if newdata, ex := updateData[t.Id]; ex {
 				data = newdata
-				log.Println("Changing size from ", t.Size, " to ", len(data))
+				log.Println("Changing size at ", t.Name, " from ", t.Size, " to ", len(data))
 			}
 			t.Size = uint32(len(data))
 		}

@@ -160,9 +160,21 @@ a.button-dump {
     display: inline-block;
     position: absolute;
     top: 1px;
-    right: 0;
+    right: -3px;
     width: 16px;
     height: 16px;
     background-image: url('dump-16.png');
     cursor: pointer;
 }
+
+div.button-upload {
+    display: inline-block;
+    position: absolute;
+    top: 1px;
+    right: 14px;
+    width: 16px;
+    height: 16px;
+    background-image: url('upload-16.png');
+    cursor: pointer;
+}
+

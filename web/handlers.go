@@ -3,9 +3,11 @@ package web
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"reflect"
+	"os"
 	"sort"
 	"strconv"
 
@@ -84,8 +86,7 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				tag := wad.GetTagById(file_wad.TagId(id))
-				webutils.WriteFile(w, bytes.NewBuffer(tag.Data), tag.Name)
+				wad.WebHandlerDumpTagData(w, file_wad.TagId(id))
 			}
 		case *file_vagp.VAGP:
 			if wav, err := data.(*file_vagp.VAGP).AsWave(); err != nil {
@@ -112,7 +113,7 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandlerAactionPackFileParam(w http.ResponseWriter, r *http.Request) {
+func HandlerActionPackFileParam(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
 	action := mux.Vars(r)["action"]
@@ -128,27 +129,68 @@ func HandlerAactionPackFileParam(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				webutils.WriteError(w, fmt.Errorf("param '%s' is not integer", param))
 			} else {
-				id := file_wad.TagId(id)
-				if inst, _, err := wad.GetInstanceFromTag(id); err == nil {
-					rt := reflect.TypeOf(inst)
-					method, has := rt.MethodByName("HttpAction")
-					if !has {
-						webutils.WriteError(w, fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name()))
-					} else {
-						method.Func.Call([]reflect.Value{
-							reflect.ValueOf(inst),
-							reflect.ValueOf(wad.GetNodeResourceByTagId(id)),
-							reflect.ValueOf(w),
-							reflect.ValueOf(r),
-							reflect.ValueOf(action),
-						}[:])
-					}
-				} else {
-					webutils.WriteError(w, fmt.Errorf("File %s-%d instance getting error: %v", file, id, err))
+				if err := wad.WebHandlerCallResourceHttpAction(w, r, file_wad.TagId(id), action); err != nil {
+					webutils.WriteError(w, fmt.Errorf("Wad handler error on %s-%d instance: %v", file, id, err))
 				}
 			}
 		default:
 			webutils.WriteError(w, fmt.Errorf("File %s not contain subdata", file))
 		}
 	}
+}
+
+func HandlerUploadPackFile(w http.ResponseWriter, r *http.Request) {
+	targetFile := mux.Vars(r)["file"]
+	fileStream, _, err := r.FormFile("data")
+	defer fileStream.Close()
+
+	if err != nil {
+		webutils.WriteError(w, fmt.Errorf("File stream getting error: %v", err))
+		return
+	}
+
+	fileSize, err := fileStream.Seek(0, os.SEEK_END)
+	if err != nil {
+		webutils.WriteError(w, fmt.Errorf("Cannot seek file: %v", err))
+		return
+	}
+	fileStream.Seek(0, os.SEEK_SET)
+
+	if err := ServerPack.UpdateFile(targetFile, io.NewSectionReader(fileStream, 0, fileSize)); err != nil {
+		webutils.WriteError(w, fmt.Errorf("Error when updating pack file: %v", err))
+	}
+}
+func HandlerUploadPackFileParam(w http.ResponseWriter, r *http.Request) {
+	targetFile := mux.Vars(r)["file"]
+	param := mux.Vars(r)["param"]
+	fileStream, _, err := r.FormFile("data")
+	defer fileStream.Close()
+	if err != nil {
+		webutils.WriteError(w, fmt.Errorf("File stream getting error: %v", err))
+		return
+	}
+
+	data, err := ServerPack.GetInstance(targetFile)
+	if err != nil {
+		log.Printf("Error getting instance from pack: %v", err)
+		webutils.WriteError(w, err)
+	} else {
+		switch data.(type) {
+		case *file_wad.Wad:
+			wad := data.(*file_wad.Wad)
+			id, err := strconv.Atoi(param)
+			if err != nil {
+				webutils.WriteError(w, fmt.Errorf("target wad resource name '%s' is not integer: %v", param, err))
+			} else {
+				if fileData, err := ioutil.ReadAll(fileStream); err == nil {
+					if err := wad.UpdateTagsData(map[file_wad.TagId][]byte{file_wad.TagId(id): fileData}); err != nil {
+						webutils.WriteError(w, fmt.Errorf("Error updating tags: %v", err))
+					}
+				} else {
+					webutils.WriteError(w, fmt.Errorf("reading file error: %v", err))
+				}
+			}
+		}
+	}
+
 }

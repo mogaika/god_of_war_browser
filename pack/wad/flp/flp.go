@@ -53,20 +53,19 @@ func (d1 *Data1) FromBuf(buf []byte) int {
 }
 
 type Data2 struct {
-	MeshPartIndex int16
-	Sub1s         []Data2Subtype1
+	MeshPartIndex               int16
+	MeshPartObjectsDescriptions []Data2Subtype1 // Count equals to objects count in mesh part group
 }
 
 func (d2 *Data2) FromBuf(buf []byte) int {
-	utils.LogDump(buf[:DATA2_ELEMENT_SIZE])
 	d2.MeshPartIndex = int16(binary.LittleEndian.Uint16(buf[:]))
-	d2.Sub1s = make([]Data2Subtype1, binary.LittleEndian.Uint16(buf[2:]))
+	d2.MeshPartObjectsDescriptions = make([]Data2Subtype1, binary.LittleEndian.Uint16(buf[2:]))
 	return DATA2_ELEMENT_SIZE
 }
 
 func (d2 *Data2) Parse(buf []byte, pos int) int {
-	for j := range d2.Sub1s {
-		d2.Sub1s[j] = Data2Subtype1{
+	for j := range d2.MeshPartObjectsDescriptions {
+		d2.MeshPartObjectsDescriptions[j] = Data2Subtype1{
 			Color:             binary.LittleEndian.Uint32(buf[pos:]),
 			TextureNameSecOff: binary.LittleEndian.Uint32(buf[pos+4:]),
 		}
@@ -75,9 +74,15 @@ func (d2 *Data2) Parse(buf []byte, pos int) int {
 	return pos
 }
 
+func (d2 *Data2) SetNameFromStringSector(stringsSector []byte) {
+	for i := range d2.MeshPartObjectsDescriptions {
+		d2.MeshPartObjectsDescriptions[i].SetNameFromStringSector(stringsSector)
+	}
+}
+
 type Data2Subtype1 struct {
 	// Texture Linkage
-	Color             uint32 //maybe
+	Color             uint32
 	TextureNameSecOff uint32
 	TextureName       string
 }
@@ -161,11 +166,13 @@ func (d4 *Data4) Parse(buf []byte, pos int) int {
 }
 
 type Data5 struct {
-	Payload []byte
+	Id          uint16
+	SomeOtherId uint16
+	Payload     []byte
 }
 
 func (d5 *Data5) FromBuf(buf []byte) int {
-	d5.Payload = buf
+	d5.Payload = buf[:DATA5_ELEMENT_SIZE]
 	return DATA5_ELEMENT_SIZE
 }
 
@@ -322,18 +329,19 @@ func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 
 func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
+	utils.LogDump(buf[pos : pos+len(d6s2.Payload)])
 	return pos + copy(d6s2.Payload, buf[pos:pos+len(d6s2.Payload)])
 }
 
 type FLP struct {
-	Datas1  []Data1
+	Datas1  []Data1 // Global id table
 	Datas2  []Data2 // Textures
 	Datas3  []Data3 // Font declaration
 	Datas4  []Data4
 	Datas5  []Data5
 	Datas6  []Data6
 	Datas7  []Data6Subtype1
-	Data8   Data6Subtype1
+	Data8   Data6Subtype1 // Root logic node
 	Strings []string
 }
 
@@ -424,20 +432,14 @@ func (f *FLP) fromBuffer(buf []byte) error {
 
 func (f *FLP) SetNameFromStringSector(stringsSector []byte) {
 	for i := range f.Datas2 {
-		for j := range f.Datas2[i].Sub1s {
-			f.Datas2[i].Sub1s[j].SetNameFromStringSector(stringsSector)
-		}
+		f.Datas2[i].SetNameFromStringSector(stringsSector)
 	}
 	for i := range f.Datas3 {
 		for j := range f.Datas3[i].Flag4Datas2 {
-			for k := range f.Datas3[i].Flag4Datas2[j].Sub1s {
-				f.Datas3[i].Flag4Datas2[j].Sub1s[k].SetNameFromStringSector(stringsSector)
-			}
+			f.Datas3[i].Flag4Datas2[j].SetNameFromStringSector(stringsSector)
 		}
 		for j := range f.Datas3[i].Flag2Datas2 {
-			for k := range f.Datas3[i].Flag2Datas2[j].Sub1s {
-				f.Datas3[i].Flag2Datas2[j].Sub1s[k].SetNameFromStringSector(stringsSector)
-			}
+			f.Datas3[i].Flag2Datas2[j].SetNameFromStringSector(stringsSector)
 		}
 	}
 
