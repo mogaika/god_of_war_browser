@@ -1,4 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mogaika/god_of_war_browser)](https://goreportcard.com/report/github.com/mogaika/god_of_war_browser)
+[![Build status](https://ci.appveyor.com/api/projects/status/n4w8rkn30sl6oqbp?svg=true)](https://ci.appveyor.com/project/mogaika/god-of-war-browser/build/artifacts)
 
 ![gow_browser_logo](https://user-images.githubusercontent.com/3680954/28489831-6ec1c660-6edd-11e7-9b08-7c79b20196d8.png)
 
