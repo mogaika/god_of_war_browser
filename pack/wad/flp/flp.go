@@ -171,6 +171,7 @@ type Data5 struct {
 
 func (d5 *Data5) FromBuf(buf []byte) int {
 	d5.Payload = buf[:DATA5_ELEMENT_SIZE]
+	utils.LogDump("D5 PAYLOAD", d5.Payload)
 	return DATA5_ELEMENT_SIZE
 }
 
@@ -289,14 +290,14 @@ func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) SetNameFromStringSector(stringsSe
 
 type Data6Subtype1Subtype2 struct {
 	// Frame
-	NameSecOff int16
-	Name       string
-	Subs       []Data6Subtype1Subtype2Subtype1
+	FrameNameSecOff int16
+	FrameName       string
+	Subs            []Data6Subtype1Subtype2Subtype1
 }
 
 func (d6s1s2 *Data6Subtype1Subtype2) FromBuf(buf []byte) int {
 	d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
-	d6s1s2.NameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
+	d6s1s2.FrameNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -312,8 +313,8 @@ func (d6s1s2 *Data6Subtype1Subtype2) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s2 *Data6Subtype1Subtype2) SetNameFromStringSector(stringsSector []byte) {
-	if d6s1s2.NameSecOff != -1 {
-		d6s1s2.Name = utils.BytesToString(stringsSector[d6s1s2.NameSecOff:])
+	if d6s1s2.FrameNameSecOff != -1 {
+		d6s1s2.FrameName = utils.BytesToString(stringsSector[d6s1s2.FrameNameSecOff:])
 	}
 }
 
@@ -335,6 +336,7 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 
 type Data6Subtype2 struct {
 	Payload []byte
+	Script  *Script
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
@@ -344,7 +346,8 @@ func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 
 func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	utils.LogDump(buf[pos : pos+len(d6s2.Payload)])
+	//utils.LogDump("d6s2 payload", buf[pos:pos+len(d6s2.Payload)])
+	d6s2.Script = NewScriptFromData(buf[pos : pos+len(d6s2.Payload)])
 	return pos + copy(d6s2.Payload, buf[pos:pos+len(d6s2.Payload)])
 }
 
@@ -397,6 +400,7 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	}
 
 	for i := range f.Datas5 {
+		log.Println("Data5 pos ", pos)
 		pos += f.Datas5[i].FromBuf(buf[pos:])
 	}
 

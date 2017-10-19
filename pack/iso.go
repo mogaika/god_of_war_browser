@@ -21,12 +21,13 @@ import (
 var IsoSecondLayerStart int64 = 0x0fdf90000
 
 type IsoDriver struct {
-	Files       map[string]*toc.File
-	IsoFile     *os.File
-	IsoLayers   [2]*udf.Udf
-	PackStreams [toc.PARTS_COUNT]*io.SectionReader
-	IsoPath     string
-	Cache       *InstanceCache
+	Files            map[string]*toc.File
+	IsoFile          *os.File
+	IsoLayers        [2]*udf.Udf
+	PackStreams      [toc.PARTS_COUNT]*io.SectionReader
+	IsoPath          string
+	Cache            *InstanceCache
+	secondLayerStart int64
 }
 
 func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
@@ -54,7 +55,7 @@ func (p *IsoDriver) prepareStreams() error {
 
 		isoinfo, err := p.IsoFile.Stat()
 		if err == nil {
-			if isoinfo.Size() > IsoSecondLayerStart {
+			if p.secondLayerStart > 0 && isoinfo.Size() > p.secondLayerStart {
 				r := io.NewSectionReader(p.IsoFile, IsoSecondLayerStart, isoinfo.Size()-IsoSecondLayerStart)
 				log.Printf("[pack] Detected second layer of iso file (size:%d)", r.Size())
 				p.IsoLayers[1] = udf.NewUdfFromReader(r)
@@ -184,10 +185,11 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	return err
 }
 
-func NewPackFromIso(isoPath string) (*IsoDriver, error) {
+func NewPackFromIso(isoPath string, secondLayerStart int64) (*IsoDriver, error) {
 	p := &IsoDriver{
-		IsoPath: isoPath,
-		Cache:   &InstanceCache{},
+		IsoPath:          isoPath,
+		Cache:            &InstanceCache{},
+		secondLayerStart: secondLayerStart,
 	}
 	if err := p.prepareStreams(); err != nil {
 		return nil, err
