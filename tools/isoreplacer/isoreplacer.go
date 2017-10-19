@@ -36,7 +36,7 @@ func FindFileSizePoses(iso *os.File, f *udf.File) map[int64]uint32 {
 	//f.FileEntry().AllocationDescriptors[0].Length
 	result := make(map[int64]uint32, 0)
 
-	fePos := udf.SECTOR_SIZE * (int64(f.FileEntryPosition) + int64(f.Udf.PartitionStart()))
+	fePos := f.GetFileOffset()
 	result[fePos+56] = 0
 
 	allocDescStart := uint32(fePos) + 176 + f.FileEntry().LengthOfExtendedAttributes

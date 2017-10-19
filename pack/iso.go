@@ -2,6 +2,7 @@ package pack
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,12 +15,6 @@ import (
 	"github.com/mogaika/udf"
 )
 
-// Actually structs for second layer starts from 0x0fdf98000
-// Because boot-space for iso/udf fs is 0x8000 we get 0x0fdf90000 as layer start
-// But 0x0fdf92000 is end of part1 on my iso
-// What i'm doin wrong?
-var IsoSecondLayerStart int64 = 0x0fdf90000
-
 type IsoDriver struct {
 	Files            map[string]*toc.File
 	IsoFile          *os.File
@@ -27,7 +22,7 @@ type IsoDriver struct {
 	PackStreams      [toc.PARTS_COUNT]*io.SectionReader
 	IsoPath          string
 	Cache            *InstanceCache
-	secondLayerStart int64
+	SecondLayerStart int64
 }
 
 func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
@@ -54,12 +49,24 @@ func (p *IsoDriver) prepareStreams() error {
 		p.IsoLayers[0] = udf.NewUdfFromReader(p.IsoFile)
 
 		isoinfo, err := p.IsoFile.Stat()
+
+		// Hack that allow detect second layer volume
 		if err == nil {
-			if p.secondLayerStart > 0 && isoinfo.Size() > p.secondLayerStart {
-				r := io.NewSectionReader(p.IsoFile, IsoSecondLayerStart, isoinfo.Size()-IsoSecondLayerStart)
-				log.Printf("[pack] Detected second layer of iso file (size:%d)", r.Size())
-				p.IsoLayers[1] = udf.NewUdfFromReader(r)
+			var volSizeBuf [4]byte
+			// primary volume description sector + offset of volume space size
+			if _, err := p.IsoFile.ReadAt(volSizeBuf[:], 0x10*2048+80); err != nil {
+				log.Println("[pack] Error when detecting second layer: Read vol size buf error: %v", err)
+			} else {
+				// minus 16 boot sectors, because they do not replicated over layers (volumes)
+				volumeSize := int64(binary.LittleEndian.Uint32(volSizeBuf[:])-16) * utils.SECTOR_SIZE
+				if volumeSize+32*utils.SECTOR_SIZE < isoinfo.Size() {
+					p.IsoLayers[1] = udf.NewUdfFromReader(io.NewSectionReader(p.IsoFile, volumeSize, isoinfo.Size()-volumeSize))
+					log.Printf("[pack] Detected second layer of disk. Start: %x (%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
+					p.SecondLayerStart = volumeSize
+				}
 			}
+		} else {
+			log.Println("[pack] Cannot stat iso file: %v", err)
 		}
 
 		for i := range p.PackStreams {
@@ -144,9 +151,9 @@ func (ifw *IsoFileReaderWriterAt) Size() int64 {
 
 func (p *IsoDriver) openIsoFileReaderWriterAt(file string) *IsoFileReaderWriterAt {
 	fstr, layer := p.openIsoFile(file)
-	filestart := udf.SECTOR_SIZE * (int64(fstr.FileEntry().AllocationDescriptors[0].Location) + int64(fstr.Udf.PartitionStart()))
+	filestart := fstr.GetFileOffset()
 	if layer == 1 {
-		filestart += IsoSecondLayerStart
+		filestart += p.SecondLayerStart
 	}
 	log.Println("filestart ", file, filestart)
 	return &IsoFileReaderWriterAt{
@@ -185,11 +192,10 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	return err
 }
 
-func NewPackFromIso(isoPath string, secondLayerStart int64) (*IsoDriver, error) {
+func NewPackFromIso(isoPath string) (*IsoDriver, error) {
 	p := &IsoDriver{
-		IsoPath:          isoPath,
-		Cache:            &InstanceCache{},
-		secondLayerStart: secondLayerStart,
+		IsoPath: isoPath,
+		Cache:   &InstanceCache{},
 	}
 	if err := p.prepareStreams(); err != nil {
 		return nil, err
