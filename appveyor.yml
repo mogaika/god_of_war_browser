@@ -23,7 +23,16 @@ install:
 
 build_script:
   - go test -v ./...
+  - go build
+
+after_build:
+  - 7z a god_of_war_browser.zip -r c:\gopath\src\github.com\mogaika\god_of_war_browser\web -x!*.go
+  - 7z a god_of_war_browser.zip god_of_war_browser.exe
 
 test: off
 
 deploy: off
+
+artifacts:
+  - path: god_of_war_browser.zip
+    name: god_of_war_browser
