@@ -1,8 +1,6 @@
-package utils_test
+package utils
 
 import "testing"
-
-import . "."
 
 var hashTests = []struct {
 	in_str    string
