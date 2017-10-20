@@ -39,7 +39,7 @@ const NODE_INVALID = -1
 
 type Wad struct {
 	Source utils.ResourceSource `json:"-"`
-	Tags   []Tag                `json:"-"`
+	Tags   []Tag
 	Nodes  []*Node
 	Roots  []NodeId
 

@@ -17,7 +17,7 @@ const (
 	DATATYPE_UNKNOWN9  = 9  // apply to material
 	DATATYPE_PARTICLES = 10 // apply to object (particles), probably additive matricies animation?, or physical affect body affect
 	DATATYPE_UNKNOWN11 = 11 // apply to object (? in StonedBRK models)
-	DATATYPE_UNKNOWN12 = 12 // apply to object (? in flagGrp models)
+	DATATYPE_UNKNOWN12 = 12 // apply to object (? in flagGrp and chest models)
 	// total - 15 types
 )
 

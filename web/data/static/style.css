@@ -105,6 +105,10 @@ a {
 	color: #bf7;
 }
 
+#view-tree ol li.wad-node-nodata {
+	color: #89d;
+}
+
 
 #view-summary {
     width: 18em;
@@ -178,3 +182,22 @@ div.button-upload {
     cursor: pointer;
 }
 
+div.view-item-selectors {
+	display: flex;
+	flex-direction: row;
+	box-shadow: inset 0px -61px 19px -64px rgba(150,150,150,1);
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+
+div.view-item-selectors div.item-selector {
+	flex: 1 1 auto;
+	text-align: center;
+	border-left: 1px solid #444;
+	border-right: 1px solid #888;
+	cursor: pointer;
+}
+
+div.view-item-selectors div.item-selector:hover {
+	text-decoration: underline;
+}

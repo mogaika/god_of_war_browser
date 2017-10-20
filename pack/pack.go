@@ -98,7 +98,7 @@ func (s *PackResSrc) Save(in *io.SectionReader) error {
 	return s.p.UpdateFile(s.pf.Name(), in)
 }
 
-func defaultGetInstanceCachedHandler(p PackDriver, cache *InstanceCache, fileName string) (interface{}, error) {
+func GetInstanceCachedHandler(p PackDriver, cache *InstanceCache, fileName string) (interface{}, error) {
 	f, r, err := p.GetFileReader(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot get instance of '%s': %v", fileName, err)

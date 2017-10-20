@@ -8,6 +8,10 @@ import (
 	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/web"
 
+	"github.com/mogaika/god_of_war_browser/pack/drivers/dirdriver"
+	"github.com/mogaika/god_of_war_browser/pack/drivers/isodriver"
+	"github.com/mogaika/god_of_war_browser/pack/drivers/tocdriver"
+
 	_ "github.com/mogaika/god_of_war_browser/pack/txt"
 	_ "github.com/mogaika/god_of_war_browser/pack/vag"
 	_ "github.com/mogaika/god_of_war_browser/pack/vpk"
@@ -32,7 +36,7 @@ func main() {
 	var addr, tocpath, dir, iso, part1name, part2name, tocname string
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
-	//flag.StringVar(&dir, "dir", "", "Path to unpacked wads and other stuff")
+	flag.StringVar(&dir, "dir", "", "Path to unpacked wads and other stuff")
 	flag.StringVar(&iso, "iso", "", "Pack to iso file")
 	flag.StringVar(&part1name, "partname1", "", "PART1.PAK name override")
 	flag.StringVar(&part2name, "partname2", "", "PART2.PAK name override")
@@ -47,11 +51,11 @@ func main() {
 	toc.TocNameOverride(tocname)
 
 	if iso != "" {
-		p, err = pack.NewPackFromIso(iso)
+		p, err = isodriver.NewPackFromIso(iso)
 	} else if tocpath != "" {
-		p, err = pack.NewPackFromToc(tocpath)
+		p, err = tocdriver.NewPackFromToc(tocpath)
 	} else if dir != "" {
-		//s	p, err = pack.NewPackFromDirectory(dir)
+		p, err = dirdriver.NewPackFromDirectory(dir)
 	} else {
 		flag.PrintDefaults()
 		return

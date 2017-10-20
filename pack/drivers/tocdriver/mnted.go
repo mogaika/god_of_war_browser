@@ -1,4 +1,4 @@
-package pack
+package tocdriver
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -17,14 +18,14 @@ type TocDriver struct {
 	Files     map[string]*toc.File
 	Streams   [toc.PARTS_COUNT]*os.File
 	Directory string
-	Cache     *InstanceCache
+	Cache     *pack.InstanceCache
 }
 
 func (p *TocDriver) GetFileNamesList() []string {
-	return getFileNamesListFromTocMap(p.Files)
+	return GetFileNamesListFromTocMap(p.Files)
 }
 
-func getFileNamesListFromTocMap(files map[string]*toc.File) []string {
+func GetFileNamesListFromTocMap(files map[string]*toc.File) []string {
 	result := make([]string, len(files))
 	i := 0
 	for name := range files {
@@ -70,11 +71,11 @@ func (p *TocDriver) getFile(fileName string) (*toc.File, error) {
 	}
 }
 
-func (p *TocDriver) GetFile(fileName string) (PackFile, error) {
+func (p *TocDriver) GetFile(fileName string) (pack.PackFile, error) {
 	return p.getFile(fileName)
 }
 
-func (p *TocDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader, error) {
+func (p *TocDriver) GetFileReader(fileName string) (pack.PackFile, *io.SectionReader, error) {
 	if f, err := p.getFile(fileName); err == nil {
 		for packNumber := range p.Streams {
 			for _, enc := range f.Encounters {
@@ -93,7 +94,7 @@ func (p *TocDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader,
 }
 
 func (p *TocDriver) GetInstance(fileName string) (interface{}, error) {
-	return defaultGetInstanceCachedHandler(p, p.Cache, fileName)
+	return pack.GetInstanceCachedHandler(p, p.Cache, fileName)
 }
 
 func (p *TocDriver) UpdateFile(fileName string, in *io.SectionReader) error {
@@ -134,7 +135,7 @@ func (p *TocDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 
 	err = toc.UpdateFile(bytes.NewReader(ftocoriginal), fToc, partWriters, f, in)
 
-	p.Cache = &InstanceCache{}
+	p.Cache = &pack.InstanceCache{}
 
 	return err
 }
@@ -153,7 +154,7 @@ func (p *TocDriver) parseTocFile() error {
 func NewPackFromToc(gamePath string) (*TocDriver, error) {
 	p := &TocDriver{
 		Directory: gamePath,
-		Cache:     &InstanceCache{},
+		Cache:     &pack.InstanceCache{},
 	}
 
 	return p, p.parseTocFile()

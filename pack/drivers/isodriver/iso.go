@@ -1,4 +1,4 @@
-package pack
+package isodriver
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mogaika/god_of_war_browser/pack"
+	"github.com/mogaika/god_of_war_browser/pack/drivers/tocdriver"
 	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/udf"
@@ -21,7 +23,7 @@ type IsoDriver struct {
 	IsoLayers        [2]*udf.Udf
 	PackStreams      [toc.PARTS_COUNT]*io.SectionReader
 	IsoPath          string
-	Cache            *InstanceCache
+	Cache            *pack.InstanceCache
 	SecondLayerStart int64
 }
 
@@ -91,14 +93,14 @@ func (p *IsoDriver) parseFilesFromTok() error {
 }
 
 func (p *IsoDriver) GetFileNamesList() []string {
-	return getFileNamesListFromTocMap(p.Files)
+	return tocdriver.GetFileNamesListFromTocMap(p.Files)
 }
 
-func (p *IsoDriver) GetFile(fileName string) (PackFile, error) {
+func (p *IsoDriver) GetFile(fileName string) (pack.PackFile, error) {
 	return p.Files[fileName], nil
 }
 
-func (p *IsoDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader, error) {
+func (p *IsoDriver) GetFileReader(fileName string) (pack.PackFile, *io.SectionReader, error) {
 	if err := p.prepareStreams(); err != nil {
 		return nil, nil, err
 	}
@@ -119,7 +121,7 @@ func (p *IsoDriver) GetFileReader(fileName string) (PackFile, *io.SectionReader,
 }
 
 func (p *IsoDriver) GetInstance(fileName string) (interface{}, error) {
-	return defaultGetInstanceCachedHandler(p, p.Cache, fileName)
+	return pack.GetInstanceCachedHandler(p, p.Cache, fileName)
 }
 
 func (p *IsoDriver) closeStreams() {
@@ -174,7 +176,7 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 
 	defer func() {
 		p.parseFilesFromTok()
-		p.Cache = &InstanceCache{}
+		p.Cache = &pack.InstanceCache{}
 	}()
 
 	var tocbuf bytes.Buffer
@@ -195,7 +197,7 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 func NewPackFromIso(isoPath string) (*IsoDriver, error) {
 	p := &IsoDriver{
 		IsoPath: isoPath,
-		Cache:   &InstanceCache{},
+		Cache:   &pack.InstanceCache{},
 	}
 	if err := p.prepareStreams(); err != nil {
 		return nil, err
