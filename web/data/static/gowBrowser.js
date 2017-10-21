@@ -58,7 +58,6 @@ function setLocation(title, hash) {
 
 function packLoad() {
     dataPack.empty();
-	console.log(dataSelectors);
 	dataSelectors.empty();
     $.getJSON('/json/pack', function(files) {
         var list = $('<ol>');
