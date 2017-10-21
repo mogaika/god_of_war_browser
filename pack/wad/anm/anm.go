@@ -2,6 +2,8 @@ package anm
 
 import (
 	"encoding/binary"
+	"log"
+	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -27,15 +29,24 @@ type AnimDatatype struct {
 	Param2 uint8
 }
 
+type AnimActStateDescr struct {
+	OffsetToData     uint32
+	CountOfSomething uint16
+	ImportantFloat   float32
+	Data             interface{}
+}
+
 type AnimAct struct {
-	Name   string
-	Offset uint32
+	Offset      uint32
+	Name        string
+	StateDescrs []AnimActStateDescr
 }
 
 type AnimGroup struct {
-	Name   string
-	Acts   []AnimAct
-	Offset uint32
+	Offset     uint32
+	Name       string
+	IsExternal bool // when true, then HaventActs in this file
+	Acts       []AnimAct
 }
 
 type Animations struct {
@@ -56,28 +67,6 @@ func NewFromData(data []byte) (*Animations, error) {
 		Groups:    make([]AnimGroup, u16(data, 0x12)),
 	}
 
-	rawGroupsPointers := data[0x18:]
-	for i := range a.Groups {
-		g := &a.Groups[i]
-		g.Offset = u32(rawGroupsPointers, uint32(i*4))
-		rawGroup := data[g.Offset:]
-
-		g.Name = utils.BytesToString(rawGroup[0x14:0x2c])
-		g.Acts = make([]AnimAct, u32(rawGroup, 0xc))
-
-		for j := range g.Acts {
-			act := &g.Acts[j]
-			act.Offset = u32(rawGroup, uint32(0x30+j*4))
-
-			// TODO : Thereis issue with size cheking
-			if act.Offset+0x30 < uint32(len(rawGroup)) {
-				rawAct := rawGroup[act.Offset:]
-
-				act.Name = utils.BytesToString(rawAct[0x24:0x3c])
-			}
-		}
-	}
-
 	rawFormats := data[0x18+len(a.Groups)*4:]
 	for i := range a.DataTypes {
 		dt := &a.DataTypes[i]
@@ -86,6 +75,43 @@ func NewFromData(data []byte) (*Animations, error) {
 		dt.TypeId = u16(rawFmt, 0)
 		dt.Param1 = rawFmt[2]
 		dt.Param2 = rawFmt[3]
+	}
+
+	rawGroupsPointers := data[0x18:]
+	for i := range a.Groups {
+		g := &a.Groups[i]
+		g.Offset = u32(rawGroupsPointers, uint32(i*4))
+		rawGroup := data[g.Offset:]
+
+		g.Name = utils.BytesToString(rawGroup[0x14:0x2c])
+		g.IsExternal = u32(rawGroup, 8)&0x20000 != 0
+
+		if !g.IsExternal {
+			g.Acts = make([]AnimAct, u32(rawGroup, 0xc))
+			for j := range g.Acts {
+				act := &g.Acts[j]
+				act.Offset = u32(rawGroup, uint32(0x30+j*4))
+
+				rawAct := rawGroup[act.Offset:]
+				act.Name = utils.BytesToString(rawAct[0x24:0x3c])
+
+				act.StateDescrs = make([]AnimActStateDescr, len(a.DataTypes))
+				for i := range act.StateDescrs {
+					sd := &act.StateDescrs[i]
+					rawActStateDescr := rawAct[0x64+i*0x14:]
+					sd.CountOfSomething = u16(rawActStateDescr, 2)
+					sd.OffsetToData = u32(rawActStateDescr, 8)
+					sd.ImportantFloat = math.Float32frombits(u32(rawActStateDescr, 0xc))
+
+					log.Println(i, a.DataTypes, a.DataTypes[i].TypeId)
+					switch a.DataTypes[i].TypeId {
+					case 8:
+						sd.Data = AnimState8TextureposFromBuf(rawAct[sd.OffsetToData:])
+					}
+
+				}
+			}
+		}
 	}
 
 	return a, nil

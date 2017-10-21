@@ -99,6 +99,7 @@ function treeLoadWadAsTags(wadName, data) {
 
 function treeLoadWadNode(wad, tagid) {
     dataSummary.empty();
+	set3dVisible(false);
 
     $.getJSON('/json/pack/' + wad + '/' + tagid, function(resp) {
         var data = resp.Data;
@@ -143,6 +144,10 @@ function treeLoadWadNode(wad, tagid) {
                         gr_instance.models.push(mdl);
                         gr_instance.requestRedraw();
                         break;
+					case 0x00000003: // anim
+						needMarshalDump = true;
+                        needHexDump = false;
+						break;
                     case 0x0001000f: // mesh
                         summaryLoadWadMesh(data, wad, tagid);
                         break;
