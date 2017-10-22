@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
@@ -37,22 +38,44 @@ func (wad *Wad) WebHandlerDumpTagData(w http.ResponseWriter, id TagId) {
 }
 
 func (wad *Wad) WebHandlerCallResourceHttpAction(w http.ResponseWriter, r *http.Request, id TagId, action string) error {
-	if inst, _, err := wad.GetInstanceFromTag(id); err == nil {
-		rt := reflect.TypeOf(inst)
-		method, has := rt.MethodByName("HttpAction")
-		if !has {
-			return fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name())
-		} else {
-			method.Func.Call([]reflect.Value{
-				reflect.ValueOf(inst),
-				reflect.ValueOf(wad.GetNodeResourceByTagId(id)),
-				reflect.ValueOf(w),
-				reflect.ValueOf(r),
-				reflect.ValueOf(action),
-			}[:])
-			return nil
+	switch action {
+	case "updatetag":
+		if err := r.ParseForm(); err != nil {
+			return fmt.Errorf("Cannot parse form: %v", err)
 		}
-	} else {
-		return fmt.Errorf("File %d instance getting error: %v", id, err)
+
+		tagTag, err := strconv.ParseInt(r.Form.Get("tagtag"), 0, 16)
+		if err != nil {
+			return err
+		}
+		tagName := r.Form.Get("tagname")
+		tagFlags, err := strconv.ParseInt(r.Form.Get("tagflags"), 0, 16)
+		if err != nil {
+			return err
+		}
+
+		if err := wad.UpdateTagInfo(map[TagId]Tag{id: Tag{Id: id, Tag: uint16(tagTag), Flags: uint16(tagFlags), Name: tagName}}); err != nil {
+			return fmt.Errorf("Error when updating wad tag %d: %v", id, err)
+		}
+	default:
+		if inst, _, err := wad.GetInstanceFromTag(id); err == nil {
+			rt := reflect.TypeOf(inst)
+			method, has := rt.MethodByName("HttpAction")
+			if !has {
+				return fmt.Errorf("Error: %s has not func SubfileGetter", rt.Name())
+			} else {
+				method.Func.Call([]reflect.Value{
+					reflect.ValueOf(inst),
+					reflect.ValueOf(wad.GetNodeResourceByTagId(id)),
+					reflect.ValueOf(w),
+					reflect.ValueOf(r),
+					reflect.ValueOf(action),
+				}[:])
+				return nil
+			}
+		} else {
+			return fmt.Errorf("File %d instance getting error: %v", id, err)
+		}
 	}
+	return nil
 }

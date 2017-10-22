@@ -196,7 +196,9 @@ function treeLoadPswPss(filename, data) {
 
 function treeLoadWad(wadName, data) {
 	setTitle(viewTree, wadName);
-	if (!defferedLoadingWadNode) { setLocation(wadName, '#/' + wadName); }
+	if (!defferedLoadingWadNode) {
+		setLocation(wadName, '#/' + wadName);
+	}
 	
 	dataSelectors.append($('<div class="item-selector">').click(function() {
 		treeLoadWadAsNodes(wadName, data);
@@ -205,7 +207,12 @@ function treeLoadWad(wadName, data) {
 		treeLoadWadAsTags(wadName, data);
 	}).text("Tags"));
 
-	treeLoadWadAsNodes(wadName, data);
+	if (wad_last_load_view_type === 'nodes') {
+		treeLoadWadAsNodes(wadName, data);
+	} else if (wad_last_load_view_type === 'tags') {
+		treeLoadWadAsTags(wadName, data);
+	}
+	
 }
 
 $(document).ready(function() {
@@ -235,8 +242,8 @@ $(document).ready(function() {
             defferedLoadingWadNode = urlParts[2];
         }
     }
-
-    packLoad();
+	
+	packLoad();
 
     gwInitRenderer(data3d);
 });

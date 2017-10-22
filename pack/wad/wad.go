@@ -177,7 +177,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 		w.Tags = append(w.Tags, t)
 
 		if pos, err := r.Seek(0, os.SEEK_CUR); err == nil {
-			pos = ((pos + 15) / 16) * 16
+			pos = int64(alignToWadTag(int(pos)))
 			if _, err := r.Seek(pos, os.SEEK_SET); err != nil {
 				return fmt.Errorf("Error when seek_set: %v", err)
 			}
@@ -349,36 +349,59 @@ func (w *Wad) GetNodeByName(name string, searchStart NodeId, searchForward bool)
 	return nil
 }
 
-func (w *Wad) UpdateTagsData(updateData map[TagId][]byte) error {
+func alignToWadTag(pos int) int {
+	return ((pos + 15) / 16) * 16
+}
+
+func (w *Wad) Save(tags []Tag) error {
 	var buf bytes.Buffer
 
-	for _, t := range w.Tags {
-		data := t.Data
+	for _, t := range tags {
 		if t.Tag == TAG_ENTITY_COUNT {
 			t.Size = w.HeapSizes[t.Name]
 		} else {
-			if newdata, ex := updateData[t.Id]; ex {
-				data = newdata
-				log.Println("Changing size at ", t.Name, " from ", t.Size, " to ", len(data))
-			}
-			t.Size = uint32(len(data))
+			t.Size = uint32(len(t.Data))
 		}
 
 		buf.Write(MarshalTag(&t))
-		if data != nil && len(data) != 0 {
-			buf.Write(data)
-
-			targetPos := ((buf.Len() + 15) / 16) * 16
-			buf.Write(make([]byte, targetPos-buf.Len()))
+		if t.Data != nil {
+			buf.Write(t.Data)
+			buf.Write(make([]byte, alignToWadTag(buf.Len())-buf.Len()))
 		}
 	}
 
-	// To prevent usage of this wad instance
+	w.flushCache()
+	return w.Source.Save(io.NewSectionReader(bytes.NewReader(buf.Bytes()), 0, int64(buf.Len())))
+}
+
+func (w *Wad) InsertNewTag(insertAfterId TagId, newTag Tag) error {
+	newTags := append(w.Tags[:insertAfterId], append([]Tag{newTag}, w.Tags[insertAfterId:]...)...)
+	return w.Save(newTags)
+}
+
+func (w *Wad) UpdateTagInfo(updateTags map[TagId]Tag) error {
+	for i, newTag := range updateTags {
+		t := &w.Tags[i]
+		log.Println("Updating tag %x-%s to %x-%s ", t.Id, t.Name, newTag.Id, newTag.Name)
+		w.Tags[i] = newTag
+	}
+	return w.Save(w.Tags)
+}
+
+func (w *Wad) UpdateTagsData(updateData map[TagId][]byte) error {
+	for i, newData := range updateData {
+		t := &w.Tags[i]
+		log.Println("Changing size at ", t.Name, " from ", t.Size, " to ", len(newData))
+		t.Data = newData
+		t.Size = uint32(len(newData))
+	}
+	return w.Save(w.Tags)
+}
+
+func (w *Wad) flushCache() {
 	w.Tags = nil
 	w.Nodes = nil
 	w.Roots = nil
-
-	return w.Source.Save(io.NewSectionReader(bytes.NewReader(buf.Bytes()), 0, int64(buf.Len())))
 }
 
 func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {

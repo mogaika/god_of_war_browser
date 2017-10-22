@@ -1,6 +1,22 @@
 'use strict';
 
+var wad_last_load_view_type = 'nodes';
+
+function treeLoadWad_dumpButtons(li, wadName, tag) {
+	li.append($('<div>')
+	    .addClass('button-upload')
+		.attr('title', 'Upload your version of wad tag data')
+		.attr('href', '/upload/pack/' + wadName + '/' + tag.Id)
+		.click(uploadAjaxHandler));
+	
+	li.append($('<a>')
+	    .addClass('button-dump')
+		.attr('title', 'Download wad tag data')
+	    .attr('href', '/dump/pack/' + wadName + '/' + tag.Id))
+}
+
 function treeLoadWadAsNodes(wadName, data) {
+	wad_last_load_view_type = 'nodes';
 	if (defferedLoadingWadNode) {
         treeLoadWadNode(wadName, parseInt(defferedLoadingWadNode));
         defferedLoadingWadNode = undefined;
@@ -28,18 +44,9 @@ function treeLoadWadAsNodes(wadName, data) {
             } else {
                 li.append(' [' + node.Tag.Tag + ']');
             }
-
-			li.append($('<div>')
-                .addClass('button-upload')
-				.attr('title', 'Upload your version of wad tag data')
-				.attr('href', '/upload/pack/' + wadName + '/' + node.Tag.Id)
-				.click(uploadAjaxHandler));
-
-            li.append($('<a>')
-                .addClass('button-dump')
-				.attr('title', 'Download wad tag data')
-                .attr('href', '/dump/pack/' + wadName + '/' + node.Tag.Id))
-
+			
+			treeLoadWad_dumpButtons(li, wadName, node.Tag);
+			
             if (node.SubGroupNodes) {
                 li.append(addNodes(node.SubGroupNodes));
             }
@@ -60,6 +67,7 @@ function treeLoadWadAsNodes(wadName, data) {
 }
 
 function treeLoadWadAsTags(wadName, data) {
+	wad_last_load_view_type = 'tags';
 	dataTree.empty();
 
 	console.log(data);
@@ -71,6 +79,7 @@ function treeLoadWadAsTags(wadName, data) {
             .attr('tagid', tag.Id)
             .attr('tagname', tag.Name)
             .attr('tagtag', tag.Tag)
+			.attr('tagflags', tag.Flags)
 		    .append($('<label>').append(("0000" + tag.Id).substr(-4, 4) + '.[' + ("000" + tag.Tag).substr(-3, 3) + ']' + tag.Name));
 		
 		if (tag.Tag == 30) {
@@ -85,6 +94,8 @@ function treeLoadWadAsTags(wadName, data) {
 			}
 		}
 
+		treeLoadWad_dumpButtons(li, wadName, tag);
+		
 		ol.append(li);
 	}
 
@@ -198,6 +209,16 @@ function treeLoadWadTag(wad, tagid) {
 	gr_instance.cleanup();
     set3dVisible(false);
     displayResourceHexDump(wad, tagid);
+	
+	var form = $('<form class="flexedform" action="' + getActionLinkForWadNode(wad, tagid, 'updatetag') + '" method="post">');
+	var tagel = $('li[tagid=' + tagid + ']');
+	var tbl = $('<table>');
+	tbl.append($('<tr>').append($('<td>').text("tag type")).append($('<td>').append($('<input type="text" id="tagtag" name="tagtag" value="' + tagel.attr("tagtag") + '">'))));
+	tbl.append($('<tr>').append($('<td>').text("name")).append($('<td>').append($('<input type="text" id="tagname" name="tagname" value="' + tagel.attr("tagname") + '">'))));
+	tbl.append($('<tr>').append($('<td>').text("flags")).append($('<td>').append($('<input type="text" id="tagflags" name="tagflags" value="' + tagel.attr("tagflags") + '">'))));
+	tbl.append($('<tr>').append($('<td>')).append($('<td>').append($('<input type="submit" value="Update tag info">'))));
+	
+	dataSummary.append(form.append(tbl));
 }
 
 function displayResourceHexDump(wad, tagid) {
@@ -632,8 +653,12 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
 				var mat = mat4.mul(mat4.create(), objMat, entityMat);
 
 				var pos = mat4.getTranslation(vec3.create(), mat);
-
+				
+				var radius = entity.Matrix[0];
 				var text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
+				
+				//var mdl = new grModel();
+				//mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));
 				
 				var alpha = 1;
 				switch (entity_id % 3) {
@@ -647,6 +672,7 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
 						text3d.setColor(1, 1, 0, alpha);
 						break;
 				}
+				//gr_instance.models.push(mdl);
 				gr_instance.texts.push(text3d);
 			});
 		}
