@@ -1,6 +1,7 @@
 package flp
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -145,7 +146,7 @@ func (d3 *Data3) Parse(buf []byte, pos int) int {
 		d3.CharNumberToSymbolIdMap = make([]int16, d3.CharsCount)
 	}
 	for i := range d3.CharNumberToSymbolIdMap {
-		d3.CharNumberToSymbolIdMap[i] = int16(binary.LittleEndian.Uint16(buf[pos+i*2:]))
+		d3.CharNumberToSymbolIdMap[i] = int16(binary.LittleEndian.Uint16(buf[pos:]))
 		pos += 2
 	}
 
@@ -158,11 +159,56 @@ type Data4 struct {
 
 func (d4 *Data4) FromBuf(buf []byte) int {
 	d4.Payload = make([]byte, binary.LittleEndian.Uint32(buf[0x14:]))
+	utils.LogDump("D4", buf[:DATA4_ELEMENT_SIZE])
 	return DATA4_ELEMENT_SIZE
 }
 
-func (d4 *Data4) Parse(buf []byte, pos int) int {
-	return posPad4(pos + copy(d4.Payload, buf[pos:pos+len(d4.Payload)]))
+func (d4 *Data4) Parse(f *FLP, buf []byte, pos int) int {
+	res := posPad4(pos + copy(d4.Payload, buf[pos:pos+len(d4.Payload)]))
+	//log.Printf("<<<<<<<<<<<<<< + Parsing data4 at 0x%.6x + >>>>>>>>>>>>>>", pos)
+	//utils.LogDump("D44444 PAYLOAD", d4.Payload)
+	for i := 0; i < len(d4.Payload); {
+		cmd := d4.Payload[i]
+		i += 1
+		if cmd&0x80 != 0 {
+			if cmd&8 != 0 {
+				log.Printf("  Set resource id %d as font with height %d", binary.LittleEndian.Uint16(d4.Payload[i:]), binary.LittleEndian.Uint16(d4.Payload[i+2:]))
+				i += 4
+			}
+			if cmd&4 != 0 {
+				log.Printf("  Set blend color %v", d4.Payload[i:i+4])
+				i += 4
+			}
+			if cmd&2 != 0 {
+				log.Printf("  Set f20reg shadow offset %d", binary.LittleEndian.Uint16(d4.Payload[i:]))
+				i += 2
+			}
+			if cmd&1 != 0 {
+				log.Printf("  Set f22reg anchor point offset? or height? %d", binary.LittleEndian.Uint16(d4.Payload[i:]))
+				i += 2
+			}
+		} else {
+			var buf bytes.Buffer
+			width := uint32(0)
+			for j := byte(0); j < cmd; j++ {
+				char := int16(binary.LittleEndian.Uint16(d4.Payload[i:]))
+				r := -5
+
+				for idx, ch := range f.Datas3[0].CharNumberToSymbolIdMap {
+					if ch&0xff == char&0xff {
+						r = idx
+						break
+					}
+				}
+
+				buf.WriteRune(rune(r))
+				width += uint32(binary.LittleEndian.Uint16(d4.Payload[i+2:]))
+				i += 4
+			}
+			log.Printf("  # Print string \"%v\"  with summary width %v", buf.String(), width)
+		}
+	}
+	return res
 }
 
 type Data5 struct {
@@ -171,7 +217,7 @@ type Data5 struct {
 
 func (d5 *Data5) FromBuf(buf []byte) int {
 	d5.Payload = buf[:DATA5_ELEMENT_SIZE]
-	utils.LogDump("D5 PAYLOAD", d5.Payload)
+	//utils.LogDump("D5 PAYLOAD", d5.Payload)
 	return DATA5_ELEMENT_SIZE
 }
 
@@ -269,15 +315,19 @@ func (d6s1s1 *Data6Subtype1Subtype1) SetNameFromStringSector(stringsSector []byt
 
 // Special symbol (mesh + text?)
 type Data6Subtype1Subtype1Subtype1 struct {
+	Unkint1          uint16
 	IdexInData1Array uint16
+	Unkint2          uint16
+	Unkint3          uint16
 	NameSecOff       int16
 	Name             string
-	Data             []byte
 }
 
 func (d6s1s1s1 *Data6Subtype1Subtype1Subtype1) FromBuf(buf []byte) int {
-	d6s1s1s1.Data = buf[:DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE]
-	d6s1s1s1.IdexInData1Array = binary.LittleEndian.Uint16(buf[0:])
+	d6s1s1s1.Unkint1 = binary.LittleEndian.Uint16(buf[0:])
+	d6s1s1s1.IdexInData1Array = binary.LittleEndian.Uint16(buf[2:])
+	d6s1s1s1.Unkint1 = binary.LittleEndian.Uint16(buf[4:])
+	d6s1s1s1.Unkint2 = binary.LittleEndian.Uint16(buf[6:])
 	d6s1s1s1.NameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
@@ -396,11 +446,10 @@ func (f *FLP) fromBuffer(buf []byte) error {
 		pos += f.Datas4[i].FromBuf(buf[pos:])
 	}
 	for i := range f.Datas4 {
-		pos = f.Datas4[i].Parse(buf, pos)
+		pos = f.Datas4[i].Parse(f, buf, pos)
 	}
 
 	for i := range f.Datas5 {
-		log.Println("Data5 pos ", pos)
 		pos += f.Datas5[i].FromBuf(buf[pos:])
 	}
 
