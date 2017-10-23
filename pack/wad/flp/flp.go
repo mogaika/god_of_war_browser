@@ -135,7 +135,7 @@ func (d3 *Data3) Parse(buf []byte, pos int) int {
 
 	d3.SymbolWidths = make([]int16, d3.CharsCount)
 	for i := range d3.SymbolWidths {
-		d3.SymbolWidths[i] = int16(binary.LittleEndian.Uint16(buf[pos+i*2:]))
+		d3.SymbolWidths[i] = int16(binary.LittleEndian.Uint16(buf[pos:]))
 		pos += 2
 	}
 	pos = posPad4(pos)
