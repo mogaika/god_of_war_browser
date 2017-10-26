@@ -1,0 +1,53 @@
+header contain offsets to elements arrays
+header size = 0x60{
+	+0x00 dword FileFormatId
+
+	+0x0c dword globalHandlerTableElementsCount (array id 0)
+	+0x10 dword placeholderForData1PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x14 dword data2count  (array id 1)
+	+0x18 dword placeholderForData2PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x1c dword data3count  (array id 2)
+	+0x20 dword placeholderForData3PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x24 dword data4count  (array id 3)
+	+0x28 dword placeholderForData4PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x2c dword data5count  (array id 4)
+	+0x30 dword placeholderForData5PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x34 dword data6count  (array id 5)
+	+0x38 dword placeholderForData6PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x3c dword data7count  (array id 6)
+	+0x40 dword placeholderForData7PointerDataInMemory _GARBARAGE_ _DONT_USE_
+	+0x44 dword placeholderForData8PointerDataInMemory _GARBARAGE_ _DONT_USE_ // no need for data8 count, because its only one
+	+0x48  word // probably count of something9, size of something: 0x14
+
+	+0x4c dword // placeholderForDataPointer in memory of something9 _GARBARAGE_ _DONT_USE_
+	+0x50  word // probably count of something10, size of something: 0x8 ?
+	
+	+0x54 dword // placeholderForDataPointer in memory of something10 _GARBARAGE_ _DONT_USE_
+	+0x58  word // size of string section
+
+	+0x5c dword placeholderForStringSectionPointerDataInMemory _GARBARAGE_ _DONT_USE_
+}
+
+after header become data
+data interpreted as stream and you cannot precalculate offsets
+you can use pointer placeholder, because they contain offsets of developers builder machine memory pointers, but game parse resources as i describe below
+
+
+globalHandler size = 0x4 {
+	+0x0 word arrayidInHeader (type)
+	+0x2 word indexInThatArray
+}
+
+meshPartReference size = 0x8 {
+	+0x0  word meshPartId (mesh have parts, mesh name constructed from FLP_name to MDL_name)
+	+0x2  word countOfMaterials
+	+0x4 dword // placeholderForMaterialsArray pointer _GARBARAGE_ _DONT_USE_
+}
+
+meshPartMaterial size = 0x8 {
+	+0x0 [4]byte textureBlendColor
+	+0x4 dword   textureNameStringOffsetInStringsSection
+}
+
+
+

@@ -4,7 +4,9 @@
 ![gow_browser_logo](https://user-images.githubusercontent.com/3680954/28489831-6ec1c660-6edd-11e7-9b08-7c79b20196d8.png)
 
 Tool helps to investigate files formats of the game.
-Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*
+Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*.
+Also working with: *European multilang version*.
+Some functional broken on: *Jp version*.
 
 ## Instruction
 - Download and unzip [lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/build/artifacts)

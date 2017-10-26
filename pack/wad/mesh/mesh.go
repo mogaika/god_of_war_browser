@@ -171,7 +171,7 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 						//utils.Dump(file[pJointMapRaw-16 : pJointMapRaw+64])
 						for jointMapIndex := uint32(0); jointMapIndex < uint32(object.BonesUsed); jointMapIndex++ {
 							object.JointMapper[jointMapIndex] = u32(pJointMapRaw + jointMapIndex*4)
-							if object.JointMapper[jointMapIndex] > 0x17f {
+							if object.JointMapper[jointMapIndex] > 0x800 {
 								return nil, fmt.Errorf("Probably incorrect JointMapper calculation. 0x%x is too large (pMapAddr:0x%x)", object.JointMapper[jointMapIndex], pJointMapRaw)
 							}
 						}
