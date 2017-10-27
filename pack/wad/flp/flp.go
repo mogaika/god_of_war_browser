@@ -373,18 +373,19 @@ func (d6s1s2 *Data6Subtype1Subtype2) SetNameFromStringSector(stringsSector []byt
 
 type Data6Subtype1Subtype2Subtype1 struct {
 	Script  *Script
-	Payload []byte `json:"-"`
+	payload []byte
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
-	d6s1s2s1.Payload = make([]byte, binary.LittleEndian.Uint32(buf[:]))
+	utils.LogDump(buf[:DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE])
+	d6s1s2s1.payload = make([]byte, binary.LittleEndian.Uint32(buf[:]))
 	return DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE
 }
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
 	// utils.Dump("d6s1s2s1 _ PAYLOAD", buf[pos:pos+len(d6s1s2s1.Payload)])
-	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+len(d6s1s2s1.Payload)])
-	return pos + copy(d6s1s2s1.Payload, buf[pos:pos+len(d6s1s2s1.Payload)])
+	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+len(d6s1s2s1.payload)])
+	return pos + copy(d6s1s2s1.payload, buf[pos:pos+len(d6s1s2s1.payload)])
 }
 
 type Data6Subtype2 struct {
