@@ -26,6 +26,9 @@ func NewScriptFromData(realBuf []byte) *Script {
 			switch op {
 			case 0x81:
 				stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
+			case 0x83:
+				stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or responce result",
+					utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):]))
 			case 0x8b:
 				stringRepr = fmt.Sprintf("SetTarget '%s'", utils.BytesToString(buf))
 			case 0x8c:
@@ -56,7 +59,7 @@ func NewScriptFromData(realBuf []byte) *Script {
 				}
 				stringRepr = fmt.Sprintf("GotoExpression '%s' (%s)", utils.BytesToString(buf[1:]), state)
 			default:
-				stringRepr = fmt.Sprintf("   << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
+				stringRepr = fmt.Sprintf(" unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
 			}
 
 			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%.2x: %s", op, stringRepr))
@@ -66,22 +69,42 @@ func NewScriptFromData(realBuf []byte) *Script {
 			buf = buf[1:]
 			var stringRepr string
 			switch op {
+			case 0:
+				stringRepr = "end"
 			case 6:
 				stringRepr = "Play"
 			case 7:
 				stringRepr = "Stop"
+			case 0xa:
+				stringRepr = "@push_float = @pop_float2 + @pop_float1"
+			case 0xb:
+				stringRepr = "@push_float = @pop_float2 - @pop_float1"
+			case 0xc:
+				stringRepr = "@push_float = @pop_float2 * @pop_float1"
+			case 0xd:
+				stringRepr = "@push_float = @pop_float2 / @pop_float1"
 			case 0xe:
-				stringRepr = "@push_bool = @pop_float1 is equal @pop_float2"
-			case 0x11:
+				stringRepr = "@push_bool = @pop_float1 == close to == @pop_float2"
+			case 0xf:
+				stringRepr = "@push_bool = @pop_float2 < @pop_float1"
+			case 0x10:
 				stringRepr = "@push_bool = @pop_bool1 AND @pop_bool2"
+			case 0x11:
+				stringRepr = "@push_bool = @pop_bool1 OR @pop_bool2"
 			case 0x12:
 				stringRepr = "@push_bool = convert_to_bool @pop_any"
+			case 0x18:
+				stringRepr = "@push_float = round @pop_float"
 			case 0x1c:
 				stringRepr = "@push_any vfs get @pop_string1"
 			case 0x1d:
 				stringRepr = "vfs set @pop_string2 = @pop_string1"
 			case 0x20:
 				stringRepr = "SetTarget @pop_string1"
+			case 0x34:
+				stringRepr = "@push_float  current timer value"
+			default:
+				stringRepr = " unknown opcode "
 			}
 			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%.2x: %v", op, stringRepr))
 		}
