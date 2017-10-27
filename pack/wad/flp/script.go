@@ -14,7 +14,6 @@ type Script struct {
 
 func NewScriptFromData(realBuf []byte) *Script {
 	s := &Script{Opcodes: make([]string, 0)}
-	//utils.LogDump("SCRIPT ", realBuf)
 
 	buf := realBuf
 	for len(buf) != 0 {
@@ -25,26 +24,42 @@ func NewScriptFromData(realBuf []byte) *Script {
 
 			var stringRepr string
 			switch op {
+			case 0x81:
+				stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
+			case 0x8b:
+				stringRepr = fmt.Sprintf("SetTarget '%s'", utils.BytesToString(buf))
+			case 0x8c:
+				stringRepr = fmt.Sprintf("GotoLabel '%s'", utils.BytesToString(buf))
 			case 0x96:
-				stringRepr = "push "
 				pos := uint16(0)
 				for pos < opLen {
+					stringRepr = "@push"
 					if buf[pos] == 0 {
 						l := uint16(utils.BytesStringLength(buf[pos+1:]))
-						stringRepr += fmt.Sprintf(" s'%s'", utils.DumpToOneLineString(buf[pos+1:pos+1+l]))
+						stringRepr += fmt.Sprintf("_string '%s' ", utils.DumpToOneLineString(buf[pos+1:pos+1+l]))
 						pos += uint16(l) + 2
 					} else {
-						stringRepr += fmt.Sprintf(" f'%v'", math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:])))
+						stringRepr += fmt.Sprintf("_float %v ", math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:])))
 						pos += 5
 					}
 				}
+			case 0x99:
+				stringRepr = fmt.Sprintf("jump %+d", binary.LittleEndian.Uint16(buf))
 			case 0x9e:
 				stringRepr = "CallFrame @pop_string"
+			case 0x9d:
+				stringRepr = fmt.Sprintf("jump %+d if @pop_bool == true", binary.LittleEndian.Uint16(buf))
+			case 0x9f:
+				state := "PLAY"
+				if buf[0] == 0 {
+					state = "STOP"
+				}
+				stringRepr = fmt.Sprintf("GotoExpression '%s' (%s)", utils.BytesToString(buf[1:]), state)
 			default:
-				stringRepr = fmt.Sprintf("dump{%s}", utils.DumpToOneLineString(buf[:opLen]))
+				stringRepr = fmt.Sprintf("   << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
 			}
 
-			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%x: %s", op, stringRepr))
+			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%.2x: %s", op, stringRepr))
 
 			buf = buf[opLen:]
 		} else {
@@ -57,14 +72,18 @@ func NewScriptFromData(realBuf []byte) *Script {
 				stringRepr = "Stop"
 			case 0xe:
 				stringRepr = "@push_bool = @pop_float1 is equal @pop_float2"
+			case 0x11:
+				stringRepr = "@push_bool = @pop_bool1 AND @pop_bool2"
 			case 0x12:
 				stringRepr = "@push_bool = convert_to_bool @pop_any"
 			case 0x1c:
-				stringRepr = "@push vfs get @pop_string1"
+				stringRepr = "@push_any vfs get @pop_string1"
 			case 0x1d:
 				stringRepr = "vfs set @pop_string2 = @pop_string1"
+			case 0x20:
+				stringRepr = "SetTarget @pop_string1"
 			}
-			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%x: %v", op, stringRepr))
+			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%.2x: %v", op, stringRepr))
 		}
 	}
 
