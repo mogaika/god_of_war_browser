@@ -164,8 +164,8 @@ func (d6 *Data6) MarshalStruct(fm *FlpMarshaler) {
 
 func (d6 *Data6) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
-	//d6.Sub1.MarshalStruct(fm)
-	//d6.Sub1.MarshalData(fm)
+	d6.Sub1.MarshalStruct(fm)
+	d6.Sub1.MarshalData(fm)
 
 	//	for i := range d6.Sub2s {
 	//		d6.Sub2s[i].MarshalStruct(fm)
@@ -175,33 +175,53 @@ func (d6 *Data6) MarshalData(fm *FlpMarshaler) {
 	//	}
 }
 
-/*
-func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
-
-	d6s1.Sub1s = make([]Data6Subtype1Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
-	d6s1.Sub2s = make([]Data6Subtype1Subtype2, binary.LittleEndian.Uint16(buf[0x4:]))
-	return DATA6_SUBTYPE1_ELEMENT_SIZE
+func (d6s1 *Data6Subtype1) MarshalStruct(fm *FlpMarshaler) {
+	fm.w16(d6s1.TotalFramesCount)
+	fm.w16(uint16(len(d6s1.ElementsAnimation)))
+	fm.w16(uint16(len(d6s1.FrameScriptLables)))
+	fm.skip(4)
+	fm.w16(d6s1.Width)
+	fm.skip(0xc) // placeholders for pointers
 }
 
-func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
-	pos = posPad4(pos)
-	for i := range d6s1.Sub1s {
-		pos += d6s1.Sub1s[i].FromBuf(buf[pos:])
+func (d6s1 *Data6Subtype1) MarshalData(fm *FlpMarshaler) {
+	fm.pad4()
+	for i := range d6s1.ElementsAnimation {
+		d6s1.ElementsAnimation[i].MarshalStruct(fm)
 	}
-	for i := range d6s1.Sub1s {
-		pos = d6s1.Sub1s[i].Parse(buf, pos)
+	for i := range d6s1.ElementsAnimation {
+		d6s1.ElementsAnimation[i].MarshalData(fm)
 	}
 
-	pos = posPad4(pos)
-	for i := range d6s1.Sub2s {
-		pos += d6s1.Sub2s[i].FromBuf(buf[pos:])
+	//	fm.pad4()
+	//	for i := range d6s1.FrameScriptLables {
+	//		d6s1.FrameScriptLables[i].MarshalStruct(fm)
+	//	}
+	//	for i := range d6s1.FrameScriptLables {
+	//		d6s1.FrameScriptLables[i].MarshalData(fm)
+	//	}
+}
+
+func (d6s1s1 *ElementAnimation) MarshalStruct(fm *FlpMarshaler) {
+	fm.w16(d6s1s1.FramesCount)
+	fm.w16(uint16(len(d6s1s1.KeyFrames)))
+	fm.skip(4) // placeholder for pointer
+}
+
+func (d6s1s1 *ElementAnimation) MarshalData(fm *FlpMarshaler) {
+	fm.pad4()
+	for i := range d6s1s1.KeyFrames {
+		d6s1s1.KeyFrames[i].MarshalStruct(fm)
 	}
-	for i := range d6s1.Sub2s {
-		//log.Printf("d6sub1sub2 %d parsing pos: %#x << [0x123cc,0x124b0,0x124d6]", i, pos)
-		pos = d6s1.Sub2s[i].Parse(buf, pos)
-	}
-	return pos
-}*/
+}
+
+func (d6s1s1s1 *KeyFrame) MarshalStruct(fm *FlpMarshaler) {
+	fm.w16(d6s1s1s1.WhenThisFrameEnds)
+	fm.w16(uint16(d6s1s1s1.ElementHandler))
+	fm.w16(d6s1s1s1.TransformationId)
+	fm.w16(d6s1s1s1.ColorId)
+	fm.addStringOffsetPlaceholder(d6s1s1s1.Name, 2)
+}
 
 func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 	fm.w32(FLP_MAGIC)
