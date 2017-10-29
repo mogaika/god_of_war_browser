@@ -181,7 +181,6 @@ func (d6 *Data6) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
-	utils.LogDump("d6s1", buf[:DATA6_SUBTYPE1_ELEMENT_SIZE])
 	d6s1.TotalFramesCount = binary.LittleEndian.Uint16(buf[0:])
 	d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0x2:]))
 	d6s1.FrameScriptLables = make([]FrameScriptLabel, binary.LittleEndian.Uint16(buf[0x4:]))
@@ -221,6 +220,7 @@ func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s1 *ElementAnimation) FromBuf(buf []byte) int {
+	d6s1s1.FramesCount = binary.LittleEndian.Uint16(buf[0:])
 	d6s1s1.KeyFrames = make([]KeyFrame, binary.LittleEndian.Uint16(buf[0x2:]))
 	return DATA6_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
@@ -244,7 +244,7 @@ func (d6s1s1s1 *KeyFrame) FromBuf(buf []byte) int {
 	d6s1s1s1.WhenThisFrameEnds = binary.LittleEndian.Uint16(buf[0:])
 	d6s1s1s1.ElementHandler = GlobalHandler(binary.LittleEndian.Uint16(buf[2:]))
 	d6s1s1s1.TransformationId = binary.LittleEndian.Uint16(buf[4:])
-	d6s1s1s1.TransformationId = binary.LittleEndian.Uint16(buf[6:])
+	d6s1s1s1.ColorId = binary.LittleEndian.Uint16(buf[6:])
 	d6s1s1s1.NameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }

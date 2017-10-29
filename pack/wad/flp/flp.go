@@ -132,14 +132,15 @@ type Data6Subtype1 struct {
 }
 
 type ElementAnimation struct {
-	KeyFrames []KeyFrame
+	FramesCount uint16
+	KeyFrames   []KeyFrame
 }
 
 type KeyFrame struct {
 	WhenThisFrameEnds uint16 // in frameNumberUnits
 	ElementHandler    GlobalHandler
 	TransformationId  uint16
-	Unkint3           uint16
+	ColorId           uint16
 	NameSecOff        int16
 	Name              string
 }
