@@ -2,7 +2,6 @@ package flp
 
 import (
 	"encoding/binary"
-	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -102,8 +101,6 @@ func (d4 *StaticLabel) FromBuf(buf []byte) int {
 
 func (d4 *StaticLabel) Parse(f *FLP, buf []byte, pos int) int {
 	res := posPad4(pos + copy(d4.RenderCommandsList, buf[pos:pos+len(d4.RenderCommandsList)]))
-	//log.Printf("<<<<<<<<<<<<<< + Parsing data4 at 0x%.6x + >>>>>>>>>>>>>>", pos)
-	utils.LogDump("D44444 PAYLOAD", d4.RenderCommandsList)
 	/*
 		for i := 0; i < len(d4.RenderCommandsList); {
 			cmd := d4.RenderCommandsList[i]
@@ -368,17 +365,14 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	for i := range f.Datas6 {
 		pos = f.Datas6[i].Parse(buf, pos)
 	}
-	log.Printf("after fdata6: %#x == 0xffdf", pos)
 
 	pos = posPad4(pos)
 	for i := range f.Datas7 {
 		pos += f.Datas7[i].FromBuf(buf[pos:])
 	}
-	log.Printf("fdata7count: %#x == 0x17d  | after fdata7buf: %#x == 0x12398", len(f.Datas7), pos)
 	for i := range f.Datas7 {
 		pos = f.Datas7[i].Parse(buf, pos)
 	}
-	log.Printf("after fdata7: %#x == 0x3e570", pos)
 
 	pos = posPad4(pos)
 	pos += f.Data8.FromBuf(buf[pos:])
@@ -393,7 +387,6 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	}
 
 	stringsSectorStart := pos
-	log.Printf("string sec start: %#x == 0x72cf8  {size? or strings count: %#x}", pos, binary.LittleEndian.Uint16(buf[0x58:]))
 	for {
 		if pos >= len(buf)-1 {
 			break
