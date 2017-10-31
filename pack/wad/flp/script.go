@@ -12,10 +12,7 @@ type Script struct {
 	Opcodes []string
 }
 
-func NewScriptFromData(realBuf []byte) *Script {
-	s := &Script{Opcodes: make([]string, 0)}
-
-	buf := realBuf
+func (s *Script) parseOpcodes(buf []byte) {
 	for len(buf) != 0 {
 		op := buf[0]
 		if op&0x80 != 0 {
@@ -109,6 +106,10 @@ func NewScriptFromData(realBuf []byte) *Script {
 			s.Opcodes = append(s.Opcodes, fmt.Sprintf("OP 0x%.2x: %v", op, stringRepr))
 		}
 	}
+}
 
+func NewScriptFromData(buf []byte) *Script {
+	s := &Script{Opcodes: make([]string, 0)}
+	// s.parseOpcodes(buf)
 	return s
 }

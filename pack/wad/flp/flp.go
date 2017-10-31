@@ -1,10 +1,8 @@
 package flp
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -49,11 +47,11 @@ type FLP struct {
 	Unk08                 uint32
 	GlobalHandlersIndexes []GlobalHandlerIndex `json:"-"`
 	MeshPartReferences    []MeshPartReference
-	Fonts                 []Font `json:"-"`
-	StaticLabels          []StaticLabel
-	DynamicLabels         []DynamicLabel
+	Fonts                 []Font         `json:"-"`
+	StaticLabels          []StaticLabel  `json:"-"`
+	DynamicLabels         []DynamicLabel `json:"-"`
 	Datas6                []Data6
-	Datas7                []Data6Subtype1
+	Datas7                []Data6Subtype1  `json:"-"`
 	Data8                 Data6Subtype1    // Root logic node
 	Transformations       []Transformation `json:"-"`
 	BlendColors           []BlendColor     `json:"-"`
