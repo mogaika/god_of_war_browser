@@ -161,7 +161,7 @@ func (d3 *Font) MarshalData(fm *FlpMarshaler) {
 }
 
 func (d4 *StaticLabel) MarshalStruct(fm *FlpMarshaler) {
-	fm.skip(0x14) // unknown, probably unused
+	d4.Transformation.MarshalStruct(fm)
 	fm.w32(uint32(len(d4.RenderCommandsList)))
 	fm.skip(0xc) // pointer placeholder and unknown stuff
 }
@@ -312,7 +312,8 @@ func (d10 *BlendColor) MarshalStruct(fm *FlpMarshaler) {
 
 func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 	fm.w32(FLP_MAGIC)
-	fm.skip(8)
+	fm.w32(f.Unk04)
+	fm.w32(f.Unk08)
 	writeArraydescr := func(count int) {
 		fm.w32(uint32(count))
 		fm.w32(0x61ace01d) // placeholder for in-memory pointer
