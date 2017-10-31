@@ -1,6 +1,7 @@
 package flp
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -44,6 +45,8 @@ func posPad4(pos int) int {
 var currentFlpInstance *FLP
 
 type FLP struct {
+	Unk04                 uint32
+	Unk08                 uint32
 	GlobalHandlersIndexes []GlobalHandlerIndex `json:"-"`
 	MeshPartReferences    []MeshPartReference
 	Fonts                 []Font `json:"-"`
@@ -100,6 +103,7 @@ type Font struct {
 }
 
 type StaticLabel struct {
+	Transformation     Transformation
 	RenderCommandsList []byte `json:"-"`
 }
 
@@ -195,18 +199,6 @@ func init() {
 			return nil, err
 		}
 
-		marshaled := inst.marshalBuffer()
-		if f, err := os.Create(wrsrc.Name() + "_my.FLP"); err == nil {
-			defer f.Close()
-			f.Write(marshaled.Bytes())
-		}
-
-		/*
-			inst, err = NewFromData(marshaled.Bytes())
-			if err != nil {
-				return inst, fmt.Errorf("ERROR WHEN ENCODE_DECODE OPERATION: %v", err)
-			}
-		*/
 		return inst, nil
 	})
 }

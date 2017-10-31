@@ -95,6 +95,7 @@ func (d3 *Font) Parse(buf []byte, pos int) int {
 }
 
 func (d4 *StaticLabel) FromBuf(buf []byte) int {
+	d4.Transformation.FromBuf(buf[0:])
 	d4.RenderCommandsList = make([]byte, binary.LittleEndian.Uint32(buf[0x14:]))
 	return DATA4_ELEMENT_SIZE
 }
@@ -102,7 +103,7 @@ func (d4 *StaticLabel) FromBuf(buf []byte) int {
 func (d4 *StaticLabel) Parse(f *FLP, buf []byte, pos int) int {
 	res := posPad4(pos + copy(d4.RenderCommandsList, buf[pos:pos+len(d4.RenderCommandsList)]))
 	//log.Printf("<<<<<<<<<<<<<< + Parsing data4 at 0x%.6x + >>>>>>>>>>>>>>", pos)
-	//utils.LogDump("D44444 PAYLOAD", d4.Payload)
+	utils.LogDump("D44444 PAYLOAD", d4.RenderCommandsList)
 	/*
 		for i := 0; i < len(d4.RenderCommandsList); {
 			cmd := d4.RenderCommandsList[i]
@@ -318,6 +319,8 @@ func (d10 *BlendColor) FromBuf(buf []byte) int {
 }
 
 func (f *FLP) fromBuffer(buf []byte) error {
+	f.Unk04 = binary.LittleEndian.Uint32(buf[0x4:])
+	f.Unk08 = binary.LittleEndian.Uint32(buf[0x8:])
 	f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0xc:]))
 	f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x14:]))
 	f.Fonts = make([]Font, binary.LittleEndian.Uint32(buf[0x1c:]))
