@@ -146,10 +146,10 @@ type KeyFrame struct {
 }
 
 type FrameScriptLabel struct {
-	// Frame
-	LabelNameSecOff int16
-	LabelName       string
-	Subs            []Data6Subtype1Subtype2Subtype1
+	TriggerFrameNumber uint16
+	LabelNameSecOff    int16
+	LabelName          string
+	Subs               []Data6Subtype1Subtype2Subtype1
 }
 
 type Data6Subtype1Subtype2Subtype1 struct {
@@ -158,8 +158,10 @@ type Data6Subtype1Subtype2Subtype1 struct {
 }
 
 type Data6Subtype2 struct {
-	Script  *Script
-	payload []byte
+	EventKeysMask uint32
+	EventUnkMask  uint16
+	Script        *Script
+	payload       []byte
 }
 
 type Transformation struct {
@@ -199,6 +201,12 @@ func init() {
 			f.Write(marshaled.Bytes())
 		}
 
+		/*
+			inst, err = NewFromData(marshaled.Bytes())
+			if err != nil {
+				return inst, fmt.Errorf("ERROR WHEN ENCODE_DECODE OPERATION: %v", err)
+			}
+		*/
 		return inst, nil
 	})
 }
