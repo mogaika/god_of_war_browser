@@ -35,7 +35,7 @@ func BytesStringLength(bs []byte) int {
 	}
 }
 
-func StringToBytes(s string, bufSize int, nilTerminate bool) []byte {
+func StringToBytesBuffer(s string, bufSize int, nilTerminate bool) []byte {
 	bs, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(s))
 	if err != nil {
 		panic(err)
@@ -49,6 +49,17 @@ func StringToBytes(s string, bufSize int, nilTerminate bool) []byte {
 		bs = r
 	} else if len(bs) > bufSize {
 		panic(bs)
+	}
+	return bs
+}
+
+func StringToBytes(s string, nilTerminate bool) []byte {
+	bs, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(s))
+	if err != nil {
+		panic(err)
+	}
+	if nilTerminate {
+		bs = append(bs, 0)
 	}
 	return bs
 }

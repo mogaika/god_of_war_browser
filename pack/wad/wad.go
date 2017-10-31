@@ -122,7 +122,7 @@ func MarshalTag(t *Tag) []byte {
 	binary.LittleEndian.PutUint16(buf[0:2], t.Tag)
 	binary.LittleEndian.PutUint16(buf[2:4], t.Flags)
 	binary.LittleEndian.PutUint32(buf[4:8], t.Size)
-	copy(buf[8:32], utils.StringToBytes(t.Name, 24, false))
+	copy(buf[8:32], utils.StringToBytesBuffer(t.Name, 24, false))
 	return buf
 }
 

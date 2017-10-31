@@ -82,7 +82,7 @@ func UnmarshalTocEntry(buffer []byte) Entry {
 
 func MarshalTocEntry(e *Entry) []byte {
 	buf := make([]byte, ENTRY_SIZE)
-	copy(buf[:12], utils.StringToBytes(e.Name, 12, false))
+	copy(buf[:12], utils.StringToBytesBuffer(e.Name, 12, false))
 	binary.LittleEndian.PutUint32(buf[12:16], uint32(e.Enc.Pack))
 	binary.LittleEndian.PutUint32(buf[16:20], uint32(e.Size))
 	binary.LittleEndian.PutUint32(buf[20:24], uint32((e.Enc.Start+utils.SECTOR_SIZE-1)/utils.SECTOR_SIZE))

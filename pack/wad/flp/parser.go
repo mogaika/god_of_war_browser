@@ -198,9 +198,6 @@ func (d6s1 *Data6Subtype1) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
-	//log.Printf("d6sub1 parsing pos: %#x {%d,%d} < b34c,b3bc,b608,e694,f214,f5e8,f720,f84c,fa20,fd0c,12398,123ac,12448,124f3,1278f",
-	//	pos, len(d6s1.Sub1s), len(d6s1.Sub2s))
-
 	pos = posPad4(pos)
 	for i := range d6s1.ElementsAnimation {
 		pos += d6s1.ElementsAnimation[i].FromBuf(buf[pos:])
@@ -256,6 +253,7 @@ func (d6s1s1s1 *KeyFrame) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d6s1s2 *FrameScriptLabel) FromBuf(buf []byte) int {
+	d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[:])
 	d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
 	d6s1s2.LabelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE2_ELEMENT_SIZE
@@ -286,19 +284,19 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	// utils.Dump("d6s1s2s1 _ PAYLOAD", buf[pos:pos+len(d6s1s2s1.Payload)])
 	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+len(d6s1s2s1.payload)])
 	return pos + copy(d6s1s2s1.payload, buf[pos:pos+len(d6s1s2s1.payload)])
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 	d6s2.payload = make([]byte, binary.LittleEndian.Uint32(buf[:]))
+	d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
+	d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
 	return DATA6_SUBTYPE2_ELEMENT_SIZE
 }
 
 func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	//utils.LogDump("d6s2 payload", buf[pos:pos+len(d6s2.Payload)])
 	d6s2.Script = NewScriptFromData(buf[pos : pos+len(d6s2.payload)])
 	return pos + copy(d6s2.payload, buf[pos:pos+len(d6s2.payload)])
 }

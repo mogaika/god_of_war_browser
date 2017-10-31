@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math"
+
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type StringPosReplacerReference struct {
@@ -36,6 +38,34 @@ func NewFlpMarshaler() *FlpMarshaler {
 	return &FlpMarshaler{sbuffer: NewStringsIndexBuffer()}
 }
 
+func (fm *FlpMarshaler) compileStringAndReturnFile() *bytes.Buffer {
+	buf := fm.buf.Bytes()
+	var stringSection bytes.Buffer
+
+	for k, v := range map[string][]StringPosReplacerReference(fm.sbuffer) {
+		var offbuf [4]byte
+		off := stringSection.Len()
+
+		if k == "" {
+			off = -1
+		} else {
+			stringSection.Write(utils.StringToBytes(k, true))
+		}
+
+		binary.LittleEndian.PutUint32(offbuf[:], uint32(off))
+		for _, e := range v {
+			//log.Printf("String ref at %x:%d = %x to %s", e.Position, e.SizeInBytes, off, k)
+			copy(buf[e.Position:e.Position+e.SizeInBytes], offbuf[:e.SizeInBytes])
+		}
+	}
+
+	// update flp field with string section size
+	binary.LittleEndian.PutUint32(buf[0x58:], uint32(stringSection.Len()))
+
+	fm.buf.Write(stringSection.Bytes())
+	return &fm.buf
+}
+
 func (fm *FlpMarshaler) w16(v uint16) {
 	var buf [2]byte
 	binary.LittleEndian.PutUint16(buf[:], v)
@@ -57,7 +87,9 @@ func (fm *FlpMarshaler) skip(count int) {
 }
 
 func (fm *FlpMarshaler) pad(align int) {
-	fm.skip(fm.pos() % align)
+	if fm.pos()%align != 0 {
+		fm.skip(align - fm.pos()%align)
+	}
 }
 
 func (fm *FlpMarshaler) pad4() {
@@ -83,7 +115,8 @@ func (d2 *MeshPartReference) MarshalStruct(fm *FlpMarshaler) {
 func (d2 *MeshPartReference) MarshalData(fm *FlpMarshaler) {
 	for j := range d2.Materials {
 		fm.w32(d2.Materials[j].Color)
-		fm.addStringOffsetPlaceholder(d2.Materials[j].TextureName, 4)
+		fm.addStringOffsetPlaceholder(d2.Materials[j].TextureName, 2)
+		fm.skip(2)
 	}
 }
 
@@ -167,12 +200,12 @@ func (d6 *Data6) MarshalData(fm *FlpMarshaler) {
 	d6.Sub1.MarshalStruct(fm)
 	d6.Sub1.MarshalData(fm)
 
-	//	for i := range d6.Sub2s {
-	//		d6.Sub2s[i].MarshalStruct(fm)
-	//	}
-	//	for i := range d6.Sub2s {
-	//		d6.Sub2s[i].MarshalData(fm)
-	//	}
+	for i := range d6.Sub2s {
+		d6.Sub2s[i].MarshalStruct(fm)
+	}
+	for i := range d6.Sub2s {
+		d6.Sub2s[i].MarshalData(fm)
+	}
 }
 
 func (d6s1 *Data6Subtype1) MarshalStruct(fm *FlpMarshaler) {
@@ -192,14 +225,13 @@ func (d6s1 *Data6Subtype1) MarshalData(fm *FlpMarshaler) {
 	for i := range d6s1.ElementsAnimation {
 		d6s1.ElementsAnimation[i].MarshalData(fm)
 	}
-
-	//	fm.pad4()
-	//	for i := range d6s1.FrameScriptLables {
-	//		d6s1.FrameScriptLables[i].MarshalStruct(fm)
-	//	}
-	//	for i := range d6s1.FrameScriptLables {
-	//		d6s1.FrameScriptLables[i].MarshalData(fm)
-	//	}
+	fm.pad4()
+	for i := range d6s1.FrameScriptLables {
+		d6s1.FrameScriptLables[i].MarshalStruct(fm)
+	}
+	for i := range d6s1.FrameScriptLables {
+		d6s1.FrameScriptLables[i].MarshalData(fm)
+	}
 }
 
 func (d6s1s1 *ElementAnimation) MarshalStruct(fm *FlpMarshaler) {
@@ -221,6 +253,61 @@ func (d6s1s1s1 *KeyFrame) MarshalStruct(fm *FlpMarshaler) {
 	fm.w16(d6s1s1s1.TransformationId)
 	fm.w16(d6s1s1s1.ColorId)
 	fm.addStringOffsetPlaceholder(d6s1s1s1.Name, 2)
+}
+
+func (d6s1s2 *FrameScriptLabel) MarshalStruct(fm *FlpMarshaler) {
+	fm.w16(d6s1s2.TriggerFrameNumber)
+	fm.w16(uint16(len(d6s1s2.Subs)))
+	fm.skip(4) // array pointer placeholder
+	fm.addStringOffsetPlaceholder(d6s1s2.LabelName, 2)
+	fm.skip(2)
+}
+
+func (d6s1s2 *FrameScriptLabel) MarshalData(fm *FlpMarshaler) {
+	fm.pad4()
+	for i := range d6s1s2.Subs {
+		d6s1s2.Subs[i].MarshalStruct(fm)
+	}
+	for i := range d6s1s2.Subs {
+		d6s1s2.Subs[i].MarshalData(fm)
+	}
+}
+
+func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalStruct(fm *FlpMarshaler) {
+	fm.w32(uint32(len(d6s1s2s1.payload)))
+	fm.skip(4) // placeholder for pointer to array
+}
+
+func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalData(fm *FlpMarshaler) {
+	fm.pad4()
+	fm.buf.Write(d6s1s2s1.payload)
+}
+
+func (d6s2 *Data6Subtype2) MarshalStruct(fm *FlpMarshaler) {
+	fm.w32(uint32(len(d6s2.payload)))
+	fm.skip(4) // placeholder for pointer to script payload
+	fm.w32(d6s2.EventKeysMask)
+	fm.w16(d6s2.EventUnkMask)
+	fm.skip(2)
+}
+
+func (d6s2 *Data6Subtype2) MarshalData(fm *FlpMarshaler) {
+	fm.pad4()
+	fm.buf.Write(d6s2.payload)
+}
+
+func (d9 *Transformation) MarshalStruct(fm *FlpMarshaler) {
+	for _, v := range d9.Ints {
+		fm.w32(uint32(v))
+	}
+	fm.w16(d9.Half1)
+	fm.w16(d9.Half2)
+}
+
+func (d10 *BlendColor) MarshalStruct(fm *FlpMarshaler) {
+	for _, v := range d10.Color {
+		fm.w16(v)
+	}
 }
 
 func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
@@ -275,54 +362,38 @@ func (f *FLP) marshalBuffer() *bytes.Buffer {
 	for i := range f.StaticLabels {
 		f.StaticLabels[i].MarshalData(fm)
 	}
-	/*
-		for i := range f.DynamicLabels {
-			pos += f.DynamicLabels[i].FromBuf(buf[pos:])
-		}
 
-		for i := range f.Datas6 {
-			pos += f.Datas6[i].FromBuf(buf[pos:])
-		}
-		for i := range f.Datas6 {
-			pos = f.Datas6[i].Parse(buf, pos)
-		}
-		log.Printf("after fdata6: %#x == 0xffdf", pos)
+	for i := range f.DynamicLabels {
+		f.DynamicLabels[i].MarshalStruct(fm)
+	}
 
-		pos = posPad4(pos)
-		for i := range f.Datas7 {
-			pos += f.Datas7[i].FromBuf(buf[pos:])
-		}
-		log.Printf("fdata7count: %#x == 0x17d  | after fdata7buf: %#x == 0x12398", len(f.Datas7), pos)
-		for i := range f.Datas7 {
-			pos = f.Datas7[i].Parse(buf, pos)
-		}
-		log.Printf("after fdata7: %#x == 0x3e570", pos)
+	for i := range f.Datas6 {
+		f.Datas6[i].MarshalStruct(fm)
+	}
+	for i := range f.Datas6 {
+		f.Datas6[i].MarshalData(fm)
+	}
+	fm.pad4()
 
-		pos = posPad4(pos)
-		pos += f.Data8.FromBuf(buf[pos:])
-		pos = f.Data8.Parse(buf, pos)
+	for i := range f.Datas7 {
+		f.Datas7[i].MarshalStruct(fm)
+	}
+	for i := range f.Datas7 {
+		f.Datas7[i].MarshalData(fm)
+	}
+	fm.pad4()
 
-		pos = posPad4(pos)
-		for i := range f.Transformations {
-			pos += f.Transformations[i].FromBuf(buf[pos:])
-		}
-		for i := range f.BlendColors {
-			pos += f.BlendColors[i].FromBuf(buf[pos:])
-		}
+	f.Data8.MarshalStruct(fm)
+	f.Data8.MarshalData(fm)
+	fm.pad4()
 
-		stringsSectorStart := pos
-		log.Printf("string sec start: %#x == 0x72cf8  {size? or strings count: %#x}", pos, binary.LittleEndian.Uint16(buf[0x58:]))
-		for {
-			if pos >= len(buf)-1 {
-				break
-			}
-			s := utils.BytesToString(buf[pos:])
-			pos += utils.BytesStringLength(buf[pos:])
-			pos += 1
-			f.Strings = append(f.Strings, s)
-		}
+	for i := range f.Transformations {
+		f.Transformations[i].MarshalStruct(fm)
+	}
 
-		f.SetNameFromStringSector(buf[stringsSectorStart:])
-	*/
-	return &fm.buf
+	for i := range f.BlendColors {
+		f.BlendColors[i].MarshalStruct(fm)
+	}
+
+	return fm.compileStringAndReturnFile()
 }
