@@ -201,3 +201,11 @@ div.view-item-selectors div.item-selector {
 div.view-item-selectors div.item-selector:hover {
 	text-decoration: underline;
 }
+
+table.staticlabelrendercommandlist input {
+	width: 100%;
+}
+
+table.staticlabelrendercommandlist input.no-width {
+	width: auto;
+}

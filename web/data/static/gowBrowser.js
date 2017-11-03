@@ -4,7 +4,8 @@ var viewPack, viewTree, viewSummary, view3d;
 var dataPack, dataTree, dataSummary, data3d;
 var defferedLoadingWad;
 var defferedLoadingWadNode;
-var dataSelectors;
+var dataSelectors, dataSummarySelectors;
+var wad_last_load_view_type = 'nodes';
 
 String.prototype.replaceAll = function(search, replace) {
     if (replace === undefined) {
@@ -212,7 +213,6 @@ function treeLoadWad(wadName, data) {
 	} else if (wad_last_load_view_type === 'tags') {
 		treeLoadWadAsTags(wadName, data);
 	}
-	
 }
 
 $(document).ready(function() {
@@ -225,6 +225,7 @@ $(document).ready(function() {
     dataTree = viewTree.children('.view-item-container');
 	dataSelectors = viewTree.children('.view-item-selectors');
     dataSummary = viewSummary.children('.view-item-container');
+	dataSummarySelectors = viewSummary.children('.view-item-selectors');
     data3d = view3d.children('.view-item-container');
 
 

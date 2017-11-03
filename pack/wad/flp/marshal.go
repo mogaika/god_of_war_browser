@@ -296,12 +296,17 @@ func (d6s2 *Data6Subtype2) MarshalData(fm *FlpMarshaler) {
 	fm.buf.Write(d6s2.payload)
 }
 
+func (m *Matrix2x2_f15_16) MarshalStruct(fm *FlpMarshaler) {
+	fm.w32(uint32(m.ScaleX))
+	fm.w32(uint32(m.ShearingX))
+	fm.w32(uint32(m.ShearingY))
+	fm.w32(uint32(m.ScaleY))
+}
+
 func (d9 *Transformation) MarshalStruct(fm *FlpMarshaler) {
-	for _, v := range d9.Ints {
-		fm.w32(uint32(v))
-	}
-	fm.w16(d9.Half1)
-	fm.w16(d9.Half2)
+	d9.MarshalStruct(fm)
+	fm.w16(uint16(d9.OffsetX))
+	fm.w16(uint16(d9.OffsetY))
 }
 
 func (d10 *BlendColor) MarshalStruct(fm *FlpMarshaler) {
