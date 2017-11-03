@@ -222,6 +222,7 @@ function grTexture(src, wait = false) {
     };
 }
 grTexture.prototype.markAsFontTexture = function() {
+	gl.bindTexture(gl.TEXTURE_2D, this.txr);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -368,7 +369,7 @@ function grCameraTargeted() {
     this.farPlane = 50000.0;
     this.nearPlane = 1.0;
     this.fow = 55.0;
-    this.target = [0, 0, 0];
+	this.target = [0, 0, 0];
     this.distance = 100.0;
     this.rotation = [15.0, 45.0 * 3, 0];
 }
@@ -400,8 +401,8 @@ grCameraTargeted.prototype.onMouseWheel = function(delta) {
 
 grCameraTargeted.prototype.onMouseMove = function(btns, moveDelta) {
     if (btns[0]) {
-        this.rotation[1] -= moveDelta[0] * 0.2;
-        this.rotation[0] -= moveDelta[1] * 0.2;
+        this.rotation[1] += moveDelta[0] * 0.2;
+        this.rotation[0] += moveDelta[1] * 0.2;
     }
     if (btns[1]) {
         this.target[0] += moveDelta[0] * this.distance * 0.01;
@@ -409,7 +410,6 @@ grCameraTargeted.prototype.onMouseMove = function(btns, moveDelta) {
     }
     gr_instance.requestRedraw();
 }
-
 function grController(viewDomObject) {
     var canvas = $(view).find('canvas');
     var contextNames = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
@@ -436,40 +436,45 @@ function grController(viewDomObject) {
     this.rectX = gl.canvas.width;
     this.rectY = gl.canvas.height;
     this.mouseDown = [false, false];
-    this.mouseLastPos = [0, 0];
     this.emptyTexture = new grTexture("/static/emptytexture.png", true);
 	this.fontTexture = new grTexture("/static/font2.png", true);
 	this.fontTexture.markAsFontTexture();
 
-    canvas.mousewheel(function(event) {
+	canvas.mousewheel(function(event) {
         gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);
         event.stopPropagation();
         event.preventDefault();
-    }).mousedown(function(event) {
+	}).mousedown(function(event) {
         if (event.button < 2) {
-            gr_instance.mouseDown[event.button] = true;
-            gr_instance.mouseLastPos = [event.clientX, event.clientY];
+			gr_instance.mouseDown[event.button] = true;
             event.stopPropagation();
             event.preventDefault();
+			if (event.button === 0) {
+				this.requestPointerLock();
+			}
         }
-    }).on('webglcontextlost', function() {
-        console.log("webgl context lost");
-    }).on('webglcontextrestored', function() {
-        console.log("webgl context restored");
+    })
+	
+	canvas[0].addEventListener('webglcontextlost', function(e) {
+        console.log("webgl context lost", e);
+    });
+	canvas[0].addEventListener('webglcontextrestored', function(e) {
+        console.log("webgl context restored", e);
     });
 
-    $(window).mouseup(function(event) {
-        if (event.button < 2) {
-            gr_instance.mouseDown[event.button] = false;
+    $(document).mouseup(function(event) {
+		 if (event.button < 2) {
+			gr_instance.mouseDown[event.button] = false;
             event.stopPropagation();
             event.preventDefault();
+			if (event.button === 0) {
+				document.exitPointerLock();
+			}
         }
     }).mousemove(function(event) {
         if (gr_instance.mouseDown.reduce((a, b) => (a | b), false)) {
-            var lastPos = gr_instance.mouseLastPos;
-            var posDiff = [lastPos[0] - event.clientX, lastPos[1] - event.clientY];
+			var posDiff = [event.originalEvent.movementX, event.originalEvent.movementY];
             gr_instance.camera.onMouseMove(gr_instance.mouseDown, posDiff);
-            gr_instance.mouseLastPos = [event.clientX, event.clientY];
             event.stopPropagation();
             event.preventDefault();
         }

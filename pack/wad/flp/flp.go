@@ -3,6 +3,8 @@ package flp
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -45,17 +47,17 @@ var currentFlpInstance *FLP
 type FLP struct {
 	Unk04                 uint32
 	Unk08                 uint32
-	GlobalHandlersIndexes []GlobalHandlerIndex `json:"-"`
+	GlobalHandlersIndexes []GlobalHandlerIndex
 	MeshPartReferences    []MeshPartReference
-	Fonts                 []Font         `json:"-"`
-	StaticLabels          []StaticLabel  `json:"-"`
+	Fonts                 []Font
+	StaticLabels          []StaticLabel
 	DynamicLabels         []DynamicLabel `json:"-"`
 	Datas6                []Data6
-	Datas7                []Data6Subtype1  `json:"-"`
-	Data8                 Data6Subtype1    // Root logic node
-	Transformations       []Transformation `json:"-"`
-	BlendColors           []BlendColor     `json:"-"`
-	Strings               []string         `json:"-"`
+	Datas7                []Data6Subtype1 `json:"-"`
+	Data8                 Data6Subtype1   // Root logic node
+	Transformations       []Transformation
+	BlendColors           []BlendColor `json:"-"`
+	Strings               []string     `json:"-"`
 }
 
 type GlobalHandler uint16
@@ -101,8 +103,9 @@ type Font struct {
 }
 
 type StaticLabel struct {
-	Transformation     Transformation
-	RenderCommandsList []byte `json:"-"`
+	Transformation          Transformation
+	RenderCommandsList      []byte `json:"-"`
+	ParsedRenderCommandList []*StaticLabelRenderCommand
 }
 
 type DynamicLabel struct {
@@ -166,10 +169,19 @@ type Data6Subtype2 struct {
 	payload       []byte
 }
 
+type Matrix2x2_f15_16 struct {
+	ScaleX    int32
+	ShearingX int32
+	ShearingY int32
+	ScaleY    int32
+}
+
 type Transformation struct {
-	Ints  [4]int32 // used as floats, and divided by 65536.0
-	Half1 uint16   // used as float also
-	Half2 uint16   // used as float too
+	// 2d transformation matrix in fx 1:15:16 format
+	Matrix Matrix2x2_f15_16
+
+	OffsetX int16
+	OffsetY int16
 }
 
 type BlendColor struct {
@@ -190,11 +202,33 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return f, nil
 }
 
+type Marshaled struct {
+	FLP               *FLP
+	Model             interface{}
+	Textures          map[string]interface{}
+	CustomFontMapping map[int]int
+}
+
 func init() {
 	wad.SetHandler(FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err
+		}
+
+		mdln := wrsrc.Wad.GetNodeByName(strings.Replace(wrsrc.Name(), "FLP_", "MDL_", 1), wrsrc.Node.Id, false)
+		if mdln != nil {
+			if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(mdln.Id); err == nil {
+				if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(mdln.Id)); err == nil {
+					log.Println(marshaledNode)
+				} else {
+					log.Printf("Cannot marshal mdl instance %s for %s: %v", mdln.Tag.Name, wrsrc.Name(), err)
+				}
+			} else {
+				log.Printf("Cannot get mdl instance %s for %s: %v", mdln.Tag.Name, wrsrc.Name(), err)
+			}
+		} else {
+			log.Printf("Cannot find mdl_ for %s", wrsrc.Name())
 		}
 
 		return inst, nil

@@ -101,37 +101,7 @@ func (d4 *StaticLabel) FromBuf(buf []byte) int {
 
 func (d4 *StaticLabel) Parse(f *FLP, buf []byte, pos int) int {
 	res := posPad4(pos + copy(d4.RenderCommandsList, buf[pos:pos+len(d4.RenderCommandsList)]))
-	/*
-		for i := 0; i < len(d4.RenderCommandsList); {
-			cmd := d4.RenderCommandsList[i]
-			i += 1
-			if cmd&0x80 != 0 {
-				if cmd&8 != 0 {
-					log.Printf("  Set resource id %d as font with height %d", binary.LittleEndian.Uint16(d4.RenderCommandsList[i:]), binary.LittleEndian.Uint16(d4.RenderCommandsList[i+2:]))
-					i += 4
-				}
-				if cmd&4 != 0 {
-					log.Printf("  Set blend color %v", d4.RenderCommandsList[i:i+4])
-					i += 4
-				}
-				if cmd&2 != 0 {
-					log.Printf("  Set f20reg x offset %d", binary.LittleEndian.Uint16(d4.RenderCommandsList[i:]))
-					i += 2
-				}
-				if cmd&1 != 0 {
-					log.Printf("  Set f22reg y offset %d", binary.LittleEndian.Uint16(d4.RenderCommandsList[i:]))
-					i += 2
-				}
-			} else {
-				for j := byte(0); j < cmd; j++ {
-					glyph := int16(binary.LittleEndian.Uint16(d4.RenderCommandsList[i:]))
-					width := uint32(binary.LittleEndian.Uint16(d4.RenderCommandsList[i+2:]))
-					i += 4
-					log.Printf("  # Print glyph \"%v\"  with width %v", glyph, width)
-				}
-			}
-		}
-	*/
+	d4.ParsedRenderCommandList = d4.GetRenderCommandList()
 	return res
 }
 
@@ -221,7 +191,6 @@ func (d6s1s1 *ElementAnimation) FromBuf(buf []byte) int {
 }
 
 func (d6s1s1 *ElementAnimation) Parse(buf []byte, pos int) int {
-	//log.Printf("d6sub1sub1 parsing pos: %#x {%d} < b354,b3c4,b4e4,b610,e69c,f21c,f5f0,f728,f854,fa28,fd14,123a0,123b4,12458", pos, len(d6s1s1.Subs))
 	pos = posPad4(pos)
 	for i := range d6s1s1.KeyFrames {
 		pos += d6s1s1.KeyFrames[i].FromBuf(buf[pos:])
@@ -275,7 +244,6 @@ func (d6s1s2 *FrameScriptLabel) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
-	//utils.LogDump(buf[:DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE])
 	d6s1s2s1.payload = make([]byte, binary.LittleEndian.Uint32(buf[:]))
 	return DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE
 }
@@ -299,12 +267,18 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	return pos + copy(d6s2.payload, buf[pos:pos+len(d6s2.payload)])
 }
 
+func (m *Matrix2x2_f15_16) FromBuf(buf []byte) int {
+	m.ScaleX = int32(binary.LittleEndian.Uint32(buf[0x0:]))
+	m.ShearingX = int32(binary.LittleEndian.Uint32(buf[0x4:]))
+	m.ShearingY = int32(binary.LittleEndian.Uint32(buf[0x8:]))
+	m.ScaleY = int32(binary.LittleEndian.Uint32(buf[0xc:]))
+	return 0x10
+}
+
 func (d9 *Transformation) FromBuf(buf []byte) int {
-	for i := range d9.Ints {
-		d9.Ints[i] = int32(binary.LittleEndian.Uint32(buf[i*4:]))
-	}
-	d9.Half1 = binary.LittleEndian.Uint16(buf[0x10:])
-	d9.Half2 = binary.LittleEndian.Uint16(buf[0x12:])
+	d9.Matrix.FromBuf(buf[0:])
+	d9.OffsetX = int16(binary.LittleEndian.Uint16(buf[0x10:]))
+	d9.OffsetY = int16(binary.LittleEndian.Uint16(buf[0x12:]))
 	return DATA9_ELEMENT_SIZE
 }
 
