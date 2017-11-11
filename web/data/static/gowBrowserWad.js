@@ -314,63 +314,66 @@ function parseMeshPart(object, block) {
 
 function loadMeshPartFromAjax(model, data, iPart, table=undefined) {
 	var part = data.Parts[iPart];
+	var totalMeshes = [];
 	for (var iGroup in part.Groups) {
-            var group = part.Groups[iGroup];
-            for (var iObject in group.Objects) {
-                var object = group.Objects[iObject];
+        var group = part.Groups[iGroup];
+        for (var iObject in group.Objects) {
+            var object = group.Objects[iObject];
 
-                //for (var iSkin in object.Blocks) {
-                var iSkin = 0;
-                var skin = object.Blocks[iSkin];
-                var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
+            //for (var iSkin in object.Blocks) {
+            var iSkin = 0;
+            var skin = object.Blocks[iSkin];
+            var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
 
-                var meshes = [];
-                for (var iBlock in skin) {
-                    var block = skin[iBlock];
+            var meshes = [];
+            for (var iBlock in skin) {
+                var block = skin[iBlock];
 
-                    var mesh = parseMeshPart(object, block)
-                    meshes.push(mesh);
-                    model.addMesh(mesh);
-                }
-
-                if (table) {
-                    var label = $('<label>');
-                    var chbox = $('<input type="checkbox" checked>');
-                    var td = $('<td>').append(label);
-                    chbox.click(meshes, function(ev) {
-                        for (i in ev.data) {
-                            ev.data[i].setVisible(this.checked);
-                        }
-                        gr_instance.requestRedraw();
-                    });
-                    td.mouseenter([model, meshes], function(ev) {
-                        ev.data[0].showExclusiveMeshes(ev.data[1]);
-                        gr_instance.requestRedraw();
-                    }).mouseleave(model, function(ev, a) {
-                        ev.data.showExclusiveMeshes();
-                        gr_instance.requestRedraw();
-                    });
-                    label.append(chbox);
-                    label.append("o_" + objName);
-                    table.append($('<tr>').append(td));
-
-                    //var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
-
-                    /*
-                    var params = '';
-                    for (var i in object.Params) {
-                    	if (i % 2 == 0) {
-                    		params += '</br>';
-                    	}
-                    	params += '0x' + object.Params[i].toString(0x10) + ',';
-                    }
-						
-                    td.append(params);
-                    */
-                }
-                //}
+                var mesh = parseMeshPart(object, block)
+                meshes.push(mesh);
+	totalMeshes.push(mesh);
+                model.addMesh(mesh);
             }
+
+            if (table) {
+                var label = $('<label>');
+                var chbox = $('<input type="checkbox" checked>');
+                var td = $('<td>').append(label);
+                chbox.click(meshes, function(ev) {
+                    for (i in ev.data) {
+                        ev.data[i].setVisible(this.checked);
+                    }
+                    gr_instance.requestRedraw();
+                });
+                td.mouseenter([model, meshes], function(ev) {
+                    ev.data[0].showExclusiveMeshes(ev.data[1]);
+                    gr_instance.requestRedraw();
+                }).mouseleave(model, function(ev, a) {
+                    ev.data.showExclusiveMeshes();
+                    gr_instance.requestRedraw();
+                });
+                label.append(chbox);
+                label.append("o_" + objName);
+                table.append($('<tr>').append(td));
+
+                //var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
+
+                /*
+                var params = '';
+                for (var i in object.Params) {
+                	if (i % 2 == 0) {
+                		params += '</br>';
+                	}
+                	params += '0x' + object.Params[i].toString(0x10) + ',';
+                }
+		
+                td.append(params);
+                */
+            }
+            //}
         }
+    }
+	return totalMeshes;
 }
 
 function loadMeshFromAjax(model, data, needTable = false) {
@@ -873,7 +876,8 @@ function summaryLoadWadScript(data) {
     set3dVisible(false);
 }
 
-function summaryLoadWadFlp(flpdata, wad, tagid) {
+function summaryLoadWadFlp(flp, wad, tagid) {
+	var flpdata = flp.FLP;
 	var flp_print_dump = function() {
 		set3dVisible(false);
 		dataSummary.empty();
@@ -886,8 +890,6 @@ function summaryLoadWadFlp(flpdata, wad, tagid) {
 		
 		var table = $("<table class='staticlabelrendercommandlist'>");
 		table.append($("<tr>").append($("<td>").text("Id")).append($("<td>").text("Render commands")));
-		
-		console.log(flpdata.StaticLabels);
 		
 		for (var iSl in flpdata.StaticLabels) {
 			var sl = flpdata.StaticLabels[iSl];
@@ -936,13 +938,103 @@ function summaryLoadWadFlp(flpdata, wad, tagid) {
 	}
 	
 	var flp_view_element = function() {
+		gr_instance.cleanup();
 		set3dVisible(true);
 		dataSummary.empty();
+	}
+	
+	var flp_view_font = function() {
+		gr_instance.cleanup();
+		set3dVisible(true);
+		dataSummary.empty();
+		
+		var charstable = $("<table>");
+		
+		var mdl = new grModel();
+		var matmap = {};
+		
+		for (var iFont in flpdata.Fonts) {
+			var font = flpdata.Fonts[iFont];
+			for (var iChar in font.CharNumberToSymbolIdMap) {
+				if (font.CharNumberToSymbolIdMap[iChar] == -1) {
+					continue;
+				}
+				
+				var glyphId = font.CharNumberToSymbolIdMap[iChar];
+				var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
+				var chrdata = flagsdatas2[glyphId];
+				
+				var meshes = [];
+				if (chrdata.MeshPartIndex !== -1) {
+					meshes = loadMeshPartFromAjax(mdl, flp.Model.Meshes[0], chrdata.MeshPartIndex);
+					var txrid = undefined;
+					if (chrdata.Materials && chrdata.Materials.length !== 0 && chrdata.Materials[0].TextureName) {
+						var txr_name = chrdata.Materials[0].TextureName;
+						
+						if (!matmap.hasOwnProperty(txr_name)) {
+							var material = new grMaterial();
+							var img = flp.Textures[txr_name].Images[0].Image
+							
+							var texture = new grTexture('data:image/png;base64,' + img);
+							texture.markAsFontTexture();
+							material.setDiffuse(texture);
+							
+							matmap[txr_name] = mdl.materials.length;
+							mdl.addMaterial(material);
+						}
+						txrid = matmap[txr_name];
+					}			
+					for (var iMesh in meshes) {
+						meshes[iMesh].setMaterialID(txrid);
+					}
+				}
+				
+				var symbolWidth = font.SymbolWidths[glyphId];
+				var cubemesh = grHelper_CubeLines(symbolWidth/32, 0, 0, symbolWidth/32, 500, 5, false);
+				mdl.addMesh(cubemesh);
+				meshes.push(cubemesh);
+
+				var char = String.fromCharCode(iChar);
+				if (flp.FontCharAliases) {
+					var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {return flp.FontCharAliases[charString] == iChar});
+					if (map_chars && map_chars.length !== 0) {
+						char = String.fromCharCode(map_chars[0]);
+					}
+				}
+
+				var removeButton = $('<input type=button value=remove glyphid=' + glyphId + '>');
+				removeButton.click(function(ev) { alert("TODO: remove glyph #" + $(this).attr("glyphid")); });
+
+				
+				var table = $("<table>");
+				
+				var tr1 = $("<tr>");
+				var tr2 = $("<tr>");
+				tr1.append($("<td>").text('#' + glyphId));
+				tr1.append($("<td>").text('width ' + symbolWidth/16.0));
+				tr1.append($("<td>").text('ansii ' + iChar));
+				tr2.append($("<td>").append($("<h2>").text(char)));
+				tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));
+				tr2.append($("<td>").append(removeButton));
+				
+				table.mouseenter([mdl, meshes], function(ev) {
+                	ev.data[0].showExclusiveMeshes(ev.data[1]);
+                	gr_instance.requestRedraw();
+	            });
+				
+				charstable.append($("<tr>").append(table.append(tr1).append(tr2)));
+			}
+		}
+		console.log(mdl);
+		dataSummary.append(charstable);
+		gr_instance.models.push(mdl);
+		gr_instance.requestRedraw();
 	}
 	
 	dataSummarySelectors.append($('<div class="item-selector">').click(flp_list_labels).text("Labels editor"));
 	dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
 	dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_element).text("Element viewer"));
+	dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
 	
 	flp_list_labels();
 }
