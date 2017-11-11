@@ -21,13 +21,13 @@ function getActionLinkForWadNode(wad, nodeid, action, params = '') {
 function treeInputFilterHandler() {
     var filterText = $(this).val().toLowerCase();
 
-	$(this).parent().find("div li label").each(function(a1, a2, a3) {
-		var p = $(this).parent();
+    $(this).parent().find("div li label").each(function(a1, a2, a3) {
+        var p = $(this).parent();
         if ($(this).text().toLowerCase().includes(filterText)) {
-			while (p.is("li")) {
-				p.show();
-				p = p.parent().parent();
-			}
+            while (p.is("li")) {
+                p.show();
+                p = p.parent().parent();
+            }
         } else {
             p.hide();
         }
@@ -38,7 +38,7 @@ function set3dVisible(show) {
     if (show) {
         view3d.show();
         viewSummary.attr('style', '');
-		gr_instance.onResize();
+        gr_instance.onResize();
     } else {
         view3d.hide();
         viewSummary.attr('style', 'flex-grow:1;');
@@ -60,7 +60,7 @@ function setLocation(title, hash) {
 
 function packLoad() {
     dataPack.empty();
-	dataSelectors.empty();
+    dataSelectors.empty();
     $.getJSON('/json/pack', function(files) {
         var list = $('<ol>');
         for (var i in files) {
@@ -70,14 +70,14 @@ function packLoad() {
                 .append($('<label>').append(fileName))
                 .append($('<a download>')
                     .addClass('button-dump')
-					.attr('title', 'Download file')
+                    .attr('title', 'Download file')
                     .attr('href', '/dump/pack/' + fileName))
-				.append($('<div>')
-	                .addClass('button-upload')
-					.attr('title', 'Upload your version of file')
-					.attr("href", '/upload/pack/' + fileName)
-					.click(uploadAjaxHandler)));
-	    }
+                .append($('<div>')
+                    .addClass('button-upload')
+                    .attr('title', 'Upload your version of file')
+                    .attr("href", '/upload/pack/' + fileName)
+                    .click(uploadAjaxHandler)));
+        }
         dataPack.append(list);
 
         if (defferedLoadingWad) {
@@ -95,40 +95,40 @@ function packLoad() {
 }
 
 function uploadAjaxHandler() {
-	console.log(this);
-	var link = $(this).attr("href");
-	var form = $('<form action="' + link + '" method="post" enctype="multipart/form-data">');
-	var fileInput = $('<input type="file" name="data">');
-	form.append(fileInput);
+    console.log(this);
+    var link = $(this).attr("href");
+    var form = $('<form action="' + link + '" method="post" enctype="multipart/form-data">');
+    var fileInput = $('<input type="file" name="data">');
+    form.append(fileInput);
 
-	fileInput.trigger("click");
-	fileInput.change(function() {
-		if (fileInput[0].files.length == 0) {
-			return;
-		}
-	
-	    $.ajax({
-	        url: form.attr('action'),
-	        type: 'post',
-	        data: new FormData(form[0]),
-	        processData: false,
-	        contentType: false,
-	        success: function(a1) {
-	            if (a1 !== "") {
-	                alert('Error uploading: ' + a1);
-	            } else {
-	                alert('Success!');
-	                window.location.reload();
-	            }
-	        }
-	    });
-	});
+    fileInput.trigger("click");
+    fileInput.change(function() {
+        if (fileInput[0].files.length == 0) {
+            return;
+        }
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'post',
+            data: new FormData(form[0]),
+            processData: false,
+            contentType: false,
+            success: function(a1) {
+                if (a1 !== "") {
+                    alert('Error uploading: ' + a1);
+                } else {
+                    alert('Success!');
+                    window.location.reload();
+                }
+            }
+        });
+    });
 }
 
 function packLoadFile(filename) {
     dataTree.empty();
     dataSummary.empty();
-	dataSelectors.empty();
+    dataSelectors.empty();
     $.getJSON('/json/pack/' + filename, function(data) {
         var ext = filename.slice(-3).toLowerCase();
         switch (ext) {
@@ -143,9 +143,9 @@ function packLoadFile(filename) {
             case 'vpk':
                 treeLoadVagVpk(filename, data);
                 break;
-			case 'txt':
-				treeLoadTxt(filename, data);
-				break;
+            case 'txt':
+                treeLoadTxt(filename, data);
+                break;
             default:
                 dataTree.append(JSON.stringify(data, undefined, 2).replaceAll('\n', '<br>'));
                 break;
@@ -173,7 +173,7 @@ function treeLoadVagVpk(filename, data) {
 function treeLoadTxt(filename, data) {
     set3dVisible(false);
     setTitle(viewTree, filename);
-	dataSummary.append($("<p>").append(data));
+    dataSummary.append($("<p>").append(data));
     setLocation(filename, '#/' + filename);
 }
 
@@ -192,28 +192,28 @@ function treeLoadPswPss(filename, data) {
 	    name="vlc">');
     vlc.attr('target', videoPath);
     dataSummary.append(vlc);
-	
+
     setLocation(filename, '#/' + filename);
 }
 
 function treeLoadWad(wadName, data) {
-	setTitle(viewTree, wadName);
-	if (!defferedLoadingWadNode) {
-		setLocation(wadName, '#/' + wadName);
-	}
-	
-	dataSelectors.append($('<div class="item-selector">').click(function() {
-		treeLoadWadAsNodes(wadName, data);
-	}).text("Nodes"));
-	dataSelectors.append($('<div class="item-selector">').click(function() {
-		treeLoadWadAsTags(wadName, data);
-	}).text("Tags"));
+    setTitle(viewTree, wadName);
+    if (!defferedLoadingWadNode) {
+        setLocation(wadName, '#/' + wadName);
+    }
 
-	if (wad_last_load_view_type === 'nodes') {
-		treeLoadWadAsNodes(wadName, data);
-	} else if (wad_last_load_view_type === 'tags') {
-		treeLoadWadAsTags(wadName, data);
-	}
+    dataSelectors.append($('<div class="item-selector">').click(function() {
+        treeLoadWadAsNodes(wadName, data);
+    }).text("Nodes"));
+    dataSelectors.append($('<div class="item-selector">').click(function() {
+        treeLoadWadAsTags(wadName, data);
+    }).text("Tags"));
+
+    if (wad_last_load_view_type === 'nodes') {
+        treeLoadWadAsNodes(wadName, data);
+    } else if (wad_last_load_view_type === 'tags') {
+        treeLoadWadAsTags(wadName, data);
+    }
 }
 
 $(document).ready(function() {
@@ -224,9 +224,9 @@ $(document).ready(function() {
 
     dataPack = viewPack.children('.view-item-container');
     dataTree = viewTree.children('.view-item-container');
-	dataSelectors = viewTree.children('.view-item-selectors');
+    dataSelectors = viewTree.children('.view-item-selectors');
     dataSummary = viewSummary.children('.view-item-container');
-	dataSummarySelectors = viewSummary.children('.view-item-selectors');
+    dataSummarySelectors = viewSummary.children('.view-item-selectors');
     data3d = view3d.children('.view-item-container');
 
 
@@ -244,8 +244,8 @@ $(document).ready(function() {
             defferedLoadingWadNode = urlParts[2];
         }
     }
-	
-	packLoad();
+
+    packLoad();
 
     gwInitRenderer(data3d);
 });

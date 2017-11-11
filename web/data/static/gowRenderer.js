@@ -197,14 +197,14 @@ function grTexture__handleLoading(img, txr) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
     gl.generateMipmap(gl.TEXTURE_2D);
     txr.loaded = true;
-	
-	txr.applyTexParameters();
+
+    txr.applyTexParameters();
 }
 
 function grTexture(src, wait = false) {
     this.loaded = wait;
     this.txr = undefined;
-	this.isFontTexture = false;
+    this.isFontTexture = false;
 
     if (wait) {
         this.txr = gl.createTexture();
@@ -222,24 +222,24 @@ function grTexture(src, wait = false) {
     };
 }
 grTexture.prototype.applyTexParameters = function() {
-	if (!this.loaded) {
-		return;
-	}
-	gl.bindTexture(gl.TEXTURE_2D, this.txr);
-	if (this.isFontTexture) {
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	} else {
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	}
-	gl.bindTexture(gl.TEXTURE_2D, null);
+    if (!this.loaded) {
+        return;
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.txr);
+    if (this.isFontTexture) {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, null);
 }
 grTexture.prototype.markAsFontTexture = function() {
-	this.isFontTexture = true;
-	this.applyTexParameters();	
+    this.isFontTexture = true;
+    this.applyTexParameters();
 }
 grTexture.prototype.free = function() {
     if (this.txr) gl.deleteTexture(this.txr);
@@ -295,74 +295,86 @@ grMaterial.prototype.free = function() {
     }
 }
 
-function grTextMesh(text=undefined, x=0, y=0, z=0, is3d=false) {
-	this.refs = 0;
-	this.position = [x, y, z];
-	this.is3d = is3d;
-	this.color = [1, 1, 1, 1];
-	this.indexesCount = 0;
-	this.bufferIndexType = undefined;
-	this.bufferVertex = gl.createBuffer();
-	this.bufferIndex = gl.createBuffer();
-	this.bufferUV = gl.createBuffer();
-	this.setText(text);
+function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false) {
+    this.refs = 0;
+    this.position = [x, y, z];
+    this.is3d = is3d;
+    this.color = [1, 1, 1, 1];
+    this.indexesCount = 0;
+    this.bufferIndexType = undefined;
+    this.bufferVertex = gl.createBuffer();
+    this.bufferIndex = gl.createBuffer();
+    this.bufferUV = gl.createBuffer();
+    this.setText(text);
 }
 grTextMesh.prototype.set3d = function(is3d) {
-	this.is3d = is3d;
+    this.is3d = is3d;
 }
 grTextMesh.prototype.setColor = function(r, g, b, a) {
-	this.color = [r, g, b, a];
+    this.color = [r, g, b, a];
 }
 grTextMesh.prototype.setPosition = function(x, y, z) {
     this.position = [x, y, z];
 }
-grTextMesh.prototype.setText = function(text, charBoxSize=9) {
-	if (text == undefined) {
-		this.bufferIndexType = undefined;
-		
-	}
-	var vrtxs = [];
-	var uvs = [];
-	var indxs = [];
-	var chsz = 1/16; // char size in texture units
-	var x = 0;
-	var y = 0;
-		
-	for (var i = 0; i < text.length; i++) {
-		var char = text.charCodeAt(i);
-		if (char > 0xff) {
-			char = 182; // ¶
-		}
+grTextMesh.prototype.setText = function(text, charBoxSize = 9) {
+    if (text == undefined) {
+        this.bufferIndexType = undefined;
 
-		vrtxs.push(x);             vrtxs.push(y);
-		vrtxs.push(x+charBoxSize); vrtxs.push(y);
-		vrtxs.push(x);             vrtxs.push(y+charBoxSize);
-		vrtxs.push(x+charBoxSize); vrtxs.push(y+charBoxSize);
-		x += charBoxSize;
-	
-		var tx = Math.floor(char % 16) / 16;
-		var ty = Math.floor(char / 16) / 16;
-		uvs.push(tx);      uvs.push(ty+chsz);
-		uvs.push(tx+chsz); uvs.push(ty+chsz);
-		uvs.push(tx);      uvs.push(ty);
-		uvs.push(tx+chsz); uvs.push(ty);
-		
-		var idx = i * 4;
-		indxs.push(idx);   indxs.push(idx+1); indxs.push(idx+2);
-		indxs.push(idx+1); indxs.push(idx+2); indxs.push(idx+3);
-	}
-	
+    }
+    var vrtxs = [];
+    var uvs = [];
+    var indxs = [];
+    var chsz = 1 / 16; // char size in texture units
+    var x = 0;
+    var y = 0;
+
+    for (var i = 0; i < text.length; i++) {
+        var char = text.charCodeAt(i);
+        if (char > 0xff) {
+            char = 182; // ¶
+        }
+
+        vrtxs.push(x);
+        vrtxs.push(y);
+        vrtxs.push(x + charBoxSize);
+        vrtxs.push(y);
+        vrtxs.push(x);
+        vrtxs.push(y + charBoxSize);
+        vrtxs.push(x + charBoxSize);
+        vrtxs.push(y + charBoxSize);
+        x += charBoxSize;
+
+        var tx = Math.floor(char % 16) / 16;
+        var ty = Math.floor(char / 16) / 16;
+        uvs.push(tx);
+        uvs.push(ty + chsz);
+        uvs.push(tx + chsz);
+        uvs.push(ty + chsz);
+        uvs.push(tx);
+        uvs.push(ty);
+        uvs.push(tx + chsz);
+        uvs.push(ty);
+
+        var idx = i * 4;
+        indxs.push(idx);
+        indxs.push(idx + 1);
+        indxs.push(idx + 2);
+        indxs.push(idx + 1);
+        indxs.push(idx + 2);
+        indxs.push(idx + 3);
+    }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferVertex);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vrtxs), gl.STATIC_DRAW);
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferUV);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferUV);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
 
-	this.bufferIndexType = (vrtxs.length > 254) ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
-	this.indexesCount = indxs.length;
+    this.bufferIndexType = (vrtxs.length > 254) ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
+    this.indexesCount = indxs.length;
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufferIndex);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, (this.bufferIndexType === gl.UNSIGNED_SHORT) ? (new Uint16Array(indxs)) : (new Uint8Array(indxs)), gl.STATIC_DRAW);
-	
+
 }
 grTextMesh.prototype.claim = function() {
     this.refs++;
@@ -373,16 +385,16 @@ grTextMesh.prototype.unclaim = function() {
     }
 }
 grTextMesh.prototype.free = function() {
-	gl.deleteBuffer(this.bufferVertex);
-	gl.deleteBuffer(this.bufferIndex);
-	gl.deleteBuffer(this.bufferUV);
+    gl.deleteBuffer(this.bufferVertex);
+    gl.deleteBuffer(this.bufferIndex);
+    gl.deleteBuffer(this.bufferUV);
 }
 
 function grCameraTargeted() {
     this.farPlane = 50000.0;
     this.nearPlane = 1.0;
     this.fow = 55.0;
-	this.target = [0, 0, 0];
+    this.target = [0, 0, 0];
     this.distance = 100.0;
     this.rotation = [15.0, 45.0 * 3, 0];
 }
@@ -423,6 +435,7 @@ grCameraTargeted.prototype.onMouseMove = function(btns, moveDelta) {
     }
     gr_instance.requestRedraw();
 }
+
 function grController(viewDomObject) {
     var canvas = $(view).find('canvas');
     var contextNames = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
@@ -440,53 +453,53 @@ function grController(viewDomObject) {
 
     this.renderChain = undefined;
     this.models = [];
-	this.texts = [];
+    this.texts = [];
     this.helpers = [
         grHelper_Pivot(),
     ];
     this.camera = new grCameraTargeted();
-	this.orthoMatrix = mat4.create();
+    this.orthoMatrix = mat4.create();
     this.rectX = gl.canvas.width;
     this.rectY = gl.canvas.height;
     this.mouseDown = [false, false];
     this.emptyTexture = new grTexture("/static/emptytexture.png", true);
-	this.fontTexture = new grTexture("/static/font2.png", true);
-	this.fontTexture.markAsFontTexture();
+    this.fontTexture = new grTexture("/static/font2.png", true);
+    this.fontTexture.markAsFontTexture();
 
-	canvas.mousewheel(function(event) {
+    canvas.mousewheel(function(event) {
         gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);
         event.stopPropagation();
         event.preventDefault();
-	}).mousedown(function(event) {
+    }).mousedown(function(event) {
         if (event.button < 2) {
-			gr_instance.mouseDown[event.button] = true;
+            gr_instance.mouseDown[event.button] = true;
             event.stopPropagation();
             event.preventDefault();
-			if (event.button === 0) {
-				this.requestPointerLock();
-			}
+            if (event.button === 0) {
+                this.requestPointerLock();
+            }
         }
     })
-	
-	canvas[0].addEventListener('webglcontextlost', function(e) {
+
+    canvas[0].addEventListener('webglcontextlost', function(e) {
         console.log("webgl context lost", e);
     });
-	canvas[0].addEventListener('webglcontextrestored', function(e) {
+    canvas[0].addEventListener('webglcontextrestored', function(e) {
         console.log("webgl context restored", e);
     });
 
     $(document).mouseup(function(event) {
-		 if (event.button < 2) {
-			gr_instance.mouseDown[event.button] = false;
+        if (event.button < 2) {
+            gr_instance.mouseDown[event.button] = false;
             event.stopPropagation();
             event.preventDefault();
-			if (event.button === 0) {
-				document.exitPointerLock();
-			}
+            if (event.button === 0) {
+                document.exitPointerLock();
+            }
         }
     }).mousemove(function(event) {
         if (gr_instance.mouseDown.reduce((a, b) => (a | b), false)) {
-			var posDiff = [event.originalEvent.movementX, event.originalEvent.movementY];
+            var posDiff = [event.originalEvent.movementX, event.originalEvent.movementY];
             gr_instance.camera.onMouseMove(gr_instance.mouseDown, posDiff);
             event.stopPropagation();
             event.preventDefault();
@@ -503,8 +516,8 @@ function gwInitRenderer(viewDomObject) {
     }
     gr_instance = new grController(viewDomObject);
     gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
-	gr_instance.onResize();
-	gr_instance.requestRedraw();
+    gr_instance.onResize();
+    gr_instance.requestRedraw();
 }
 
 grController.prototype.changeRenderChain = function(chainType) {
@@ -517,7 +530,7 @@ grController.prototype.onResize = function() {
     gl.canvas.width = this.rectX = gl.canvas.clientWidth;
     gl.canvas.height = this.rectY = gl.canvas.clientHeight;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-	this.orthoMatrix = mat4.ortho(this.orthoMatrix, 0, this.rectX, 0, this.rectY, -1, 1);
+    this.orthoMatrix = mat4.ortho(this.orthoMatrix, 0, this.rectX, 0, this.rectY, -1, 1);
 }
 grController.prototype._onResize = function() {
     gr_instance.onResize();
@@ -559,7 +572,7 @@ grController.prototype.destroyTexts = function() {
 
 grController.prototype.cleanup = function() {
     this.destroyTexts();
-	this.destroyModels();
+    this.destroyModels();
 }
 
 grController.prototype.downloadFile = function(link, async) {
