@@ -1,27 +1,27 @@
 'use strict';
 
 function treeLoadWad_dumpButtons(li, wadName, tag) {
-	li.append($('<div>')
-	    .addClass('button-upload')
-		.attr('title', 'Upload your version of wad tag data')
-		.attr('href', '/upload/pack/' + wadName + '/' + tag.Id)
-		.click(uploadAjaxHandler));
-	
-	li.append($('<a>')
-	    .addClass('button-dump')
-		.attr('title', 'Download wad tag data')
-	    .attr('href', '/dump/pack/' + wadName + '/' + tag.Id))
+    li.append($('<div>')
+        .addClass('button-upload')
+        .attr('title', 'Upload your version of wad tag data')
+        .attr('href', '/upload/pack/' + wadName + '/' + tag.Id)
+        .click(uploadAjaxHandler));
+
+    li.append($('<a>')
+        .addClass('button-dump')
+        .attr('title', 'Download wad tag data')
+        .attr('href', '/dump/pack/' + wadName + '/' + tag.Id))
 }
 
 function treeLoadWadAsNodes(wadName, data) {
-	wad_last_load_view_type = 'nodes';
-	if (defferedLoadingWadNode) {
+    wad_last_load_view_type = 'nodes';
+    if (defferedLoadingWadNode) {
         treeLoadWadNode(wadName, parseInt(defferedLoadingWadNode));
         defferedLoadingWadNode = undefined;
     } else {
         setLocation(wadName, '#/' + wadName);
     }
-	dataTree.empty();
+    dataTree.empty();
 
     var addNodes = function(nodes) {
         var ol = $('<ol>');
@@ -42,9 +42,9 @@ function treeLoadWadAsNodes(wadName, data) {
             } else {
                 li.append(' [' + node.Tag.Tag + ']');
             }
-			
-			treeLoadWad_dumpButtons(li, wadName, node.Tag);
-			
+
+            treeLoadWad_dumpButtons(li, wadName, node.Tag);
+
             if (node.SubGroupNodes) {
                 li.append(addNodes(node.SubGroupNodes));
             }
@@ -52,7 +52,7 @@ function treeLoadWadAsNodes(wadName, data) {
         }
         return ol;
     }
-	
+
     if (data.Roots) {
         dataTree.append(addNodes(data.Roots));
     }
@@ -65,39 +65,39 @@ function treeLoadWadAsNodes(wadName, data) {
 }
 
 function treeLoadWadAsTags(wadName, data) {
-	wad_last_load_view_type = 'tags';
-	dataTree.empty();
+    wad_last_load_view_type = 'tags';
+    dataTree.empty();
 
-	console.log(data);
+    console.log(data);
 
-	var ol = $('<ol>');
-	for (var tagId in data.Tags) {
-		var tag = data.Tags[tagId];
-		var li = $('<li>')
+    var ol = $('<ol>');
+    for (var tagId in data.Tags) {
+        var tag = data.Tags[tagId];
+        var li = $('<li>')
             .attr('tagid', tag.Id)
             .attr('tagname', tag.Name)
             .attr('tagtag', tag.Tag)
-			.attr('tagflags', tag.Flags)
-		    .append($('<label>').append(("0000" + tag.Id).substr(-4, 4) + '.[' + ("000" + tag.Tag).substr(-3, 3) + ']' + tag.Name));
-		
-		if (tag.Tag == 30) {
-			if (tag.Size == 0) {
-	            li.addClass('wad-node-link');
-	        } else {
-	            li.addClass('wad-node-data');
-	        }
-		} else {
-			if (tag.Size == 0) {
-				li.addClass('wad-node-nodata');
-			}
-		}
+            .attr('tagflags', tag.Flags)
+            .append($('<label>').append(("0000" + tag.Id).substr(-4, 4) + '.[' + ("000" + tag.Tag).substr(-3, 3) + ']' + tag.Name));
 
-		treeLoadWad_dumpButtons(li, wadName, tag);
-		
-		ol.append(li);
-	}
+        if (tag.Tag == 30) {
+            if (tag.Size == 0) {
+                li.addClass('wad-node-link');
+            } else {
+                li.addClass('wad-node-data');
+            }
+        } else {
+            if (tag.Size == 0) {
+                li.addClass('wad-node-nodata');
+            }
+        }
 
-	dataTree.append(ol);
+        treeLoadWad_dumpButtons(li, wadName, tag);
+
+        ol.append(li);
+    }
+
+    dataTree.append(ol);
 
     $('#view-item-filter').trigger('input');
     $('#view-tree ol li label').click(function(ev) {
@@ -108,8 +108,8 @@ function treeLoadWadAsTags(wadName, data) {
 
 function treeLoadWadNode(wad, tagid) {
     dataSummary.empty();
-	dataSummarySelectors.empty();
-	set3dVisible(false);
+    dataSummarySelectors.empty();
+    set3dVisible(false);
 
     $.getJSON('/json/pack/' + wad + '/' + tagid, function(resp) {
         var data = resp.Data;
@@ -130,7 +130,7 @@ function treeLoadWadNode(wad, tagid) {
             if (tag.Tag == 0x1e) {
                 switch (resp.ServerId) {
                     case 0x00000021: // flp
-						summaryLoadWadFlp(data, wad, tagid);
+                        summaryLoadWadFlp(data, wad, tagid);
                         break;
                     case 0x00000018: // sbk blk
                     case 0x00040018: // sbk vag
@@ -153,10 +153,10 @@ function treeLoadWadNode(wad, tagid) {
                         gr_instance.models.push(mdl);
                         gr_instance.requestRedraw();
                         break;
-					case 0x00000003: // anim
-						needMarshalDump = true;
+                    case 0x00000003: // anim
+                        needMarshalDump = true;
                         needHexDump = false;
-						break;
+                        break;
                     case 0x0001000f: // mesh
                         summaryLoadWadMesh(data, wad, tagid);
                         break;
@@ -204,37 +204,37 @@ function treeLoadWadNode(wad, tagid) {
 
 function treeLoadWadTag(wad, tagid) {
     dataSummary.empty();
-	gr_instance.cleanup();
+    gr_instance.cleanup();
     set3dVisible(false);
     displayResourceHexDump(wad, tagid);
-	
-	var form = $('<form class="flexedform" action="' + getActionLinkForWadNode(wad, tagid, 'updatetag') + '" method="post">');
-	var tagel = $('li[tagid=' + tagid + ']');
-	var tbl = $('<table>');
-	tbl.append($('<tr>').append($('<td>').text("tag type")).append($('<td>').append($('<input type="text" id="tagtag" name="tagtag" value="' + tagel.attr("tagtag") + '">'))));
-	tbl.append($('<tr>').append($('<td>').text("name")).append($('<td>').append($('<input type="text" id="tagname" name="tagname" value="' + tagel.attr("tagname") + '">'))));
-	tbl.append($('<tr>').append($('<td>').text("flags")).append($('<td>').append($('<input type="text" id="tagflags" name="tagflags" value="' + tagel.attr("tagflags") + '">'))));
-	tbl.append($('<tr>').append($('<td>')).append($('<td>').append($('<input type="submit" value="Update tag info">'))));
-	
-	dataSummary.append(form.append(tbl));
+
+    var form = $('<form class="flexedform" action="' + getActionLinkForWadNode(wad, tagid, 'updatetag') + '" method="post">');
+    var tagel = $('li[tagid=' + tagid + ']');
+    var tbl = $('<table>');
+    tbl.append($('<tr>').append($('<td>').text("tag type")).append($('<td>').append($('<input type="text" id="tagtag" name="tagtag" value="' + tagel.attr("tagtag") + '">'))));
+    tbl.append($('<tr>').append($('<td>').text("name")).append($('<td>').append($('<input type="text" id="tagname" name="tagname" value="' + tagel.attr("tagname") + '">'))));
+    tbl.append($('<tr>').append($('<td>').text("flags")).append($('<td>').append($('<input type="text" id="tagflags" name="tagflags" value="' + tagel.attr("tagflags") + '">'))));
+    tbl.append($('<tr>').append($('<td>')).append($('<td>').append($('<input type="submit" value="Update tag info">'))));
+
+    dataSummary.append(form.append(tbl));
 }
 
 function displayResourceHexDump(wad, tagid) {
-	$.ajax({
-       url: '/dump/pack/' + wad + '/' + tagid,
-       type: 'GET',
-       dataType: 'binary',
-       processData: false,
-       success: function(blob) {
-           var fileReader = new FileReader();
-           fileReader.onload = function() {
-               var arr = new Uint8Array(this.result);
-               dataSummary.append($("<h5>").append('Size in bytes:' + arr.length));
-               dataSummary.append(hexdump(arr));
-           };
-           fileReader.readAsArrayBuffer(blob);
-       }
-   });
+    $.ajax({
+        url: '/dump/pack/' + wad + '/' + tagid,
+        type: 'GET',
+        dataType: 'binary',
+        processData: false,
+        success: function(blob) {
+            var fileReader = new FileReader();
+            fileReader.onload = function() {
+                var arr = new Uint8Array(this.result);
+                dataSummary.append($("<h5>").append('Size in bytes:' + arr.length));
+                dataSummary.append(hexdump(arr));
+            };
+            fileReader.readAsArrayBuffer(blob);
+        }
+    });
 }
 
 function parseMeshPart(object, block) {
@@ -312,10 +312,10 @@ function parseMeshPart(object, block) {
     return mesh;
 }
 
-function loadMeshPartFromAjax(model, data, iPart, table=undefined) {
-	var part = data.Parts[iPart];
-	var totalMeshes = [];
-	for (var iGroup in part.Groups) {
+function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
+    var part = data.Parts[iPart];
+    var totalMeshes = [];
+    for (var iGroup in part.Groups) {
         var group = part.Groups[iGroup];
         for (var iObject in group.Objects) {
             var object = group.Objects[iObject];
@@ -331,7 +331,7 @@ function loadMeshPartFromAjax(model, data, iPart, table=undefined) {
 
                 var mesh = parseMeshPart(object, block)
                 meshes.push(mesh);
-	totalMeshes.push(mesh);
+                totalMeshes.push(mesh);
                 model.addMesh(mesh);
             }
 
@@ -373,13 +373,13 @@ function loadMeshPartFromAjax(model, data, iPart, table=undefined) {
             //}
         }
     }
-	return totalMeshes;
+    return totalMeshes;
 }
 
 function loadMeshFromAjax(model, data, needTable = false) {
     var table = needTable ? $('<table>') : undefined;
     for (var iPart in data.Parts) {
-       loadMeshPartFromAjax(model, data, iPart, table);        
+        loadMeshPartFromAjax(model, data, iPart, table);
     }
     return table;
 }
@@ -644,49 +644,49 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
         loadCollisionFromAjax(mdl, data.Collision);
     }
 
-	if (data.Script) {
-		if (data.Script.TargetName == "SCR_Entities") {
-			$.each(data.Script.Data.Array, function(entity_id, entity) {
-				var objMat = new Float32Array(data.Data.Joints[0].RenderMat);
-				var entityMat = new Float32Array(entity.Matrix);
+    if (data.Script) {
+        if (data.Script.TargetName == "SCR_Entities") {
+            $.each(data.Script.Data.Array, function(entity_id, entity) {
+                var objMat = new Float32Array(data.Data.Joints[0].RenderMat);
+                var entityMat = new Float32Array(entity.Matrix);
 
-				if (matrix) {
-					// obj = obj * transformMat
-					objMat = mat4.mul(mat4.create(), matrix, objMat);
-				}
-				// mat = obj * entity
-				var mat = mat4.mul(mat4.create(), objMat, entityMat);
+                if (matrix) {
+                    // obj = obj * transformMat
+                    objMat = mat4.mul(mat4.create(), matrix, objMat);
+                }
+                // mat = obj * entity
+                var mat = mat4.mul(mat4.create(), objMat, entityMat);
 
-				var pos = mat4.getTranslation(vec3.create(), mat);
-				
-				var radius = entity.Matrix[0];
-				var text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
-				
-				//var mdl = new grModel();
-				//mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));
-				
-				var alpha = 1;
-				switch (entity_id % 3) {
-					case 0:
-						text3d.setColor(1, 0, 0, alpha);
-						break;
-					case 1:
-						text3d.setColor(0, 1, 0, alpha);
-						break;
-					case 2:
-						text3d.setColor(1, 1, 0, alpha);
-						break;
-				}
-				//gr_instance.models.push(mdl);
-				gr_instance.texts.push(text3d);
-			});
-		}
-	}
+                var pos = mat4.getTranslation(vec3.create(), mat);
+
+                var radius = entity.Matrix[0];
+                var text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
+
+                //var mdl = new grModel();
+                //mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));
+
+                var alpha = 1;
+                switch (entity_id % 3) {
+                    case 0:
+                        text3d.setColor(1, 0, 0, alpha);
+                        break;
+                    case 1:
+                        text3d.setColor(0, 1, 0, alpha);
+                        break;
+                    case 2:
+                        text3d.setColor(1, 1, 0, alpha);
+                        break;
+                }
+                //gr_instance.models.push(mdl);
+                gr_instance.texts.push(text3d);
+            });
+        }
+    }
 
     mdl.loadSkeleton(data.Data.Joints);
-	if (matrix) {
-		mdl.matrix = matrix;
-	}
+    if (matrix) {
+        mdl.matrix = matrix;
+    }
 }
 
 function summaryLoadWadObj(data, wad, nodeid) {
@@ -773,15 +773,15 @@ function loadCxtFromAjax(data, parseScripts = true) {
 
 function summaryLoadWadCxt(data, wad, nodeid) {
     gr_instance.cleanup();
-    
-	if (data.Instances !== null && data.Instances.length) {
-		set3dVisible(true);
-		loadCxtFromAjax(data);
-		gr_instance.requestRedraw();
-	} else {
-		set3dVisible(false);
-    	displayResourceHexDump(wad, nodeid);
-	}
+
+    if (data.Instances !== null && data.Instances.length) {
+        set3dVisible(true);
+        loadCxtFromAjax(data);
+        gr_instance.requestRedraw();
+    } else {
+        set3dVisible(false);
+        displayResourceHexDump(wad, nodeid);
+    }
 }
 
 function summaryLoadWadSbk(data, wad, nodeid) {
@@ -858,12 +858,12 @@ function summaryLoadWadScript(data) {
                             .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
                     }
                 } else {
-					switch (j) {
-						case "Matrix":
-						case "DependsEntitiesIds":
-							v = JSON.stringify(v);
-							break;
-					}
+                    switch (j) {
+                        case "Matrix":
+                        case "DependsEntitiesIds":
+                            v = JSON.stringify(v);
+                            break;
+                    }
                     ht.append(
                         $("<tr>").append($("<td>").append(j))
                         .append($("<td>").append(v)));
@@ -877,164 +877,168 @@ function summaryLoadWadScript(data) {
 }
 
 function summaryLoadWadFlp(flp, wad, tagid) {
-	var flpdata = flp.FLP;
-	var flp_print_dump = function() {
-		set3dVisible(false);
-		dataSummary.empty();
-		dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));
-	}
+    var flpdata = flp.FLP;
+    var flp_print_dump = function() {
+        set3dVisible(false);
+        dataSummary.empty();
+        dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));
+    }
 
-	var flp_list_labels = function() {
-		set3dVisible(false);
-		dataSummary.empty();
-		
-		var table = $("<table class='staticlabelrendercommandlist'>");
-		table.append($("<tr>").append($("<td>").text("Id")).append($("<td>").text("Render commands")));
-		
-		for (var iSl in flpdata.StaticLabels) {
-			var sl = flpdata.StaticLabels[iSl];
-			var row = $("<tr>");
-			
-			row.append($("<td>").text(iSl));
-			
-			var font = undefined;
-			var cmdsContainer = $("<td>");
-			for (var iCmd in sl.ParsedRenderCommandList) {
-				var rcmds = $("<table width='100%'>");
-				var cmd = sl.ParsedRenderCommandList[iCmd];
+    var flp_list_labels = function() {
+        set3dVisible(false);
+        dataSummary.empty();
 
-				if (cmd.Flags & 8) {
-					var fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
-					var fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
-					rcmds.append($("<tr colspan>").append($("<td>").text("Set font")).append($("<td>").text("handler #").append(fhi).append(" with scale ").append(fsi)));
-					font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[cmd.FontHandler].IdInThatTypeArray];
-				}
-				if (cmd.Flags & 4) {
-					rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").text(cmd.BlendColor)));
-				}
-				if (cmd.Flags & 2) {
-					var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
-					rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
-				}
-				if (cmd.Flags & 1) {
-					var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
-					rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
-				}
-				
-				var str = cmd.Glyphs.reduce(function(str, glyph){
-					var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
-					return str + (char !== -1 ? String.fromCharCode(char) : ("$$"+glyph.GlyphId));
-				}, ''); 
-								
-				rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
-				cmdsContainer.append(rcmds);
-			}
-			row.append($("<td>").append(cmdsContainer));
-			
-			table.append(row);
-		}
+        var table = $("<table class='staticlabelrendercommandlist'>");
+        table.append($("<tr>").append($("<td>").text("Id")).append($("<td>").text("Render commands")));
 
-		dataSummary.append(table);
-	}
-	
-	var flp_view_element = function() {
-		gr_instance.cleanup();
-		set3dVisible(true);
-		dataSummary.empty();
-	}
-	
-	var flp_view_font = function() {
-		gr_instance.cleanup();
-		set3dVisible(true);
-		dataSummary.empty();
-		
-		var charstable = $("<table>");
-		
-		var mdl = new grModel();
-		var matmap = {};
-		
-		for (var iFont in flpdata.Fonts) {
-			var font = flpdata.Fonts[iFont];
-			for (var iChar in font.CharNumberToSymbolIdMap) {
-				if (font.CharNumberToSymbolIdMap[iChar] == -1) {
-					continue;
-				}
-				
-				var glyphId = font.CharNumberToSymbolIdMap[iChar];
-				var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
-				var chrdata = flagsdatas2[glyphId];
-				
-				var meshes = [];
-				if (chrdata.MeshPartIndex !== -1) {
-					meshes = loadMeshPartFromAjax(mdl, flp.Model.Meshes[0], chrdata.MeshPartIndex);
-					var txrid = undefined;
-					if (chrdata.Materials && chrdata.Materials.length !== 0 && chrdata.Materials[0].TextureName) {
-						var txr_name = chrdata.Materials[0].TextureName;
-						
-						if (!matmap.hasOwnProperty(txr_name)) {
-							var material = new grMaterial();
-							var img = flp.Textures[txr_name].Images[0].Image
-							
-							var texture = new grTexture('data:image/png;base64,' + img);
-							texture.markAsFontTexture();
-							material.setDiffuse(texture);
-							
-							matmap[txr_name] = mdl.materials.length;
-							mdl.addMaterial(material);
-						}
-						txrid = matmap[txr_name];
-					}			
-					for (var iMesh in meshes) {
-						meshes[iMesh].setMaterialID(txrid);
-					}
-				}
-				
-				var symbolWidth = font.SymbolWidths[glyphId];
-				var cubemesh = grHelper_CubeLines(symbolWidth/32, 0, 0, symbolWidth/32, 500, 5, false);
-				mdl.addMesh(cubemesh);
-				meshes.push(cubemesh);
+        for (var iSl in flpdata.StaticLabels) {
+            var sl = flpdata.StaticLabels[iSl];
+            var row = $("<tr>");
 
-				var char = String.fromCharCode(iChar);
-				if (flp.FontCharAliases) {
-					var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {return flp.FontCharAliases[charString] == iChar});
-					if (map_chars && map_chars.length !== 0) {
-						char = String.fromCharCode(map_chars[0]);
-					}
-				}
+            row.append($("<td>").text(iSl));
 
-				var removeButton = $('<input type=button value=remove glyphid=' + glyphId + '>');
-				removeButton.click(function(ev) { alert("TODO: remove glyph #" + $(this).attr("glyphid")); });
+            var font = undefined;
+            var cmdsContainer = $("<td>");
+            for (var iCmd in sl.ParsedRenderCommandList) {
+                var rcmds = $("<table width='100%'>");
+                var cmd = sl.ParsedRenderCommandList[iCmd];
 
-				
-				var table = $("<table>");
-				
-				var tr1 = $("<tr>");
-				var tr2 = $("<tr>");
-				tr1.append($("<td>").text('#' + glyphId));
-				tr1.append($("<td>").text('width ' + symbolWidth/16.0));
-				tr1.append($("<td>").text('ansii ' + iChar));
-				tr2.append($("<td>").append($("<h2>").text(char)));
-				tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));
-				tr2.append($("<td>").append(removeButton));
-				
-				table.mouseenter([mdl, meshes], function(ev) {
-                	ev.data[0].showExclusiveMeshes(ev.data[1]);
-                	gr_instance.requestRedraw();
-	            });
-				
-				charstable.append($("<tr>").append(table.append(tr1).append(tr2)));
-			}
-		}
-		console.log(mdl);
-		dataSummary.append(charstable);
-		gr_instance.models.push(mdl);
-		gr_instance.requestRedraw();
-	}
-	
-	dataSummarySelectors.append($('<div class="item-selector">').click(flp_list_labels).text("Labels editor"));
-	dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
-	dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_element).text("Element viewer"));
-	dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
-	
-	flp_list_labels();
+                if (cmd.Flags & 8) {
+                    var fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
+                    var fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
+                    rcmds.append($("<tr colspan>").append($("<td>").text("Set font")).append($("<td>").text("handler #").append(fhi).append(" with scale ").append(fsi)));
+                    font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[cmd.FontHandler].IdInThatTypeArray];
+                }
+                if (cmd.Flags & 4) {
+                    rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").text(cmd.BlendColor)));
+                }
+                if (cmd.Flags & 2) {
+                    var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
+                    rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
+                }
+                if (cmd.Flags & 1) {
+                    var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
+                    rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
+                }
+
+                var str = cmd.Glyphs.reduce(function(str, glyph) {
+                    var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
+                    return str + (char !== -1 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
+                }, '');
+
+                rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
+                cmdsContainer.append(rcmds);
+            }
+            row.append($("<td>").append(cmdsContainer));
+
+            table.append(row);
+        }
+
+        dataSummary.append(table);
+    }
+
+    var flp_view_element = function() {
+        gr_instance.cleanup();
+        set3dVisible(true);
+        dataSummary.empty();
+    }
+
+    var flp_view_font = function() {
+        gr_instance.cleanup();
+        set3dVisible(true);
+        dataSummary.empty();
+
+        var charstable = $("<table>");
+
+        var mdl = new grModel();
+        var matmap = {};
+
+        for (var iFont in flpdata.Fonts) {
+            var font = flpdata.Fonts[iFont];
+            for (var iChar in font.CharNumberToSymbolIdMap) {
+                if (font.CharNumberToSymbolIdMap[iChar] == -1) {
+                    continue;
+                }
+
+                var glyphId = font.CharNumberToSymbolIdMap[iChar];
+                var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
+                var chrdata = flagsdatas2[glyphId];
+
+                var meshes = [];
+                if (chrdata.MeshPartIndex !== -1) {
+                    meshes = loadMeshPartFromAjax(mdl, flp.Model.Meshes[0], chrdata.MeshPartIndex);
+                    var txrid = undefined;
+                    if (chrdata.Materials && chrdata.Materials.length !== 0 && chrdata.Materials[0].TextureName) {
+                        var txr_name = chrdata.Materials[0].TextureName;
+
+                        if (!matmap.hasOwnProperty(txr_name)) {
+                            var material = new grMaterial();
+                            var img = flp.Textures[txr_name].Images[0].Image
+
+                            var texture = new grTexture('data:image/png;base64,' + img);
+                            texture.markAsFontTexture();
+                            material.setDiffuse(texture);
+
+                            matmap[txr_name] = mdl.materials.length;
+                            mdl.addMaterial(material);
+                        }
+                        txrid = matmap[txr_name];
+                    }
+                    for (var iMesh in meshes) {
+                        meshes[iMesh].setMaterialID(txrid);
+                    }
+                }
+
+                var symbolWidth = font.SymbolWidths[glyphId];
+                var cubemesh = grHelper_CubeLines(symbolWidth / 32, 0, 0, symbolWidth / 32, 500, 5, false);
+                mdl.addMesh(cubemesh);
+                meshes.push(cubemesh);
+
+                var char = String.fromCharCode(iChar);
+                if (flp.FontCharAliases) {
+                    var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
+                        return flp.FontCharAliases[charString] == iChar
+                    });
+                    if (map_chars && map_chars.length !== 0) {
+                        char = String.fromCharCode(map_chars[0]);
+                    }
+                }
+
+                var removeButton = $('<input type=button value=remove glyphid=' + glyphId + '>');
+                removeButton.click(function(ev) {
+                    alert("TODO: remove glyph #" + $(this).attr("glyphid"));
+                });
+
+
+                var table = $("<table>");
+
+                var tr1 = $("<tr>");
+                var tr2 = $("<tr>");
+                tr1.append($("<td>").text('#' + glyphId));
+                tr1.append($("<td>").text('width ' + symbolWidth / 16.0));
+                tr1.append($("<td>").text('ansii ' + iChar));
+                tr2.append($("<td>").append($("<h2>").text(char)));
+                tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));
+                tr2.append($("<td>").append(removeButton));
+
+                table.mouseenter([mdl, meshes], function(ev) {
+                    ev.data[0].showExclusiveMeshes(ev.data[1]);
+                    gr_instance.requestRedraw();
+                });
+
+                charstable.append($("<tr>").append(table.append(tr1).append(tr2)));
+            }
+        }
+        console.log(mdl);
+        dataSummary.append(charstable);
+        gr_instance.models.push(mdl);
+        gr_instance.requestRedraw();
+    }
+
+    dataSummarySelectors.append($('<div class="item-selector">').click(flp_list_labels).text("Labels editor"));
+    dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
+    dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_element).text("Element viewer"));
+    dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
+
+    flp_list_labels();
 }
