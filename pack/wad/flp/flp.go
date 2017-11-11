@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
 
@@ -198,15 +199,60 @@ func NewFromData(buf []byte) (*FLP, error) {
 	return f, nil
 }
 
-func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
-	return f, nil
+type Marshaled struct {
+	FLP             *FLP
+	Model           interface{}
+	FontCharAliases config.FontCharToAsciiByteAssoc
+	Textures        map[string]interface{}
 }
 
-type Marshaled struct {
-	FLP               *FLP
-	Model             interface{}
-	Textures          map[string]interface{}
-	CustomFontMapping map[int]int
+func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
+	mrsh := &Marshaled{FLP: f, Textures: make(map[string]interface{})}
+	if fontaliases, err := config.GetFontAliases(); err == nil {
+		mrsh.FontCharAliases = fontaliases
+	} else {
+		log.Printf("Error loading fontaliases: %v", err)
+	}
+
+	mdln := wrsrc.Wad.GetNodeByName(strings.Replace(wrsrc.Name(), "FLP_", "MDL_", 1), wrsrc.Node.Id, false)
+	if mdln != nil {
+		if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(mdln.Id); err == nil {
+			if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(mdln.Id)); err == nil {
+				mrsh.Model = marshaledNode
+			} else {
+				log.Printf("Cannot marshal mdl instance %s for %s: %v", mdln.Tag.Name, wrsrc.Name(), err)
+			}
+		} else {
+			log.Printf("Cannot get mdl instance %s for %s: %v", mdln.Tag.Name, wrsrc.Name(), err)
+		}
+	} else {
+		log.Printf("Cannot find mdl_ for %s", wrsrc.Name())
+	}
+
+	for _, font := range f.Fonts {
+		for _, d2 := range font.Flag4Datas2 {
+			for _, ref := range d2.Materials {
+				if ref.TextureName != "" {
+					if _, ok := mrsh.Textures[ref.TextureName]; !ok {
+						txr := wrsrc.Wad.GetNodeByName(ref.TextureName, wrsrc.Node.Id, false)
+						if txr != nil {
+							if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(txr.Id); err == nil {
+								if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(txr.Id)); err == nil {
+									mrsh.Textures[ref.TextureName] = marshaledNode
+								} else {
+									log.Printf("Cannot marshal txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
+								}
+							} else {
+								log.Printf("Cannot get txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return mrsh, nil
 }
 
 func init() {
@@ -214,21 +260,6 @@ func init() {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err
-		}
-
-		mdln := wrsrc.Wad.GetNodeByName(strings.Replace(wrsrc.Name(), "FLP_", "MDL_", 1), wrsrc.Node.Id, false)
-		if mdln != nil {
-			if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(mdln.Id); err == nil {
-				if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(mdln.Id)); err == nil {
-					log.Println(marshaledNode)
-				} else {
-					log.Printf("Cannot marshal mdl instance %s for %s: %v", mdln.Tag.Name, wrsrc.Name(), err)
-				}
-			} else {
-				log.Printf("Cannot get mdl instance %s for %s: %v", mdln.Tag.Name, wrsrc.Name(), err)
-			}
-		} else {
-			log.Printf("Cannot find mdl_ for %s", wrsrc.Name())
 		}
 
 		return inst, nil

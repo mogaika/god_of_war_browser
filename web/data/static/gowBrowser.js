@@ -37,10 +37,11 @@ function treeInputFilterHandler() {
 function set3dVisible(show) {
     if (show) {
         view3d.show();
-        viewSummary.attr('style', '')
+        viewSummary.attr('style', '');
+		gr_instance.onResize();
     } else {
         view3d.hide();
-        viewSummary.attr('style', 'flex-grow:1;')
+        viewSummary.attr('style', 'flex-grow:1;');
     }
 }
 

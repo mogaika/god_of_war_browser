@@ -196,15 +196,15 @@ function grTexture__handleLoading(img, txr) {
     gl.bindTexture(gl.TEXTURE_2D, txr.txr);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
     gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     txr.loaded = true;
+	
+	txr.applyTexParameters();
 }
 
 function grTexture(src, wait = false) {
     this.loaded = wait;
     this.txr = undefined;
+	this.isFontTexture = false;
 
     if (wait) {
         this.txr = gl.createTexture();
@@ -221,12 +221,25 @@ function grTexture(src, wait = false) {
         grTexture__handleLoading(img, _this);
     };
 }
-grTexture.prototype.markAsFontTexture = function() {
+grTexture.prototype.applyTexParameters = function() {
+	if (!this.loaded) {
+		return;
+	}
 	gl.bindTexture(gl.TEXTURE_2D, this.txr);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	if (this.isFontTexture) {
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	} else {
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	}
+	gl.bindTexture(gl.TEXTURE_2D, null);
+}
+grTexture.prototype.markAsFontTexture = function() {
+	this.isFontTexture = true;
+	this.applyTexParameters();	
 }
 grTexture.prototype.free = function() {
     if (this.txr) gl.deleteTexture(this.txr);
@@ -490,8 +503,8 @@ function gwInitRenderer(viewDomObject) {
     }
     gr_instance = new grController(viewDomObject);
     gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
-    gr_instance.onResize();
-    gr_instance.requestRedraw();
+	gr_instance.onResize();
+	gr_instance.requestRedraw();
 }
 
 grController.prototype.changeRenderChain = function(chainType) {

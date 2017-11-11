@@ -47,23 +47,35 @@ function grHelper_Cube(x, y, z, size) {
     return new grMesh(vertexData, indexData, gl.TRIANGLES)
 }
 
-function grHelper_CubeLines(x, y, z, size) {
-    if (size == undefined) {
-        size = 50;
+function grHelper_CubeLines(x, y, z, size_x, size_y, size_z, diaglines=true) {
+    if (size_x == undefined) {
+        size_x = 50;
     }
+	if (size_y == undefined) {
+		size_y = size_x;
+	}
+	if (size_z == undefined) {
+		size_z = size_x;
+	}
+	
     var vertexData = [
-        x - size, y - size, z - size, x + size, y - size, z - size, x + size, y + size, z - size, x - size, y + size, z - size,
-        x - size, y - size, z + size, x + size, y - size, z + size, x + size, y + size, z + size, x - size, y + size, z + size,
-        x - size, y - size, z - size, x - size, y + size, z - size, x - size, y + size, z + size, x - size, y - size, z + size,
-        x + size, y - size, z - size, x + size, y + size, z - size, x + size, y + size, z + size, x + size, y - size, z + size,
-        x - size, y - size, z - size, x - size, y - size, z + size, x + size, y - size, z + size, x + size, y - size, z - size,
-        x - size, y + size, z - size, x - size, y + size, z + size, x + size, y + size, z + size, x + size, y + size, z - size,
+        x - size_x, y - size_y, z - size_z, x + size_x, y - size_y, z - size_z, x + size_x, y + size_y, z - size_z, x - size_x, y + size_y, z - size_z,
+        x - size_x, y - size_y, z + size_z, x + size_x, y - size_y, z + size_z, x + size_x, y + size_y, z + size_z, x - size_x, y + size_y, z + size_z,
+        x - size_x, y - size_y, z - size_z, x - size_x, y + size_y, z - size_z, x - size_x, y + size_y, z + size_z, x - size_x, y - size_y, z + size_z,
+        x + size_x, y - size_y, z - size_z, x + size_x, y + size_y, z - size_z, x + size_x, y + size_y, z + size_z, x + size_x, y - size_y, z + size_z,
+        x - size_x, y - size_y, z - size_z, x - size_x, y - size_y, z + size_z, x + size_x, y - size_y, z + size_z, x + size_x, y - size_y, z - size_z,
+        x - size_x, y + size_y, z - size_z, x - size_x, y + size_y, z + size_z, x + size_x, y + size_y, z + size_z, x + size_x, y + size_y, z - size_z,
     ]
-    var indexData = [
+	
+    var indexData = diaglines ? [
         0, 1, 1, 2, 0, 2, 2, 3, 4, 5, 5, 6, 4, 6, 6, 7,
         8, 9, 9, 10, 8, 10, 10, 11, 12, 13, 13, 14, 12, 14, 14, 15,
         16, 17, 17, 18, 16, 18, 18, 19, 20, 21, 21, 22, 20, 22, 22, 23
-    ]
+    ] : [
+        0, 1, 1, 2, 2, 3, 4, 5, 5, 6,
+        8, 9, 9, 10, 10, 11, 12, 13, 13, 14,
+        16, 17, 17, 18, 18, 19, 20, 21, 21, 22
+    ];
 
     var mesh = new grMesh(vertexData, indexData, gl.LINES);
     mesh.setJointIds([0], Array(vertexData.length / 3).fill(0));
