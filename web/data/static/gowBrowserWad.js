@@ -961,6 +961,10 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 }
 
                 var glyphId = font.CharNumberToSymbolIdMap[iChar];
+                if (glyphId >= font.CharsCount) {
+                    continue;
+                }
+
                 var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
                 var chrdata = flagsdatas2[glyphId];
 
