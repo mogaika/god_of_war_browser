@@ -9,7 +9,12 @@ import (
 )
 
 func init() {
-	pack.SetHandler(".VAG", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
+	h := func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
 		return vagp.NewVAGPFromReader(r)
-	})
+	}
+	pack.SetHandler(".VAG", h)
+	pack.SetHandler(".VA1", h)
+	pack.SetHandler(".VA2", h)
+	pack.SetHandler(".VA3", h)
+	pack.SetHandler(".VA4", h)
 }
