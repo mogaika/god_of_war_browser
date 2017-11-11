@@ -95,7 +95,12 @@ func (vpk *VPK) AsWave(r io.Reader, w io.Writer) (int, error) {
 }
 
 func init() {
-	pack.SetHandler(".VPK", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
+	h := func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
 		return NewVPKFromReader(r)
-	})
+	}
+	pack.SetHandler(".VPK", h)
+	pack.SetHandler(".VP1", h)
+	pack.SetHandler(".VP2", h)
+	pack.SetHandler(".VP3", h)
+	pack.SetHandler(".VP4", h)
 }

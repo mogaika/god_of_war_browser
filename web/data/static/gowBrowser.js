@@ -140,7 +140,15 @@ function packLoadFile(filename) {
                 treeLoadPswPss(filename, data);
                 break;
             case 'vag':
+            case 'va1':
+            case 'va2':
+            case 'va3':
+            case 'va4':
             case 'vpk':
+            case 'vp1':
+            case 'vp2':
+            case 'vp3':
+            case 'vp4':
                 treeLoadVagVpk(filename, data);
                 break;
             case 'txt':
