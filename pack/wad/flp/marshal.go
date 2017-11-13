@@ -333,7 +333,7 @@ func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 	fm.skip(4) // placeholder for data8 single instance pointer
 	writeArraydescr(len(f.Transformations))
 	writeArraydescr(len(f.BlendColors))
-	writeArraydescr(0x88005553) // fill this field later (string data offset)
+	writeArraydescr(0) // fill this field later (string data offset)
 	if fm.pos() != HEADER_SIZE {
 		panic("Wrong header generated")
 	}

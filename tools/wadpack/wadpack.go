@@ -79,7 +79,7 @@ func MakeWad(metaDir string, inMeta *bufio.Reader, outWad io.Writer) {
 			binary.LittleEndian.PutUint16(buf[0:], tag)
 			binary.LittleEndian.PutUint16(buf[2:], flags)
 			binary.LittleEndian.PutUint32(buf[4:], size)
-			copy(buf[8:], utils.StringToBytes(name, 24, false))
+			copy(buf[8:], utils.StringToBytesBuffer(name, 24, false))
 
 			outWad.Write(buf[:])
 
