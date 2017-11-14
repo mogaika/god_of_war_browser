@@ -198,6 +198,8 @@ function grTexture__handleLoading(img, txr) {
     gl.generateMipmap(gl.TEXTURE_2D);
     txr.loaded = true;
 
+    gr_instance.requestRedraw();
+
     txr.applyTexParameters();
 }
 
@@ -436,8 +438,29 @@ grCameraTargeted.prototype.onMouseMove = function(btns, moveDelta) {
     gr_instance.requestRedraw();
 }
 
+function grCameraInterface() {
+    grCameraTargeted.call(this);
+    this.rotation = [0, 0, 0];
+    this.target = [200, 30, 0];
+    this.distance = 60;
+}
+grCameraInterface.prototype = Object.create(grCameraTargeted.prototype);
+grCameraInterface.prototype.constructor = grCameraInterface;
+
+grCameraTargeted.prototype.getProjectionMatrix = function() {
+    var w = gr_instance.rectX * this.distance * 0.004;
+    var h = gr_instance.rectY * this.distance * 0.004;
+    return mat4.ortho(mat4.create(), -w, w, h, -h, this.nearPlane, this.farPlane);
+}
+
+grCameraInterface.prototype.onMouseMove = function(btns, moveDelta) {
+    this.target[0] += moveDelta[0] * this.distance * 0.01;
+    this.target[1] += moveDelta[1] * this.distance * 0.01;
+    gr_instance.requestRedraw();
+}
+
 function grController(viewDomObject) {
-    var canvas = $(view).find('canvas');
+    var canvas = $(viewDomObject).find('canvas');
     var contextNames = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
     for (var i in contextNames) {
         try {
@@ -457,7 +480,8 @@ function grController(viewDomObject) {
     this.helpers = [
         grHelper_Pivot(),
     ];
-    this.camera = new grCameraTargeted();
+    this.cameraModels = new grCameraTargeted();
+    this.cameraInterface = new grCameraInterface();
     this.orthoMatrix = mat4.create();
     this.rectX = gl.canvas.width;
     this.rectY = gl.canvas.height;
@@ -506,6 +530,7 @@ function grController(viewDomObject) {
         }
     });
 
+    this.setInterfaceCameraMode();
     $(window).resize(this._onResize);
 }
 
@@ -518,6 +543,10 @@ function gwInitRenderer(viewDomObject) {
     gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
     gr_instance.onResize();
     gr_instance.requestRedraw();
+}
+
+grController.prototype.setInterfaceCameraMode = function(is3d) {
+    this.camera = (!!is3d) ? this.cameraInterface : this.cameraModels;
 }
 
 grController.prototype.changeRenderChain = function(chainType) {
