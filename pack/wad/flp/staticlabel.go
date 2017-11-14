@@ -4,16 +4,16 @@ import "encoding/binary"
 
 type StaticLabelRenderCommandSingleGlyph struct {
 	GlyphId uint16
-	Width   int16
+	Width   float64
 }
 
 type StaticLabelRenderCommand struct {
 	Flags       byte
 	FontHandler uint16
-	FontScale   float32
+	FontScale   float64
 	BlendColor  [4]byte
-	OffsetX     int16
-	OffsetY     int16
+	OffsetX     float64
+	OffsetY     float64
 	Glyphs      []StaticLabelRenderCommandSingleGlyph
 }
 
@@ -31,7 +31,7 @@ func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand 
 			slrc = &StaticLabelRenderCommand{Flags: op & 0x7f}
 			if op&8 != 0 {
 				slrc.FontHandler = binary.LittleEndian.Uint16(data[i:])
-				slrc.FontScale = float32(binary.LittleEndian.Uint16(data[i+2:])) * 0.0009765625
+				slrc.FontScale = float64(binary.LittleEndian.Uint16(data[i+2:])) / 1024.0
 				i += 4
 			}
 			if op&4 != 0 {
@@ -39,11 +39,11 @@ func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand 
 				i += 4
 			}
 			if op&2 != 0 {
-				slrc.OffsetX = int16(binary.LittleEndian.Uint16(data[i:]))
+				slrc.OffsetX = float64(binary.LittleEndian.Uint16(data[i:])) / 16
 				i += 2
 			}
 			if op&1 != 0 {
-				slrc.OffsetY = int16(binary.LittleEndian.Uint16(data[i:]))
+				slrc.OffsetY = float64(binary.LittleEndian.Uint16(data[i:])) / 16
 				i += 2
 			}
 		} else {
@@ -53,7 +53,7 @@ func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand 
 			for j := byte(0); j < op; j++ {
 				slrc.Glyphs = append(slrc.Glyphs, StaticLabelRenderCommandSingleGlyph{
 					GlyphId: binary.LittleEndian.Uint16(data[i:]),
-					Width:   int16(binary.LittleEndian.Uint16(data[i+2:])),
+					Width:   float64(binary.LittleEndian.Uint16(data[i+2:])) / 16,
 				})
 				i += 4
 			}

@@ -929,6 +929,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
                 cmdsContainer.append(rcmds);
             }
+
             row.append($("<td>").append(cmdsContainer));
             row.append($("<td>").append($("<button>peview original</button>").click(sl, function(e) {
                 var sl = e.data;
@@ -936,8 +937,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 u.append('c', JSON.stringify(sl.ParsedRenderCommandList));
                 u.append('f', wad);
                 u.append('r', tagid);
+
+                var t = sl.Transformation;
+                var m = t.Matrix;
+                u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
                 window.open('/label.html?' + u, '_blank');
             })));
+            row.append($("<td>").text(JSON.stringify(sl.Transformation)));
 
             table.append(row);
         }

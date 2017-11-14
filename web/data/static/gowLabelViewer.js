@@ -7,6 +7,12 @@ $(document).ready(function() {
     var packfile = url.searchParams.get('f');
     var flpid = url.searchParams.get('r');
     var commands = JSON.parse(url.searchParams.get('c'));
+    var rootMatrix = url.searchParams.get('m');
+    if (!rootMatrix) {
+        rootMatrix = mat4.create();
+    } else {
+        rootMatrix = JSON.parse(rootMatrix);
+    }
 
     $.getJSON('/json/pack/' + packfile + '/' + flpid, function(resp) {
         var flp = resp.Data;
@@ -27,21 +33,17 @@ $(document).ready(function() {
                 fontscale = cmd.FontScale;
             }
             if (cmd.Flags & 2) {
-                x = cmd.OffsetX / 16;
+                x = cmd.OffsetX;
             }
             if (cmd.Flags & 1) {
-                y = cmd.OffsetY / 16;
+                y = cmd.OffsetY;
             }
 
             for (var iGlyph in cmd.Glyphs) {
                 var glyph = cmd.Glyphs[iGlyph];
 
-                console.log(x, glyph);
-
                 var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
                 var chrdata = flagsdatas2[glyph.GlyphId];
-
-                console.log(chrdata);
 
                 if (chrdata.MeshPartIndex !== -1) {
                     var mdl = new grModel();
@@ -66,13 +68,13 @@ $(document).ready(function() {
                         }
                     }
 
-                    var matrix = mat4.fromTranslation(mat4.create(), [x, y, 0]);
+                    var matrix = mat4.translate(mat4.create(), rootMatrix, [x, y, 0]);
                     mdl.matrix = mat4.scale(mat4.create(), matrix, [fontscale, fontscale, fontscale]);
                     gr_instance.models.push(mdl);
                 }
 
 
-                x += glyph.Width / 16;
+                x += glyph.Width;
             }
 
         }

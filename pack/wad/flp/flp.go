@@ -170,19 +170,12 @@ type Data6Subtype2 struct {
 	payload       []byte
 }
 
-type Matrix2x2_f15_16 struct {
-	ScaleX    int32
-	ShearingX int32
-	ShearingY int32
-	ScaleY    int32
-}
-
 type Transformation struct {
 	// 2d transformation matrix in fx 1:15:16 format
-	Matrix Matrix2x2_f15_16
+	Matrix [4]float64
 
-	OffsetX int16
-	OffsetY int16
+	OffsetX float64
+	OffsetY float64
 }
 
 type BlendColor struct {
