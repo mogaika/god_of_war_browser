@@ -930,6 +930,14 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 cmdsContainer.append(rcmds);
             }
             row.append($("<td>").append(cmdsContainer));
+            row.append($("<td>").append($("<button>peview original</button>").click(sl, function(e) {
+                var sl = e.data;
+                var u = new URLSearchParams();
+                u.append('c', JSON.stringify(sl.ParsedRenderCommandList));
+                u.append('f', wad);
+                u.append('r', tagid);
+                window.open('/label.html?' + u, '_blank');
+            })));
 
             table.append(row);
         }
@@ -946,6 +954,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
     var flp_view_font = function() {
         gr_instance.cleanup();
         set3dVisible(true);
+        gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
 
         var charstable = $("<table>");
