@@ -267,18 +267,12 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	return pos + copy(d6s2.payload, buf[pos:pos+len(d6s2.payload)])
 }
 
-func (m *Matrix2x2_f15_16) FromBuf(buf []byte) int {
-	m.ScaleX = int32(binary.LittleEndian.Uint32(buf[0x0:]))
-	m.ShearingX = int32(binary.LittleEndian.Uint32(buf[0x4:]))
-	m.ShearingY = int32(binary.LittleEndian.Uint32(buf[0x8:]))
-	m.ScaleY = int32(binary.LittleEndian.Uint32(buf[0xc:]))
-	return 0x10
-}
-
 func (d9 *Transformation) FromBuf(buf []byte) int {
-	d9.Matrix.FromBuf(buf[0:])
-	d9.OffsetX = int16(binary.LittleEndian.Uint16(buf[0x10:]))
-	d9.OffsetY = int16(binary.LittleEndian.Uint16(buf[0x12:]))
+	for i := range d9.Matrix {
+		d9.Matrix[i] = float64(int32(binary.LittleEndian.Uint32(buf[i*4:]))) / 65536.0
+	}
+	d9.OffsetX = float64(int16(binary.LittleEndian.Uint16(buf[0x10:]))) / 16.0
+	d9.OffsetY = float64(int16(binary.LittleEndian.Uint16(buf[0x12:]))) / 16.0
 	return DATA9_ELEMENT_SIZE
 }
 

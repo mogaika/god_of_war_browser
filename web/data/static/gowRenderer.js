@@ -441,8 +441,8 @@ grCameraTargeted.prototype.onMouseMove = function(btns, moveDelta) {
 function grCameraInterface() {
     grCameraTargeted.call(this);
     this.rotation = [0, 0, 0];
-    this.target = [200, 30, 0];
-    this.distance = 60;
+    this.target = [0, 0, 0];
+    this.distance = 100;
 }
 grCameraInterface.prototype = Object.create(grCameraTargeted.prototype);
 grCameraInterface.prototype.constructor = grCameraInterface;
