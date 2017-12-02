@@ -105,8 +105,8 @@ type Font struct {
 
 type StaticLabel struct {
 	Transformation          Transformation
-	RenderCommandsList      []byte `json:"-"`
-	ParsedRenderCommandList []*StaticLabelRenderCommand
+	RenderCommandsList      []*StaticLabelRenderCommand
+	tempRenderCommandBuffer []byte
 }
 
 type DynamicLabel struct {

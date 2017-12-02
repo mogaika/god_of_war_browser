@@ -162,12 +162,14 @@ func (d3 *Font) MarshalData(fm *FlpMarshaler) {
 
 func (d4 *StaticLabel) MarshalStruct(fm *FlpMarshaler) {
 	d4.Transformation.MarshalStruct(fm)
-	fm.w32(uint32(len(d4.RenderCommandsList)))
+	d4.tempRenderCommandBuffer = d4.MarshalRenderCommandList()
+	fm.w32(uint32(len(d4.tempRenderCommandBuffer)))
 	fm.skip(0xc) // pointer placeholder and unknown stuff
 }
 
 func (d4 *StaticLabel) MarshalData(fm *FlpMarshaler) {
-	fm.buf.Write(d4.RenderCommandsList)
+	fm.buf.Write(d4.tempRenderCommandBuffer)
+	d4.tempRenderCommandBuffer = nil
 	fm.pad4()
 }
 
@@ -335,7 +337,7 @@ func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 	}
 }
 
-func (f *FLP) marshalBuffer() *bytes.Buffer {
+func (f *FLP) marshalBufferWithHeader() *bytes.Buffer {
 	fm := NewFlpMarshaler()
 
 	f.marshalBufferHeader(fm)

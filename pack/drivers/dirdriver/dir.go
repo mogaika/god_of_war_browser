@@ -74,7 +74,7 @@ func (d *DirDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	d.Cache = &pack.InstanceCache{}
 
 	if _, err := io.Copy(f, in); err != nil {
-		return fmt.Errorf("Error when copy data: %v")
+		return fmt.Errorf("Error when copy data: %v", err)
 	}
 
 	return nil

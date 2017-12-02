@@ -95,13 +95,14 @@ func (d3 *Font) Parse(buf []byte, pos int) int {
 
 func (d4 *StaticLabel) FromBuf(buf []byte) int {
 	d4.Transformation.FromBuf(buf[0:])
-	d4.RenderCommandsList = make([]byte, binary.LittleEndian.Uint32(buf[0x14:]))
+	d4.tempRenderCommandBuffer = make([]byte, binary.LittleEndian.Uint32(buf[0x14:]))
 	return DATA4_ELEMENT_SIZE
 }
 
 func (d4 *StaticLabel) Parse(f *FLP, buf []byte, pos int) int {
-	res := posPad4(pos + copy(d4.RenderCommandsList, buf[pos:pos+len(d4.RenderCommandsList)]))
-	d4.ParsedRenderCommandList = d4.GetRenderCommandList()
+	res := posPad4(pos + copy(d4.tempRenderCommandBuffer, buf[pos:pos+len(d4.tempRenderCommandBuffer)]))
+	d4.ParseRenderCommandList(d4.tempRenderCommandBuffer)
+	d4.tempRenderCommandBuffer = nil
 	return res
 }
 

@@ -24,7 +24,7 @@ func (s *Script) parseOpcodes(buf []byte) {
 			case 0x81:
 				stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
 			case 0x83:
-				stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or responce result",
+				stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or response result",
 					utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):]))
 			case 0x8b:
 				stringRepr = fmt.Sprintf("SetTarget '%s'", utils.BytesToString(buf))

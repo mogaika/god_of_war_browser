@@ -1,6 +1,13 @@
 package flp
 
-import "encoding/binary"
+import (
+	"bytes"
+	"encoding/binary"
+	"encoding/json"
+	"log"
+
+	"github.com/mogaika/god_of_war_browser/utils"
+)
 
 type StaticLabelRenderCommandSingleGlyph struct {
 	GlyphId uint16
@@ -20,7 +27,7 @@ type StaticLabelRenderCommand struct {
 func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand {
 	var slrc *StaticLabelRenderCommand
 	commands := make([]*StaticLabelRenderCommand, 0)
-
+	utils.LogDump(data)
 	for i := 0; i < len(data); {
 		op := data[i]
 		i += 1
@@ -39,11 +46,11 @@ func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand 
 				i += 4
 			}
 			if op&2 != 0 {
-				slrc.OffsetX = float64(binary.LittleEndian.Uint16(data[i:])) / 16
+				slrc.OffsetX = float64(binary.LittleEndian.Uint16(data[i:])) / 16.0
 				i += 2
 			}
 			if op&1 != 0 {
-				slrc.OffsetY = float64(binary.LittleEndian.Uint16(data[i:])) / 16
+				slrc.OffsetY = float64(binary.LittleEndian.Uint16(data[i:])) / 16.0
 				i += 2
 			}
 		} else {
@@ -53,7 +60,7 @@ func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand 
 			for j := byte(0); j < op; j++ {
 				slrc.Glyphs = append(slrc.Glyphs, StaticLabelRenderCommandSingleGlyph{
 					GlyphId: binary.LittleEndian.Uint16(data[i:]),
-					Width:   float64(binary.LittleEndian.Uint16(data[i+2:])) / 16,
+					Width:   float64(binary.LittleEndian.Uint16(data[i+2:])) / 16.0,
 				})
 				i += 4
 			}
@@ -67,6 +74,55 @@ func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand 
 	return commands
 }
 
-func (d4 *StaticLabel) GetRenderCommandList() []*StaticLabelRenderCommand {
-	return parseStaticLabelRenderCommandList(d4.RenderCommandsList)
+func (d4 *StaticLabel) ParseRenderCommandList(list []byte) []*StaticLabelRenderCommand {
+	d4.RenderCommandsList = parseStaticLabelRenderCommandList(list)
+	return d4.RenderCommandsList
+}
+
+func (d4 *StaticLabel) MarshalRenderCommandList() []byte {
+	var o bytes.Buffer
+	var buf [4]byte
+	for _, cmd := range d4.RenderCommandsList {
+		if cmd.Flags != 0 {
+			o.WriteByte(cmd.Flags | 0x80)
+			if cmd.Flags&8 != 0 {
+				binary.LittleEndian.PutUint16(buf[:], cmd.FontHandler)
+				binary.LittleEndian.PutUint16(buf[2:], uint16(int16(cmd.FontScale*1024.0)))
+				o.Write(buf[:4])
+			}
+			if cmd.Flags&4 != 0 {
+				o.Write(cmd.BlendColor[:4])
+			}
+			if cmd.Flags&2 != 0 {
+				binary.LittleEndian.PutUint16(buf[0:], uint16(int16(cmd.OffsetX*16.0)))
+				o.Write(buf[:2])
+			}
+			if cmd.Flags&1 != 0 {
+				binary.LittleEndian.PutUint16(buf[0:], uint16(int16(cmd.OffsetY*16.0)))
+				o.Write(buf[:2])
+			}
+		}
+
+		o.WriteByte(uint8(len(cmd.Glyphs)))
+		for _, glyph := range cmd.Glyphs {
+			binary.LittleEndian.PutUint16(buf[0:], glyph.GlyphId)
+			binary.LittleEndian.PutUint16(buf[2:], uint16(glyph.Width*16.0))
+			o.Write(buf[:4])
+		}
+	}
+	return o.Bytes()
+}
+
+func (d4 *StaticLabel) ParseJson(buf []byte) error {
+	var unmrshled StaticLabel
+
+	if err := json.Unmarshal(buf, &unmrshled); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	d4.Transformation = unmrshled.Transformation
+	d4.RenderCommandsList = unmrshled.RenderCommandsList
+
+	return nil
 }
