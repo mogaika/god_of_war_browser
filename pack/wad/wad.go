@@ -382,7 +382,7 @@ func (w *Wad) InsertNewTag(insertAfterId TagId, newTag Tag) error {
 func (w *Wad) UpdateTagInfo(updateTags map[TagId]Tag) error {
 	for i, newTag := range updateTags {
 		t := &w.Tags[i]
-		log.Println("Updating tag %x-%s to %x-%s ", t.Id, t.Name, newTag.Id, newTag.Name)
+		log.Printf("Updating tag %x-%s to %x-%s", t.Id, t.Name, newTag.Id, newTag.Name)
 		w.Tags[i] = newTag
 	}
 	return w.Save(w.Tags)

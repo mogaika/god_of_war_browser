@@ -57,7 +57,7 @@ func (p *IsoDriver) prepareStreams() error {
 			var volSizeBuf [4]byte
 			// primary volume description sector + offset of volume space size
 			if _, err := p.IsoFile.ReadAt(volSizeBuf[:], 0x10*2048+80); err != nil {
-				log.Println("[pack] Error when detecting second layer: Read vol size buf error: %v", err)
+				log.Printf("[pack] Error when detecting second layer: Read vol size buf error: %v", err)
 			} else {
 				// minus 16 boot sectors, because they do not replicated over layers (volumes)
 				volumeSize := int64(binary.LittleEndian.Uint32(volSizeBuf[:])-16) * utils.SECTOR_SIZE
@@ -68,7 +68,7 @@ func (p *IsoDriver) prepareStreams() error {
 				}
 			}
 		} else {
-			log.Println("[pack] Cannot stat iso file: %v", err)
+			log.Printf("[pack] Cannot stat iso file: %v", err)
 		}
 
 		for i := range p.PackStreams {

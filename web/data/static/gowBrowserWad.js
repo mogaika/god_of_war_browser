@@ -899,18 +899,19 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
             var font = undefined;
             var cmdsContainer = $("<td>");
-            for (var iCmd in sl.ParsedRenderCommandList) {
+            for (var iCmd in sl.RenderCommandsList) {
                 var rcmds = $("<table width='100%'>");
-                var cmd = sl.ParsedRenderCommandList[iCmd];
+                var cmd = sl.RenderCommandsList[iCmd];
 
                 if (cmd.Flags & 8) {
                     var fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
                     var fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
-                    rcmds.append($("<tr colspan>").append($("<td>").text("Set font")).append($("<td>").text("handler #").append(fhi).append(" with scale ").append(fsi)));
+                    rcmds.append($("<tr>").append($("<td>").text("Set font")).append($("<td>").text("handler #").append(fhi).append(" with scale ").append(fsi)));
                     font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[cmd.FontHandler].IdInThatTypeArray];
                 }
                 if (cmd.Flags & 4) {
-                    rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").text(cmd.BlendColor)));
+                    var bclri = $("<input type=text id='blendclr'>").val(JSON.stringify(cmd.BlendColor));
+                    rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").append(bclri)));
                 }
                 if (cmd.Flags & 2) {
                     var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
@@ -923,6 +924,14 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                 var str = cmd.Glyphs.reduce(function(str, glyph) {
                     var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
+                    if (flp.FontCharAliases) {
+                        var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
+                            return flp.FontCharAliases[charString] == iChar
+                        });
+                        if (map_chars && map_chars.length !== 0) {
+                            char = String.fromCharCode(map_chars[0]);
+                        }
+                    }
                     return str + (char !== -1 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
                 }, '');
 
@@ -930,11 +939,9 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 cmdsContainer.append(rcmds);
             }
 
-            row.append($("<td>").append(cmdsContainer));
-            row.append($("<td>").append($("<button>peview original</button>").click(sl, function(e) {
-                var sl = e.data;
+            var open_preview_for_label = function(sl) {
                 var u = new URLSearchParams();
-                u.append('c', JSON.stringify(sl.ParsedRenderCommandList));
+                u.append('c', JSON.stringify(sl.RenderCommandsList));
                 u.append('f', wad);
                 u.append('r', tagid);
 
@@ -942,7 +949,97 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 var m = t.Matrix;
                 u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
                 window.open('/label.html?' + u, '_blank');
+            }
+
+            var get_label_from_table_tr = function(tr) {
+                console.log("get label from table", tr);
+                var sl = {
+                    'Transformation': JSON.parse(tr.find("td").last().text()),
+                    'RenderCommandsList': [],
+                };
+
+                var fontscale = 1.0;
+                var fonthandler = -1;
+                tr.find("table").each(function(cmdIndex, tbl) {
+                    var cmd = {
+                        'Flags': 0
+                    };
+                    $(tbl).find("tr").each(function(i, row) {
+                        var rname = $(row).find("td").first().text();
+                        if (rname.includes("font")) {
+                            cmd.Flags |= 8;
+                            cmd.FontHandler = Number.parseInt($(row).find("#fonthandler").val());
+                            cmd.FontScale = Number.parseFloat($(row).find("#fontscale").val());
+                            fonthandler = cmd.FontHandler;
+                            fontscale = cmd.FontScale;
+                        } else if (rname.includes("blend")) {
+                            cmd.Flags |= 4;
+                            cmd.BlendColor = JSON.parse($(row).find("#blendclr").val());
+                        } else if (rname.includes("X offset")) {
+                            cmd.Flags |= 2;
+                            cmd.OffsetX = Number.parseFloat($(row).find("#xoffset").val());
+                        } else if (rname.includes("Y offset")) {
+                            cmd.Flags |= 1;
+                            cmd.OffsetY = Number.parseFloat($(row).find("#yoffset").val());
+                        } else if (rname.includes("glyphs")) {
+                            var text = $(row).find("textarea").val();
+                            var glyphs = [];
+
+                            var font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
+                            for (var char of text) {
+                                var code = char.charCodeAt(0);
+                                if (flp.FontCharAliases) {
+                                    if (flp.FontCharAliases.hasOwnProperty(char)) {
+                                        code = flp.FontCharAliases.hasOwnProperty[char];
+                                    }
+                                }
+                                var glyphId = font.CharNumberToSymbolIdMap[code];
+                                var width = font.SymbolWidths[glyphId] * fontscale;
+                                glyphs.push({
+                                    'GlyphId': glyphId,
+                                    'Width': width / 16
+                                });
+                            }
+                            cmd.Glyphs = glyphs;
+                        }
+                    });
+                    sl.RenderCommandsList.push(cmd);
+                })
+                return sl;
+            }
+
+            var btns = $("<div>");
+            btns.append($("<td>").append($("<button>peview original</button>").click(sl, function(e) {
+                open_preview_for_label(e.data);
             })));
+            btns.append($("<br>"));
+            btns.append($("<td>").append($("<button>preview changes</button>").click(function(e) {
+                open_preview_for_label(get_label_from_table_tr($(this).parent().parent().parent().parent()));
+            })));
+            btns.append($("<br>"));
+            btns.append($("<td>").append($("<button>apply changes</button>").click(iSl, function(e) {
+                var sl = get_label_from_table_tr($(this).parent().parent().parent().parent());
+
+                $.post({
+                    url: getActionLinkForWadNode(wad, tagid, 'staticlabels'),
+                    data: {
+                        'id': e.data,
+                        'sl': JSON.stringify(sl)
+                    },
+                    success: function(a1) {
+                        if (a1 !== "") {
+                            alert('Error uploading: ' + a1);
+                        } else {
+                            alert('Success!');
+                            //window.location.reload();
+                        }
+                    }
+                });
+
+            })));
+
+            row.append($("<td>").append(cmdsContainer));
+            row.append($("<td>").append(btns));
             row.append($("<td>").text(JSON.stringify(sl.Transformation)));
 
             table.append(row);
@@ -1034,7 +1131,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 var tr1 = $("<tr>");
                 var tr2 = $("<tr>");
                 tr1.append($("<td>").text('#' + glyphId));
-                tr1.append($("<td>").text('width ' + symbolWidth / 16.0));
+                tr1.append($("<td>").text('width ' + symbolWidth));
                 tr1.append($("<td>").text('ansii ' + iChar));
                 tr2.append($("<td>").append($("<h2>").text(char)));
                 tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));

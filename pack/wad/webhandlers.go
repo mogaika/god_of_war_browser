@@ -54,7 +54,7 @@ func (wad *Wad) WebHandlerCallResourceHttpAction(w http.ResponseWriter, r *http.
 			return err
 		}
 
-		if err := wad.UpdateTagInfo(map[TagId]Tag{id: Tag{Id: id, Tag: uint16(tagTag), Flags: uint16(tagFlags), Name: tagName}}); err != nil {
+		if err := wad.UpdateTagInfo(map[TagId]Tag{id: {Id: id, Tag: uint16(tagTag), Flags: uint16(tagFlags), Name: tagName}}); err != nil {
 			return fmt.Errorf("Error when updating wad tag %d: %v", id, err)
 		}
 	default:
