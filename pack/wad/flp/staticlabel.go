@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"log"
-
-	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type StaticLabelRenderCommandSingleGlyph struct {
@@ -27,7 +25,7 @@ type StaticLabelRenderCommand struct {
 func parseStaticLabelRenderCommandList(data []byte) []*StaticLabelRenderCommand {
 	var slrc *StaticLabelRenderCommand
 	commands := make([]*StaticLabelRenderCommand, 0)
-	utils.LogDump(data)
+
 	for i := 0; i < len(data); {
 		op := data[i]
 		i += 1
