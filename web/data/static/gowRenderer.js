@@ -447,7 +447,7 @@ function grCameraInterface() {
 grCameraInterface.prototype = Object.create(grCameraTargeted.prototype);
 grCameraInterface.prototype.constructor = grCameraInterface;
 
-grCameraTargeted.prototype.getProjectionMatrix = function() {
+grCameraInterface.prototype.getProjectionMatrix = function() {
     var w = gr_instance.rectX * this.distance * 0.004;
     var h = gr_instance.rectY * this.distance * 0.004;
     return mat4.ortho(mat4.create(), -w, w, h, -h, this.nearPlane, this.farPlane);
