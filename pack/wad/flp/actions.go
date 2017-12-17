@@ -1,6 +1,7 @@
 package flp
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,5 +31,14 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 				wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
 			})
 		}
+	case "importbmfont":
+		fZip, _, err := r.FormFile("bmfont")
+		if err != nil {
+			fmt.Fprintln(w, err)
+			return
+		}
+		defer fZip.Close()
+
+		//zip.NewReader(fZip, fZip.)
 	}
 }

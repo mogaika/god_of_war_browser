@@ -1,10 +1,13 @@
 package mesh
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
+	"math"
+	"os"
+	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -26,17 +29,19 @@ type stBlock struct {
 	Joints                 []uint16
 	Joints2                []uint16
 	DebugPos               uint32
+	Boundaries             [4]float32 // center pose (xyz) and radius (w)
 	HasTransparentBlending bool
 }
 
 type MeshObject struct {
-	FileStruct  uint32
-	Type        uint16
-	MaterialId  uint8
-	Blocks      [][]stBlock
-	BonesUsed   uint16
-	JointMapper []uint32
-	Params      [8]uint32
+	FileStruct    uint32
+	Type          uint16
+	MaterialId    uint8
+	TextureLayers uint8
+	Blocks        [][]stBlock
+	BonesUsed     uint16
+	JointMapper   []uint32
+	Params        [8]uint32
 }
 
 type MeshGroup struct {
@@ -51,8 +56,7 @@ type MeshPart struct {
 }
 
 type Mesh struct {
-	CommentStart uint32
-	Parts        []*MeshPart
+	Parts []*MeshPart
 }
 
 const MESH_MAGIC = 0x0001000f
@@ -80,19 +84,25 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 	}
 
 	partsCount := u32(8)
+	vectorsCount := u32(0x18)
+	vectorsStart := partsCount*4 + 0x50
+	for i := uint32(0); i < vectorsCount; i++ {
+		vectorPos := vectorsStart + i*0x14
+		log.Printf("VEC %d  %f %f %f %f", i,
+			math.Float32frombits(u32(vectorPos+4)),
+			math.Float32frombits(u32(vectorPos+8)),
+			math.Float32frombits(u32(vectorPos+12)),
+			math.Float32frombits(u32(vectorPos+16)))
+	}
+
 	parts := make([]*MeshPart, partsCount)
 	for iPart := range parts {
 		pPart := u32(0x50 + uint32(iPart)*4)
 		groupsCount := u16(pPart + 2)
 
-		rGroupsCount := groupsCount
-		if u16(pPart+4+uint32(groupsCount)*4) != 0 {
-			//rGroupsCount = 0
-		}
-
 		part := &MeshPart{
 			FileStruct: pPart,
-			Groups:     make([]*MeshGroup, rGroupsCount),
+			Groups:     make([]*MeshGroup, groupsCount),
 			JointId:    u16(pPart + 4 + uint32(groupsCount)*4),
 		}
 
@@ -147,13 +157,14 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 				if objectType == 0xe || objectType == 0x1d || objectType == 0x24 {
 					object.BonesUsed = u16(pObject + 10)
 					object.MaterialId = u8(pObject + 8)
+					object.TextureLayers = u8(pObject + 0x18)
 
-					dmaCalls := u32(pObject+0xc) * uint32(u8(pObject+0x18))
-					fmt.Fprintf(exlog, "     --- DMAs: 0x%x * 0x%x = %d\n", u32(pObject+0xc), uint32(u8(pObject+0x18)), dmaCalls)
+					dmaCalls := u32(pObject+0xc) * uint32(object.TextureLayers)
+					fmt.Fprintf(exlog, "     --- DMAs: 0x%x * 0x%x = %d\n", u32(pObject+0xc), uint32(object.TextureLayers), dmaCalls)
 					object.Blocks = make([][]stBlock, dmaCalls)
 					for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
-						offsetToObjet := 0x20 + iDmaChain*packetsCount*0x10
-						pPacket := pObject + offsetToObjet
+						offsetToDmaChain := 0x20 + iDmaChain*packetsCount*0x10
+						pPacket := pObject + offsetToDmaChain
 						fmt.Fprintf(exlog, "     --- DMA Chain --- %d >>>>>>>>>>>>>>\n", iDmaChain)
 						ds := NewMeshDataStream(file[:], packetsCount, pPacket, pObject, exlog)
 
@@ -188,8 +199,8 @@ func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
 	}
 
 	mesh := &Mesh{
-		CommentStart: mdlCommentStart,
-		Parts:        parts,
+		//CommentStart: mdlCommentStart,
+		Parts: parts,
 	}
 
 	return mesh, nil
@@ -201,28 +212,25 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		/*
-			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
-			os.MkdirAll(filepath.Dir(fpath), 0777)
-			f, _ := os.Create(fpath)
-			defer f.Close()
-			exlognil := f
-		*/
 
-		exlognil := bytes.NewBuffer(nil)
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+		os.MkdirAll(filepath.Dir(fpath), 0777)
+		f, _ := os.Create(fpath)
+		defer f.Close()
+		exlognil := f
+
+		//exlognil := bytes.NewBuffer(nil)
 
 		m, err := NewFromData(wrsrc.Tag.Data, exlognil)
 
-		/*
-			if err == nil {
-				objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
-				os.MkdirAll(filepath.Dir(objpath), 0777)
-				fMesh, _ := os.Create(objpath)
-				defer fMesh.Close()
+		if err == nil {
+			objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
+			os.MkdirAll(filepath.Dir(objpath), 0777)
+			fMesh, _ := os.Create(objpath)
+			defer fMesh.Close()
 
-				m.ExportObj(fMesh, nil, nil)
-			}
-		*/
+			m.ExportObj(fMesh, nil, nil)
+		}
 
 		return m, err
 	})
