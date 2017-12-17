@@ -31,12 +31,12 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 		for iGroup, group := range part.Groups {
 			wi("o p%.2dg%.2d", iPart, iGroup)
 			for iObject, object := range group.Objects {
-				wi("g p%.2dg%.2do%.2d", iPart, iGroup, iObject)
 				if materials != nil && int(object.MaterialId) < len(materials) {
 					wi("usemtl %s", materials[object.MaterialId])
 				}
 
 				for i := range object.Blocks {
+					wi("g p%.2dg%.2do%.2dg.%2db", iPart, iGroup, iObject, i)
 					for _, b := range object.Blocks[i] {
 						haveUV := b.Uvs.U != nil
 						haveNorm := b.Norms.X != nil

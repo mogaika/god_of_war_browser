@@ -320,8 +320,8 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
         for (var iObject in group.Objects) {
             var object = group.Objects[iObject];
 
-            //for (var iSkin in object.Blocks) {
-            var iSkin = 0;
+            for (var iSkin in object.Blocks) {
+            //var iSkin = 0;
             var skin = object.Blocks[iSkin];
             var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
 
@@ -370,7 +370,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                 td.append(params);
                 */
             }
-            //}
+            }
         }
     }
     return totalMeshes;

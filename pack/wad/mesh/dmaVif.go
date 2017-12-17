@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/ps2/dma"
@@ -141,11 +142,11 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 							m.state.VertexMeta = vifBlock
 							handledBy = "vmta"
 						default:
-							if m.state.Meta != nil {
-								return errorAlreadyPresent("Meta")
+							if m.state.Boundaries != nil {
+								return errorAlreadyPresent("Boundaries")
 							}
-							m.state.Meta = vifBlock
-							handledBy = "meta"
+							m.state.Boundaries = vifBlock
+							handledBy = "bndr"
 						}
 					case 2:
 						handledBy = " uv4"
@@ -230,8 +231,6 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 
 func (m *MeshDataStream) ParsePackets() error {
 	for i := uint32(0); i < m.PacketsCount; i++ {
-		//		packet: 0 pos: 0x000130 rows: 0x0112 end: 0x001250
-
 		dmaPackPos := m.pos + i*16
 		dmaPack := dma.NewTag(binary.LittleEndian.Uint64(m.Data[dmaPackPos:]))
 
@@ -269,7 +268,7 @@ type MeshParserState struct {
 	UV         []byte
 	UVWidth    int
 	Norm       []byte
-	Meta       []byte
+	Boundaries []byte
 	VertexMeta []byte
 	Buffer     int
 }
@@ -296,6 +295,7 @@ func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stB
 		currentBlock.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixed12Point4Delimeter
 		currentBlock.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixed12Point4Delimeter
 		currentBlock.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
+		fmt.Fprintf(debugOut, " %.5d == %f %f %f %t\n", i, currentBlock.Trias.X[i], currentBlock.Trias.Y[i], currentBlock.Trias.Z[i], currentBlock.Trias.Skip[i])
 	}
 
 	if state.UV != nil {
@@ -352,6 +352,12 @@ func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stB
 				currentBlock.HasTransparentBlending = true
 				break
 			}
+		}
+	}
+
+	if state.Boundaries != nil {
+		for i := range currentBlock.Boundaries {
+			currentBlock.Boundaries[i] = math.Float32frombits(binary.LittleEndian.Uint32(state.Boundaries[i*4 : i*4+4]))
 		}
 	}
 
@@ -413,16 +419,17 @@ func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stB
 	}
 
 	if len(state.VertexMeta) != 0 {
-		fmt.Fprintf(debugOut, "  Vertex Meta:\n")
+		fmt.Fprintf(debugOut, "         Vertex Meta:\n")
 		for i := 0; i < len(state.VertexMeta)/16; i++ {
 			fmt.Fprintf(debugOut, "  %s\n", atoStr(state.VertexMeta[i*16:i*16]))
+			log.Println(atoStr(state.VertexMeta[i*16 : i*16]))
 		}
 	}
 
-	if len(state.Meta) != 0 {
-		fmt.Fprintf(debugOut, "         Meta:\n")
-		for i := 0; i < len(state.Meta)/16; i++ {
-			fmt.Fprintf(debugOut, "  %s\n            ", atoStr(state.Meta[i*16:i*16]))
+	if len(state.Boundaries) != 0 {
+		fmt.Fprintf(debugOut, "         Boundaries:\n")
+		for i := 0; i < len(state.Boundaries)/16; i++ {
+			fmt.Fprintf(debugOut, "  %s\n            ", atoStr(state.Boundaries[i*16:i*16]))
 		}
 	}
 
