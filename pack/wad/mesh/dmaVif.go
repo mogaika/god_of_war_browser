@@ -1,80 +1,260 @@
 package mesh
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/ps2/dma"
 	"github.com/mogaika/god_of_war_browser/ps2/vif"
 )
 
-/*
-mem:
-0x0000:0x*    - vertex meta
+var unpackBuffersBases = []uint32{0, 0x155, 0x2ab}
 
-0x0136:0x0005 - texture info
+const GSFixedPoint8 = 16.0
+const GSFixedPoint24 = 4096.0
 
-0x155 <<<< next block
-*/
-
-var unpackBuffersBases = []uint32{0, 0x155, 0x2ab, 0x400}
-
-const GSFixed12Point4Delimeter = 16.0
-const GSFixed12Point4Delimeter1000 = 4096.0
-
-type MeshDataStream struct {
-	Data         []byte
-	PacketsCount uint32
-	blocks       []stBlock
-	pos          uint32
-	relativeAddr uint32
-	state        *MeshParserState
-	debugOut     io.Writer
+type MeshParserStream struct {
+	Data                []byte
+	Offset              uint32
+	Packets             []Packet
+	Object              *Object
+	Log                 *Logger
+	state               *MeshParserState
+	lastPacketDataStart uint32
+	lastPacketDataEnd   uint32
 }
 
-func NewMeshDataStream(data []byte, packetsCount uint32, pos uint32, chainRelativeAdd uint32, debugOut io.Writer) *MeshDataStream {
-	return &MeshDataStream{
-		Data:         data,
-		PacketsCount: packetsCount,
-		pos:          pos,
-		debugOut:     debugOut,
-		relativeAddr: chainRelativeAdd,
-		blocks:       make([]stBlock, 0),
+type MeshParserState struct {
+	XYZW       []byte
+	RGBA       []byte
+	UV         []byte
+	UVWidth    int
+	Norm       []byte
+	Boundaries []byte
+	VertexMeta []byte
+	Buffer     int
+}
+
+func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, exlog *Logger) *MeshParserStream {
+	return &MeshParserStream{
+		Data:    allb,
+		Object:  object,
+		Offset:  packetOffset,
+		Log:     exlog,
+		Packets: make([]Packet, 0),
 	}
 }
 
-func (m *MeshDataStream) Log(format string, pos uint32, args ...interface{}) {
-	f := fmt.Sprintf("      %.6x %s\n", pos, format)
-	fmt.Fprintf(m.debugOut, f, args...)
-}
-
-func (m *MeshDataStream) Blocks() []stBlock {
-	if m.blocks == nil || len(m.blocks) == 0 {
-		return nil
-	} else {
-		return m.blocks
-	}
-}
-
-func (m *MeshDataStream) flushState(debugPos uint32) error {
-	if m.state != nil {
-		block, err := m.state.ToBlock(debugPos, m.debugOut)
+func (ms *MeshParserStream) flushState() error {
+	if ms.state != nil {
+		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart)
 		if err != nil {
 			return err
 		}
-		if block != nil {
-			m.blocks = append(m.blocks, *block)
+		if packet != nil {
+			ms.Packets = append(ms.Packets, *packet)
 		}
 	}
-	m.state = &MeshParserState{}
+	ms.state = &MeshParserState{}
 	return nil
 }
 
-func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
+func (ms *MeshParserStream) ParsePackets() error {
+	for i := uint32(0); i < ms.Object.PacketsPerFilter; i++ {
+		dmaPackPos := ms.Offset + i*0x10
+		dmaPack := dma.NewTag(binary.LittleEndian.Uint64(ms.Data[dmaPackPos:]))
+
+		ms.Log.Printf("           -  dma offset: 0x%.8x packet: %d pos: 0x%.6x rows: 0x%.4x end: 0x%.6x", dmaPackPos,
+			i, dmaPack.Addr()+ms.Object.Offset, dmaPack.QWC(), dmaPack.Addr()+ms.Object.Offset+uint32(dmaPack.QWC()*16))
+		ms.Log.Printf("          | %v", dmaPack)
+		switch dmaPack.ID() {
+		case dma.DMA_TAG_REF:
+			ms.lastPacketDataStart = dmaPack.Addr() + ms.Object.Offset
+			ms.lastPacketDataEnd = ms.lastPacketDataStart + dmaPack.QWC()*0x10
+			ms.Log.Printf("            -vif pack start: 0x%.6x + 0x%.6x = 0x%.6x => 0x%.6x", ms.Offset, dmaPack.Addr(), ms.lastPacketDataStart, ms.lastPacketDataEnd)
+			if err := ms.ParseVif(); err != nil {
+				return fmt.Errorf("Error when parsing vif stream triggered by dma_tag_ref: %v", err)
+			}
+		case dma.DMA_TAG_RET:
+			if dmaPack.QWC() != 0 {
+				return fmt.Errorf("Not support dma_tag_ret with qwc != 0 (%d)", dmaPack.QWC())
+			}
+			if i != ms.Object.PacketsPerFilter-1 {
+				return fmt.Errorf("dma_tag_ret not in end of stream (%d != %d)", i, ms.Object.PacketsPerFilter-1)
+			} else {
+				ms.Log.Printf("             << dma_tag_ret at 0x%.8x >>", dmaPackPos)
+			}
+		default:
+			return fmt.Errorf("Unknown dma packet %v in mesh stream at 0x%.8x i = 0x%.2x < 0x%.2x", dmaPack, dmaPackPos, i, ms.Object.PacketsPerFilter)
+		}
+	}
+	ms.flushState()
+	return nil
+}
+
+func (state *MeshParserState) ToPacket(exlog *Logger, debugPos uint32) (*Packet, error) {
+	if state.XYZW == nil {
+		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
+			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: 0x%x. State: %+#v", debugPos, state)
+		}
+		return nil, nil
+	}
+
+	packet := &Packet{HasTransparentBlending: false}
+	packet.Offset = debugPos
+
+	countTrias := len(state.XYZW) / 8
+	packet.Trias.X = make([]float32, countTrias)
+	packet.Trias.Y = make([]float32, countTrias)
+	packet.Trias.Z = make([]float32, countTrias)
+	packet.Trias.Skip = make([]bool, countTrias)
+	for i := range packet.Trias.X {
+		bp := i * 8
+		packet.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixedPoint8
+		packet.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixedPoint8
+		packet.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixedPoint8
+		packet.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
+		// exlog.Printf(" %.5d == %f %f %f %t", i, packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i], packet.Trias.Skip[i])
+	}
+
+	if state.UV != nil {
+		switch state.UVWidth {
+		case 2:
+			uvCount := len(state.UV) / 4
+			packet.Uvs.U = make([]float32, uvCount)
+			packet.Uvs.V = make([]float32, uvCount)
+			for i := range packet.Uvs.U {
+				bp := i * 4
+				packet.Uvs.U[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp:bp+2]))) / GSFixedPoint24
+				packet.Uvs.V[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp+2:bp+4]))) / GSFixedPoint24
+			}
+		case 4:
+			uvCount := len(state.UV) / 8
+			packet.Uvs.U = make([]float32, uvCount)
+			packet.Uvs.V = make([]float32, uvCount)
+			for i := range packet.Uvs.U {
+				bp := i * 8
+				packet.Uvs.U[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp:bp+4]))) / GSFixedPoint24
+				packet.Uvs.V[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp+4:bp+8]))) / GSFixedPoint24
+			}
+		}
+	}
+
+	if state.Norm != nil {
+		normcnt := len(state.Norm) / 3
+		packet.Norms.X = make([]float32, normcnt)
+		packet.Norms.Y = make([]float32, normcnt)
+		packet.Norms.Z = make([]float32, normcnt)
+		for i := range packet.Norms.X {
+			bp := i * 3
+			packet.Norms.X[i] = float32(int8(state.Norm[bp])) / 100.0
+			packet.Norms.Y[i] = float32(int8(state.Norm[bp+1])) / 100.0
+			packet.Norms.Z[i] = float32(int8(state.Norm[bp+2])) / 100.0
+		}
+	}
+
+	if state.RGBA != nil {
+		rgbacnt := len(state.RGBA) / 4
+		packet.Blend.R = make([]uint16, rgbacnt)
+		packet.Blend.G = make([]uint16, rgbacnt)
+		packet.Blend.B = make([]uint16, rgbacnt)
+		packet.Blend.A = make([]uint16, rgbacnt)
+		for i := range packet.Blend.R {
+			bp := i * 4
+			packet.Blend.R[i] = uint16(state.RGBA[bp])
+			packet.Blend.G[i] = uint16(state.RGBA[bp+1])
+			packet.Blend.B[i] = uint16(state.RGBA[bp+2])
+			packet.Blend.A[i] = uint16(state.RGBA[bp+3])
+		}
+		for _, a := range packet.Blend.A {
+			if a < 0x80 {
+				packet.HasTransparentBlending = true
+				break
+			}
+		}
+	}
+
+	if state.Boundaries != nil {
+		for i := range packet.Boundaries {
+			packet.Boundaries[i] = math.Float32frombits(binary.LittleEndian.Uint32(state.Boundaries[i*4 : i*4+4]))
+		}
+	}
+
+	if state.VertexMeta != nil {
+		blocks := len(state.VertexMeta) / 0x10
+		packet.VertexMeta = state.VertexMeta
+		vertexes := len(packet.Trias.X)
+
+		packet.Joints = make([]uint16, vertexes)
+
+		vertnum := 0
+		for i := 0; i < blocks; i++ {
+			block := state.VertexMeta[i*16 : i*16+16]
+			if i == 0 && block[4] == 4 {
+				packet.Joints2 = make([]uint16, vertexes)
+			}
+
+			block_verts := int(block[0])
+
+			for j := 0; j < block_verts; j++ {
+				packet.Joints[vertnum+j] = uint16(block[13] >> 4)
+				if packet.Joints2 != nil {
+					packet.Joints2[vertnum+j] = uint16(block[12] >> 2)
+				}
+			}
+
+			vertnum += block_verts
+
+			if block[1]&0x80 != 0 {
+				if i != blocks-1 {
+					return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
+				}
+			}
+		}
+		if vertnum != vertexes {
+			return nil, fmt.Errorf("Vertnum != vertexes count: %v <= %v", vertnum, vertexes)
+		}
+	}
+
+	exlog.Printf("    = Flush xyzw:%t, rgba:%t, uv:%t, norm:%t, vmeta:%t (%d)",
+		state.XYZW != nil, state.RGBA != nil, state.UV != nil,
+		state.Norm != nil, state.VertexMeta != nil, len(packet.Trias.X))
+
+	atoStr := func(a []byte) string {
+		u16 := func(barr []byte, id int) uint16 {
+			return binary.LittleEndian.Uint16(barr[id*2 : id*2+2])
+		}
+		u32 := func(barr []byte, id int) uint32 {
+			return binary.LittleEndian.Uint32(barr[id*4 : id*4+4])
+		}
+		f32 := func(barr []byte, id int) float32 {
+			return math.Float32frombits(u32(barr, id))
+		}
+		return fmt.Sprintf(" %.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %.4x   |  %.8x %.8x %.8x %.8x |  %f  %f  %f  %f",
+			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3),
+			u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
+			u32(a, 0), u32(a, 1), u32(a, 2), u32(a, 3),
+			f32(a, 0), f32(a, 1), f32(a, 2), f32(a, 3),
+		)
+	}
+
+	if state.VertexMeta != nil {
+		exlog.Printf("         Vertex Meta:")
+		for i := 0; i < len(packet.VertexMeta)/16; i++ {
+			exlog.Printf("  %s", atoStr(packet.VertexMeta[i*16:i*16]))
+		}
+	}
+
+	if state.Boundaries != nil {
+		exlog.Printf("         Boundaries: %v", packet.Boundaries)
+	}
+
+	return packet, nil
+}
+
+func (ms *MeshParserStream) ParseVif() error {
+	data := ms.Data[ms.lastPacketDataStart:ms.lastPacketDataEnd]
 	pos := uint32(0)
 	for {
 		pos = ((pos + 3) / 4) * 4
@@ -82,7 +262,11 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 			break
 		}
 		tagPos := pos
-		vifCode := vif.NewCode(binary.LittleEndian.Uint32(data[pos:]))
+		rawVifCode := binary.LittleEndian.Uint32(data[pos:])
+		//if rawVifCode == 0xffffffff {
+		//ms.Log.Printf("rawVifCode == %.8x, aborting %v", rawVifCode, data[pos:])
+		//}
+		vifCode := vif.NewCode(rawVifCode)
 
 		pos += 4
 		if vifCode.Cmd() > 0x60 {
@@ -103,19 +287,19 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 					break
 				}
 			}
-			if m.state == nil {
-				m.state = &MeshParserState{Buffer: vifBufferBase}
-			} else if vifBufferBase != m.state.Buffer {
-				if err := m.flushState(debugPos + tagPos); err != nil {
+			if ms.state == nil {
+				ms.state = &MeshParserState{Buffer: vifBufferBase}
+			} else if vifBufferBase != ms.state.Buffer {
+				if err := ms.flushState(); err != nil {
 					return err
 				}
-				m.state.Buffer = vifBufferBase
+				ms.state.Buffer = vifBufferBase
 			}
 			handledBy := ""
 
 			defer func() {
 				if r := recover(); r != nil {
-					m.Log("!! !! panic on unpack [%s]: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x", debugPos+tagPos,
+					ms.Log.Printf("[%.4s] !! !! panic on unpack: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
 						handledBy, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
 					panic(r)
 				}
@@ -124,9 +308,9 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 			vifBlock := data[pos : pos+vifBlockSize]
 
 			errorAlreadyPresent := func(handler string) error {
-				m.Log("++> unpack [%s]: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x", debugPos+tagPos,
+				ms.Log.Printf("[%.4s]++> unpack: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
 					handledBy, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
-				return fmt.Errorf("%s already present. What is this: %.6x ?", handler, tagPos+debugPos)
+				return fmt.Errorf("%s already present. What is this: %.6x ?", handler, tagPos+ms.lastPacketDataStart)
 			}
 
 			switch vifWidth {
@@ -136,24 +320,25 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 					case 4: // joints and format info all time after data (i think)
 						switch vifTarget {
 						case 0x000, 0x155, 0x2ab:
-							if m.state.VertexMeta != nil {
+							if ms.state.VertexMeta != nil {
 								return errorAlreadyPresent("Vertex Meta")
 							}
-							m.state.VertexMeta = vifBlock
+
+							ms.state.VertexMeta = vifBlock
 							handledBy = "vmta"
 						default:
-							if m.state.Boundaries != nil {
+							if ms.state.Boundaries != nil {
 								return errorAlreadyPresent("Boundaries")
 							}
-							m.state.Boundaries = vifBlock
+							ms.state.Boundaries = vifBlock
 							handledBy = "bndr"
 						}
 					case 2:
 						handledBy = " uv4"
-						if m.state.UV == nil {
-							m.state.UV = vifBlock
+						if ms.state.UV == nil {
+							ms.state.UV = vifBlock
 							handledBy = " uv2"
-							m.state.UVWidth = 4
+							ms.state.UVWidth = 4
 						} else {
 							return errorAlreadyPresent("UV")
 						}
@@ -163,17 +348,17 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 				if vifIsSigned {
 					switch vifComponents {
 					case 4:
-						if m.state.XYZW == nil {
-							m.state.XYZW = vifBlock
+						if ms.state.XYZW == nil {
+							ms.state.XYZW = vifBlock
 							handledBy = "xyzw"
 						} else {
 							return errorAlreadyPresent("XYZW")
 						}
 					case 2:
-						if m.state.UV == nil {
-							m.state.UV = vifBlock
+						if ms.state.UV == nil {
+							ms.state.UV = vifBlock
 							handledBy = " uv2"
-							m.state.UVWidth = 2
+							ms.state.UVWidth = 2
 						} else {
 							return errorAlreadyPresent("UV")
 						}
@@ -183,8 +368,8 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 				if vifIsSigned {
 					switch vifComponents {
 					case 3:
-						if m.state.Norm == nil {
-							m.state.Norm = vifBlock
+						if ms.state.Norm == nil {
+							ms.state.Norm = vifBlock
 							handledBy = "norm"
 						} else {
 							return errorAlreadyPresent("Norm")
@@ -193,245 +378,37 @@ func (m *MeshDataStream) ParseVifStream(data []byte, debugPos uint32) error {
 				} else {
 					switch vifComponents {
 					case 4:
-						//if m.state.RGBA == nil {
-						if m.state.RGBA != nil {
-							m.Log(" --overwrite of rgba data. Compare=%d", debugPos+tagPos, bytes.Compare(m.state.RGBA, vifBlock))
+						if ms.state.RGBA == nil {
+							ms.state.RGBA = vifBlock
+							handledBy = "rgba"
+						} else {
+							return errorAlreadyPresent("RGBA")
 						}
-						m.state.RGBA = vifBlock
-						handledBy = "rgba"
-						//} else {
-						//	return errorAlreadyPresent("RGBA")
-						//}
 					}
 				}
 			}
 
-			m.Log("+ unpack [%s]: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x", debugPos+tagPos,
-				handledBy, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
+			ms.Log.Printf("[%.4s] + unpack: 0x%.2x cmd: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
+				handledBy, ms.lastPacketDataStart+tagPos, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
 			if handledBy == "" {
-				return fmt.Errorf("Block %.6x (cmd 0x%.2x; %d bit; %d components; %d elements; sign %t; tops %t; target: %.3x; size: %.6x) not handled",
-					tagPos+debugPos, vifCode.Cmd(), vifWidth, vifComponents, vifCode.Num(), vifIsSigned, vifUseTops, vifTarget, vifBlockSize)
+				return fmt.Errorf("Block 0x%.6x (cmd 0x%.2x; %d bit; %d components; %d elements; sign %t; tops %t; target: %.3x; size: %.6x) not handled",
+					tagPos+ms.lastPacketDataStart, vifCode.Cmd(), vifWidth, vifComponents, vifCode.Num(), vifIsSigned, vifUseTops, vifTarget, vifBlockSize)
 			}
 			pos += vifBlockSize
 		} else {
-			m.Log("# vif %v", tagPos+debugPos, vifCode)
+			ms.Log.Printf("# vif %v", vifCode)
 			switch vifCode.Cmd() {
 			case vif.VIF_CMD_MSCAL:
-				if err := m.flushState(debugPos + pos); err != nil {
+				if err := ms.flushState(); err != nil {
 					return err
 				}
 			case vif.VIF_CMD_STROW:
 				pos += 0x10
+			default:
+				ms.Log.Printf("     - unknown VIF: %v", vifCode)
 			}
 		}
 	}
 
 	return nil
-}
-
-func (m *MeshDataStream) ParsePackets() error {
-	for i := uint32(0); i < m.PacketsCount; i++ {
-		dmaPackPos := m.pos + i*16
-		dmaPack := dma.NewTag(binary.LittleEndian.Uint64(m.Data[dmaPackPos:]))
-
-		fmt.Fprintf(m.debugOut, "    packet: %d pos: 0x%.6x rows: 0x%.4x end: 0x%.6x\n",
-			i, dmaPack.Addr()+m.relativeAddr, dmaPack.QWC(), dmaPack.Addr()+m.relativeAddr+uint32(dmaPack.QWC()*16))
-		fmt.Fprintf(m.debugOut, " << << << = %v\n", dmaPack)
-		switch dmaPack.ID() {
-		case dma.DMA_TAG_REF:
-			dataStart := dmaPack.Addr() + m.relativeAddr
-			dataEnd := dataStart + dmaPack.QWC()*0x10
-			m.Log("vif pack start calc: 0x%.6x + 0x%.6x = 0x%.6x => 0x%.6x", dmaPackPos, dmaPack.Addr(), m.relativeAddr, dataStart, dataEnd)
-			if err := m.ParseVifStream(m.Data[dataStart:dataEnd], dataStart); err != nil {
-				return err
-			}
-		case dma.DMA_TAG_RET:
-			if dmaPack.QWC() != 0 {
-				return fmt.Errorf("Not support dma_tag_ret with qwc != 0 (%d)", dmaPack.QWC())
-			}
-			if i != m.PacketsCount-1 {
-				return fmt.Errorf("dma_tag_ret not in end of stream (%d != %d)", i, m.PacketsCount-1)
-			} else {
-				m.Log("dma_tag_ret in end of stream", dmaPackPos)
-			}
-		default:
-			return fmt.Errorf("Unknown dma packet %v in mesh stream", dmaPack)
-		}
-	}
-	m.flushState(m.relativeAddr)
-	return nil
-}
-
-type MeshParserState struct {
-	XYZW       []byte
-	RGBA       []byte
-	UV         []byte
-	UVWidth    int
-	Norm       []byte
-	Boundaries []byte
-	VertexMeta []byte
-	Buffer     int
-}
-
-func (state *MeshParserState) ToBlock(debugPos uint32, debugOut io.Writer) (*stBlock, error) {
-	if state.XYZW == nil {
-		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
-			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: %x. State: %+#v", debugPos, state)
-		}
-		return nil, nil
-	}
-
-	currentBlock := &stBlock{HasTransparentBlending: false}
-	currentBlock.DebugPos = debugPos
-
-	countTrias := len(state.XYZW) / 8
-	currentBlock.Trias.X = make([]float32, countTrias)
-	currentBlock.Trias.Y = make([]float32, countTrias)
-	currentBlock.Trias.Z = make([]float32, countTrias)
-	currentBlock.Trias.Skip = make([]bool, countTrias)
-	for i := range currentBlock.Trias.X {
-		bp := i * 8
-		currentBlock.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixed12Point4Delimeter
-		currentBlock.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixed12Point4Delimeter
-		currentBlock.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixed12Point4Delimeter
-		currentBlock.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
-		fmt.Fprintf(debugOut, " %.5d == %f %f %f %t\n", i, currentBlock.Trias.X[i], currentBlock.Trias.Y[i], currentBlock.Trias.Z[i], currentBlock.Trias.Skip[i])
-	}
-
-	if state.UV != nil {
-		switch state.UVWidth {
-		case 2:
-			uvCount := len(state.UV) / 4
-			currentBlock.Uvs.U = make([]float32, uvCount)
-			currentBlock.Uvs.V = make([]float32, uvCount)
-			for i := range currentBlock.Uvs.U {
-				bp := i * 4
-				currentBlock.Uvs.U[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp:bp+2]))) / GSFixed12Point4Delimeter1000
-				currentBlock.Uvs.V[i] = float32(int16(binary.LittleEndian.Uint16(state.UV[bp+2:bp+4]))) / GSFixed12Point4Delimeter1000
-			}
-		case 4:
-			uvCount := len(state.UV) / 8
-			currentBlock.Uvs.U = make([]float32, uvCount)
-			currentBlock.Uvs.V = make([]float32, uvCount)
-			for i := range currentBlock.Uvs.U {
-				bp := i * 8
-				currentBlock.Uvs.U[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp:bp+4]))) / GSFixed12Point4Delimeter1000
-				currentBlock.Uvs.V[i] = float32(int32(binary.LittleEndian.Uint32(state.UV[bp+4:bp+8]))) / GSFixed12Point4Delimeter1000
-			}
-		}
-	}
-
-	if state.Norm != nil {
-		normcnt := len(state.Norm) / 3
-		currentBlock.Norms.X = make([]float32, normcnt)
-		currentBlock.Norms.Y = make([]float32, normcnt)
-		currentBlock.Norms.Z = make([]float32, normcnt)
-		for i := range currentBlock.Norms.X {
-			bp := i * 3
-			currentBlock.Norms.X[i] = float32(int8(state.Norm[bp])) / 100.0
-			currentBlock.Norms.Y[i] = float32(int8(state.Norm[bp+1])) / 100.0
-			currentBlock.Norms.Z[i] = float32(int8(state.Norm[bp+2])) / 100.0
-		}
-	}
-
-	if state.RGBA != nil {
-		rgbacnt := len(state.RGBA) / 4
-		currentBlock.Blend.R = make([]uint16, rgbacnt)
-		currentBlock.Blend.G = make([]uint16, rgbacnt)
-		currentBlock.Blend.B = make([]uint16, rgbacnt)
-		currentBlock.Blend.A = make([]uint16, rgbacnt)
-		for i := range currentBlock.Blend.R {
-			bp := i * 4
-			currentBlock.Blend.R[i] = uint16(state.RGBA[bp])
-			currentBlock.Blend.G[i] = uint16(state.RGBA[bp+1])
-			currentBlock.Blend.B[i] = uint16(state.RGBA[bp+2])
-			currentBlock.Blend.A[i] = uint16(state.RGBA[bp+3])
-		}
-		for _, a := range currentBlock.Blend.A {
-			if a < 0x80 {
-				currentBlock.HasTransparentBlending = true
-				break
-			}
-		}
-	}
-
-	if state.Boundaries != nil {
-		for i := range currentBlock.Boundaries {
-			currentBlock.Boundaries[i] = math.Float32frombits(binary.LittleEndian.Uint32(state.Boundaries[i*4 : i*4+4]))
-		}
-	}
-
-	if state.VertexMeta != nil {
-		blocks := len(state.VertexMeta) / 16
-		vertexes := len(currentBlock.Trias.X)
-
-		currentBlock.Joints = make([]uint16, vertexes)
-
-		vertnum := 0
-		for i := 0; i < blocks; i++ {
-			block := state.VertexMeta[i*16 : i*16+16]
-			if i == 0 && block[4] == 4 {
-				currentBlock.Joints2 = make([]uint16, vertexes)
-			}
-
-			block_verts := int(block[0])
-
-			for j := 0; j < block_verts; j++ {
-				currentBlock.Joints[vertnum+j] = uint16(block[13] >> 4)
-				if currentBlock.Joints2 != nil {
-					currentBlock.Joints2[vertnum+j] = uint16(block[12] >> 2)
-				}
-			}
-
-			vertnum += block_verts
-
-			if block[1]&0x80 != 0 {
-				if i != blocks-1 {
-					return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
-				}
-			}
-		}
-		if vertnum != vertexes {
-			return nil, fmt.Errorf("Vertnum != vertexes count: %v <= %v", vertnum, vertexes)
-		}
-	}
-
-	fmt.Fprintf(debugOut, "    = Flush xyzw:%t, rgba:%t, uv:%t, norm:%t, vmeta:%t (%d)\n",
-		state.XYZW != nil, state.RGBA != nil, state.UV != nil,
-		state.Norm != nil, state.VertexMeta != nil, len(currentBlock.Trias.X))
-
-	atoStr := func(a []byte) string {
-		u16 := func(barr []byte, id int) uint16 {
-			return binary.LittleEndian.Uint16(barr[id*2 : id*2+2])
-		}
-		u32 := func(barr []byte, id int) uint32 {
-			return binary.LittleEndian.Uint32(barr[id*4 : id*4+4])
-		}
-		f32 := func(barr []byte, id int) float32 {
-			return math.Float32frombits(u32(barr, id))
-		}
-		return fmt.Sprintf(" %.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %.4x   |  %.8x %.8x %.8x %.8x |  %f  %f  %f  %f",
-			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3),
-			u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
-			u32(a, 0), u32(a, 1), u32(a, 2), u32(a, 3),
-			f32(a, 0), f32(a, 1), f32(a, 2), f32(a, 3),
-		)
-	}
-
-	if len(state.VertexMeta) != 0 {
-		fmt.Fprintf(debugOut, "         Vertex Meta:\n")
-		for i := 0; i < len(state.VertexMeta)/16; i++ {
-			fmt.Fprintf(debugOut, "  %s\n", atoStr(state.VertexMeta[i*16:i*16]))
-			log.Println(atoStr(state.VertexMeta[i*16 : i*16]))
-		}
-	}
-
-	if len(state.Boundaries) != 0 {
-		fmt.Fprintf(debugOut, "         Boundaries:\n")
-		for i := 0; i < len(state.Boundaries)/16; i++ {
-			fmt.Fprintf(debugOut, "  %s\n            ", atoStr(state.Boundaries[i*16:i*16]))
-		}
-	}
-
-	return currentBlock, nil
 }

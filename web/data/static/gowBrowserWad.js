@@ -237,21 +237,21 @@ function displayResourceHexDump(wad, tagid) {
     });
 }
 
-function parseMeshPart(object, block) {
+function parseMeshPacket(object, packet) {
     var m_vertexes = [];
     var m_indexes = [];
     var m_colors;
     var m_textures;
     var m_normals;
 
-    m_vertexes.length = block.Trias.X.length * 3;
+    m_vertexes.length = packet.Trias.X.length * 3;
 
-    for (var i in block.Trias.X) {
+    for (var i in packet.Trias.X) {
         var j = i * 3;
-        m_vertexes[j] = block.Trias.X[i];
-        m_vertexes[j + 1] = block.Trias.Y[i];
-        m_vertexes[j + 2] = block.Trias.Z[i];
-        if (!block.Trias.Skip[i]) {
+        m_vertexes[j] = packet.Trias.X[i];
+        m_vertexes[j + 1] = packet.Trias.Y[i];
+        m_vertexes[j + 2] = packet.Trias.Z[i];
+        if (!packet.Trias.Skip[i]) {
             m_indexes.push(i - 1);
             m_indexes.push(i - 2);
             m_indexes.push(i - 0);
@@ -260,15 +260,15 @@ function parseMeshPart(object, block) {
 
     var mesh = new grMesh(m_vertexes, m_indexes);
 
-    if (block.Blend.R && block.Blend.R.length) {
+    if (packet.Blend.R && packet.Blend.R.length) {
         var m_colors = [];
-        m_colors.length = block.Blend.R.length * 4;
-        for (var i in block.Blend.R) {
+        m_colors.length = packet.Blend.R.length * 4;
+        for (var i in packet.Blend.R) {
             var j = i * 4;
-            m_colors[j] = block.Blend.R[i];
-            m_colors[j + 1] = block.Blend.G[i];
-            m_colors[j + 2] = block.Blend.B[i];
-            m_colors[j + 3] = block.Blend.A[i];
+            m_colors[j] = packet.Blend.R[i];
+            m_colors[j + 1] = packet.Blend.G[i];
+            m_colors[j + 2] = packet.Blend.B[i];
+            m_colors[j + 3] = packet.Blend.A[i];
         }
 
         mesh.setBlendColors(m_colors);
@@ -276,37 +276,37 @@ function parseMeshPart(object, block) {
 
     mesh.setMaterialID(object.MaterialId);
 
-    if (block.Uvs.U && block.Uvs.U.length) {
+    if (packet.Uvs.U && packet.Uvs.U.length) {
         m_textures = [];
-        m_textures.length = block.Uvs.U.length * 2;
+        m_textures.length = packet.Uvs.U.length * 2;
 
-        for (var i in block.Uvs.U) {
+        for (var i in packet.Uvs.U) {
             var j = i * 2;
-            m_textures[j] = block.Uvs.U[i];
-            m_textures[j + 1] = block.Uvs.V[i];
+            m_textures[j] = packet.Uvs.U[i];
+            m_textures[j + 1] = packet.Uvs.V[i];
         }
         mesh.setUVs(m_textures);
     }
 
-    if (block.Norms.X && block.Norms.X.length) {
+    if (packet.Norms.X && packet.Norms.X.length) {
         m_normals = [];
-        m_normals.length = block.Norms.X.length * 3;
+        m_normals.length = packet.Norms.X.length * 3;
 
-        for (var i in block.Norms.X) {
+        for (var i in packet.Norms.X) {
             var j = i * 3;
-            m_normals[j] = block.Norms.X[i];
-            m_normals[j + 1] = block.Norms.Y[i];
-            m_normals[j + 2] = block.Norms.Z[i];
+            m_normals[j] = packet.Norms.X[i];
+            m_normals[j + 1] = packet.Norms.Y[i];
+            m_normals[j + 2] = packet.Norms.Z[i];
         }
 
         mesh.setNormals(m_normals);
     }
 
-    if (!!block.Joints && block.Joints.length && !!object.JointMapper && object.JointMapper.length) {
-        //console.log(block.Joints, block.Joints2, object.JointMapper);
+    if (!!packet.Joints && packet.Joints.length && !!object.JointMapper && object.JointMapper.length) {
+        //console.log(packet.Joints, packet.Joints2, object.JointMapper);
         var joints2 = undefined;
-        if (block.Joints2) joints2 = block.Joints2;
-        mesh.setJointIds(object.JointMapper, block.Joints, joints2);
+        if (packet.Joints2) joints2 = packet.Joints2;
+        mesh.setJointIds(object.JointMapper, packet.Joints, joints2);
     }
 
     return mesh;
@@ -320,56 +320,55 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
         for (var iObject in group.Objects) {
             var object = group.Objects[iObject];
 
-            for (var iSkin in object.Blocks) {
-            //var iSkin = 0;
-            var skin = object.Blocks[iSkin];
-            var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
-
-            var meshes = [];
-            for (var iBlock in skin) {
-                var block = skin[iBlock];
-
-                var mesh = parseMeshPart(object, block)
-                meshes.push(mesh);
-                totalMeshes.push(mesh);
-                model.addMesh(mesh);
-            }
-
-            if (table) {
-                var label = $('<label>');
-                var chbox = $('<input type="checkbox" checked>');
-                var td = $('<td>').append(label);
-                chbox.click(meshes, function(ev) {
-                    for (i in ev.data) {
-                        ev.data[i].setVisible(this.checked);
-                    }
-                    gr_instance.requestRedraw();
-                });
-                td.mouseenter([model, meshes], function(ev) {
-                    ev.data[0].showExclusiveMeshes(ev.data[1]);
-                    gr_instance.requestRedraw();
-                }).mouseleave(model, function(ev, a) {
-                    ev.data.showExclusiveMeshes();
-                    gr_instance.requestRedraw();
-                });
-                label.append(chbox);
-                label.append("o_" + objName);
-                table.append($('<tr>').append(td));
-
-                //var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
-
-                /*
-                var params = '';
-                for (var i in object.Params) {
-                	if (i % 2 == 0) {
-                		params += '</br>';
-                	}
-                	params += '0x' + object.Params[i].toString(0x10) + ',';
-                }
-		
-                td.append(params);
-                */
-            }
+	        //var iSkin = 0;
+            for (var iSkin in object.Packets) {
+	            var skin = object.Packets[iSkin];
+	            var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
+	
+	            var meshes = [];
+	            for (var iPacket in skin) {
+	                var packet = skin[iPacket];
+	                var mesh = parseMeshPacket(object, packet)
+	                meshes.push(mesh);
+	                totalMeshes.push(mesh);
+	                model.addMesh(mesh);
+	            }
+	
+	            if (table) {
+	                var label = $('<label>');
+	                var chbox = $('<input type="checkbox" checked>');
+	                var td = $('<td>').append(label);
+	                chbox.click(meshes, function(ev) {
+	                    for (i in ev.data) {
+	                        ev.data[i].setVisible(this.checked);
+	                    }
+	                    gr_instance.requestRedraw();
+	                });
+	                td.mouseenter([model, meshes], function(ev) {
+	                    ev.data[0].showExclusiveMeshes(ev.data[1]);
+	                    gr_instance.requestRedraw();
+	                }).mouseleave(model, function(ev, a) {
+	                    ev.data.showExclusiveMeshes();
+	                    gr_instance.requestRedraw();
+	                });
+	                label.append(chbox);
+	                label.append("o_" + objName);
+	                table.append($('<tr>').append(td));
+	
+	                //var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
+	
+	                /*
+	                var params = '';
+	                for (var i in object.Params) {
+	                	if (i % 2 == 0) {
+	                		params += '</br>';
+	                	}
+	                	params += '0x' + object.Params[i].toString(0x10) + ',';
+	                }
+			
+	                td.append(params);
+	                */
+	            }
             }
         }
     }

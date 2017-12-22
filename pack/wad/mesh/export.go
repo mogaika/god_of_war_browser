@@ -35,17 +35,17 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 					wi("usemtl %s", materials[object.MaterialId])
 				}
 
-				for i := range object.Blocks {
-					wi("g p%.2dg%.2do%.2dg.%2db", iPart, iGroup, iObject, i)
-					for _, b := range object.Blocks[i] {
-						haveUV := b.Uvs.U != nil
-						haveNorm := b.Norms.X != nil
+				for i := range object.Packets {
+					wi("g p%.2dg%.2do%.2dg.%2dp", iPart, iGroup, iObject, i)
+					for _, packet := range object.Packets[i] {
+						haveUV := packet.Uvs.U != nil
+						haveNorm := packet.Norms.X != nil
 
-						for iVertex := range b.Trias.X {
-							vertex := mgl32.Vec3{b.Trias.X[iVertex], b.Trias.Y[iVertex], b.Trias.Z[iVertex]}
+						for iVertex := range packet.Trias.X {
+							vertex := mgl32.Vec3{packet.Trias.X[iVertex], packet.Trias.Y[iVertex], packet.Trias.Z[iVertex]}
 
-							if bones != nil && b.Joints != nil && object.JointMapper != nil {
-								jointId := int(b.Joints[iVertex])
+							if bones != nil && packet.Joints != nil && object.JointMapper != nil {
+								jointId := int(packet.Joints[iVertex])
 								bone := bones[object.JointMapper[jointId]]
 								if lastb != object.JointMapper[jointId] {
 									log.Println(jointId, object.JointMapper[jointId], part.JointId)
@@ -58,14 +58,14 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 							w("v %f %f %f", vertex[0], vertex[1], vertex[2])
 							iV++
 							if haveUV {
-								w("vt %f %f", b.Uvs.U[iVertex], 1.0-b.Uvs.V[iVertex])
+								w("vt %f %f", packet.Uvs.U[iVertex], 1.0-packet.Uvs.V[iVertex])
 								iT++
 							}
 							if haveNorm {
-								w("vn %f %f %f", b.Norms.X[iVertex], b.Norms.Y[iVertex], b.Norms.Z[iVertex])
+								w("vn %f %f %f", packet.Norms.X[iVertex], packet.Norms.Y[iVertex], packet.Norms.Z[iVertex])
 								iN++
 							}
-							if !b.Trias.Skip[iVertex] {
+							if !packet.Trias.Skip[iVertex] {
 								if haveNorm {
 									if haveUV {
 										wi("f %d/%d/%d %d/%d/%d %d/%d/%d", iV-1, iT-1, iN-1, iV-2, iT-2, iN-2, iV, iT, iN)
