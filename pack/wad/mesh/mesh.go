@@ -3,16 +3,15 @@ package mesh
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
-type stBlock struct {
+type Packet struct {
 	Uvs struct {
 		U, V []float32
 	}
@@ -28,182 +27,238 @@ type stBlock struct {
 	}
 	Joints                 []uint16
 	Joints2                []uint16
-	DebugPos               uint32
+	Offset                 uint32
+	VertexMeta             []byte
 	Boundaries             [4]float32 // center pose (xyz) and radius (w)
 	HasTransparentBlending bool
 }
 
-type MeshObject struct {
-	FileStruct    uint32
-	Type          uint16
-	MaterialId    uint8
-	TextureLayers uint8
-	Blocks        [][]stBlock
-	BonesUsed     uint16
-	JointMapper   []uint32
-	Params        [8]uint32
+type Object struct {
+	Offset uint32
+
+	Type                uint16
+	Unk02               uint16
+	PacketsPerFilter    uint32
+	MaterialId          uint16
+	JointMapper         []uint32
+	Unk0c               uint32
+	Unk10               uint32
+	Unk14               uint32
+	TextureLayersCount  uint8
+	Unk19               uint8
+	NextFreeVUBufferId  uint16
+	Unk1c               uint16
+	SourceVerticesCount uint16
+
+	Packets [][]Packet
 }
 
-type MeshGroup struct {
-	FileStruct uint32
-	Objects    []*MeshObject
+type Group struct {
+	Offset uint32
+
+	Unk00   uint32
+	Objects []Object
+	Unk08   uint32
 }
 
-type MeshPart struct {
-	FileStruct uint32
-	Groups     []*MeshGroup
-	JointId    uint16 // parent joint
+type Part struct {
+	Offset uint32
+
+	Unk00   uint16
+	Groups  []Group
+	JointId uint16 // parent joint
+}
+
+type Vector struct {
+	Unk00 uint16
+	Unk02 uint16
+	Value [4]float32
 }
 
 type Mesh struct {
-	Parts []*MeshPart
+	Parts   []Part
+	Vectors []Vector
+
+	Unk0c           uint32
+	Unk10           uint32
+	Unk14           uint32
+	Flags0x20       uint32
+	NameOfRootJoint string
+	Unk28           uint32
+	Unk2c           uint32
+	Unk30           uint32
+	Unk34           uint32
 }
 
-const MESH_MAGIC = 0x0001000f
+const (
+	MESH_MAGIC         = 0x0001000f
+	MESH_HEADER_SIZE   = 0x50
+	PART_HEADER_SIZE   = 4
+	GROUP_HEADER_SIZE  = 0xC
+	OBJECT_HEADER_SIZE = 0x20
+	MESH_VECTOR_SIZE   = 0x14
+)
 
-func NewFromData(file []byte, exlog io.Writer) (*Mesh, error) {
-	var err error
+func (o *Object) Parse(allb []byte, pos uint32, exlog *Logger) error {
+	b := allb[pos:]
+	o.Offset = pos
 
-	u32 := func(idx uint32) uint32 {
-		return binary.LittleEndian.Uint32(file[idx : idx+4])
+	o.Type = binary.LittleEndian.Uint16(b[0:])
+	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
+	o.PacketsPerFilter = binary.LittleEndian.Uint32(b[4:])
+	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
+	if jmLen := binary.LittleEndian.Uint16(b[0xa:]); jmLen != 0 {
+		o.JointMapper = make([]uint32, binary.LittleEndian.Uint16(b[0xa:]))
 	}
-	u16 := func(idx uint32) uint16 {
-		return binary.LittleEndian.Uint16(file[idx : idx+2])
-	}
-	u8 := func(idx uint32) uint8 {
-		return file[idx]
-	}
+	o.Unk0c = binary.LittleEndian.Uint32(b[0xc:])
+	o.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
+	o.Unk14 = binary.LittleEndian.Uint32(b[0x14:])
+	o.TextureLayersCount = b[0x18]
+	o.Unk19 = b[0x19]
+	o.NextFreeVUBufferId = binary.LittleEndian.Uint16(b[0x1a:])
+	o.Unk1c = binary.LittleEndian.Uint16(b[0x1c:])
+	o.SourceVerticesCount = binary.LittleEndian.Uint16(b[0x1e:])
 
-	if u32(0) != MESH_MAGIC {
-		return nil, fmt.Errorf("Unknown mesh type")
-	}
+	exlog.Printf("        | type: 0x%.4x  unk02: 0x%.4x packets per filter?: %d materialId: %d joints: %d",
+		o.Type, o.Unk02, o.PacketsPerFilter, o.MaterialId, len(o.JointMapper))
+	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
+		o.Unk0c, o.Unk10, o.Unk14, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
 
-	mdlCommentStart := u32(4)
-	if mdlCommentStart > uint32(len(file)) {
-		mdlCommentStart = uint32(len(file))
-	}
+	dmaCalls := o.Unk0c * uint32(o.TextureLayersCount)
+	o.Packets = make([][]Packet, dmaCalls)
+	for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
+		packetOffset := o.Offset + OBJECT_HEADER_SIZE + iDmaChain*o.PacketsPerFilter*0x10
+		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.PacketsPerFilter)
 
-	partsCount := u32(8)
-	vectorsCount := u32(0x18)
-	vectorsStart := partsCount*4 + 0x50
-	for i := uint32(0); i < vectorsCount; i++ {
-		vectorPos := vectorsStart + i*0x14
-		log.Printf("VEC %d  %f %f %f %f", i,
-			math.Float32frombits(u32(vectorPos+4)),
-			math.Float32frombits(u32(vectorPos+8)),
-			math.Float32frombits(u32(vectorPos+12)),
-			math.Float32frombits(u32(vectorPos+16)))
-	}
-
-	parts := make([]*MeshPart, partsCount)
-	for iPart := range parts {
-		pPart := u32(0x50 + uint32(iPart)*4)
-		groupsCount := u16(pPart + 2)
-
-		part := &MeshPart{
-			FileStruct: pPart,
-			Groups:     make([]*MeshGroup, groupsCount),
-			JointId:    u16(pPart + 4 + uint32(groupsCount)*4),
+		ds := NewMeshParserStream(allb, o, packetOffset, exlog)
+		if err := ds.ParsePackets(); err != nil {
+			return err
 		}
+		verts := 0
+		trias := 0
 
-		//fmt.Printf("%x unkn:%d jid:", pPart+4+uint32(groupsCount)*4, u16(pPart))
-		//fmt.Println(part.JointId, groupsCount, 4+uint32(groupsCount)*4)
-		//utils.Dump(file[pPart : pPart+48])
-		parts[iPart] = part
-
-		//log.Printf("part %d: %.8x: %.8x  ...  %.8x", iPart, pPart, u32(pPart), u32(pPart+4+uint32(groupsCount)*4))
-		fmt.Fprintf(exlog, "part %d: %.8x: %.8x  ...  %.8x\n", iPart, pPart, u32(pPart), u32(pPart+4+uint32(groupsCount)*4))
-
-		for iGroup := range part.Groups {
-			pGroup := pPart + u32(pPart+uint32(iGroup)*4+4)
-			objectsCount := u32(pGroup + 4)
-
-			group := &MeshGroup{
-				FileStruct: pGroup,
-				Objects:    make([]*MeshObject, objectsCount),
-			}
-
-			part.Groups[iGroup] = group
-
-			//log.Printf("- group %d: %.8x: %.8x %.8x[ocnt] %.8x", iGroup, pGroup, u32(pGroup), u32(pGroup+4), u32(pGroup+8))
-			fmt.Fprintf(exlog, "- group %d: %.8x: %.8x %.8x[ocnt] %.8x\n", iGroup, pGroup, u32(pGroup), u32(pGroup+4), u32(pGroup+8))
-
-			for iObject := range group.Objects {
-				pObject := pGroup + u32(0xc+pGroup+uint32(iObject)*4)
-
-				objectType := u16(pObject)
-				packetsCount := u32(pObject + 4) //u32(pObject+0xc) * uint32(u8(pObject+0x18))
-
-				/*
-					0x1d - static mesh (bridge, skybox)
-					0x0e - dynamic? mesh (ship, hero, enemy)
-				*/
-
-				object := &MeshObject{
-					FileStruct: pObject,
-					Type:       objectType,
-				}
-
-				group.Objects[iObject] = object
-
-				fmt.Fprintf(exlog, "- - object %d: %.8x:\n", iObject, pObject)
-				fmt.Fprintf(exlog, "         %.8x[otype,] %.8x[pckcnt] %.8x[matid,,,] %.8x\n", u32(pObject), u32(pObject+4), u32(pObject+8), u32(pObject+12))
-				fmt.Fprintf(exlog, "         %.8x         %.8x         %.8x           %.8x\n", u32(pObject+16), u32(pObject+20), u32(pObject+24), u32(pObject+28))
-
-				for i := range object.Params {
-					object.Params[i] = u32(pObject + uint32(i)*4)
-				}
-
-				if objectType == 0xe || objectType == 0x1d || objectType == 0x24 {
-					object.BonesUsed = u16(pObject + 10)
-					object.MaterialId = u8(pObject + 8)
-					object.TextureLayers = u8(pObject + 0x18)
-
-					dmaCalls := u32(pObject+0xc) * uint32(object.TextureLayers)
-					fmt.Fprintf(exlog, "     --- DMAs: 0x%x * 0x%x = %d\n", u32(pObject+0xc), uint32(object.TextureLayers), dmaCalls)
-					object.Blocks = make([][]stBlock, dmaCalls)
-					for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
-						offsetToDmaChain := 0x20 + iDmaChain*packetsCount*0x10
-						pPacket := pObject + offsetToDmaChain
-						fmt.Fprintf(exlog, "     --- DMA Chain --- %d >>>>>>>>>>>>>>\n", iDmaChain)
-						ds := NewMeshDataStream(file[:], packetsCount, pPacket, pObject, exlog)
-
-						if err = ds.ParsePackets(); err != nil {
-							return nil, err
-						}
-
-						object.Blocks[iDmaChain] = ds.Blocks()
-					}
-
-					if object.BonesUsed > 0 && len(object.Blocks) > 0 {
-						object.JointMapper = make([]uint32, object.BonesUsed)
-
-						pJointMapRaw := pObject + 0x20 + packetsCount*0x10*u32(pObject+0xc)*uint32(u8(pObject+0x18))
-						//utils.Dump(file[pJointMapRaw-16 : pJointMapRaw+64])
-						for jointMapIndex := uint32(0); jointMapIndex < uint32(object.BonesUsed); jointMapIndex++ {
-							object.JointMapper[jointMapIndex] = u32(pJointMapRaw + jointMapIndex*4)
-							if object.JointMapper[jointMapIndex] > 0x800 {
-								return nil, fmt.Errorf("Probably incorrect JointMapper calculation. 0x%x is too large (pMapAddr:0x%x)", object.JointMapper[jointMapIndex], pJointMapRaw)
-							}
-						}
-						fmt.Fprintf(exlog, "    >> jointmap: 0x%.8x => %#+v\n", pJointMapRaw, object.JointMapper)
-					} else if object.BonesUsed == 0 && len(object.Blocks) > 0 {
-						fmt.Printf(">>>>>>> MISSED JOINTMAPPER VALUE <<<<<<< for %d blocks", len(object.Blocks))
-					}
-					//	fmt.Printf("flags: %x, bones: %v\n", u32(pObject+0x10), object.JointMapper)
-				} else {
-					return nil, fmt.Errorf("Unknown mesh object type %d", objectType)
+		for ip := range ds.Packets {
+			p := &ds.Packets[ip]
+			verts += len(p.Trias.Skip)
+			for it := range p.Trias.Skip {
+				if !p.Trias.Skip[it] {
+					trias += 1
 				}
 			}
 		}
+		exlog.Printf("         - - - - - - - - -  trias %d (0x%x)  verts %d (0x%x)",
+			trias, trias, verts, verts)
+		o.Packets[iDmaChain] = ds.Packets
+	}
+	if o.JointMapper != nil {
+		// right after dma calls
+		jointMapOffset := OBJECT_HEADER_SIZE + dmaCalls*0x10*o.PacketsPerFilter
+		for i := range o.JointMapper {
+			o.JointMapper[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
+		}
 	}
 
-	mesh := &Mesh{
-		//CommentStart: mdlCommentStart,
-		Parts: parts,
+	return nil
+}
+
+func (g *Group) Parse(allb []byte, pos uint32, exlog *Logger) error {
+	b := allb[pos:]
+	g.Offset = pos
+
+	g.Unk00 = binary.LittleEndian.Uint32(b[0:])
+	g.Objects = make([]Object, binary.LittleEndian.Uint32(b[4:]))
+	g.Unk08 = binary.LittleEndian.Uint32(b[8:])
+	exlog.Printf("      | unk00: 0x%.8x unk08: 0x%.8x objects count: %v", g.Unk00, g.Unk08, len(g.Objects))
+
+	for i := range g.Objects {
+		objectOffset := binary.LittleEndian.Uint32(b[GROUP_HEADER_SIZE+i*4:])
+		exlog.Printf(" - - - object %d offset 0x%.8x", i, pos+objectOffset)
+		if err := g.Objects[i].Parse(allb, pos+objectOffset, exlog); err != nil {
+			return fmt.Errorf("Error when parsing object %d: %v", i, err)
+		}
+	}
+	return nil
+}
+
+func (p *Part) Parse(allb []byte, pos uint32, exlog *Logger) error {
+	b := allb[pos:]
+	p.Offset = pos
+	p.Unk00 = binary.LittleEndian.Uint16(b[:])
+	p.Groups = make([]Group, binary.LittleEndian.Uint16(b[2:]))
+	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+4:])
+	exlog.Printf("    | unk00: 0x%.4x jointid: %d groups count: %v", p.Unk00, p.JointId, len(p.Groups))
+
+	for i := range p.Groups {
+		groupOffset := binary.LittleEndian.Uint32(b[PART_HEADER_SIZE+i*4:])
+		exlog.Printf(" - - group %d offset 0x%.8x", i, pos+groupOffset)
+		if err := p.Groups[i].Parse(allb, pos+groupOffset, exlog); err != nil {
+			return fmt.Errorf("Error when parsing group %d: %v", i, err)
+		}
+	}
+	return nil
+}
+
+func (v *Vector) Parse(allb []byte, pos uint32, exlog *Logger) {
+	b := allb[pos:]
+	v.Unk00 = binary.LittleEndian.Uint16(b[0:])
+	v.Unk02 = binary.LittleEndian.Uint16(b[2:])
+
+	for i := range v.Value {
+		v.Value[i] = math.Float32frombits(binary.LittleEndian.Uint32(b[4+i*4:]))
 	}
 
-	return mesh, nil
+	exlog.Printf(" <- unk00: 0x%.4x unk02: 0x%.4x : %v", v.Unk00, v.Unk02, v.Value)
+}
+
+func (m *Mesh) Parse(b []byte, exlog *Logger) error {
+	if binary.LittleEndian.Uint32(b) != MESH_MAGIC {
+		return fmt.Errorf("Invalid mesh magic")
+	}
+
+	// remove Comments, game don't use them anyway
+	mdlCommentStart := binary.LittleEndian.Uint32(b[4:])
+	b = b[:mdlCommentStart]
+
+	m.Parts = make([]Part, binary.LittleEndian.Uint32(b[8:]))
+	m.Unk0c = binary.LittleEndian.Uint32(b[0xc:])
+	m.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
+	m.Unk14 = binary.LittleEndian.Uint32(b[0x14:])
+	m.Vectors = make([]Vector, binary.LittleEndian.Uint32(b[0x18:]))
+	m.Flags0x20 = binary.LittleEndian.Uint32(b[0x20:])
+	m.Unk28 = binary.LittleEndian.Uint32(b[0x28:])
+	m.Unk2c = binary.LittleEndian.Uint32(b[0x2c:])
+	m.Unk30 = binary.LittleEndian.Uint32(b[0x30:])
+	m.Unk34 = binary.LittleEndian.Uint32(b[0x34:])
+	m.NameOfRootJoint = utils.BytesToString(b[0x38:0x50])
+
+	exlog.Printf("unk0c 0x%.8x  unk10 0x%.8x  unk14 0x%.8x", m.Unk0c, m.Unk10, m.Unk14)
+	exlog.Printf("root joint '%s' flags 0x%.8x", m.NameOfRootJoint, m.Flags0x20)
+	exlog.Printf("unk28 0x%.8x  unk2c 0x%.8x  unk30 0x%.8x  unk34 0x%.8x", m.Unk28, m.Unk2c, m.Unk30, m.Unk34)
+
+	vectorsStart := len(m.Parts)*4 + MESH_HEADER_SIZE
+	exlog.Printf(" - strange vectors starting at 0x%.8x count %d", vectorsStart, len(m.Vectors))
+	for i := range m.Vectors {
+		m.Vectors[i].Parse(b, uint32(vectorsStart+i*MESH_VECTOR_SIZE), exlog)
+	}
+
+	for i := range m.Parts {
+		partOffset := binary.LittleEndian.Uint32(b[MESH_HEADER_SIZE+i*4:])
+		exlog.Printf(" - part %d offset 0x%.8x", i, partOffset)
+		if err := m.Parts[i].Parse(b, partOffset, exlog); err != nil {
+			return fmt.Errorf("Error when parsing part %d: %v", i, err)
+		}
+	}
+
+	return nil
+}
+
+func NewFromData(b []byte, exlog *Logger) (*Mesh, error) {
+	m := &Mesh{}
+	if err := m.Parse(b, exlog); err != nil {
+		return nil, err
+	} else {
+		return m, nil
+	}
 }
 
 func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
@@ -212,24 +267,21 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-
 		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
+
 		f, _ := os.Create(fpath)
 		defer f.Close()
-		exlognil := f
+		//logger := Logger{f}
+		logger := Logger{os.Stdout}
 
-		//exlognil := bytes.NewBuffer(nil)
-
-		m, err := NewFromData(wrsrc.Tag.Data, exlognil)
+		m, err := NewFromData(wrsrc.Tag.Data, &logger)
 
 		if err == nil {
 			objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
 			os.MkdirAll(filepath.Dir(objpath), 0777)
 			fMesh, _ := os.Create(objpath)
 			defer fMesh.Close()
-
-			m.ExportObj(fMesh, nil, nil)
 		}
 
 		return m, err
