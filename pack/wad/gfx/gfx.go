@@ -19,6 +19,7 @@ type GFX struct {
 	Magic      uint32
 	Width      uint32
 	Height     uint32
+	RealHeight uint32
 	Encoding   uint32
 	Bpi        uint32
 	DatasCount uint32
@@ -70,7 +71,7 @@ func IndexSwizzlePalette(i int) int {
 func (gfx *GFX) AsRawPalette(idx int) ([]uint32, error) {
 	palbuf := gfx.Data[idx]
 
-	colors := gfx.Width * gfx.Height / gfx.DatasCount
+	colors := gfx.Width * gfx.RealHeight
 
 	palette := make([]uint32, colors)
 
@@ -126,12 +127,12 @@ func IndexUnswizzleTexture(x, y, width uint32) uint32 {
 func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 	data := gfx.Data[idx]
 
-	indexes := make([]byte, gfx.Width*gfx.Height)
+	indexes := make([]byte, gfx.Width*gfx.RealHeight)
 	switch gfx.GetPSM() {
 	case GS_PSM_PSMT8H:
 		fallthrough
 	case GS_PSM_PSMT8:
-		for y := uint32(0); y < gfx.Height; y++ {
+		for y := uint32(0); y < gfx.RealHeight; y++ {
 			for x := uint32(0); x < gfx.Width; x++ {
 				if gfx.Encoding&2 == 0 {
 					pos := IndexUnswizzleTexture(x, y, gfx.Width)
@@ -146,8 +147,9 @@ func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 			}
 		}
 	case GS_PSM_PSMT4:
-		for y := uint32(0); y < gfx.Height; y++ {
+		for y := uint32(0); y < gfx.RealHeight; y++ {
 			for x := uint32(0); x < gfx.Width; x++ {
+				//log.Println(idx, x, y, gfx.Width, gfx.Height, gfx.Width*gfx.Height/2, (x+y*gfx.Width)/2, len(data))
 				val := data[(x+y*gfx.Width)/2]
 				if x&1 == 0 {
 					indexes[x+y*gfx.Width] = val & 0xf
@@ -163,8 +165,8 @@ func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 }
 
 func (gfx *GFX) String() string {
-	return fmt.Sprintf("GFX Width: %d Height: %d Bpi: %d Encoding: %d Datas: %d\n",
-		gfx.Width, gfx.Height, gfx.Bpi, gfx.Encoding, len(gfx.Data))
+	return fmt.Sprintf("GFX Width: %d Height: %d RealHeight: %d Bpi: %d Encoding: %d Datas: %d\n",
+		gfx.Width, gfx.Height, gfx.RealHeight, gfx.Bpi, gfx.Encoding, len(gfx.Data))
 }
 
 func (gfx *GFX) GetPSM() int {
@@ -196,6 +198,7 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 		Bpi:        binary.LittleEndian.Uint32(buf[16:20]),
 		DatasCount: binary.LittleEndian.Uint32(buf[20:24]),
 	}
+	gfx.RealHeight = gfx.Height / gfx.DatasCount
 
 	gfx.Data = make([][]byte, gfx.DatasCount)
 	gfx.Psm = GsPsm[gfx.GetPSM()]
@@ -205,7 +208,7 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 	}
 
 	pos := uint32(24)
-	gfx.DataSize = ((((gfx.Width * gfx.Height) / gfx.DatasCount) * gfx.Bpi) / 8)
+	gfx.DataSize = (((gfx.Width * gfx.RealHeight) * gfx.Bpi) / 8)
 	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
 		gfx.Data[iData] = buf[pos : pos+gfx.DataSize]
 		pos += gfx.DataSize

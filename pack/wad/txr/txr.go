@@ -68,7 +68,7 @@ const (
 
 func (txr *Texture) image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int, image_type ImageType) (*image.RGBA, error) {
 	width := int(gfx.Width)
-	height := int(gfx.Height)
+	height := int(gfx.RealHeight)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	palette, err := pal.AsPalette(ipal, image_type != TEXTURE_IMAGE_A)
