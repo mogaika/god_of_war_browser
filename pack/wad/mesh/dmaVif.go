@@ -7,6 +7,7 @@ import (
 
 	"github.com/mogaika/god_of_war_browser/ps2/dma"
 	"github.com/mogaika/god_of_war_browser/ps2/vif"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 var unpackBuffersBases = []uint32{0, 0x155, 0x2ab}
@@ -308,10 +309,12 @@ func (ms *MeshParserStream) ParseVif() error {
 			vifBlock := data[pos : pos+vifBlockSize]
 
 			errorAlreadyPresent := func(handler string) error {
-				ms.Log.Printf("[%.4s]++> unpack: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
+				ms.Log.Printf("already present [%.4s]++> unpack: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
 					handledBy, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
 				return fmt.Errorf("%s already present. What is this: %.6x ?", handler, tagPos+ms.lastPacketDataStart)
 			}
+
+			var detectingErr error = nil
 
 			switch vifWidth {
 			case 32:
@@ -321,14 +324,14 @@ func (ms *MeshParserStream) ParseVif() error {
 						switch vifTarget {
 						case 0x000, 0x155, 0x2ab:
 							if ms.state.VertexMeta != nil {
-								return errorAlreadyPresent("Vertex Meta")
+								detectingErr = errorAlreadyPresent("Vertex Meta")
 							}
 
 							ms.state.VertexMeta = vifBlock
 							handledBy = "vmta"
 						default:
 							if ms.state.Boundaries != nil {
-								return errorAlreadyPresent("Boundaries")
+								detectingErr = errorAlreadyPresent("Boundaries")
 							}
 							ms.state.Boundaries = vifBlock
 							handledBy = "bndr"
@@ -340,7 +343,7 @@ func (ms *MeshParserStream) ParseVif() error {
 							handledBy = " uv2"
 							ms.state.UVWidth = 4
 						} else {
-							return errorAlreadyPresent("UV")
+							detectingErr = errorAlreadyPresent("UV")
 						}
 					}
 				}
@@ -352,7 +355,7 @@ func (ms *MeshParserStream) ParseVif() error {
 							ms.state.XYZW = vifBlock
 							handledBy = "xyzw"
 						} else {
-							return errorAlreadyPresent("XYZW")
+							detectingErr = errorAlreadyPresent("XYZW")
 						}
 					case 2:
 						if ms.state.UV == nil {
@@ -360,49 +363,58 @@ func (ms *MeshParserStream) ParseVif() error {
 							handledBy = " uv2"
 							ms.state.UVWidth = 2
 						} else {
-							return errorAlreadyPresent("UV")
+							detectingErr = errorAlreadyPresent("UV")
 						}
 					}
 				}
 			case 8:
-				if vifIsSigned {
-					switch vifComponents {
-					case 3:
+				switch vifComponents {
+				case 3:
+					if vifIsSigned {
 						if ms.state.Norm == nil {
 							ms.state.Norm = vifBlock
 							handledBy = "norm"
 						} else {
-							return errorAlreadyPresent("Norm")
+							detectingErr = errorAlreadyPresent("Norm")
 						}
 					}
-				} else {
-					switch vifComponents {
-					case 4:
-						if ms.state.RGBA == nil {
-							ms.state.RGBA = vifBlock
-							handledBy = "rgba"
-						} else {
-							return errorAlreadyPresent("RGBA")
-						}
+				case 4:
+					if ms.state.RGBA == nil {
+						ms.state.RGBA = vifBlock
+						handledBy = "rgba"
+					} else {
+						ms.state.RGBA = vifBlock
+						handledBy = "rgbA"
+						ms.Log.Printf("- - - - - - - duplicate of rgba data")
+						//detectingErr = errorAlreadyPresent("RGBA")
 					}
 				}
 			}
 
 			ms.Log.Printf("[%.4s] + unpack: 0x%.2x cmd: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
 				handledBy, ms.lastPacketDataStart+tagPos, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
-			if handledBy == "" {
-				return fmt.Errorf("Block 0x%.6x (cmd 0x%.2x; %d bit; %d components; %d elements; sign %t; tops %t; target: %.3x; size: %.6x) not handled",
-					tagPos+ms.lastPacketDataStart, vifCode.Cmd(), vifWidth, vifComponents, vifCode.Num(), vifIsSigned, vifUseTops, vifTarget, vifBlockSize)
+			if detectingErr != nil || handledBy == "" {
+				ms.Log.Printf("ERROR: %v", detectingErr)
+				ms.Log.Printf("RAW: %s", utils.SDump(vifBlock))
+				ms.Log.Printf("Current state: %s", utils.SDump(ms.state))
+				if detectingErr != nil {
+					return detectingErr
+				} else {
+					return fmt.Errorf("Block 0x%.6x (cmd 0x%.2x; %d bit; %d components; %d elements; sign %t; tops %t; target: %.3x; size: %.6x) not handled",
+						tagPos+ms.lastPacketDataStart, vifCode.Cmd(), vifWidth, vifComponents, vifCode.Num(), vifIsSigned, vifUseTops, vifTarget, vifBlockSize)
+				}
 			}
 			pos += vifBlockSize
 		} else {
 			ms.Log.Printf("# vif %v", vifCode)
 			switch vifCode.Cmd() {
+			case vif.VIF_CMD_NOP:
 			case vif.VIF_CMD_MSCAL:
 				if err := ms.flushState(); err != nil {
 					return err
 				}
 			case vif.VIF_CMD_STROW:
+				ms.Log.Printf("     - VIF STROW %v", utils.SDump(data[pos:pos+10]))
 				pos += 0x10
 			default:
 				ms.Log.Printf("     - unknown VIF: %v", vifCode)

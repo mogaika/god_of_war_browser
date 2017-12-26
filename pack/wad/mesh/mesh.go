@@ -269,21 +269,11 @@ func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
-
 		f, _ := os.Create(fpath)
 		defer f.Close()
-		//logger := Logger{f}
-		logger := Logger{os.Stdout}
+		logger := Logger{f}
+		//logger := Logger{os.Stdout}
 
-		m, err := NewFromData(wrsrc.Tag.Data, &logger)
-
-		if err == nil {
-			objpath := filepath.Join("mesh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
-			os.MkdirAll(filepath.Dir(objpath), 0777)
-			fMesh, _ := os.Create(objpath)
-			defer fMesh.Close()
-		}
-
-		return m, err
+		return NewFromData(wrsrc.Tag.Data, &logger)
 	})
 }
