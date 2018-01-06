@@ -42,7 +42,7 @@ type Object struct {
 	MaterialId          uint16
 	JointMapper         []uint32
 	Unk0c               uint32
-	Unk10               uint32
+	Unk10               uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
 	Unk14               uint32
 	TextureLayersCount  uint8
 	Unk19               uint8
@@ -177,6 +177,7 @@ func (g *Group) Parse(allb []byte, pos uint32, exlog *Logger) error {
 			return fmt.Errorf("Error when parsing object %d: %v", i, err)
 		}
 	}
+
 	return nil
 }
 
