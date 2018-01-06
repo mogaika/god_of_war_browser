@@ -304,9 +304,9 @@ function parseMeshPacket(object, packet) {
 
     if (!!packet.Joints && packet.Joints.length && !!object.JointMapper && object.JointMapper.length) {
         //console.log(packet.Joints, packet.Joints2, object.JointMapper);
-        var joints2 = undefined;
-        if (packet.Joints2) joints2 = packet.Joints2;
-        mesh.setJointIds(object.JointMapper, packet.Joints, joints2);
+        var joints1 = packet.Joints;
+        var joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
+        mesh.setJointIds(object.JointMapper, joints1, joints2);
     }
 
     return mesh;

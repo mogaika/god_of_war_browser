@@ -139,7 +139,7 @@ func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 					if pos < uint32(len(data)) {
 						indexes[x+y*gfx.Width] = data[pos]
 					} else {
-						//log.Printf("Warning: Texture missed var: len=%v < pos=%v, x=%v, y=%v. w=%v h=%v", len(data), pos, x, y, gfx.Width, gfx.Height)
+						log.Printf("Warning: Texture missed var: len=%v < pos=%v, x=%v, y=%v. w=%v h=%v", len(data), pos, x, y, gfx.Width, gfx.Height)
 					}
 				} else {
 					indexes[x+y*gfx.Width] = data[x+y*gfx.Width]
@@ -149,7 +149,6 @@ func (gfx *GFX) AsPaletteIndexes(idx int) []byte {
 	case GS_PSM_PSMT4:
 		for y := uint32(0); y < gfx.RealHeight; y++ {
 			for x := uint32(0); x < gfx.Width; x++ {
-				//log.Println(idx, x, y, gfx.Width, gfx.Height, gfx.Width*gfx.Height/2, (x+y*gfx.Width)/2, len(data))
 				val := data[(x+y*gfx.Width)/2]
 				if x&1 == 0 {
 					indexes[x+y*gfx.Width] = val & 0xf
