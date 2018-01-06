@@ -50,7 +50,8 @@ type Object struct {
 	Unk1c               uint16
 	SourceVerticesCount uint16
 
-	Packets [][]Packet
+	Packets             [][]Packet
+	RawDmaAndJointsData []byte
 }
 
 type Group struct {
@@ -99,9 +100,10 @@ const (
 	MESH_VECTOR_SIZE   = 0x14
 )
 
-func (o *Object) Parse(allb []byte, pos uint32, exlog *Logger) error {
+func (o *Object) Parse(allb []byte, pos uint32, size uint32, exlog *Logger) error {
 	b := allb[pos:]
 	o.Offset = pos
+	o.RawDmaAndJointsData = b[OBJECT_HEADER_SIZE:size]
 
 	o.Type = binary.LittleEndian.Uint16(b[0:])
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
@@ -161,7 +163,7 @@ func (o *Object) Parse(allb []byte, pos uint32, exlog *Logger) error {
 	return nil
 }
 
-func (g *Group) Parse(allb []byte, pos uint32, exlog *Logger) error {
+func (g *Group) Parse(allb []byte, pos uint32, size uint32, exlog *Logger) error {
 	b := allb[pos:]
 	g.Offset = pos
 
@@ -173,25 +175,37 @@ func (g *Group) Parse(allb []byte, pos uint32, exlog *Logger) error {
 	for i := range g.Objects {
 		objectOffset := binary.LittleEndian.Uint32(b[GROUP_HEADER_SIZE+i*4:])
 		exlog.Printf(" - - - object %d offset 0x%.8x", i, pos+objectOffset)
-		if err := g.Objects[i].Parse(allb, pos+objectOffset, exlog); err != nil {
+
+		objectEnd := size
+		if i != len(g.Objects)-1 {
+			objectEnd = binary.LittleEndian.Uint32(b[GROUP_HEADER_SIZE+i*4+4:])
+		}
+
+		if err := g.Objects[i].Parse(allb, pos+objectOffset, objectEnd-objectOffset, exlog); err != nil {
 			return fmt.Errorf("Error when parsing object %d: %v", i, err)
 		}
 	}
 	return nil
 }
 
-func (p *Part) Parse(allb []byte, pos uint32, exlog *Logger) error {
+func (p *Part) Parse(allb []byte, pos uint32, size uint32, exlog *Logger) error {
 	b := allb[pos:]
 	p.Offset = pos
 	p.Unk00 = binary.LittleEndian.Uint16(b[:])
 	p.Groups = make([]Group, binary.LittleEndian.Uint16(b[2:]))
-	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+4:])
+	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+PART_HEADER_SIZE:])
 	exlog.Printf("    | unk00: 0x%.4x jointid: %d groups count: %v", p.Unk00, p.JointId, len(p.Groups))
 
 	for i := range p.Groups {
 		groupOffset := binary.LittleEndian.Uint32(b[PART_HEADER_SIZE+i*4:])
 		exlog.Printf(" - - group %d offset 0x%.8x", i, pos+groupOffset)
-		if err := p.Groups[i].Parse(allb, pos+groupOffset, exlog); err != nil {
+
+		groupEnd := size
+		if i != len(p.Groups)-1 {
+			groupEnd = binary.LittleEndian.Uint32(b[PART_HEADER_SIZE+i*4+4:])
+		}
+
+		if err := p.Groups[i].Parse(allb, pos+groupOffset, groupEnd-groupOffset, exlog); err != nil {
 			return fmt.Errorf("Error when parsing group %d: %v", i, err)
 		}
 	}
@@ -244,7 +258,13 @@ func (m *Mesh) Parse(b []byte, exlog *Logger) error {
 	for i := range m.Parts {
 		partOffset := binary.LittleEndian.Uint32(b[MESH_HEADER_SIZE+i*4:])
 		exlog.Printf(" - part %d offset 0x%.8x", i, partOffset)
-		if err := m.Parts[i].Parse(b, partOffset, exlog); err != nil {
+
+		partEnd := mdlCommentStart
+		if i != len(m.Parts)-1 {
+			partEnd = binary.LittleEndian.Uint32(b[MESH_HEADER_SIZE+i*4+4:])
+		}
+
+		if err := m.Parts[i].Parse(b, partOffset, partEnd-partOffset, exlog); err != nil {
 			return fmt.Errorf("Error when parsing part %d: %v", i, err)
 		}
 	}
@@ -274,6 +294,27 @@ func init() {
 		logger := Logger{f}
 		//logger := Logger{os.Stdout}
 
-		return NewFromData(wrsrc.Tag.Data, &logger)
+		mesh, err := NewFromData(wrsrc.Tag.Data, &logger)
+		/*
+			if err == nil {
+				buf := mesh.MarshalBuffer()
+
+				oldfpath := filepath.Join("meshmarsh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.old.mesh", wrsrc.Tag.Id, wrsrc.Tag.Name))
+				newfpath := filepath.Join("meshmarsh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.new.mesh", wrsrc.Tag.Id, wrsrc.Tag.Name))
+				os.MkdirAll(filepath.Dir(oldfpath), 0777)
+				fold, _ := os.Create(oldfpath)
+				defer fold.Close()
+				fold.Write(wrsrc.Tag.Data)
+				fold.Close()
+
+				f, _ := os.Create(newfpath)
+				defer f.Close()
+				if _, err := NewFromData(buf.Bytes(), nil); err != nil {
+					log.Println(wrsrc.Wad.Name(), "Error remarsh: %v", err)
+				}
+				io.Copy(f, buf)
+			}
+		*/
+		return mesh, err
 	})
 }
