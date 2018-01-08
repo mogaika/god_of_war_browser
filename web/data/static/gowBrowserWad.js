@@ -925,7 +925,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
                     if (flp.FontCharAliases) {
                         var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
-                            return flp.FontCharAliases[charString] == iChar
+                            return flp.FontCharAliases[charString] == glyph.GlyphId;
                         });
                         if (map_chars && map_chars.length !== 0) {
                             char = String.fromCharCode(map_chars[0]);
@@ -1058,6 +1058,11 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         set3dVisible(true);
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
+		
+		var importBMFontInput = $('<button>');
+		importBMFontInput.text('Import glyphs from BMFont file');
+		importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(uploadAjaxHandler);
+		dataSummary.append(importBMFontInput);
 
         var charstable = $("<table>");
 
@@ -1119,12 +1124,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     }
                 }
 
-                var removeButton = $('<input type=button value=remove glyphid=' + glyphId + '>');
-                removeButton.click(function(ev) {
-                    alert("TODO: remove glyph #" + $(this).attr("glyphid"));
-                });
-
-
                 var table = $("<table>");
 
                 var tr1 = $("<tr>");
@@ -1134,7 +1133,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 tr1.append($("<td>").text('ansii ' + iChar));
                 tr2.append($("<td>").append($("<h2>").text(char)));
                 tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));
-                tr2.append($("<td>").append(removeButton));
 
                 table.mouseenter([mdl, meshes], function(ev) {
                     ev.data[0].showExclusiveMeshes(ev.data[1]);
@@ -1144,7 +1142,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 charstable.append($("<tr>").append(table.append(tr1).append(tr2)));
             }
         }
-        console.log(mdl);
+
         dataSummary.append(charstable);
         gr_instance.models.push(mdl);
         gr_instance.requestRedraw();
