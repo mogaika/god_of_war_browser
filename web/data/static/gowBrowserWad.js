@@ -925,13 +925,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
                     if (flp.FontCharAliases) {
                         var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
-                            return flp.FontCharAliases[charString] == iChar
+                            return flp.FontCharAliases[charString] == char;
                         });
                         if (map_chars && map_chars.length !== 0) {
-                            char = String.fromCharCode(map_chars[0]);
+                            char = map_chars[0];
                         }
                     }
-                    return str + (char !== -1 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
+                    return str + (char > 0 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
                 }, '');
 
                 rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
@@ -986,13 +986,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                             var font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
                             for (var char of text) {
-                                var code = char.charCodeAt(0);
+                                var charCode = char.charCodeAt(0);
                                 if (flp.FontCharAliases) {
-                                    if (flp.FontCharAliases.hasOwnProperty(char)) {
-                                        code = flp.FontCharAliases.hasOwnProperty[char];
+                                    if (flp.FontCharAliases.hasOwnProperty(charCode)) {
+                                        charCode = flp.FontCharAliases[charCode];
                                     }
                                 }
-                                var glyphId = font.CharNumberToSymbolIdMap[code];
+                                var glyphId = font.CharNumberToSymbolIdMap[charCode];
                                 var width = font.SymbolWidths[glyphId] * fontscale;
                                 glyphs.push({
                                     'GlyphId': glyphId,
@@ -1058,6 +1058,11 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         set3dVisible(true);
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
+		
+		var importBMFontInput = $('<button>');
+		importBMFontInput.text('Import glyphs from BMFont file');
+		importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(uploadAjaxHandler);
+		dataSummary.append(importBMFontInput);
 
         var charstable = $("<table>");
 
@@ -1088,6 +1093,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                         if (!matmap.hasOwnProperty(txr_name)) {
                             var material = new grMaterial();
+						   console.log(txr_name);
+						
                             var img = flp.Textures[txr_name].Images[0].Image
 
                             var texture = new grTexture('data:image/png;base64,' + img);
@@ -1119,12 +1126,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     }
                 }
 
-                var removeButton = $('<input type=button value=remove glyphid=' + glyphId + '>');
-                removeButton.click(function(ev) {
-                    alert("TODO: remove glyph #" + $(this).attr("glyphid"));
-                });
-
-
                 var table = $("<table>");
 
                 var tr1 = $("<tr>");
@@ -1134,7 +1135,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 tr1.append($("<td>").text('ansii ' + iChar));
                 tr2.append($("<td>").append($("<h2>").text(char)));
                 tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));
-                tr2.append($("<td>").append(removeButton));
 
                 table.mouseenter([mdl, meshes], function(ev) {
                     ev.data[0].showExclusiveMeshes(ev.data[1]);
@@ -1144,7 +1144,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 charstable.append($("<tr>").append(table.append(tr1).append(tr2)));
             }
         }
-        console.log(mdl);
+
         dataSummary.append(charstable);
         gr_instance.models.push(mdl);
         gr_instance.requestRedraw();

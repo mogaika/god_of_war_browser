@@ -223,7 +223,7 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	}
 
 	for _, font := range f.Fonts {
-		for _, d2 := range font.Flag4Datas2 {
+		marshalData2 := func(d2 *MeshPartReference) {
 			for _, ref := range d2.Materials {
 				if ref.TextureName != "" {
 					if _, ok := mrsh.Textures[ref.TextureName]; !ok {
@@ -239,9 +239,16 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 								log.Printf("Cannot get txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
 							}
 						}
+
 					}
 				}
 			}
+		}
+		for i := range font.Flag2Datas2 {
+			marshalData2(&font.Flag2Datas2[i])
+		}
+		for i := range font.Flag4Datas2 {
+			marshalData2(&font.Flag4Datas2[i])
 		}
 	}
 
