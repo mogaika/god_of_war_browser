@@ -31,9 +31,18 @@ func (o *Object) Marshal() *bytes.Buffer {
 	binary.LittleEndian.PutUint16(buf[0x1c:], o.Unk1c)
 	binary.LittleEndian.PutUint16(buf[0x1e:], o.SourceVerticesCount)
 
+	dmaAndJointsData := make([]byte, len(o.RawDmaAndJointsData))
+	copy(dmaAndJointsData, o.RawDmaAndJointsData)
+	if o.JointMapper != nil {
+		jointMapOffset := o.Unk0c * uint32(o.TextureLayersCount) * 0x10 * o.PacketsPerFilter
+		for i := range o.JointMapper {
+			binary.LittleEndian.PutUint32(dmaAndJointsData[jointMapOffset+uint32(i)*4:], o.JointMapper[i])
+		}
+	}
+
 	var result bytes.Buffer
 	result.Write(buf[:])
-	result.Write(o.RawDmaAndJointsData)
+	result.Write(dmaAndJointsData)
 	return &result
 }
 
