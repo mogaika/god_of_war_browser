@@ -22,7 +22,6 @@ type GFX struct {
 	RealHeight uint32
 	Encoding   uint32
 	Bpi        uint32
-	DatasCount uint32
 	DataSize   uint32
 	Data       [][]byte `json:"-"`
 }
@@ -190,16 +189,15 @@ func (gfx *GFX) GetPSM() int {
 
 func NewFromData(name string, buf []byte) (*GFX, error) {
 	gfx := &GFX{
-		Magic:      binary.LittleEndian.Uint32(buf[0:4]),
-		Width:      binary.LittleEndian.Uint32(buf[4:8]),
-		Height:     binary.LittleEndian.Uint32(buf[8:12]),
-		Encoding:   binary.LittleEndian.Uint32(buf[12:16]),
-		Bpi:        binary.LittleEndian.Uint32(buf[16:20]),
-		DatasCount: binary.LittleEndian.Uint32(buf[20:24]),
+		Magic:    binary.LittleEndian.Uint32(buf[0:4]),
+		Width:    binary.LittleEndian.Uint32(buf[4:8]),
+		Height:   binary.LittleEndian.Uint32(buf[8:12]),
+		Encoding: binary.LittleEndian.Uint32(buf[12:16]),
+		Bpi:      binary.LittleEndian.Uint32(buf[16:20]),
+		Data:     make([][]byte, binary.LittleEndian.Uint32(buf[20:24])),
 	}
-	gfx.RealHeight = gfx.Height / gfx.DatasCount
+	gfx.RealHeight = gfx.Height / uint32(len(gfx.Data))
 
-	gfx.Data = make([][]byte, gfx.DatasCount)
 	gfx.Psm = GsPsm[gfx.GetPSM()]
 
 	if gfx.Magic != GFX_MAGIC {
@@ -208,7 +206,7 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 
 	pos := uint32(24)
 	gfx.DataSize = (((gfx.Width * gfx.RealHeight) * gfx.Bpi) / 8)
-	for iData := uint32(0); iData < gfx.DatasCount; iData++ {
+	for iData := range gfx.Data {
 		gfx.Data[iData] = buf[pos : pos+gfx.DataSize]
 		pos += gfx.DataSize
 	}
@@ -217,14 +215,14 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 }
 
 func (gfx *GFX) MarshalToBinary() ([]byte, error) {
-	buf := make([]byte, 24+gfx.DataSize*gfx.DatasCount)
+	buf := make([]byte, 24+gfx.DataSize*uint32(len(gfx.Data)))
 
 	binary.LittleEndian.PutUint32(buf[0:4], gfx.Magic)
 	binary.LittleEndian.PutUint32(buf[4:8], gfx.Width)
 	binary.LittleEndian.PutUint32(buf[8:12], gfx.Height)
 	binary.LittleEndian.PutUint32(buf[12:16], gfx.Encoding)
 	binary.LittleEndian.PutUint32(buf[16:20], gfx.Bpi)
-	binary.LittleEndian.PutUint32(buf[20:24], gfx.DatasCount)
+	binary.LittleEndian.PutUint32(buf[20:24], uint32(len(gfx.Data)))
 
 	pos := uint32(24)
 	for i, data := range gfx.Data {

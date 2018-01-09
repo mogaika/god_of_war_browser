@@ -371,12 +371,20 @@ func (w *Wad) Save(tags []Tag) error {
 	}
 
 	w.flushCache()
+	// sanity check for not corrupting wad and also update wad structure to collect changes
+	if err := w.loadTags(io.NewSectionReader(bytes.NewReader(buf.Bytes()), 0, int64(buf.Len()))); err != nil {
+		return fmt.Errorf("Error when perfoming reload sanity check: %v")
+	}
+	if err := w.parseTags(); err != nil {
+		return fmt.Errorf("Error when parsing tags: %v", err)
+	}
+
 	return w.Source.Save(io.NewSectionReader(bytes.NewReader(buf.Bytes()), 0, int64(buf.Len())))
 }
 
-func (w *Wad) InsertNewTag(insertAfterId TagId, newTag Tag) error {
-	newTags := append(w.Tags[:insertAfterId], append([]Tag{newTag}, w.Tags[insertAfterId:]...)...)
-	return w.Save(newTags)
+func (w *Wad) InsertNewTags(insertAfterId TagId, newTags []Tag) error {
+	updatedTagsArray := append(w.Tags[:insertAfterId], append(newTags, w.Tags[insertAfterId:]...)...)
+	return w.Save(updatedTagsArray)
 }
 
 func (w *Wad) UpdateTagInfo(updateTags map[TagId]Tag) error {

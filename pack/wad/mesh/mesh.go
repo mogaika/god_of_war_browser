@@ -125,6 +125,7 @@ func (o *Object) Parse(allb []byte, pos uint32, size uint32, exlog *Logger) erro
 		o.Type, o.Unk02, o.PacketsPerFilter, o.MaterialId, len(o.JointMapper))
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
 		o.Unk0c, o.Unk10, o.Unk14, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
+	exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
 
 	dmaCalls := o.Unk0c * uint32(o.TextureLayersCount)
 	o.Packets = make([][]Packet, dmaCalls)
@@ -152,12 +153,14 @@ func (o *Object) Parse(allb []byte, pos uint32, size uint32, exlog *Logger) erro
 			trias, trias, verts, verts)
 		o.Packets[iDmaChain] = ds.Packets
 	}
+	exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
 	if o.JointMapper != nil {
 		// right after dma calls
 		jointMapOffset := OBJECT_HEADER_SIZE + dmaCalls*0x10*o.PacketsPerFilter
 		for i := range o.JointMapper {
 			o.JointMapper[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
 		}
+		exlog.Printf("              - joint map: %+#v", o.JointMapper)
 	}
 
 	return nil

@@ -320,55 +320,41 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
         for (var iObject in group.Objects) {
             var object = group.Objects[iObject];
 
-	        //var iSkin = 0;
+            //var iSkin = 0;
             for (var iSkin in object.Packets) {
-	            var skin = object.Packets[iSkin];
-	            var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
-	
-	            var meshes = [];
-	            for (var iPacket in skin) {
-	                var packet = skin[iPacket];
-	                var mesh = parseMeshPacket(object, packet)
-	                meshes.push(mesh);
-	                totalMeshes.push(mesh);
-	                model.addMesh(mesh);
-	            }
-	
-	            if (table) {
-	                var label = $('<label>');
-	                var chbox = $('<input type="checkbox" checked>');
-	                var td = $('<td>').append(label);
-	                chbox.click(meshes, function(ev) {
-	                    for (i in ev.data) {
-	                        ev.data[i].setVisible(this.checked);
-	                    }
-	                    gr_instance.requestRedraw();
-	                });
-	                td.mouseenter([model, meshes], function(ev) {
-	                    ev.data[0].showExclusiveMeshes(ev.data[1]);
-	                    gr_instance.requestRedraw();
-	                }).mouseleave(model, function(ev, a) {
-	                    ev.data.showExclusiveMeshes();
-	                    gr_instance.requestRedraw();
-	                });
-	                label.append(chbox);
-	                label.append("o_" + objName);
-	                table.append($('<tr>').append(td));
-	
-	                //var params = ("00000000000000000000000000000000" + object.Params[7].toString(2)).substr(-32);
-	
-	                /*
-	                var params = '';
-	                for (var i in object.Params) {
-	                	if (i % 2 == 0) {
-	                		params += '</br>';
-	                	}
-	                	params += '0x' + object.Params[i].toString(0x10) + ',';
-	                }
-			
-	                td.append(params);
-	                */
-	            }
+                var skin = object.Packets[iSkin];
+                var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
+
+                var meshes = [];
+                for (var iPacket in skin) {
+                    var packet = skin[iPacket];
+                    var mesh = parseMeshPacket(object, packet)
+                    meshes.push(mesh);
+                    totalMeshes.push(mesh);
+                    model.addMesh(mesh);
+                }
+
+                if (table) {
+                    var label = $('<label>');
+                    var chbox = $('<input type="checkbox" checked>');
+                    var td = $('<td>').append(label);
+                    chbox.click(meshes, function(ev) {
+                        for (i in ev.data) {
+                            ev.data[i].setVisible(this.checked);
+                        }
+                        gr_instance.requestRedraw();
+                    });
+                    td.mouseenter([model, meshes], function(ev) {
+                        ev.data[0].showExclusiveMeshes(ev.data[1]);
+                        gr_instance.requestRedraw();
+                    }).mouseleave(model, function(ev, a) {
+                        ev.data.showExclusiveMeshes();
+                        gr_instance.requestRedraw();
+                    });
+                    label.append(chbox);
+                    label.append("o_" + objName);
+                    table.append($('<tr>').append(td));
+                }
             }
         }
     }
@@ -925,13 +911,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
                     if (flp.FontCharAliases) {
                         var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
-                            return flp.FontCharAliases[charString] == glyph.GlyphId;
+                            return flp.FontCharAliases[charString] == char;
                         });
                         if (map_chars && map_chars.length !== 0) {
-                            char = String.fromCharCode(map_chars[0]);
+                            char = map_chars[0];
                         }
                     }
-                    return str + (char !== -1 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
+                    return str + (char > 0 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
                 }, '');
 
                 rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
@@ -986,13 +972,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                             var font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
                             for (var char of text) {
-                                var code = char.charCodeAt(0);
+                                var charCode = char.charCodeAt(0);
                                 if (flp.FontCharAliases) {
-                                    if (flp.FontCharAliases.hasOwnProperty(char)) {
-                                        code = flp.FontCharAliases.hasOwnProperty[char];
+                                    if (flp.FontCharAliases.hasOwnProperty(charCode)) {
+                                        charCode = flp.FontCharAliases[charCode];
                                     }
                                 }
-                                var glyphId = font.CharNumberToSymbolIdMap[code];
+                                var glyphId = font.CharNumberToSymbolIdMap[charCode];
                                 var width = font.SymbolWidths[glyphId] * fontscale;
                                 glyphs.push({
                                     'GlyphId': glyphId,
@@ -1058,11 +1044,11 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         set3dVisible(true);
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
-		
-		var importBMFontInput = $('<button>');
-		importBMFontInput.text('Import glyphs from BMFont file');
-		importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(uploadAjaxHandler);
-		dataSummary.append(importBMFontInput);
+
+        var importBMFontInput = $('<button>');
+        importBMFontInput.text('Import glyphs from BMFont file');
+        importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(uploadAjaxHandler);
+        dataSummary.append(importBMFontInput);
 
         var charstable = $("<table>");
 
@@ -1093,6 +1079,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                         if (!matmap.hasOwnProperty(txr_name)) {
                             var material = new grMaterial();
+                            console.log(txr_name);
+
                             var img = flp.Textures[txr_name].Images[0].Image
 
                             var texture = new grTexture('data:image/png;base64,' + img);

@@ -44,7 +44,7 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			webutils.WriteError(w, err)
 			return
 		}
-		if err := f.ImportBmpFont(wrsrc, zr); err != nil {
+		if err := f.actionImportBmFont(wrsrc, zr); err != nil {
 			webutils.WriteError(w, err)
 		}
 	}
