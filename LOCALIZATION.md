@@ -1,0 +1,18 @@
+- Open [BMFont](http://www.angelcode.com/products/bmfont/), select your font characters. And I'm recommend to use this settings for export:
+  - Export options:
+    - Padding: 1
+    - Spacing: 1
+    - Texture width/height: 512/256
+    - Bit depth: 32
+    - Preset: White text with alpha
+    - **File format: Binary**
+    - **Textures: png**
+  - Font settings:
+    - **Charset: Unicode**
+    - Size (px): 60
+- Choose save bitmap font as and select location
+- Open 'font_aliases.cfg' file in root of *god_of_war_browser* folder and fill it correspond to your lang coding page. For example in root of folder exists *font_aliases.ru.cp1251.cfg* file for cp1251 codepage. Make sure file saved in UTF-8 encoding.
+- Add *.fnt and *.png files in zip archive
+- Start *god_of_war_browser*, go to flp file that you want localize, choose font viewer in top of page and press "Import glyphs from BMFont file", choose zip file in dialog.
+  - Files in pack may start shrinking first time you edit something in game package, this can take 3-15 mins.
+- Reload page and go to flp=>'Labels editor'. You can change font scale, blend color, x/y offsets and text of labels. You can preview changes and compare them side to side with original label.

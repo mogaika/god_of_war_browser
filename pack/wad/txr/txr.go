@@ -58,6 +58,18 @@ func NewFromData(buf []byte) (*Texture, error) {
 	return tex, nil
 }
 
+func (txr *Texture) MarshalToBinary() []byte {
+	var buf [FILE_SIZE]byte
+	binary.LittleEndian.PutUint32(buf[0:4], txr.Magic)
+	copy(buf[4:28], utils.StringToBytesBuffer(txr.GfxName, 24, true))
+	copy(buf[28:52], utils.StringToBytesBuffer(txr.PalName, 24, true))
+	copy(buf[52:76], utils.StringToBytesBuffer(txr.SubTxrName, 24, true))
+	binary.LittleEndian.PutUint32(buf[76:80], uint32(txr.LODParamK))
+	binary.LittleEndian.PutUint32(buf[80:84], math.Float32bits(txr.LODMultiplier))
+	binary.LittleEndian.PutUint32(buf[84:88], txr.Flags)
+	return buf[:]
+}
+
 type ImageType int
 
 const (
