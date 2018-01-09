@@ -183,7 +183,7 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font) error {
 	fontAliases, err := config.GetFontAliases()
 	if err != nil {
-		fmt.Errorf("Cannot load font aliases file: %v", err)
+		return fmt.Errorf("Cannot load font aliases file: %v", err)
 	}
 
 	for iBmChar := range bmf.Chars {
