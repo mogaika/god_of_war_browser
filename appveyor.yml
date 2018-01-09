@@ -29,7 +29,10 @@ after_build:
   - 7z a god_of_war_browser.zip -r c:\gopath\src\github.com\mogaika\god_of_war_browser\web -x!*.go
   - 7z a god_of_war_browser.zip god_of_war_browser.exe
   - 7z a god_of_war_browser.zip font_aliases.cfg
-  - 7z a god_of_war_browser.zip font_aliases.example.cfg
+  - 7z a god_of_war_browser.zip font_aliases.ru.cp1251.cfg
+  - 7z a god_of_war_browser.zip LOCALIZATION.md
+  - 7z a god_of_war_browser.zip README.md
+  - 7z a god_of_war_browser.zip LICENSE
 
 test: off
 
