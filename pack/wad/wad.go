@@ -446,4 +446,7 @@ func init() {
 	pack.SetHandler(".WAD", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
 		return NewWad(r, p)
 	})
+	pack.SetHandler(".wad_ps3", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
+		return NewWad(r, p)
+	})
 }

@@ -134,6 +134,7 @@ function packLoadFile(filename) {
         var ext = filename.slice(-3).toLowerCase();
         switch (ext) {
             case 'wad':
+			case 'ps3':
                 treeLoadWad(filename, data);
                 break;
             case 'psw':
