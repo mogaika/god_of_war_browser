@@ -1033,22 +1033,26 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         dataSummary.append(table);
     }
 
-    var flp_view_element = function() {
-        gr_instance.cleanup();
-        set3dVisible(true);
-        dataSummary.empty();
-    }
-
     var flp_view_font = function() {
         gr_instance.cleanup();
         set3dVisible(true);
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
 
+		var importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
         var importBMFontInput = $('<button>');
         importBMFontInput.text('Import glyphs from BMFont file');
-        importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(uploadAjaxHandler);
-        dataSummary.append(importBMFontInput);
+        importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(function() {
+			$(this).attr('href', getActionLinkForWadNode(wad, tagid, 'importbmfont', 'scale=' + $("#importbmfontscale").val()));
+			console.log($(this).attr('href'));
+			uploadAjaxHandler.call(this);
+		});
+		var importDiv = $('<div id="flpimportfont">');
+		importDiv.append($('<label>').text('font scale').append(importBMFontScale));
+        importDiv.append(importBMFontInput);
+		importDiv.append($('<a>').text('Link to usage instruction').attr('target','_blank')
+			.attr('href', 'https://github.com/mogaika/god_of_war_browser/blob/master/LOCALIZATION.md'));
+		dataSummary.append(importDiv);
 
         var charstable = $("<table>");
 
@@ -1138,7 +1142,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_list_labels).text("Labels editor"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
-    dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_element).text("Element viewer"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
 
     flp_list_labels();

@@ -2,6 +2,7 @@ package flp
 
 import (
 	"archive/zip"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,12 +40,25 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 		}
 		defer fZip.Close()
 
+		scale := float32(1.0)
+		if strScale := r.FormValue("scale"); len(strScale) > 0 {
+			possibleScale, err := strconv.ParseFloat(strScale, 32)
+			if err != nil {
+				log.Printf("Error parsing scale param: %v", err)
+			} else {
+				scale = float32(possibleScale)
+				log.Printf("Used scale %v", scale)
+			}
+		} else {
+			log.Println("Scale parameter not provided")
+		}
+
 		zr, err := zip.NewReader(fZip, hZip.Size)
 		if err != nil {
 			webutils.WriteError(w, err)
 			return
 		}
-		if err := f.actionImportBmFont(wrsrc, zr); err != nil {
+		if err := f.actionImportBmFont(wrsrc, zr, scale); err != nil {
 			webutils.WriteError(w, err)
 		}
 	}
