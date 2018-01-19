@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_mesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
 	file_txr "github.com/mogaika/god_of_war_browser/pack/wad/txr"
-	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 func getMeshForFlp(wrsrc *wad.WadNodeRsrc) (*file_mesh.Mesh, wad.TagId, error) {
@@ -105,7 +103,6 @@ func (f *FLP) actionImportBmFont(wrsrc *wad.WadNodeRsrc, zr *zip.Reader) error {
 			return fmt.Errorf("Cannot open texture '%s' from archive: %v", texture_name, err)
 		}
 		defer f.Close()
-		log.Println("Inserting new texture after", meshTagId-4)
 
 		if txrTag := wrsrc.Wad.GetTagByName("TXR_"+texture_name, meshTagId, false); txrTag != nil {
 			txrInst, _, err := wrsrc.Wad.GetInstanceFromTag(txrTag.Id)
@@ -186,7 +183,7 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font) error {
 	fontAliases, err := config.GetFontAliases()
 	if err != nil {
-		fmt.Errorf("Cannot load font aliases file: %v", err)
+		return fmt.Errorf("Cannot load font aliases file: %v", err)
 	}
 
 	for iBmChar := range bmf.Chars {
@@ -203,7 +200,6 @@ func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font) e
 				return fmt.Errorf("Cannot map char '%v' (%v). Please update font_aliases.cfg file", string(unicodeChar), unicodeChar)
 			}
 		}
-		log.Printf("Mapping '%v' (%v) to %v:\n%v", string(unicodeChar), unicodeChar, ansiiCharId, utils.SDump(bmchar))
 
 		glyphId := font.CharNumberToSymbolIdMap[ansiiCharId]
 		charWidth := int16(float32(bmchar.Xadvance) * file_mesh.GSFixedPoint8)
