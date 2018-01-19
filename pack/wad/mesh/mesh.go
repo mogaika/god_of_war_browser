@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -291,34 +289,15 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
-		os.MkdirAll(filepath.Dir(fpath), 0777)
-		f, _ := os.Create(fpath)
-		defer f.Close()
-		logger := Logger{f}
-		//logger := Logger{os.Stdout}
-
-		mesh, err := NewFromData(wrsrc.Tag.Data, &logger)
 		/*
-			if err == nil {
-				buf := mesh.MarshalBuffer()
-
-				oldfpath := filepath.Join("meshmarsh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.old.mesh", wrsrc.Tag.Id, wrsrc.Tag.Name))
-				newfpath := filepath.Join("meshmarsh", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.new.mesh", wrsrc.Tag.Id, wrsrc.Tag.Name))
-				os.MkdirAll(filepath.Dir(oldfpath), 0777)
-				fold, _ := os.Create(oldfpath)
-				defer fold.Close()
-				fold.Write(wrsrc.Tag.Data)
-				fold.Close()
-
-				f, _ := os.Create(newfpath)
-				defer f.Close()
-				if _, err := NewFromData(buf.Bytes(), nil); err != nil {
-					log.Println(wrsrc.Wad.Name(), "Error remarsh: %v", err)
-				}
-				io.Copy(f, buf)
-			}
+			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+			os.MkdirAll(filepath.Dir(fpath), 0777)
+			f, _ := os.Create(fpath)
+			defer f.Close()
+			logger := Logger{f}
+			//logger := Logger{os.Stdout}
 		*/
-		return mesh, err
+
+		return NewFromData(wrsrc.Tag.Data, nil)
 	})
 }
