@@ -96,7 +96,6 @@ function packLoad() {
 }
 
 function uploadAjaxHandler() {
-    console.log(this);
     var link = $(this).attr("href");
     var form = $('<form action="' + link + '" method="post" enctype="multipart/form-data">');
     var fileInput = $('<input type="file" name="data">');

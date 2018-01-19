@@ -209,3 +209,16 @@ table.staticlabelrendercommandlist input {
 table.staticlabelrendercommandlist input.no-width {
 	width: auto;
 }
+
+div#flpimportfont {
+	padding: 12px;
+	margin: 0 auto;
+	width: 90%;
+}
+
+div#flpimportfont input{
+	width: auto;
+}
+div#flpimportfont button{
+	width: 100%;
+}

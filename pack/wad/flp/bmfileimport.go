@@ -55,7 +55,7 @@ func getBmfFromArchive(zr *zip.Reader) (*bmfont.Font, error) {
 	return bmfont.NewFontFromBuf(raw)
 }
 
-func (f *FLP) actionImportBmFont(wrsrc *wad.WadNodeRsrc, zr *zip.Reader) error {
+func (f *FLP) actionImportBmFont(wrsrc *wad.WadNodeRsrc, zr *zip.Reader, scale float32) error {
 	if f.Fonts == nil || len(f.Fonts) == 0 {
 		return nil
 	}
@@ -74,7 +74,7 @@ func (f *FLP) actionImportBmFont(wrsrc *wad.WadNodeRsrc, zr *zip.Reader) error {
 		return fmt.Errorf("Cannot get bmf file from archive: %v", err)
 	}
 
-	if err := f.ImportBmFont(font, mesh, bmf); err != nil {
+	if err := f.ImportBmFont(font, mesh, bmf, scale); err != nil {
 		return fmt.Errorf("Error when importing bmf structs: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func (f *FLP) actionImportBmFont(wrsrc *wad.WadNodeRsrc, zr *zip.Reader) error {
 	return nil
 }
 
-func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mesh *file_mesh.Mesh, prevRef *MeshPartReference) *MeshPartReference {
+func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mesh *file_mesh.Mesh, prevRef *MeshPartReference, scale float32) *MeshPartReference {
 	meshPartIndex := int16(len(mesh.Parts))
 	if prevRef != nil {
 		meshPartIndex = prevRef.MeshPartIndex
@@ -156,11 +156,11 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 		SourceVerticesCount: 4,
 		RawDmaAndJointsData: generateMeshDmaPacketData(
 			[2]float32{
-				float32(char.Xoffset),
-				float32(char.Xoffset) + float32(char.Width),
+				float32(char.Xoffset) * scale,
+				(float32(char.Xoffset) + float32(char.Width)) * scale,
 			}, [2]float32{
-				-float32(bmf.Common.Base) + float32(char.Yoffset),
-				-float32(bmf.Common.Base) + float32(char.Yoffset) + float32(char.Height),
+				(-float32(bmf.Common.Base) + float32(char.Yoffset)) * scale,
+				(-float32(bmf.Common.Base) + float32(char.Yoffset) + float32(char.Height)) * scale,
 			},
 			[2]float32{
 				float32(char.X) / float32(bmf.Common.ScaleW),
@@ -180,7 +180,7 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 	}
 }
 
-func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font) error {
+func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font, scale float32) error {
 	fontAliases, err := config.GetFontAliases()
 	if err != nil {
 		return fmt.Errorf("Cannot load font aliases file: %v", err)
@@ -202,18 +202,18 @@ func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font) e
 		}
 
 		glyphId := font.CharNumberToSymbolIdMap[ansiiCharId]
-		charWidth := int16(float32(bmchar.Xadvance) * file_mesh.GSFixedPoint8)
+		charWidth := int16(float32(bmchar.Xadvance) * file_mesh.GSFixedPoint8 * scale)
 		if glyphId == -1 {
 			// create new glyph
 			newGlyphId := int16(font.CharsCount)
-			newMeshRef := bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, nil)
+			newMeshRef := bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, nil, scale)
 			font.Flag4Datas2 = append(font.Flag4Datas2, *newMeshRef)
 			font.SymbolWidths = append(font.SymbolWidths, charWidth)
 			font.CharsCount++
 			font.CharNumberToSymbolIdMap[ansiiCharId] = newGlyphId
 		} else {
 			// update exists glyph
-			font.Flag4Datas2[glyphId] = *bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, &font.Flag4Datas2[glyphId])
+			font.Flag4Datas2[glyphId] = *bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, &font.Flag4Datas2[glyphId], scale)
 			font.SymbolWidths[glyphId] = charWidth
 		}
 	}
