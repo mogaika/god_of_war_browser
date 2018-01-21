@@ -302,7 +302,7 @@ function parseMeshPacket(object, packet) {
         mesh.setNormals(m_normals);
     }
 
-    if (!!packet.Joints && packet.Joints.length && !!object.JointMapper && object.JointMapper.length) {
+    if (packet.Joints && packet.Joints.length && object.JointMapper && object.JointMapper.length) {
         //console.log(packet.Joints, packet.Joints2, object.JointMapper);
         var joints1 = packet.Joints;
         var joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
@@ -366,6 +366,7 @@ function loadMeshFromAjax(model, data, needTable = false) {
     for (var iPart in data.Parts) {
         loadMeshPartFromAjax(model, data, iPart, table);
     }
+	gr_instance.flushScene();
     return table;
 }
 
@@ -394,50 +395,64 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
     for (var i in data.Materials) {
         var material = new grMaterial();
 
-        var textures = data.Materials[i].TexturesBlended;
+        var textures = data.Materials[i].Textures;
         var rawMat = data.Materials[i].Mat;
-        if (rawMat && rawMat.Color) {
-            material.setColor(rawMat.Color);
-        }
-        var layerId = undefined;
-        if (rawMat.Layers && rawMat.Layers.length) {
-            for (var i in rawMat.Layers) {
-                layerId = i;
-                if (rawMat.Layers[i].ParsedFlags.RenderingStrangeBlended === true) {
-                    break;
-                }
-            }
-        }
-        if (layerId !== undefined) {
-            var zl = rawMat.Layers[layerId];
-            if (zl.ParsedFlags.RenderingStrangeBlended === true) {
-                material.setMethodUnknown();
-            }
-            if (zl.ParsedFlags.RenderingSubstract === true) {
-                material.setMethodSubstract();
-            }
-            if (zl.ParsedFlags.RenderingUsual === true) {
-                material.setMethodNormal();
-            }
-            if (zl.ParsedFlags.RenderingAdditive === true) {
-                material.setMethodAdditive();
-            }
+        material.setColor(rawMat.Color);
 
-            if (textures && textures.length && textures[layerId]) {
-                var imgs = textures[layerId].Images;
-                if (imgs && imgs.length && imgs[0]) {
-                    //var img = imgs[imgs.length-1].Image;
-                    var img = imgs[0].Image;
-                    if (rawMat.Layers[layerId].ParsedFlags.RenderingStrangeBlended === true) {
-                        console.log('COLORONLY ONE');
-                        img = img.ColorOnly;
-                    }
-                    material.setDiffuse(new grTexture('data:image/png;base64,' + img));
-                    material.setHasAlphaAttribute(textures[layerId].HaveTransparent);
-                }
-            }
-        }
+		for (var iLayer in rawMat.Layers) {
+			var rawLayer = rawMat.Layers[iLayer];
+			var layer = new grMaterialLayer();
+
+			layer.setColor(rawLayer.BlendColor);
+            if (rawLayer.ParsedFlags.RenderingSubstract      === true) { layer.setMethodSubstract(); }
+            if (rawLayer.ParsedFlags.RenderingUsual          === true) { layer.setMethodNormal(); }
+            if (rawLayer.ParsedFlags.RenderingAdditive       === true) { layer.setMethodAdditive(); }
+			if (rawLayer.ParsedFlags.RenderingStrangeBlended === true) { layer.setMethodUnknown(); }
+
+			if (textures && textures[iLayer] && textures[iLayer].Images) {
+				var imgs = textures[iLayer].Images;
+				if (imgs.hasOwnProperty(iLayer)) {
+					layer.setDiffuse(new grTexture('data:image/png;base64,' + imgs[0].Image));
+					layer.setHasAlphaAttribute(textures[iLayer].HaveTransparent);
+				}
+			}
+			material.addLayer(layer);
+		}
         mdl.addMaterial(material);
+		
+		var anim = data.Materials[i].Animations;
+		if (anim && anim.Groups && anim.Groups.length) {
+			var group = anim.Groups[0];
+			console.log(anim);
+			if (!group.IsExternal && group.Acts && group.Acts.length) {
+				var act = group.Acts[0];
+				console.log(act);
+				for (var iStateDesc in act.StateDescrs) {
+					var stateDesc = act.StateDescrs[iStateDesc];
+					var dataType = anim.DataTypes[iStateDesc];
+					if (dataType.TypeId == 8) {
+						var layer = material.layers[dataType.Param1 & 0x7f];
+						layer.step = 0;
+						layer.timer = setInterval(function(_layer, _sd){
+							_layer.step += 1;
+							if (_layer.step >= _sd.Data.DatasCount) {
+								_layer.step -= _sd.Data.DatasCount;
+							}
+							
+							for (var key in _sd.Data.Stream) {
+								var stream = _sd.Data.Stream[key];
+								switch (key) {
+									case "U": _layer.uvoffset[0] = stream[_layer.step]; break;
+									case "V": _layer.uvoffset[1] = stream[_layer.step]; break;
+								}
+							}
+														
+							gr_instance.requestRedraw();
+						}, 50, layer, stateDesc);
+					}
+				}
+			}
+		}
     }
 
     if (parseScripts) {

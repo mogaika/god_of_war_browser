@@ -1,13 +1,15 @@
 package anm
 
 import (
+	"math"
+
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type AnimInterpolationSettings struct {
 	CountOfWords        uint8  // count of words after this element
 	PairedElementsCount uint8  // paired elements count?
-	OffsetOrSize        uint16 // offset of data
+	OffsetToElement     uint16 // offset to element
 	Words               []uint16
 }
 
@@ -15,7 +17,7 @@ func NewAnimInterpolationSettingsFromBuf(b []byte) *AnimInterpolationSettings {
 	ais := &AnimInterpolationSettings{
 		CountOfWords:        b[0],
 		PairedElementsCount: b[1],
-		OffsetOrSize:        u16(b, 2),
+		OffsetToElement:     u16(b, 2),
 	}
 	ais.Words = make([]uint16, ais.CountOfWords)
 	for i := range ais.Words {
@@ -25,22 +27,24 @@ func NewAnimInterpolationSettingsFromBuf(b []byte) *AnimInterpolationSettings {
 }
 
 type AnimState8Texturepos struct {
-	ChangedDataIndex uint16
-	Byte2            byte
-	Byte3            byte
-	DatasCount       uint32
-	Type             string
-	Data             []float32
-	OffsetToData     uint16
+	BaseTargetDataIndex   uint16
+	FlagsProbably         byte
+	HowMany64kbWeNeedSkip byte
+	DatasCount            uint16
+	OffsetToData          uint16
+	Stream                map[string][]float32
 }
+
+var defaultInterpolationSettingsForSingleElement = []byte{01, 01, 00, 00, 01, 00}
 
 func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte) *AnimState8Texturepos {
 	a := &AnimState8Texturepos{
-		ChangedDataIndex: u16(buf, 0),
-		Byte2:            buf[2],
-		Byte3:            buf[3],
-		DatasCount:       u32(buf, 4),
-		OffsetToData:     u16(buf, 0xa),
+		BaseTargetDataIndex:   u16(buf, 0),
+		FlagsProbably:         buf[2],
+		HowMany64kbWeNeedSkip: buf[3],
+		DatasCount:            u16(buf, 4),
+		OffsetToData:          u16(buf, 0xa),
+		Stream:                make(map[string][]float32),
 	}
 
 	// dtype.param1 contain layer id
@@ -48,18 +52,41 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte) *AnimState8Tex
 	// Also game checks dtype.Param1 & 0x80 != 0, otherwise it is similar material animation
 	// But color animation have Type == 3, not 8, so we can skip this checks
 
-	var interpolationSettings *AnimInterpolationSettings
-
-	if a.Byte2&2 == 0 {
-		// interpolation parameters inside binary
-		// 01 01 00 00 01 00
-		interpolationSettings = NewAnimInterpolationSettingsFromBuf([]byte{01, 01, 00, 00, 01, 00})
+	var interpolationSettingsBuf []byte
+	if a.FlagsProbably&2 != 0 {
+		interpolationSettingsBuf = buf[(uint32(a.HowMany64kbWeNeedSkip)<<16)+uint32(a.OffsetToData):]
 	} else {
-		strangeOffset := uint32(a.Byte3) << 16
-		offsetToDatas := strangeOffset + uint32(a.OffsetToData)
-		interpolationSettings = NewAnimInterpolationSettingsFromBuf(buf[offsetToDatas:])
+		interpolationSettingsBuf = defaultInterpolationSettingsForSingleElement
 	}
-	utils.LogDump(interpolationSettings, buf)
+	interpolationSettings := NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
+
+	if len(interpolationSettings.Words) != 1 {
+		panic("Unsuported len(word) != 1")
+	}
+
+	animTargetDataIndex := a.BaseTargetDataIndex
+	animDataOffset := (uint32(a.HowMany64kbWeNeedSkip) << 16) + uint32(a.OffsetToData) + uint32(interpolationSettings.OffsetToElement)
+	animDataStep := uint32(interpolationSettings.PairedElementsCount) * 4
+	for animIterator := interpolationSettings.Words[0]; animIterator != 0; animIterator = ((animIterator - 1) / 2) * 2 {
+		floatsDataArray := make([]float32, a.DatasCount)
+
+		for j := range floatsDataArray {
+			floatsDataArray[j] = math.Float32frombits(u32(buf, animDataOffset+uint32(j)*animDataStep))
+		}
+
+		switch animTargetDataIndex {
+		case 0:
+			a.Stream["U"] = floatsDataArray
+		case 1:
+			a.Stream["V"] = floatsDataArray
+		default:
+			panic("Unknown data index")
+		}
+		animTargetDataIndex += 1
+		animDataOffset += 4
+	}
+
+	utils.LogDump(interpolationSettings, buf[:32])
 	/*
 		a.Data = make([]float32, a.DatasCount)
 		for i := range a.Data {

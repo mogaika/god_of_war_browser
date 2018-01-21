@@ -104,6 +104,7 @@ grMesh.prototype.free = function() {
     if (this.bufferUV) gl.deleteBuffer(this.bufferUV);
     if (this.bufferNormals) gl.deleteBuffer(this.bufferNormals);
     if (this.bufferJointIds) gl.deleteBuffer(this.bufferJointIds);
+	gr_instance.flushScene();
 }
 
 grMesh.prototype.claim = function() {
@@ -187,6 +188,7 @@ grModel.prototype.free = function() {
     for (var i in this.materials) {
         this.materials[i].unclaim();
     }
+	gr_instance.flushScene();
 }
 
 function grTexture__handleLoading(img, txr) {
@@ -250,38 +252,62 @@ grTexture.prototype.get = function() {
     return this.loaded ? this.txr : gr_instance.emptyTexture.get();
 }
 
+function grMaterialLayer() {
+	this.refs = 0;
+	this.color = [1, 1, 1, 1];
+	this.uvoffset = [0, 0];
+    this.textureDiffuse = undefined;
+	this.method = 0;
+	this.hasAlpha = false;
+	this.timer = undefined;
+}
+
+grMaterialLayer.prototype.setColor = function(color) {
+    this.color = color;
+}
+
+grMaterialLayer.prototype.setHasAlphaAttribute = function(alpha = true) {
+    this.hasAlpha = alpha;
+}
+
+grMaterialLayer.prototype.setDiffuse = function(txtr) {
+    this.textureDiffuse = txtr;
+}
+
+grMaterialLayer.prototype.setMethodNormal    = function() { this.method = 0; }
+grMaterialLayer.prototype.setMethodAdditive  = function() { this.method = 1; }
+grMaterialLayer.prototype.setMethodSubstract = function() { this.method = 2; }
+grMaterialLayer.prototype.setMethodUnknown   = function() { this.method = 3; }
+
+grMaterialLayer.prototype.claim = function() {
+    this.refs++;
+}
+grMaterialLayer.prototype.unclaim = function() {
+    if (--this.refs == 0) {
+        this.free();
+    }
+}
+
+grMaterialLayer.prototype.free = function() {
+	if (this.timer) {
+		clearInterval(this.timer)
+	}
+}
+
 function grMaterial() {
     this.refs = 0;
     this.color = [1, 1, 1, 1];
-    this.textureDiffuse = undefined;
-    this.hasAlpha = false;
-    this.method = 0;
+	this.layers = [];
+}
+
+grMaterial.prototype.addLayer = function(layer) {
+    this.layers.push(layer);
 }
 
 grMaterial.prototype.setColor = function(color) {
     this.color = color;
 }
 
-grMaterial.prototype.setDiffuse = function(txtr) {
-    this.textureDiffuse = txtr;
-}
-
-grMaterial.prototype.setHasAlphaAttribute = function(alpha = true) {
-    this.hasAlpha = alpha;
-}
-
-grMaterial.prototype.setMethodNormal = function() {
-    this.method = 0;
-}
-grMaterial.prototype.setMethodAdditive = function() {
-    this.method = 1;
-}
-grMaterial.prototype.setMethodSubstract = function() {
-    this.method = 2;
-}
-grMaterial.prototype.setMethodUnknown = function() {
-    this.method = 3;
-}
 grMaterial.prototype.claim = function() {
     this.refs++;
 }
@@ -292,9 +318,12 @@ grMaterial.prototype.unclaim = function() {
 }
 
 grMaterial.prototype.free = function() {
-    if (this.textureDiffuse) {
-        this.textureDiffuse.free();
+    for (var i in this.layers) {
+        if (this.layers[i].textureDiffuse) {
+			this.layers[i].textureDiffuse.free();
+		}
     }
+	gr_instance.flushScene();
 }
 
 function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false) {
@@ -390,6 +419,7 @@ grTextMesh.prototype.free = function() {
     gl.deleteBuffer(this.bufferVertex);
     gl.deleteBuffer(this.bufferIndex);
     gl.deleteBuffer(this.bufferUV);
+	gr_instance.flushScene();
 }
 
 function grCameraTargeted() {
@@ -475,7 +505,7 @@ function grController(viewDomObject) {
     }
 
     this.renderChain = undefined;
-    this.models = [];
+	this.models = [];
     this.texts = [];
     this.helpers = [
         grHelper_Pivot(),
@@ -545,6 +575,10 @@ function gwInitRenderer(viewDomObject) {
     gr_instance.requestRedraw();
 }
 
+grController.prototype.flushScene = function() {
+    this.renderChain.flushScene(this);
+}
+
 grController.prototype.setInterfaceCameraMode = function(is3d) {
     this.camera = (!!is3d) ? this.cameraInterface : this.cameraModels;
 }
@@ -553,6 +587,7 @@ grController.prototype.changeRenderChain = function(chainType) {
     if (this.renderChain)
         this.renderChain.free();
     this.renderChain = new chainType(this);
+	this.flushScene();
 }
 
 grController.prototype.onResize = function() {
@@ -590,6 +625,7 @@ grController.prototype.destroyModels = function() {
         this.models[i].free(this);
     }
     this.models.length = 0;
+	this.flushScene();
 }
 
 grController.prototype.destroyTexts = function() {
@@ -597,6 +633,7 @@ grController.prototype.destroyTexts = function() {
         this.texts[i].free(this);
     }
     this.texts.length = 0;
+	this.flushScene();
 }
 
 grController.prototype.cleanup = function() {
