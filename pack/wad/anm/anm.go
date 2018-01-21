@@ -105,7 +105,7 @@ func NewFromData(data []byte) (*Animations, error) {
 					//log.Println(i, a.DataTypes, a.DataTypes[i].TypeId)
 					switch a.DataTypes[i].TypeId {
 					case 8:
-						sd.Data = AnimState8TextureposFromBuf(rawAct[sd.OffsetToData:])
+						sd.Data = AnimState8TextureposFromBuf(&a.DataTypes[i], rawAct[sd.OffsetToData:])
 					}
 
 				}
