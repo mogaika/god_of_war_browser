@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	file_anm "github.com/mogaika/god_of_war_browser/pack/wad/anm"
 	file_txr "github.com/mogaika/god_of_war_browser/pack/wad/txr"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -18,22 +19,22 @@ https://nccastaff.bournemouth.ac.uk/jmacey/RobTheBloke/www/research/maya/mfnmate
 */
 
 type Flags struct {
-	FilterLinear            bool // when false, then near filter used. may affect only wheb texture expanded (LOD < 0)
+	FilterLinear            bool // when false, then near filter used. may affect only when texture expanded (LOD < 0)
 	DisableDepthWrite       bool
 	RenderingAdditive       bool
 	RenderingUsual          bool // handle transparency
 	RenderingSubstract      bool
-	RenderingStrangeBlended bool // I'm do not know
+	RenderingStrangeBlended bool // do not know
 	HaveTexture             bool
 
-	AnimationEnabled  bool
-	AnimationEnabled2 bool // ATHN04A.WAD/378
+	AnimationEnabled  bool // Anim type 8
+	AnimationEnabled2 bool // ?? Anim type 3, applyed to mat, not layer
 }
 
 type Layer struct {
 	Texture     string
 	Flags       [4]uint32
-	BlendColor  [4]float32
+	BlendColor  utils.ColorFloat
 	FloatUnk    float32
 	GameFlags   uint32
 	ParsedFlags Flags
@@ -129,35 +130,56 @@ func NewFromData(buf []byte) (*Material, error) {
 
 type Ajax struct {
 	Mat             *Material
-	Textures        []interface{}
-	TexturesBlended []interface{}
+	Textures        map[int]interface{}
+	TexturesBlended map[int]interface{}
+	Animations      interface{}
 }
 
 func (mat *Material) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	res := Ajax{
 		Mat:             mat,
-		Textures:        make([]interface{}, len(mat.Layers)),
-		TexturesBlended: make([]interface{}, len(mat.Layers)),
+		Textures:        make(map[int]interface{}),
+		TexturesBlended: make(map[int]interface{}),
 	}
 
-	for i := range mat.Layers {
-		n := wrsrc.Wad.GetNodeByName(mat.Layers[i].Texture, wrsrc.Node.Id-1, false)
-		if n != nil {
-			txr, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
-			if err != nil {
-				return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
-			}
+	for iLayerId := range mat.Layers {
+		if mat.Layers[iLayerId].Texture != "" {
+			n := wrsrc.Wad.GetNodeByName(mat.Layers[iLayerId].Texture, wrsrc.Node.Id-1, false)
+			if n != nil {
+				txr, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
+				if err != nil {
+					return nil, fmt.Errorf("Error getting texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
+				}
 
-			if dat, err := txr.(*file_txr.Texture).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
-				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
-			} else {
-				res.Textures[i] = dat
-			}
+				if dat, err := txr.(*file_txr.Texture).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
+					return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
+				} else {
+					res.Textures[iLayerId] = dat
+				}
 
-			if dat, err := txr.(*file_txr.Texture).MarshalBlend(mat.Layers[i].BlendColor[:], wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
-				return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
-			} else {
-				res.TexturesBlended[i] = dat
+				if dat, err := txr.(*file_txr.Texture).MarshalBlend(mat.Layers[iLayerId].BlendColor[:], wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
+					return nil, fmt.Errorf("Error marshaling texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
+				} else {
+					res.TexturesBlended[iLayerId] = dat
+				}
+			}
+		}
+	}
+
+	for _, i := range wrsrc.Node.SubGroupNodes {
+		n := wrsrc.Wad.GetNodeById(i)
+		name := n.Tag.Name
+		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
+		if err != nil {
+			return nil, fmt.Errorf("Error when extracting node %d->%s mat info: %v", i, name, err)
+		} else {
+			switch sn.(type) {
+			case *file_anm.Animations:
+				anims, err := sn.(*file_anm.Animations).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id))
+				if err != nil {
+					return nil, fmt.Errorf("Error when getting script info %d-'%s': %v", i, name, err)
+				}
+				res.Animations = anims
 			}
 		}
 	}

@@ -7,6 +7,8 @@ attribute mediump float aVertexJointID2; // Probably for normal
 uniform highp mat4 umModelTransform;
 uniform highp mat4 umProjectionView;
 uniform lowp vec4 uMaterialColor;
+uniform lowp vec4 uLayerColor;
+uniform mediump vec2 uLayerOffset;
 uniform mediump mat4 umJoints[12];
 uniform bool uUseJoints;
 uniform bool uUseVertexColor;
@@ -33,6 +35,7 @@ void main(void) {
 	} else {
 		vVertexColor = vec4(1.0);
 	}
+	vVertexColor *= uMaterialColor * uLayerColor;
 	gl_Position = umProjectionView * pos;	
-	vVertexUV = aVertexUV;
+	vVertexUV = aVertexUV + uLayerOffset;
 }
