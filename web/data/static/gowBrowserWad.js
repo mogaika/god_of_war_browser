@@ -1039,20 +1039,20 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
 
-		var importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
+        var importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
         var importBMFontInput = $('<button>');
         importBMFontInput.text('Import glyphs from BMFont file');
         importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(function() {
-			$(this).attr('href', getActionLinkForWadNode(wad, tagid, 'importbmfont', 'scale=' + $("#importbmfontscale").val()));
-			console.log($(this).attr('href'));
-			uploadAjaxHandler.call(this);
-		});
-		var importDiv = $('<div id="flpimportfont">');
-		importDiv.append($('<label>').text('font scale').append(importBMFontScale));
+            $(this).attr('href', getActionLinkForWadNode(wad, tagid, 'importbmfont', 'scale=' + $("#importbmfontscale").val()));
+            console.log($(this).attr('href'));
+            uploadAjaxHandler.call(this);
+        });
+        var importDiv = $('<div id="flpimportfont">');
+        importDiv.append($('<label>').text('font scale').append(importBMFontScale));
         importDiv.append(importBMFontInput);
-		importDiv.append($('<a>').text('Link to usage instruction').attr('target','_blank')
-			.attr('href', 'https://github.com/mogaika/god_of_war_browser/blob/master/LOCALIZATION.md'));
-		dataSummary.append(importDiv);
+        importDiv.append($('<a>').text('Link to usage instruction').attr('target', '_blank')
+            .attr('href', 'https://github.com/mogaika/god_of_war_browser/blob/master/LOCALIZATION.md'));
+        dataSummary.append(importDiv);
 
         var charstable = $("<table>");
 
@@ -1071,8 +1071,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     continue;
                 }
 
-                var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
-                var chrdata = flagsdatas2[glyphId];
+                var chrdata = font.MeshesRefs[glyphId];
 
                 var meshes = [];
                 if (chrdata.MeshPartIndex !== -1) {

@@ -96,8 +96,7 @@ type Font struct {
 	// & 1 == 0 => CharNumberToSymbolIdMap contain CharsCount elements of char=>symbol map
 	Flags uint16
 
-	Flag2Datas2             []MeshPartReference
-	Flag4Datas2             []MeshPartReference
+	MeshesRefs              []MeshPartReference
 	SymbolWidths            []int16
 	CharNumberToSymbolIdMap []int16 // Char to glyph map?
 	Float020                float32
@@ -244,11 +243,8 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 				}
 			}
 		}
-		for i := range font.Flag2Datas2 {
-			marshalData2(&font.Flag2Datas2[i])
-		}
-		for i := range font.Flag4Datas2 {
-			marshalData2(&font.Flag4Datas2[i])
+		for i := range font.MeshesRefs {
+			marshalData2(&font.MeshesRefs[i])
 		}
 	}
 
