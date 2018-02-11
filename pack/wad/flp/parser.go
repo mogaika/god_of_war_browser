@@ -54,25 +54,18 @@ func (d3 *Font) FromBuf(buf []byte) int {
 }
 
 func (d3 *Font) Parse(buf []byte, pos int) int {
-	if d3.Flags&2 != 0 {
-		d3.Flag2Datas2 = make([]MeshPartReference, d3.CharsCount)
-		for i := range d3.Flag2Datas2 {
-			pos += d3.Flag2Datas2[i].FromBuf(buf[pos:])
+	if d3.Flags&(4|2) == (4 | 2) {
+		panic("d3.Flags &(4|2) == (4|2")
+	}
+	if d3.Flags&(2|4) != 0 {
+		d3.MeshesRefs = make([]MeshPartReference, d3.CharsCount)
+		for i := range d3.MeshesRefs {
+			pos += d3.MeshesRefs[i].FromBuf(buf[pos:])
 		}
-		for i := range d3.Flag2Datas2 {
-			pos = d3.Flag2Datas2[i].Parse(buf, pos)
+		for i := range d3.MeshesRefs {
+			pos = d3.MeshesRefs[i].Parse(buf, pos)
 		}
 	}
-	if d3.Flags&4 != 0 {
-		d3.Flag4Datas2 = make([]MeshPartReference, d3.CharsCount)
-		for i := range d3.Flag4Datas2 {
-			pos += d3.Flag4Datas2[i].FromBuf(buf[pos:])
-		}
-		for i := range d3.Flag4Datas2 {
-			pos = d3.Flag4Datas2[i].Parse(buf, pos)
-		}
-	}
-
 	d3.SymbolWidths = make([]int16, d3.CharsCount)
 	for i := range d3.SymbolWidths {
 		d3.SymbolWidths[i] = int16(binary.LittleEndian.Uint16(buf[pos:]))
@@ -376,11 +369,8 @@ func (f *FLP) SetNameFromStringSector(stringsSector []byte) {
 		f.MeshPartReferences[i].SetNameFromStringSector(stringsSector)
 	}
 	for i := range f.Fonts {
-		for j := range f.Fonts[i].Flag4Datas2 {
-			f.Fonts[i].Flag4Datas2[j].SetNameFromStringSector(stringsSector)
-		}
-		for j := range f.Fonts[i].Flag2Datas2 {
-			f.Fonts[i].Flag2Datas2[j].SetNameFromStringSector(stringsSector)
+		for j := range f.Fonts[i].MeshesRefs {
+			f.Fonts[i].MeshesRefs[j].SetNameFromStringSector(stringsSector)
 		}
 	}
 

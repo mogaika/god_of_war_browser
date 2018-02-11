@@ -42,8 +42,7 @@ $(document).ready(function() {
             for (var iGlyph in cmd.Glyphs) {
                 var glyph = cmd.Glyphs[iGlyph];
 
-                var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
-                var chrdata = flagsdatas2[glyph.GlyphId];
+                var chrdata = font.MeshesRefs[glyph.GlyphId];
 
                 if (chrdata.MeshPartIndex !== -1) {
                     var mdl = new grModel();

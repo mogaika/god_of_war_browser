@@ -132,20 +132,15 @@ func (d3 *Font) MarshalStruct(fm *FlpMarshaler) {
 }
 
 func (d3 *Font) MarshalData(fm *FlpMarshaler) {
-	if d3.Flags&2 != 0 {
-		for i := range d3.Flag2Datas2 {
-			d3.Flag2Datas2[i].MarshalStruct(fm)
-		}
-		for i := range d3.Flag2Datas2 {
-			d3.Flag2Datas2[i].MarshalData(fm)
-		}
+	if d3.Flags&(4|2) == (4 | 2) {
+		panic("d3.Flags &(4|2) == (4|2")
 	}
-	if d3.Flags&4 != 0 {
-		for i := range d3.Flag4Datas2 {
-			d3.Flag4Datas2[i].MarshalStruct(fm)
+	if d3.Flags&2 != 0 || d3.Flags&4 != 0 {
+		for i := range d3.MeshesRefs {
+			d3.MeshesRefs[i].MarshalStruct(fm)
 		}
-		for i := range d3.Flag4Datas2 {
-			d3.Flag4Datas2[i].MarshalData(fm)
+		for i := range d3.MeshesRefs {
+			d3.MeshesRefs[i].MarshalData(fm)
 		}
 	}
 

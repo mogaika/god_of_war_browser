@@ -207,13 +207,13 @@ func (f *FLP) ImportBmFont(font *Font, mesh *file_mesh.Mesh, bmf *bmfont.Font, s
 			// create new glyph
 			newGlyphId := int16(font.CharsCount)
 			newMeshRef := bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, nil, scale)
-			font.Flag4Datas2 = append(font.Flag4Datas2, *newMeshRef)
+			font.MeshesRefs = append(font.MeshesRefs, *newMeshRef)
 			font.SymbolWidths = append(font.SymbolWidths, charWidth)
 			font.CharsCount++
 			font.CharNumberToSymbolIdMap[ansiiCharId] = newGlyphId
 		} else {
 			// update exists glyph
-			font.Flag4Datas2[glyphId] = *bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, &font.Flag4Datas2[glyphId], scale)
+			font.MeshesRefs[glyphId] = *bmFontNewMeshPartReferenceFromChar(bmf, bmchar, mesh, &font.MeshesRefs[glyphId], scale)
 			font.SymbolWidths[glyphId] = charWidth
 		}
 	}
