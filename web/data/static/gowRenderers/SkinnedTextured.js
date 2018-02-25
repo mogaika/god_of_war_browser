@@ -326,7 +326,10 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
 
         this.renderCycle(ctrl, mdls);
     }
-    console.info("redrawed");
+
+	if (false) {
+		console.info("redrawed");
+	}
 
     this.renderText(ctrl);
 }

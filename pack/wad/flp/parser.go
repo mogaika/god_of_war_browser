@@ -238,18 +238,18 @@ func (d6s1s2 *FrameScriptLabel) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
-	d6s1s2s1.payload = make([]byte, binary.LittleEndian.Uint32(buf[:]))
+	d6s1s2s1.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
 	return DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+len(d6s1s2s1.payload)])
-	return pos + copy(d6s1s2s1.payload, buf[pos:pos+len(d6s1s2s1.payload)])
+	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+int(d6s1s2s1.scriptDataLength)])
+	return pos + int(d6s1s2s1.scriptDataLength)
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
-	d6s2.payload = make([]byte, binary.LittleEndian.Uint32(buf[:]))
+	d6s2.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
 	d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
 	d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
 	return DATA6_SUBTYPE2_ELEMENT_SIZE
@@ -257,8 +257,8 @@ func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 
 func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	d6s2.Script = NewScriptFromData(buf[pos : pos+len(d6s2.payload)])
-	return pos + copy(d6s2.payload, buf[pos:pos+len(d6s2.payload)])
+	d6s2.Script = NewScriptFromData(buf[pos : pos+int(d6s2.scriptDataLength)])
+	return pos + int(d6s2.scriptDataLength)
 }
 
 func (d9 *Transformation) FromBuf(buf []byte) int {
@@ -321,6 +321,8 @@ func (f *FLP) fromBuffer(buf []byte) error {
 		pos += f.DynamicLabels[i].FromBuf(buf[pos:])
 	}
 
+	enterScriptPushRefFiller()
+
 	for i := range f.Datas6 {
 		pos += f.Datas6[i].FromBuf(buf[pos:])
 	}
@@ -339,6 +341,8 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	pos = posPad4(pos)
 	pos += f.Data8.FromBuf(buf[pos:])
 	pos = f.Data8.Parse(buf, pos)
+
+	f.scriptPushRefs = exitScriptPushRefFiller()
 
 	pos = posPad4(pos)
 	for i := range f.Transformations {

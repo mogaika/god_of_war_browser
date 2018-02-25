@@ -49,7 +49,7 @@ type FLP struct {
 	Unk04                 uint32
 	Unk08                 uint32
 	GlobalHandlersIndexes []GlobalHandlerIndex
-	MeshPartReferences    []MeshPartReference
+	MeshPartReferences    []MeshPartReference `json:"-"`
 	Fonts                 []Font
 	StaticLabels          []StaticLabel
 	DynamicLabels         []DynamicLabel `json:"-"`
@@ -59,6 +59,8 @@ type FLP struct {
 	Transformations       []Transformation
 	BlendColors           []BlendColor `json:"-"`
 	Strings               []string     `json:"-"`
+
+	scriptPushRefs []ScriptOpcodeStringPushReference
 }
 
 type GlobalHandler uint16
@@ -158,15 +160,15 @@ type FrameScriptLabel struct {
 }
 
 type Data6Subtype1Subtype2Subtype1 struct {
-	Script  *Script
-	payload []byte
+	Script           *Script
+	scriptDataLength uint32
 }
 
 type Data6Subtype2 struct {
-	EventKeysMask uint32
-	EventUnkMask  uint16
-	Script        *Script
-	payload       []byte
+	EventKeysMask    uint32
+	EventUnkMask     uint16
+	Script           *Script
+	scriptDataLength uint32
 }
 
 type Transformation struct {
@@ -178,7 +180,7 @@ type Transformation struct {
 }
 
 type BlendColor struct {
-	// in range [0, 256]. used 16 bits to better multiply
+	// in range [0, 256]. used 16 bits for better multiply
 	Color [4]uint16 // rgba
 }
 
@@ -196,10 +198,15 @@ type Marshaled struct {
 	Model           interface{}
 	FontCharAliases config.FontCharToAsciiByteAssoc
 	Textures        map[string]interface{}
+	ScriptPushRefs  []ScriptOpcodeStringPushReference
 }
 
 func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
-	mrsh := &Marshaled{FLP: f, Textures: make(map[string]interface{})}
+	mrsh := &Marshaled{
+		FLP:            f,
+		Textures:       make(map[string]interface{}),
+		ScriptPushRefs: f.scriptPushRefs,
+	}
 	if fontaliases, err := config.GetFontAliases(); err == nil {
 		mrsh.FontCharAliases = fontaliases
 	} else {
