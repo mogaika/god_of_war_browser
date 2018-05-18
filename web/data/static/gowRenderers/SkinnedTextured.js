@@ -386,3 +386,4 @@ grRenderChain_SkinnedTextured.prototype.flushScene = function(ctrl) {
     this.skyBatch.clear();
     needRebuildScene = true;
 }
+

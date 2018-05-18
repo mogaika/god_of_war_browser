@@ -2,6 +2,7 @@ package flp
 
 import (
 	"archive/zip"
+	"encoding/base64"
 	"log"
 	"net/http"
 	"strconv"
@@ -59,6 +60,24 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			return
 		}
 		if err := f.actionImportBmFont(wrsrc, zr, scale); err != nil {
+			webutils.WriteError(w, err)
+		}
+	case "scriptstring":
+		q := r.URL.Query()
+		id, err := strconv.ParseInt(q.Get("id"), 10, 32)
+		if err != nil {
+			webutils.WriteError(w, err)
+		}
+		decodedStr, err := base64.StdEncoding.DecodeString(q.Get("string"))
+		if err != nil {
+			webutils.WriteError(w, err)
+		}
+
+		f.scriptPushRefs[id].ChangeString(decodedStr)
+
+		if err := wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
+		}); err != nil {
 			webutils.WriteError(w, err)
 		}
 	}

@@ -132,20 +132,15 @@ func (d3 *Font) MarshalStruct(fm *FlpMarshaler) {
 }
 
 func (d3 *Font) MarshalData(fm *FlpMarshaler) {
-	if d3.Flags&2 != 0 {
-		for i := range d3.Flag2Datas2 {
-			d3.Flag2Datas2[i].MarshalStruct(fm)
-		}
-		for i := range d3.Flag2Datas2 {
-			d3.Flag2Datas2[i].MarshalData(fm)
-		}
+	if d3.Flags&(4|2) == (4 | 2) {
+		panic("d3.Flags &(4|2) == (4|2")
 	}
-	if d3.Flags&4 != 0 {
-		for i := range d3.Flag4Datas2 {
-			d3.Flag4Datas2[i].MarshalStruct(fm)
+	if d3.Flags&2 != 0 || d3.Flags&4 != 0 {
+		for i := range d3.MeshesRefs {
+			d3.MeshesRefs[i].MarshalStruct(fm)
 		}
-		for i := range d3.Flag4Datas2 {
-			d3.Flag4Datas2[i].MarshalData(fm)
+		for i := range d3.MeshesRefs {
+			d3.MeshesRefs[i].MarshalData(fm)
 		}
 	}
 
@@ -276,17 +271,17 @@ func (d6s1s2 *FrameScriptLabel) MarshalData(fm *FlpMarshaler) {
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalStruct(fm *FlpMarshaler) {
-	fm.w32(uint32(len(d6s1s2s1.payload)))
+	fm.w32(uint32(len(d6s1s2s1.Script.Marshal())))
 	fm.skip(4) // placeholder for pointer to array
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
-	fm.buf.Write(d6s1s2s1.payload)
+	fm.buf.Write(d6s1s2s1.Script.marshaled)
 }
 
 func (d6s2 *Data6Subtype2) MarshalStruct(fm *FlpMarshaler) {
-	fm.w32(uint32(len(d6s2.payload)))
+	fm.w32(uint32(len(d6s2.Script.Marshal())))
 	fm.skip(4) // placeholder for pointer to script payload
 	fm.w32(d6s2.EventKeysMask)
 	fm.w16(d6s2.EventUnkMask)
@@ -295,7 +290,7 @@ func (d6s2 *Data6Subtype2) MarshalStruct(fm *FlpMarshaler) {
 
 func (d6s2 *Data6Subtype2) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
-	fm.buf.Write(d6s2.payload)
+	fm.buf.Write(d6s2.Script.marshaled)
 }
 
 func (d9 *Transformation) MarshalStruct(fm *FlpMarshaler) {
