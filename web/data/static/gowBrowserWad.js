@@ -905,6 +905,83 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));
     }
 
+    var flp_scripts_strings = function() {
+        set3dVisible(false);
+        dataSummary.empty();
+
+        var tbody = $("<tbody>");
+        for (var iRef in flp.ScriptPushRefs) {
+            var tr = $("<tr>");
+            var ref = flp.ScriptPushRefs[iRef];
+
+            var str = atob(ref.String);
+            if (flp.FontCharAliases) {
+                var originalStr = str;
+                str = "";
+                for (var i = 0; i < originalStr.length; i++) {
+                    var charCode = originalStr.charCodeAt(i);
+                    var replaced = false;
+
+                    for (var charToReplace in flp.FontCharAliases) {
+                        if (flp.FontCharAliases[charToReplace] === charCode) {
+                            str += String.fromCharCode(charToReplace);
+                            replaced = true;
+                            break;
+                        }
+                    }
+
+                    if (replaced === false) {
+                        str += String.fromCharCode(charCode);
+                    }
+                }
+            }
+
+            tr.append($("<td>").text(iRef));
+            tr.append($("<td>").append($("<input type=text>").val(str).css("width", "100%")));
+            tr.append($("<td>").append($("<button>").text("Update").click(
+                function(ev) {
+                    var str = $(this).parent().parent().find('input[type="text"]').val();
+                    var id = Number.parseInt($(this).parent().parent().children().first().text());
+
+                    if (flp.FontCharAliases) {
+                        var originalStr = str;
+                        str = "";
+                        for (var char of originalStr) {
+                            if (flp.FontCharAliases.hasOwnProperty(char.charCodeAt(0))) {
+                                str += String.fromCharCode(flp.FontCharAliases[char.charCodeAt(0)]);
+                            } else {
+                                str += char;
+                            }
+                        }
+                    }
+
+                    $.get({
+                        url: getActionLinkForWadNode(wad, tagid, 'scriptstring'),
+                        data: {
+                            'id': id,
+                            'string': btoa(str)
+                        },
+                        success: function(a) {
+                            if (a == "") {
+                                alert("Success");
+                            } else {
+                                alert("Error: " + a);
+                            }
+                        }
+                    });
+                }
+            )));
+            tbody.append(tr);
+        }
+
+        var headtr = $("<tr>");
+        headtr.append($("<td>").text("Id"));
+        headtr.append($("<td>").text("Text"));
+        headtr.append($("<td>"));
+
+        dataSummary.append($("<table>").width("100%").append($("<thead>").append(headtr)).append(tbody));
+    }
+
     var flp_list_labels = function() {
         set3dVisible(false);
         dataSummary.empty();
@@ -973,7 +1050,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             }
 
             var get_label_from_table_tr = function(tr) {
-                console.log("get label from table", tr);
                 var sl = {
                     'Transformation': JSON.parse(tr.find("td").last().text()),
                     'RenderCommandsList': [],
@@ -1030,16 +1106,16 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             }
 
             var btns = $("<div>");
-            btns.append($("<td>").append($("<button>peview original</button>").click(sl, function(e) {
+            btns.append($("<button>peview original</button>").click(sl, function(e) {
                 open_preview_for_label(e.data);
-            })));
+            }));
             btns.append($("<br>"));
-            btns.append($("<td>").append($("<button>preview changes</button>").click(function(e) {
-                open_preview_for_label(get_label_from_table_tr($(this).parent().parent().parent().parent()));
-            })));
+            btns.append($("<button>preview changes</button>").click(function(e) {
+                open_preview_for_label(get_label_from_table_tr($(this).parent().parent().parent()));
+            }));
             btns.append($("<br>"));
-            btns.append($("<td>").append($("<button>apply changes</button>").click(iSl, function(e) {
-                var sl = get_label_from_table_tr($(this).parent().parent().parent().parent());
+            btns.append($("<button>apply changes</button>").click(iSl, function(e) {
+                var sl = get_label_from_table_tr($(this).parent().parent().parent());
 
                 $.post({
                     url: getActionLinkForWadNode(wad, tagid, 'staticlabels'),
@@ -1057,7 +1133,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     }
                 });
 
-            })));
+            }));
 
             row.append($("<td>").append(cmdsContainer));
             row.append($("<td>").append(btns));
@@ -1107,8 +1183,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     continue;
                 }
 
-                var flagsdatas2 = ((!!font.Flag4Datas2) ? font.Flag4Datas2 : font.Flag2Datas2);
-                var chrdata = flagsdatas2[glyphId];
+                var chrdata = font.MeshesRefs[glyphId];
 
                 var meshes = [];
                 if (chrdata.MeshPartIndex !== -1) {
@@ -1148,8 +1223,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                 var char = String.fromCharCode(iChar);
                 if (flp.FontCharAliases) {
-                    var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
-                        return flp.FontCharAliases[charString] == iChar
+                    var map_chars = Object.keys(flp.FontCharAliases).filter(function(charUnicode) {
+                        return flp.FontCharAliases[charUnicode] == iChar
                     });
                     if (map_chars && map_chars.length !== 0) {
                         char = String.fromCharCode(map_chars[0]);
@@ -1183,6 +1258,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_list_labels).text("Labels editor"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
+    dataSummarySelectors.append($('<div class="item-selector">').click(flp_scripts_strings).text("Scripts strings"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
 
     flp_list_labels();

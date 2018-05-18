@@ -54,6 +54,8 @@ type Tag struct {
 	Name   string
 	Data   []byte `json:"-"`
 	NodeId NodeId
+
+	DebugPos uint32
 }
 
 type Node struct {
@@ -178,6 +180,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 
 		if pos, err := r.Seek(0, os.SEEK_CUR); err == nil {
 			pos = int64(alignToWadTag(int(pos)))
+			t.DebugPos = uint32(pos)
 			if _, err := r.Seek(pos, os.SEEK_SET); err != nil {
 				return fmt.Errorf("Error when seek_set: %v", err)
 			}
@@ -284,7 +287,7 @@ func (w *Wad) parseTags() error {
 			// data loading structs cleanup
 			addNode(tag)
 		default:
-			return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s", tag.Id, tag.Tag, tag.Name)
+			return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s offset 0x%.6x", tag.Id, tag.Tag, tag.Name, tag.DebugPos)
 		}
 	}
 
