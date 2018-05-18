@@ -74,13 +74,11 @@ func NewFromData(data []byte) (*Animations, error) {
 		Groups:    make([]AnimGroup, u16(data, 0x12)),
 	}
 
-	/*
-		defer func() {
-			if r := recover(); r != nil {
-				utils.LogDump("Animation parsing panic: %v", r)
-			}
-		}()
-	*/
+	defer func() {
+		if r := recover(); r != nil {
+			utils.LogDump("Animation parsing panic: %v", r)
+		}
+	}()
 
 	flags := u32(data, 8)
 	a.ParsedFlags.Flag0AutoplayProbably = flags&0x1 != 0
