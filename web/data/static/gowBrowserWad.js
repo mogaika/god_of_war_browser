@@ -955,17 +955,17 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                         }
                     }
 
-                    $.get({
+                    $.ajax({
                         url: getActionLinkForWadNode(wad, tagid, 'scriptstring'),
                         data: {
                             'id': id,
                             'string': btoa(str)
                         },
                         success: function(a) {
-                            if (a == "") {
-                                alert("Success");
+                            if (a != "" && a.error) {
+                                alert("Error: " + a.error);
                             } else {
-                                alert("Error: " + a);
+                                alert("Success");
                             }
                         }
                     });
@@ -1123,12 +1123,11 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                         'id': e.data,
                         'sl': JSON.stringify(sl)
                     },
-                    success: function(a1) {
-                        if (a1 !== "") {
-                            alert('Error uploading: ' + a1);
+                    success: function(a) {
+                        if (a != "" && a.error) {
+                            alert('Error uploading: ' + a.error);
                         } else {
                             alert('Success!');
-                            //window.location.reload();
                         }
                     }
                 });

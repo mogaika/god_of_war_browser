@@ -19,9 +19,10 @@ import (
 
 type IsoDriver struct {
 	Files            map[string]*toc.File
+	PaksCount        int
 	IsoFile          *os.File
 	IsoLayers        [2]*udf.Udf
-	PackStreams      [toc.PARTS_COUNT]*io.SectionReader
+	PackStreams      []*io.SectionReader
 	IsoPath          string
 	Cache            *pack.InstanceCache
 	SecondLayerStart int64
@@ -41,7 +42,7 @@ func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
 	return nil, -1
 }
 
-func (p *IsoDriver) prepareStreams() error {
+func (p *IsoDriver) prepareIsoStreams() error {
 	if p.IsoFile == nil || p.IsoLayers[0] == nil {
 		var err error
 		if p.IsoFile, err = os.OpenFile(p.IsoPath, os.O_RDWR|os.O_SYNC, 0666); err != nil {
@@ -65,31 +66,62 @@ func (p *IsoDriver) prepareStreams() error {
 					p.IsoLayers[1] = udf.NewUdfFromReader(io.NewSectionReader(p.IsoFile, volumeSize, isoinfo.Size()-volumeSize))
 					log.Printf("[pack] Detected second layer of disk. Start: %x (%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
 					p.SecondLayerStart = volumeSize
+
+					/*
+						TODO: remove and and function to dump packs in folder
+						f, err := os.Create("PART2.PAK")
+						defer f.Close()
+						if err != nil {
+							panic(err)
+						}
+						io.Copy(f, io.NewSectionReader(p.IsoFile, volumeSize, isoinfo.Size()-volumeSize))
+					*/
 				}
 			}
 		} else {
 			log.Printf("[pack] Cannot stat iso file: %v", err)
 		}
+	}
+	return nil
+}
 
-		for i := range p.PackStreams {
-			if f, _ := p.openIsoFile(toc.GenPartFileName(i)); f != nil {
-				p.PackStreams[i] = f.NewReader()
-			} else {
-				p.PackStreams[i] = nil
-			}
+func (p *IsoDriver) preparePackStreams() error {
+	if p.PaksCount == 0 {
+		panic("p.PaksCount == 0, probably you have some problems with reading toc file or pack files naming")
+	}
+	if p.PackStreams != nil {
+		return nil
+	}
+	log.Println("[pack] Preparing pack streams")
+	p.PackStreams = make([]*io.SectionReader, p.PaksCount)
+	for i := range p.PackStreams {
+		packName := toc.GenPartFileName(i)
+		if f, _ := p.openIsoFile(packName); f != nil {
+			p.PackStreams[i] = f.NewReader()
+		} else {
+			log.Println("[pack] WARNING: Cannot open pack stream '%s'", packName)
+			p.PackStreams[i] = nil
 		}
 	}
 	return nil
 }
 
 func (p *IsoDriver) parseFilesFromTok() error {
-	if err := p.prepareStreams(); err != nil {
+	var err error
+	var tocEntries []toc.Entry
+
+	if err := p.prepareIsoStreams(); err != nil {
 		return err
 	}
-	var err error
+
 	tocIso, _ := p.openIsoFile(toc.GetTocFileName())
-	p.Files, _, err = toc.ParseFiles(tocIso.NewReader())
-	return err
+
+	if p.Files, tocEntries, err = toc.ParseFiles(tocIso.NewReader()); err != nil {
+		return err
+	}
+
+	p.PaksCount = toc.GetPacksCount(tocEntries)
+	return p.preparePackStreams()
 }
 
 func (p *IsoDriver) GetFileNamesList() []string {
@@ -101,7 +133,10 @@ func (p *IsoDriver) GetFile(fileName string) (pack.PackFile, error) {
 }
 
 func (p *IsoDriver) GetFileReader(fileName string) (pack.PackFile, *io.SectionReader, error) {
-	if err := p.prepareStreams(); err != nil {
+	if err := p.prepareIsoStreams(); err != nil {
+		return nil, nil, err
+	}
+	if err := p.preparePackStreams(); err != nil {
 		return nil, nil, err
 	}
 	if f, exists := p.Files[fileName]; exists {
@@ -128,7 +163,9 @@ func (p *IsoDriver) closeStreams() {
 	for i := range p.IsoLayers {
 		p.IsoLayers[i] = nil
 	}
-	log.Println("Close: ", p.IsoFile.Close())
+	log.Println("[pack] Closing pack streams")
+	p.PackStreams = nil
+	log.Println("[pack] Close: ", p.IsoFile.Close())
 	p.IsoFile = nil
 }
 
@@ -181,7 +218,7 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 
 	var tocbuf bytes.Buffer
 
-	var packStreams [toc.PARTS_COUNT]utils.ReaderWriterAt
+	packStreams := make([]utils.ReaderWriterAt, len(p.PackStreams))
 	for i := range packStreams {
 		packStreams[i] = p.openIsoFileReaderWriterAt(toc.GenPartFileName(i))
 	}
@@ -198,9 +235,6 @@ func NewPackFromIso(isoPath string) (*IsoDriver, error) {
 	p := &IsoDriver{
 		IsoPath: isoPath,
 		Cache:   &pack.InstanceCache{},
-	}
-	if err := p.prepareStreams(); err != nil {
-		return nil, err
 	}
 	return p, p.parseFilesFromTok()
 }

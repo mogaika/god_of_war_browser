@@ -15,10 +15,11 @@ import (
 )
 
 type TocDriver struct {
-	Files     map[string]*toc.File
-	Streams   [toc.PARTS_COUNT]*os.File
-	Directory string
-	Cache     *pack.InstanceCache
+	Files      map[string]*toc.File
+	Streams    []*os.File
+	PacksCount int
+	Directory  string
+	Cache      *pack.InstanceCache
 }
 
 func (p *TocDriver) GetFileNamesList() []string {
@@ -106,8 +107,8 @@ func (p *TocDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 	}
 	p.closeStreams()
 
-	var fParts [toc.PARTS_COUNT]*os.File
-	var partWriters [toc.PARTS_COUNT]utils.ReaderWriterAt
+	fParts := make([]*os.File, len(p.Streams))
+	partWriters := make([]utils.ReaderWriterAt, len(p.Streams))
 	defer func() {
 		for _, part := range fParts {
 			if part != nil {
@@ -144,7 +145,10 @@ func (p *TocDriver) parseTocFile() error {
 	if tocStream, err := os.Open(p.tocGetFileName()); err == nil {
 		defer tocStream.Close()
 		log.Printf("[pack] Parsing toc '%s'", p.tocGetFileName())
-		p.Files, _, err = toc.ParseFiles(tocStream)
+		var tocEntries []toc.Entry
+		p.Files, tocEntries, err = toc.ParseFiles(tocStream)
+		p.PacksCount = toc.GetPacksCount(tocEntries)
+		p.Streams = make([]*os.File, p.PacksCount)
 		return err
 	} else {
 		return err
