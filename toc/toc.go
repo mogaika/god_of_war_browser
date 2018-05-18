@@ -12,11 +12,12 @@ import (
 
 var ZEROENTRY [0xc]byte
 var tocFileNameOverride string
-var packFileNamesOverrides [PARTS_COUNT]string
+var packFileNamePrefix string
+var packFileNamePostfix string
+var packFileNameUseIndexing bool
 
 const (
 	ENTRY_SIZE       = 24
-	PARTS_COUNT      = 2
 	TOC_FILE_NAME    = "GODOFWAR.TOC"
 	SANITY_FILE_NAME = "SANITY.TXT"
 )
@@ -49,9 +50,16 @@ type Entry struct {
 func TocNameOverride(newName string) {
 	tocFileNameOverride = newName
 }
+func PartNamePrefix(newPrefix string) {
+	packFileNamePrefix = newPrefix
+}
 
-func PartNameOverride(partIndex int, newName string) {
-	packFileNamesOverrides[partIndex] = newName
+func PartNamePostfix(newPostfix string) {
+	packFileNamePostfix = newPostfix
+}
+
+func PartNameUseIndexing(useIndexing bool) {
+	packFileNameUseIndexing = useIndexing
 }
 
 func GetTocFileName() string {
@@ -63,10 +71,13 @@ func GetTocFileName() string {
 }
 
 func GenPartFileName(partIndex int) string {
-	if packName := packFileNamesOverrides[partIndex]; packName == "" {
-		return fmt.Sprintf("PART%d.PAK", partIndex+1)
+	if packFileNameUseIndexing {
+		return fmt.Sprintf("%s%d%s", packFileNamePrefix, partIndex+1, packFileNamePostfix)
 	} else {
-		return packName
+		if partIndex > 0 {
+			log.Println("WARNING: Your toc use multi-part part storage, but you provide -partindexing=false flag that prevent multi-part usage")
+		}
+		return packFileNamePrefix + packFileNamePostfix
 	}
 }
 
@@ -134,12 +145,22 @@ func ParseFiles(tocStream io.Reader) (map[string]*File, []Entry, error) {
 	return ParseEntiesArray(entries), entries, nil
 }
 
+func GetPacksCount(entries []Entry) int {
+	packs := 0
+	for i := range entries {
+		if entries[i].Enc.Pack >= packs {
+			packs = entries[i].Enc.Pack + 1
+		}
+	}
+	return packs
+}
+
 var dataCopyPreallocatedBuffer [512 * utils.SECTOR_SIZE]byte
 
 // Copy data between or packs inside one pack
 // Allowing overlap destination and source
 // size parameter must be in bytes count, not in sectors count
-func CopyDataBetweenPackStreams(to FileEncounter, from FileEncounter, size int64, partStreams [PARTS_COUNT]utils.ReaderWriterAt) error {
+func CopyDataBetweenPackStreams(to FileEncounter, from FileEncounter, size int64, partStreams []utils.ReaderWriterAt) error {
 	if to.Pack == from.Pack && to.Start == from.Start {
 		// Data already in place
 		return nil
@@ -183,9 +204,9 @@ func CopyDataBetweenPackStreams(to FileEncounter, from FileEncounter, size int64
 // Shrink files in pack
 // Move files in begin of packs (first pack have priority over next)
 // Reading on dvd disk ps2 version slowed after shrinkig :(
-func shrinkPackFiles(originalTocsEntries []Entry, partStreams [PARTS_COUNT]utils.ReaderWriterAt) ([]Entry, error) {
-	var streamOffsetsSectors [PARTS_COUNT]int64
-	var partsTocens [PARTS_COUNT][]Entry
+func shrinkPackFiles(originalTocsEntries []Entry, partStreams []utils.ReaderWriterAt) ([]Entry, error) {
+	streamOffsetsSectors := make([]int64, len(partStreams))
+	partsTocens := make([][]Entry, len(partStreams))
 	for i := range partsTocens {
 		partsTocens[i] = make([]Entry, 0)
 	}
@@ -229,7 +250,7 @@ func shrinkPackFiles(originalTocsEntries []Entry, partStreams [PARTS_COUNT]utils
 	return resultTocens, nil
 }
 
-func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
+func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
 	log.Println("Updating toc+parts with increacing required sectors count")
 	_, originalEntries, err := ParseFiles(fTocOriginal)
 	if err != nil {
@@ -246,7 +267,7 @@ func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, par
 
 	findPlaceInPartWithSuchFreeSectors := func(entries []Entry, sectors int64) *FileEncounter {
 		// return last entry in pack
-		var packLasts [PARTS_COUNT]int64
+		packLasts := make([]int64, len(partStreams))
 		for iPack := range partStreams {
 			packLasts[iPack] = int64(0)
 			for _, e := range entries {
@@ -333,7 +354,7 @@ func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, par
 }
 
 // do not reorder files in pack
-func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
+func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
 	log.Println("Updating toc+parts without increacing required sectors count")
 	// update sizes in toc file, if changed
 	files, entries, err := ParseFiles(fTocOriginal)
@@ -372,7 +393,7 @@ func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, 
 	return nil
 }
 
-func UpdateFile(fTocOriginal io.Reader, fTocNew io.Writer, partStreams [PARTS_COUNT]utils.ReaderWriterAt, f *File, in *io.SectionReader) error {
+func UpdateFile(fTocOriginal io.Reader, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, f *File, in *io.SectionReader) error {
 	if in.Size()/utils.SECTOR_SIZE > f.Size()/utils.SECTOR_SIZE {
 		return updateFileWithIncreacingSize(fTocOriginal, fTocNew, partStreams, f.Name(), in)
 	} else {

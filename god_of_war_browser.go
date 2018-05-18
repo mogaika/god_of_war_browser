@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/web"
@@ -33,21 +34,28 @@ import (
 )
 
 func main() {
-	var addr, tocpath, dir, iso, part1name, part2name, tocname string
+	var addr, tocpath, dir, iso, partprefix, partpostfix, tocname string
+	var partindexing bool
+	var gowversion int
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
 	flag.StringVar(&dir, "dir", "", "Path to unpacked wads and other stuff")
 	flag.StringVar(&iso, "iso", "", "Pack to iso file")
-	flag.StringVar(&part1name, "partname1", "", "PART1.PAK name override")
-	flag.StringVar(&part2name, "partname2", "", "PART2.PAK name override")
+	flag.StringVar(&partprefix, "partprefix", "PART", "PAK name prefix override")
+	flag.StringVar(&partpostfix, "partpostfix", ".PAK", "PAK name postfix override")
+	flag.BoolVar(&partindexing, "partindexing", true, "use -partprefix%index%.PAK naming, or use -partprefix name instead")
 	flag.StringVar(&tocname, "tocname", "", "GODOFWAR.TOC name override")
+	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1 ps2', 2 - 'gow2 ps2'")
 	flag.Parse()
 
 	var p pack.PackDriver
 	var err error
 
-	toc.PartNameOverride(0, part1name)
-	toc.PartNameOverride(1, part2name)
+	config.SetGOWVersion(config.GOWVersion(gowversion))
+
+	toc.PartNamePrefix(partprefix)
+	toc.PartNamePostfix(partpostfix)
+	toc.PartNameUseIndexing(partindexing)
 	toc.TocNameOverride(tocname)
 
 	if iso != "" {
