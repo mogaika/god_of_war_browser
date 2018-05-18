@@ -1,5 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mogaika/god_of_war_browser)](https://goreportcard.com/report/github.com/mogaika/god_of_war_browser)
-[![Build status](https://ci.appveyor.com/api/projects/status/n4w8rkn30sl6oqbp?svg=true)](https://ci.appveyor.com/project/mogaika/god-of-war-browser/build/artifacts)
+[![Build status](https://ci.appveyor.com/api/projects/status/n4w8rkn30sl6oqbp/branch/master?svg=true)](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master)
 
 ![gow_browser_logo](https://user-images.githubusercontent.com/3680954/28489831-6ec1c660-6edd-11e7-9b08-7c79b20196d8.png)
 
@@ -9,7 +9,7 @@ Also working with: *European multilang version*.
 Some functional broken on: *Jp version*.
 
 ## Instruction
-- Download and unzip [lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/build/artifacts)
+- Download and unzip [lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 - Open console and launch binary with one of the argument
   - ```-iso "Path_to_game_ISO_file"``` if you have iso file (detection of second layer implemented)
   - ```-toc "Path_to_directory_with_GODOFWAR.TOC_and_PART?.pak_files"``` if you have unpacked iso
