@@ -11,14 +11,14 @@ import (
 const ANIMATIONS_MAGIC = 0x00000003
 
 const (
-	DATATYPE_SKINNING  = 0  // apply to object (matrices)
-	DATATYPE_MATERIAL  = 3  // apply to material (color)
-	DATATYPE_UNKNOWN5  = 5  // apply to object (show/hide maybe)
-	DATATYPE_TEXUREPOS = 8  // apply to material (uv)
-	DATATYPE_UNKNOWN9  = 9  // apply to material (changes data_id of gfx palette indexes, like gif frame)
-	DATATYPE_PARTICLES = 10 // apply to object (particles), probably additive matricies animation?, or physical affect body affect
-	DATATYPE_UNKNOWN11 = 11 // apply to object (? in StonedBRK models)
-	DATATYPE_UNKNOWN12 = 12 // apply to object (? in flagGrp and chest models)
+	DATATYPE_SKINNING     = 0  // apply to object (matrices)
+	DATATYPE_MATERIAL     = 3  // apply to material (color)
+	DATATYPE_UNKNOWN5     = 5  // apply to object (show/hide maybe)
+	DATATYPE_TEXUREPOS    = 8  // apply to material (uv)
+	DATATYPE_TEXTURESHEET = 9  // apply to material (changes data_id of gfx palette indexes, like gif frame)
+	DATATYPE_PARTICLES    = 10 // apply to object (particles), probably additive matricies animation?, or physical affect body affect
+	DATATYPE_UNKNOWN11    = 11 // apply to object (? in StonedBRK models)
+	DATATYPE_UNKNOWN12    = 12 // apply to object (? in flagGrp and chest models)
 	// total - 15 types
 )
 
@@ -29,6 +29,7 @@ type AnimDatatype struct {
 }
 
 type AnimActStateDescr struct {
+	Unk0             uint16
 	OffsetToData     uint32
 	CountOfSomething uint16
 	ImportantFloat   float32
@@ -49,6 +50,13 @@ type AnimGroup struct {
 }
 
 type Animations struct {
+	ParsedFlags struct {
+		Flag0AutoplayProbably bool
+		JointRotationAnimated bool
+		JointPositionAnimated bool
+		JointScaleAnimated    bool
+	}
+
 	DataTypes []AnimDatatype
 	Groups    []AnimGroup
 }
@@ -65,6 +73,20 @@ func NewFromData(data []byte) (*Animations, error) {
 		DataTypes: make([]AnimDatatype, u16(data, 0x10)),
 		Groups:    make([]AnimGroup, u16(data, 0x12)),
 	}
+
+	/*
+		defer func() {
+			if r := recover(); r != nil {
+				utils.LogDump("Animation parsing panic: %v", r)
+			}
+		}()
+	*/
+
+	flags := u32(data, 8)
+	a.ParsedFlags.Flag0AutoplayProbably = flags&0x1 != 0
+	a.ParsedFlags.JointRotationAnimated = flags&0x1000 != 0
+	a.ParsedFlags.JointPositionAnimated = flags&0x2000 != 0
+	a.ParsedFlags.JointScaleAnimated = flags&0x4000 != 0
 
 	rawFormats := data[0x18+len(a.Groups)*4:]
 	for i := range a.DataTypes {
@@ -95,17 +117,37 @@ func NewFromData(data []byte) (*Animations, error) {
 				act.Name = utils.BytesToString(rawAct[0x24:0x3c])
 
 				act.StateDescrs = make([]AnimActStateDescr, len(a.DataTypes))
-				for i := range act.StateDescrs {
-					sd := &act.StateDescrs[i]
-					rawActStateDescr := rawAct[0x64+i*0x14:]
+				for iStateDescr := range act.StateDescrs {
+					sd := &act.StateDescrs[iStateDescr]
+					rawActStateDescr := rawAct[0x64+iStateDescr*0x14:]
+
+					sd.Unk0 = u16(rawActStateDescr, 0)
 					sd.CountOfSomething = u16(rawActStateDescr, 2)
 					sd.OffsetToData = u32(rawActStateDescr, 8)
 					sd.ImportantFloat = math.Float32frombits(u32(rawActStateDescr, 0xc))
 
-					//log.Println(i, a.DataTypes, a.DataTypes[i].TypeId)
-					switch a.DataTypes[i].TypeId {
-					case 8:
-						sd.Data = AnimState8TextureposFromBuf(&a.DataTypes[i], rawAct[sd.OffsetToData:])
+					//log.Println(iStateDescr, a.DataTypes, a.DataTypes[iStateDescr].TypeId)
+					switch a.DataTypes[iStateDescr].TypeId {
+					case DATATYPE_TEXUREPOS:
+						data := make([]*AnimState8Texturepos, sd.CountOfSomething)
+						for i := 0; i < int(sd.CountOfSomething); i++ {
+							data[i] = AnimState8TextureposFromBuf(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i)
+						}
+						sd.Data = data
+					case DATATYPE_SKINNING:
+						data := make([]*AnimState0Skinning, sd.CountOfSomething)
+						for i := 0; i < int(sd.CountOfSomething); i++ {
+							data[i] = AnimState0SkinningFromBuf(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i)
+						}
+						sd.Data = data
+					case DATATYPE_TEXTURESHEET:
+						buf := rawAct[sd.OffsetToData:]
+						data := make([]uint32, u16(buf, 4))
+						dataBuf := buf[u16(buf, 0xa):]
+						for i := range data {
+							data[i] = u32(dataBuf, uint32(i*4))
+						}
+						sd.Data = data
 					}
 
 				}

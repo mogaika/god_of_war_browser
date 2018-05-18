@@ -1,5 +1,7 @@
 'use strict';
 
+var gw_cxt_group_loading = false;
+
 function treeLoadWad_dumpButtons(li, wadName, tag) {
     li.append($('<div>')
         .addClass('button-upload')
@@ -60,15 +62,28 @@ function treeLoadWadAsNodes(wadName, data) {
     $('#view-item-filter').trigger('input');
     $('#view-tree ol li label').click(function(ev) {
         var node_element = $(this).parent();
-        treeLoadWadNode(wadName, parseInt(node_element.attr('nodeid')));
+        var node_id = parseInt(node_element.attr('nodeid'));
+        if (node_id !== 0) {
+            gw_cxt_group_loading = false;
+            treeLoadWadNode(wadName, node_id);
+        } else {
+            setLocation(wadName + " => " + node_element.attr('nodename'), '#/' + wadName + '/' + 0);
+            dataSummary.empty();
+            gr_instance.cleanup();
+            $("#view-tree ol li").each(function(i, node) {
+                gw_cxt_group_loading = true;
+                var $node = $(node);
+                if ($node.attr("nodename").startsWith("CXT_")) {
+                    treeLoadWadNode(wadName, $node.attr("nodeid"));
+                }
+            });
+        }
     });
 }
 
 function treeLoadWadAsTags(wadName, data) {
     wad_last_load_view_type = 'tags';
     dataTree.empty();
-
-    console.log(data);
 
     var ol = $('<ol>');
     for (var tagId in data.Tags) {
@@ -102,7 +117,8 @@ function treeLoadWadAsTags(wadName, data) {
     $('#view-item-filter').trigger('input');
     $('#view-tree ol li label').click(function(ev) {
         var node_element = $(this).parent();
-        treeLoadWadTag(wadName, parseInt(node_element.attr('tagid')));
+        var tagid = parseInt(node_element.attr('tagid'));
+        treeLoadWadTag(wadName, tagid);
     });
 }
 
@@ -124,8 +140,10 @@ function treeLoadWadNode(wad, tagid) {
             dataSummary.append(resp.error);
             needHexDump = true;
         } else {
-            setTitle(viewSummary, tag.Name);
-            setLocation(wad + " => " + tag.Name, '#/' + wad + '/' + tagid);
+            if (!gw_cxt_group_loading) {
+                setTitle(viewSummary, tag.Name);
+                setLocation(wad + " => " + tag.Name, '#/' + wad + '/' + tagid);
+            }
 
             if (tag.Tag == 0x1e) {
                 switch (resp.ServerId) {
@@ -328,7 +346,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                 var meshes = [];
                 for (var iPacket in skin) {
                     var packet = skin[iPacket];
-                    var mesh = parseMeshPacket(object, packet)
+                    var mesh = parseMeshPacket(object, packet);
                     meshes.push(mesh);
                     totalMeshes.push(mesh);
                     model.addMesh(mesh);
@@ -366,7 +384,7 @@ function loadMeshFromAjax(model, data, needTable = false) {
     for (var iPart in data.Parts) {
         loadMeshPartFromAjax(model, data, iPart, table);
     }
-	gr_instance.flushScene();
+    gr_instance.flushScene();
     return table;
 }
 
@@ -392,67 +410,68 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
         table = loadMeshFromAjax(mdl, data.Meshes[0], needTable);
     }
 
-    for (var i in data.Materials) {
+    for (var iMaterial in data.Materials) {
         var material = new grMaterial();
 
-        var textures = data.Materials[i].Textures;
-        var rawMat = data.Materials[i].Mat;
+        var textures = data.Materials[iMaterial].Textures;
+        var rawMat = data.Materials[iMaterial].Mat;
         material.setColor(rawMat.Color);
 
-		for (var iLayer in rawMat.Layers) {
-			var rawLayer = rawMat.Layers[iLayer];
-			var layer = new grMaterialLayer();
+        for (var iLayer in rawMat.Layers) {
+            var rawLayer = rawMat.Layers[iLayer];
+            var layer = new grMaterialLayer();
 
-			layer.setColor(rawLayer.BlendColor);
-            if (rawLayer.ParsedFlags.RenderingSubstract      === true) { layer.setMethodSubstract(); }
-            if (rawLayer.ParsedFlags.RenderingUsual          === true) { layer.setMethodNormal(); }
-            if (rawLayer.ParsedFlags.RenderingAdditive       === true) { layer.setMethodAdditive(); }
-			if (rawLayer.ParsedFlags.RenderingStrangeBlended === true) { layer.setMethodUnknown(); }
+            layer.setColor(rawLayer.BlendColor);
+            if (rawLayer.ParsedFlags.RenderingSubstract === true) {
+                layer.setMethodSubstract();
+            }
+            if (rawLayer.ParsedFlags.RenderingUsual === true) {
+                layer.setMethodNormal();
+            }
+            if (rawLayer.ParsedFlags.RenderingAdditive === true) {
+                layer.setMethodAdditive();
+            }
+            if (rawLayer.ParsedFlags.RenderingStrangeBlended === true) {
+                layer.setMethodUnknown();
+            }
 
-			if (textures && textures[iLayer] && textures[iLayer].Images) {
-				var imgs = textures[iLayer].Images;
-				if (imgs.hasOwnProperty(iLayer)) {
-					layer.setDiffuse(new grTexture('data:image/png;base64,' + imgs[0].Image));
-					layer.setHasAlphaAttribute(textures[iLayer].HaveTransparent);
-				}
-			}
-			material.addLayer(layer);
-		}
+            if (textures && textures[iLayer] && textures[iLayer].Images) {
+                var imgs = textures[iLayer].Images;
+                if (imgs.hasOwnProperty(iLayer)) {
+                    var txrs = [];
+                    for (var iImg in imgs) {
+                        txrs.push(new grTexture('data:image/png;base64,' + imgs[iImg].Image));
+                    }
+                    layer.setTextures(txrs);
+                    layer.setHasAlphaAttribute(textures[iLayer].HaveTransparent);
+                }
+            }
+            material.addLayer(layer);
+        }
         mdl.addMaterial(material);
-		
-		var anim = data.Materials[i].Animations;
-		if (anim && anim.Groups && anim.Groups.length) {
-			var group = anim.Groups[0];
-			console.log(anim);
-			if (!group.IsExternal && group.Acts && group.Acts.length) {
-				var act = group.Acts[0];
-				console.log(act);
-				for (var iStateDesc in act.StateDescrs) {
-					var stateDesc = act.StateDescrs[iStateDesc];
-					var dataType = anim.DataTypes[iStateDesc];
-					if (dataType.TypeId == 8) {
-						var layer = material.layers[dataType.Param1 & 0x7f];
-						layer.step = 0;
-						layer.timer = setInterval(function(_layer, _sd){
-							_layer.step += 1;
-							if (_layer.step >= _sd.Data.DatasCount) {
-								_layer.step -= _sd.Data.DatasCount;
-							}
-							
-							for (var key in _sd.Data.Stream) {
-								var stream = _sd.Data.Stream[key];
-								switch (key) {
-									case "U": _layer.uvoffset[0] = stream[_layer.step]; break;
-									case "V": _layer.uvoffset[1] = stream[_layer.step]; break;
-								}
-							}
-														
-							gr_instance.requestRedraw();
-						}, 50, layer, stateDesc);
-					}
-				}
-			}
-		}
+
+        var anim = data.Materials[iMaterial].Animations;
+        if (anim && anim.Groups && anim.Groups.length) {
+            var group = anim.Groups[0];
+            if (!group.IsExternal && group.Acts && group.Acts.length) {
+                for (var iAct in group.Acts) {
+                    var act = group.Acts[iAct];
+                    for (var dt in anim.DataTypes) {
+                        switch (anim.DataTypes[dt].TypeId) {
+                            case 8:
+                                var animInstance = new gaMatertialLayerAnimation(anim, act, dt, material);
+                                animInstance.enable();
+                                ga_instance.addAnimation(animInstance);
+                                break;
+                            case 9:
+                                var animSheetInstance = new gaMatertialSheetAnimation(anim, act, dt, material);
+                                ga_instance.addAnimation(animSheetInstance);
+                                break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (parseScripts) {
@@ -772,9 +791,11 @@ function loadCxtFromAjax(data, parseScripts = true) {
 }
 
 function summaryLoadWadCxt(data, wad, nodeid) {
-    gr_instance.cleanup();
+    if (!gw_cxt_group_loading) {
+        gr_instance.cleanup();
+    }
 
-    if (data.Instances !== null && data.Instances.length) {
+    if ((data.Instances !== null && data.Instances.length) || gw_cxt_group_loading) {
         set3dVisible(true);
         loadCxtFromAjax(data);
         gr_instance.requestRedraw();
@@ -1054,20 +1075,20 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
 
-		var importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
+        var importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
         var importBMFontInput = $('<button>');
         importBMFontInput.text('Import glyphs from BMFont file');
         importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(function() {
-			$(this).attr('href', getActionLinkForWadNode(wad, tagid, 'importbmfont', 'scale=' + $("#importbmfontscale").val()));
-			console.log($(this).attr('href'));
-			uploadAjaxHandler.call(this);
-		});
-		var importDiv = $('<div id="flpimportfont">');
-		importDiv.append($('<label>').text('font scale').append(importBMFontScale));
+            $(this).attr('href', getActionLinkForWadNode(wad, tagid, 'importbmfont', 'scale=' + $("#importbmfontscale").val()));
+            console.log($(this).attr('href'));
+            uploadAjaxHandler.call(this);
+        });
+        var importDiv = $('<div id="flpimportfont">');
+        importDiv.append($('<label>').text('font scale').append(importBMFontScale));
         importDiv.append(importBMFontInput);
-		importDiv.append($('<a>').text('Link to usage instruction').attr('target','_blank')
-			.attr('href', 'https://github.com/mogaika/god_of_war_browser/blob/master/LOCALIZATION.md'));
-		dataSummary.append(importDiv);
+        importDiv.append($('<a>').text('Link to usage instruction').attr('target', '_blank')
+            .attr('href', 'https://github.com/mogaika/god_of_war_browser/blob/master/LOCALIZATION.md'));
+        dataSummary.append(importDiv);
 
         var charstable = $("<table>");
 
@@ -1104,7 +1125,11 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                             var texture = new grTexture('data:image/png;base64,' + img);
                             texture.markAsFontTexture();
-                            material.setDiffuse(texture);
+
+                            var layer = new grMaterialLayer();
+                            layer.setTextures([texture]);
+                            material.addLayer(layer);
+
 
                             matmap[txr_name] = mdl.materials.length;
                             mdl.addMaterial(material);
@@ -1143,6 +1168,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
                 table.mouseenter([mdl, meshes], function(ev) {
                     ev.data[0].showExclusiveMeshes(ev.data[1]);
+                    gr_instance.flushScene();
                     gr_instance.requestRedraw();
                 });
 

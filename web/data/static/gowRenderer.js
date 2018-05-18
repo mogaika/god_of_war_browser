@@ -104,7 +104,7 @@ grMesh.prototype.free = function() {
     if (this.bufferUV) gl.deleteBuffer(this.bufferUV);
     if (this.bufferNormals) gl.deleteBuffer(this.bufferNormals);
     if (this.bufferJointIds) gl.deleteBuffer(this.bufferJointIds);
-	gr_instance.flushScene();
+    gr_instance.flushScene();
 }
 
 grMesh.prototype.claim = function() {
@@ -188,7 +188,7 @@ grModel.prototype.free = function() {
     for (var i in this.materials) {
         this.materials[i].unclaim();
     }
-	gr_instance.flushScene();
+    gr_instance.flushScene();
 }
 
 function grTexture__handleLoading(img, txr) {
@@ -253,13 +253,12 @@ grTexture.prototype.get = function() {
 }
 
 function grMaterialLayer() {
-	this.refs = 0;
-	this.color = [1, 1, 1, 1];
-	this.uvoffset = [0, 0];
-    this.textureDiffuse = undefined;
-	this.method = 0;
-	this.hasAlpha = false;
-	this.timer = undefined;
+    this.color = [1, 1, 1, 1];
+    this.uvoffset = [0, 0];
+    this.textureIndex = 0;
+    this.textures = undefined;
+    this.method = 0;
+    this.hasAlpha = false;
 }
 
 grMaterialLayer.prototype.setColor = function(color) {
@@ -270,34 +269,40 @@ grMaterialLayer.prototype.setHasAlphaAttribute = function(alpha = true) {
     this.hasAlpha = alpha;
 }
 
-grMaterialLayer.prototype.setDiffuse = function(txtr) {
-    this.textureDiffuse = txtr;
+grMaterialLayer.prototype.setTextures = function(txtrs) {
+    this.textures = txtrs;
 }
 
-grMaterialLayer.prototype.setMethodNormal    = function() { this.method = 0; }
-grMaterialLayer.prototype.setMethodAdditive  = function() { this.method = 1; }
-grMaterialLayer.prototype.setMethodSubstract = function() { this.method = 2; }
-grMaterialLayer.prototype.setMethodUnknown   = function() { this.method = 3; }
-
-grMaterialLayer.prototype.claim = function() {
-    this.refs++;
+grMaterialLayer.prototype.setTextureIndex = function(index) {
+    this.textureIndex = index;
 }
-grMaterialLayer.prototype.unclaim = function() {
-    if (--this.refs == 0) {
-        this.free();
-    }
+
+grMaterialLayer.prototype.setMethodNormal = function() {
+    this.method = 0;
+}
+grMaterialLayer.prototype.setMethodAdditive = function() {
+    this.method = 1;
+}
+grMaterialLayer.prototype.setMethodSubstract = function() {
+    this.method = 2;
+}
+grMaterialLayer.prototype.setMethodUnknown = function() {
+    this.method = 3;
 }
 
 grMaterialLayer.prototype.free = function() {
-	if (this.timer) {
-		clearInterval(this.timer)
-	}
+    if (this.textures) {
+        for (var i in this.textures) {
+            this.textures[i].free();
+        }
+    }
 }
 
 function grMaterial() {
     this.refs = 0;
     this.color = [1, 1, 1, 1];
-	this.layers = [];
+    this.layers = [];
+    this.anims = [];
 }
 
 grMaterial.prototype.addLayer = function(layer) {
@@ -319,11 +324,12 @@ grMaterial.prototype.unclaim = function() {
 
 grMaterial.prototype.free = function() {
     for (var i in this.layers) {
-        if (this.layers[i].textureDiffuse) {
-			this.layers[i].textureDiffuse.free();
-		}
+        this.layers[i].free();
     }
-	gr_instance.flushScene();
+    for (var i in this.anims) {
+        ga_instance.freeAnimation(this.anims[i]);
+    }
+    gr_instance.flushScene();
 }
 
 function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false) {
@@ -419,7 +425,7 @@ grTextMesh.prototype.free = function() {
     gl.deleteBuffer(this.bufferVertex);
     gl.deleteBuffer(this.bufferIndex);
     gl.deleteBuffer(this.bufferUV);
-	gr_instance.flushScene();
+    gr_instance.flushScene();
 }
 
 function grCameraTargeted() {
@@ -504,8 +510,9 @@ function grController(viewDomObject) {
         return;
     }
 
+    this.requireRedraw = false;
     this.renderChain = undefined;
-	this.models = [];
+    this.models = [];
     this.texts = [];
     this.helpers = [
         grHelper_Pivot(),
@@ -572,7 +579,7 @@ function gwInitRenderer(viewDomObject) {
     gr_instance = new grController(viewDomObject);
     gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
     gr_instance.onResize();
-    gr_instance.requestRedraw();
+    gr_instance.initFrameCallback();
 }
 
 grController.prototype.flushScene = function() {
@@ -587,7 +594,7 @@ grController.prototype.changeRenderChain = function(chainType) {
     if (this.renderChain)
         this.renderChain.free();
     this.renderChain = new chainType(this);
-	this.flushScene();
+    this.flushScene();
 }
 
 grController.prototype.onResize = function() {
@@ -602,21 +609,36 @@ grController.prototype._onResize = function() {
 }
 
 grController.prototype.render = function() {
-    var glError = gl.getError();
-    if (glError !== gl.NONE) {
-        console.warn("pre-draw gl.getError()", glError);
-    }
+    if (this.requireRedraw) {
+        var glError = gl.getError();
+        if (glError !== gl.NONE) {
+            console.warn("pre-draw gl.getError()", glError);
+        }
 
-    this.renderChain.render(this);
+        this.renderChain.render(this);
 
-    if ((glError = gl.getError()) !== gl.NONE) {
-        console.warn("post-draw gl.getError()", glError);
+        if ((glError = gl.getError()) !== gl.NONE) {
+            console.warn("post-draw gl.getError()", glError);
+        }
+        this.requireRedraw = false;
     }
 }
 
 grController.prototype.requestRedraw = function() {
+    this.requireRedraw = true;
+}
+
+grController.prototype.animationFrameCallback = function() {
+    if (typeof ga_instance !== "undefined" && ga_instance) {
+        ga_instance.update();
+    }
+    this.render();
+    this.initFrameCallback();
+}
+
+grController.prototype.initFrameCallback = function() {
     requestAnimationFrame(function() {
-        gr_instance.render();
+        gr_instance.animationFrameCallback();
     });
 }
 
@@ -625,7 +647,7 @@ grController.prototype.destroyModels = function() {
         this.models[i].free(this);
     }
     this.models.length = 0;
-	this.flushScene();
+    this.flushScene();
 }
 
 grController.prototype.destroyTexts = function() {
@@ -633,7 +655,7 @@ grController.prototype.destroyTexts = function() {
         this.texts[i].free(this);
     }
     this.texts.length = 0;
-	this.flushScene();
+    this.flushScene();
 }
 
 grController.prototype.cleanup = function() {
