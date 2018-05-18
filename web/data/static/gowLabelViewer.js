@@ -58,7 +58,10 @@ $(document).ready(function() {
 
                             var texture = new grTexture('data:image/png;base64,' + img);
                             texture.markAsFontTexture();
-                            material.setDiffuse(texture);
+
+                            var layer = new grMaterialLayer();
+                            layer.setTextures([texture]);
+                            material.addLayer(layer);
 
                             matmap[txr_name] = material;
                         }
@@ -78,6 +81,7 @@ $(document).ready(function() {
             }
 
         }
+        gr_instance.flushScene();
         gr_instance.requestRedraw();
     });
 
