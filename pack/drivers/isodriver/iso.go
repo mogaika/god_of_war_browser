@@ -223,7 +223,7 @@ func (p *IsoDriver) UpdateFile(fileName string, in *io.SectionReader) error {
 		packStreams[i] = p.openIsoFileReaderWriterAt(toc.GenPartFileName(i))
 	}
 
-	if err := toc.UpdateFile(bytes.NewBuffer(tocOriginal), &tocbuf, packStreams, f, in); err == nil {
+	if err := toc.UpdateFile(bytes.NewReader(tocOriginal), &tocbuf, packStreams, f, in); err == nil {
 		_, err = p.openIsoFileReaderWriterAt(toc.GetTocFileName()).WriteAt(tocbuf.Bytes(), 0)
 	} else {
 		panic(err)

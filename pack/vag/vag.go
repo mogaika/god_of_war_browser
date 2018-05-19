@@ -17,4 +17,5 @@ func init() {
 	pack.SetHandler(".VA2", h)
 	pack.SetHandler(".VA3", h)
 	pack.SetHandler(".VA4", h)
+	pack.SetHandler(".VA5", h)
 }

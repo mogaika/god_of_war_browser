@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"sort"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -17,9 +20,11 @@ var packFileNamePostfix string
 var packFileNameUseIndexing bool
 
 const (
-	ENTRY_SIZE       = 24
-	TOC_FILE_NAME    = "GODOFWAR.TOC"
-	SANITY_FILE_NAME = "SANITY.TXT"
+	GOW1_ENTRY_SIZE       = 24
+	GOW2_ENTRY_SIZE       = 36
+	GOW2_SECTORS_PER_PACK = (0x3FFFF800 / utils.SECTOR_SIZE)
+	TOC_FILE_NAME         = "GODOFWAR.TOC"
+	SANITY_FILE_NAME      = "SANITY.TXT"
 )
 
 type File struct {
@@ -81,7 +86,7 @@ func GenPartFileName(partIndex int) string {
 	}
 }
 
-func UnmarshalTocEntry(buffer []byte) Entry {
+func unmarshalTocEntryGOW1(buffer []byte) Entry {
 	return Entry{
 		Name: utils.BytesToString(buffer[0:12]),
 		Size: int64(binary.LittleEndian.Uint32(buffer[16:20])),
@@ -91,8 +96,8 @@ func UnmarshalTocEntry(buffer []byte) Entry {
 		}}
 }
 
-func MarshalTocEntry(e *Entry) []byte {
-	buf := make([]byte, ENTRY_SIZE)
+func marshalTocEntryGOW1(e *Entry) []byte {
+	buf := make([]byte, GOW1_ENTRY_SIZE)
 	copy(buf[:12], utils.StringToBytesBuffer(e.Name, 12, false))
 	binary.LittleEndian.PutUint32(buf[12:16], uint32(e.Enc.Pack))
 	binary.LittleEndian.PutUint32(buf[16:20], uint32(e.Size))
@@ -100,7 +105,7 @@ func MarshalTocEntry(e *Entry) []byte {
 	return buf
 }
 
-func ParseEntiesArray(entries []Entry) map[string]*File {
+func parseEntiesArrayToFiles(entries []Entry) map[string]*File {
 	files := make(map[string]*File)
 	for _, e := range entries {
 		var file *File
@@ -124,8 +129,25 @@ func ParseEntiesArray(entries []Entry) map[string]*File {
 	return files
 }
 
-func ParseFiles(tocStream io.Reader) (map[string]*File, []Entry, error) {
-	var buffer [ENTRY_SIZE]byte
+func parseFilesToEntriesArray(files map[string]*File) []Entry {
+	entries := make([]Entry, len(files))
+	for fileName, f := range files {
+		for _, e := range f.Encounters {
+			entries = append(entries, Entry{
+				Name: fileName,
+				Size: f.size,
+				Enc:  e,
+			})
+		}
+	}
+	sort.Slice(entries, func(i int, j int) bool {
+		return entries[i].Enc.Pack < entries[j].Enc.Pack || entries[i].Enc.Start < entries[j].Enc.Start
+	})
+	return entries
+}
+
+func parseFilesGOW1(tocStream io.Reader) (map[string]*File, []Entry, error) {
+	var buffer [GOW1_ENTRY_SIZE]byte
 	entries := make([]Entry, 0)
 
 	for {
@@ -135,14 +157,77 @@ func ParseFiles(tocStream io.Reader) (map[string]*File, []Entry, error) {
 			return nil, nil, err
 		}
 
-		e := UnmarshalTocEntry(buffer[:])
+		e := unmarshalTocEntryGOW1(buffer[:])
 		if e.Name == "" {
 			break
 		}
 
 		entries = append(entries, e)
 	}
-	return ParseEntiesArray(entries), entries, nil
+	return parseEntiesArrayToFiles(entries), entries, nil
+}
+
+func parseFilesGOW2(tocStream io.ReadSeeker) (map[string]*File, []Entry, error) {
+	var countOfFiles uint32
+	if err := binary.Read(tocStream, binary.LittleEndian, &countOfFiles); err != nil {
+		return nil, nil, fmt.Errorf("[gow2] Cannot read files count: %v", err)
+	}
+
+	filesBuffer := make([]byte, GOW2_ENTRY_SIZE*countOfFiles)
+	if _, err := tocStream.Read(filesBuffer); err != nil {
+		return nil, nil, fmt.Errorf("[gow2] Error reading files buffer: %v", err)
+	}
+
+	offsetsArrayOffset, err := tocStream.Seek(0, os.SEEK_CUR)
+	if err != nil {
+		return nil, nil, fmt.Errorf("[gow2] Cannot get position of array offsets: %v", err)
+	}
+
+	files := make(map[string]*File)
+	for iFile := uint32(0); iFile < countOfFiles; iFile++ {
+		currentFileBuf := filesBuffer[iFile*GOW2_ENTRY_SIZE:]
+		currentFile := &File{
+			name:       utils.BytesToString(currentFileBuf),
+			size:       int64(binary.LittleEndian.Uint32(currentFileBuf[0x18:])),
+			Encounters: make([]FileEncounter, binary.LittleEndian.Uint32(currentFileBuf[0x1c:])),
+		}
+		encountersStartIndex := binary.LittleEndian.Uint32(currentFileBuf[0x20:])
+		for iEncounter := range currentFile.Encounters {
+			if _, err := tocStream.Seek(offsetsArrayOffset+int64(encountersStartIndex)*4+int64(iEncounter)*4, os.SEEK_SET); err != nil {
+				return nil, nil, fmt.Errorf("[gow2] Error when reading encounter %d(%d) of file %d '%s': %v", int(encountersStartIndex)+iEncounter, iEncounter, iFile, currentFile.name)
+			}
+			var fileOffset uint32
+			binary.Read(tocStream, binary.LittleEndian, &fileOffset)
+			currentFile.Encounters[iEncounter].Pack = int(fileOffset / GOW2_SECTORS_PER_PACK)
+			currentFile.Encounters[iEncounter].Start = int64(fileOffset%GOW2_SECTORS_PER_PACK) * utils.SECTOR_SIZE
+		}
+
+		files[currentFile.Name()] = currentFile
+	}
+
+	return files, parseFilesToEntriesArray(files), nil
+}
+
+func ParseFiles(tocStream io.ReadSeeker) (map[string]*File, []Entry, error) {
+	if config.GodOfWarVersion == config.GOWunknown {
+		var buf [4]byte
+		if _, err := tocStream.Read(buf[:]); err != nil {
+			return nil, nil, fmt.Errorf("Error when detecting gow version: %v", err)
+		}
+		if buf[2] != 0 {
+			log.Println("[toc] Detected gow version: GOW1ps1")
+			config.SetGOWVersion(config.GOW1ps2)
+		} else {
+			log.Println("[toc] Detected gow version: GOW2ps1")
+			config.SetGOWVersion(config.GOW2ps2)
+		}
+		tocStream.Seek(0, os.SEEK_SET)
+	}
+	if config.GodOfWarVersion == config.GOW2ps2 {
+		return parseFilesGOW2(tocStream)
+	} else {
+		return parseFilesGOW1(tocStream)
+	}
 }
 
 func GetPacksCount(entries []Entry) int {
@@ -250,7 +335,28 @@ func shrinkPackFiles(originalTocsEntries []Entry, partStreams []utils.ReaderWrit
 	return resultTocens, nil
 }
 
-func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
+func marshalTocFileGOW1(fTocNew io.Writer, entries []Entry) error {
+	for _, e := range entries {
+		if _, err := fTocNew.Write(marshalTocEntryGOW1(&e)); err != nil {
+			return fmt.Errorf("Error when writing toc entry %v: %v", e, err)
+		}
+	}
+	if _, err := fTocNew.Write(ZEROENTRY[:]); err != nil {
+		return fmt.Errorf("Error when writing last zeros in toc: %v", err)
+	}
+	return nil
+}
+
+func MarshalTocFile(fTocNew io.Writer, entries []Entry) error {
+	if config.GodOfWarVersion == config.GOW2ps2 {
+		panic("NOT IMPLEMENTED")
+		//return marshalTocFileGOW2(fTocNew, entries)
+	} else {
+		return marshalTocFileGOW1(fTocNew, entries)
+	}
+}
+
+func updateFileWithIncreacingSize(fTocOriginal io.ReadSeeker, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
 	log.Println("Updating toc+parts with increacing required sectors count")
 	_, originalEntries, err := ParseFiles(fTocOriginal)
 	if err != nil {
@@ -321,40 +427,35 @@ func updateFileWithIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, par
 		return fmt.Errorf("Error when writing new file: %v", err)
 	}
 
-	writed := false
-	marshaledEntry := MarshalTocEntry(&Entry{
+	added := false
+	newEntries := make([]Entry, len(entriesWithoutOurFile)+1)
+	newEntriesIndex := 0
+	newEntry := Entry{
 		Name: filename,
 		Size: in.Size(),
-		Enc:  *newEncounter})
+		Enc:  *newEncounter,
+	}
 	for _, e := range entriesWithoutOurFile {
-		if !writed {
+		if !added {
 			// Write our file entry to toc file
 			if e.Enc.Pack > newEncounter.Pack || (e.Enc.Pack == newEncounter.Pack && e.Enc.Start > newEncounter.Start) {
-				if _, err := fTocNew.Write(marshaledEntry); err != nil {
-					return fmt.Errorf("Error when writing new toc entry: %v", err)
-				}
-				writed = true
+				newEntries[newEntriesIndex] = newEntry
+				newEntriesIndex += 1
+				added = true
 			}
-		}
-		if _, err := fTocNew.Write(MarshalTocEntry(&e)); err != nil {
-			return fmt.Errorf("Error when writing old toc entry: %v", err)
+			newEntries[newEntriesIndex] = e
+			newEntriesIndex += 1
 		}
 	}
-	if !writed {
-		if _, err := fTocNew.Write(marshaledEntry); err != nil {
-			return fmt.Errorf("Error when writing new toc entry at end of file: %v", err)
-		}
+	if !added {
+		newEntries[newEntriesIndex] = newEntry
 	}
 
-	if _, err := fTocNew.Write(ZEROENTRY[:]); err != nil {
-		return fmt.Errorf("Error when writing last zeros in toc: %v", err)
-	}
-
-	return nil
+	return MarshalTocFile(fTocNew, newEntries)
 }
 
 // do not reorder files in pack
-func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
+func updateFileWithoutIncreacingSize(fTocOriginal io.ReadSeeker, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, filename string, in *io.SectionReader) error {
 	log.Println("Updating toc+parts without increacing required sectors count")
 	// update sizes in toc file, if changed
 	files, entries, err := ParseFiles(fTocOriginal)
@@ -368,9 +469,13 @@ func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, 
 			if e.Name == filename {
 				e.Size = in.Size()
 			}
-			fTocNew.Write(MarshalTocEntry(&e))
 		}
 	}
+
+	if err := MarshalTocFile(fTocNew, entries); err != nil {
+		return fmt.Errorf("Error when creating new toc file: %v", err)
+	}
+
 	log.Println("Reading file")
 	var fileBuffer bytes.Buffer
 	if _, err := io.Copy(&fileBuffer, in); err != nil {
@@ -393,7 +498,7 @@ func updateFileWithoutIncreacingSize(fTocOriginal io.Reader, fTocNew io.Writer, 
 	return nil
 }
 
-func UpdateFile(fTocOriginal io.Reader, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, f *File, in *io.SectionReader) error {
+func UpdateFile(fTocOriginal io.ReadSeeker, fTocNew io.Writer, partStreams []utils.ReaderWriterAt, f *File, in *io.SectionReader) error {
 	if in.Size()/utils.SECTOR_SIZE > f.Size()/utils.SECTOR_SIZE {
 		return updateFileWithIncreacingSize(fTocOriginal, fTocNew, partStreams, f.Name(), in)
 	} else {
