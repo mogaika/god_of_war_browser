@@ -145,6 +145,7 @@ function packLoadFile(filename) {
             case 'va2':
             case 'va3':
             case 'va4':
+			case 'va5':
             case 'vpk':
             case 'vp1':
             case 'vp2':
