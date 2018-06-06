@@ -20,11 +20,10 @@ var packFileNamePostfix string
 var packFileNameUseIndexing bool
 
 const (
-	GOW1_ENTRY_SIZE       = 24
-	GOW2_ENTRY_SIZE       = 36
-	GOW2_SECTORS_PER_PACK = (0x3FFFF800 / utils.SECTOR_SIZE)
-	TOC_FILE_NAME         = "GODOFWAR.TOC"
-	SANITY_FILE_NAME      = "SANITY.TXT"
+	GOW1_ENTRY_SIZE  = 24
+	GOW2_ENTRY_SIZE  = 36
+	TOC_FILE_NAME    = "GODOFWAR.TOC"
+	SANITY_FILE_NAME = "SANITY.TXT"
 )
 
 type File struct {
@@ -130,7 +129,7 @@ func parseEntiesArrayToFiles(entries []Entry) map[string]*File {
 }
 
 func parseFilesToEntriesArray(files map[string]*File) []Entry {
-	entries := make([]Entry, len(files))
+	entries := make([]Entry, 0, len(files))
 	for fileName, f := range files {
 		for _, e := range f.Encounters {
 			entries = append(entries, Entry{
@@ -143,6 +142,11 @@ func parseFilesToEntriesArray(files map[string]*File) []Entry {
 	sort.Slice(entries, func(i int, j int) bool {
 		return entries[i].Enc.Pack < entries[j].Enc.Pack || entries[i].Enc.Start < entries[j].Enc.Start
 	})
+
+	for _, e := range entries {
+		log.Printf("entry %24s at 0x%.12x size 0x%.8x", e.Name, e.Enc.Start, e.Size)
+	}
+
 	return entries
 }
 
@@ -178,6 +182,8 @@ func parseFilesGOW2(tocStream io.ReadSeeker) (map[string]*File, []Entry, error) 
 		return nil, nil, fmt.Errorf("[gow2] Error reading files buffer: %v", err)
 	}
 
+	savedSpace := int64(0)
+
 	offsetsArrayOffset, err := tocStream.Seek(0, os.SEEK_CUR)
 	if err != nil {
 		return nil, nil, fmt.Errorf("[gow2] Cannot get position of array offsets: %v", err)
@@ -192,18 +198,23 @@ func parseFilesGOW2(tocStream io.ReadSeeker) (map[string]*File, []Entry, error) 
 			Encounters: make([]FileEncounter, binary.LittleEndian.Uint32(currentFileBuf[0x1c:])),
 		}
 		encountersStartIndex := binary.LittleEndian.Uint32(currentFileBuf[0x20:])
+		if len(currentFile.Encounters) > 1 {
+			savedSpace += (int64(len(currentFile.Encounters)) - 1) * (((currentFile.size + utils.SECTOR_SIZE - 1) / utils.SECTOR_SIZE) * utils.SECTOR_SIZE)
+		}
 		for iEncounter := range currentFile.Encounters {
 			if _, err := tocStream.Seek(offsetsArrayOffset+int64(encountersStartIndex)*4+int64(iEncounter)*4, os.SEEK_SET); err != nil {
 				return nil, nil, fmt.Errorf("[gow2] Error when reading encounter %d(%d) of file %d '%s': %v", int(encountersStartIndex)+iEncounter, iEncounter, iFile, currentFile.name)
 			}
 			var fileOffset uint32
 			binary.Read(tocStream, binary.LittleEndian, &fileOffset)
-			currentFile.Encounters[iEncounter].Pack = int(fileOffset / GOW2_SECTORS_PER_PACK)
-			currentFile.Encounters[iEncounter].Start = int64(fileOffset%GOW2_SECTORS_PER_PACK) * utils.SECTOR_SIZE
+			currentFile.Encounters[iEncounter].Pack = -1
+			currentFile.Encounters[iEncounter].Start = int64(fileOffset) * utils.SECTOR_SIZE
 		}
 
 		files[currentFile.Name()] = currentFile
 	}
+
+	log.Printf("SAVED SPACE: %db %x %dkB %dMb", savedSpace, savedSpace, savedSpace/1024, savedSpace/1024/1024)
 
 	return files, parseFilesToEntriesArray(files), nil
 }
@@ -504,4 +515,51 @@ func UpdateFile(fTocOriginal io.ReadSeeker, fTocNew io.Writer, partStreams []uti
 	} else {
 		return updateFileWithoutIncreacingSize(fTocOriginal, fTocNew, partStreams, f.Name(), in)
 	}
+}
+
+type GOW2PackArrayDVD5Rader struct {
+	readers []*io.SectionReader
+}
+
+func (ar *GOW2PackArrayDVD5Rader) ReadAt(b []byte, off int64) (n int, err error) {
+	estimatedToRead := len(b)
+	log.Printf("reading off %d, size %d", off, estimatedToRead)
+	for _, r := range ar.readers {
+		if r == nil || r.Size() == 0 {
+			// we cannot continue because we need size of part
+			log.Printf("breaking because nil, or r.Size == 0")
+			break
+		}
+		if off < r.Size() {
+			if off+int64(estimatedToRead) <= r.Size() {
+				log.Printf("reading entire data at %d", off)
+				rN, err := r.ReadAt(b[n:n+estimatedToRead], off)
+				if err == nil && rN != estimatedToRead {
+					log.Panicf("[gow2] Something wrong with read entire array calc: %d != %d", rN, estimatedToRead)
+				}
+				return n + rN, err
+			} else {
+				log.Println("reading part of data at %d", off)
+				currentReadSize := off + int64(estimatedToRead) - r.Size()
+				rN, err := r.ReadAt(b[n:int64(n)+currentReadSize], off)
+				n += rN
+				estimatedToRead -= int(currentReadSize)
+				if err != nil {
+					return n, fmt.Errorf("[gow2] Error reading pack array: %v", err)
+				}
+				if rN != int(currentReadSize) {
+					log.Panicf("[gow2] Something wrong with read array calc: %d != %d", rN, currentReadSize)
+				}
+				off = 0
+			}
+		} else {
+			log.Printf("skipping r because too large %d = %d - %d", off-r.Size(), off, r.Size())
+			off -= r.Size()
+		}
+	}
+	return n, io.EOF
+}
+
+func NewGOW2PackArrayDVD5Rader(readers []*io.SectionReader) *GOW2PackArrayDVD5Rader {
+	return &GOW2PackArrayDVD5Rader{readers: readers}
 }

@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/pack/drivers/tocdriver"
 	"github.com/mogaika/god_of_war_browser/toc"
@@ -29,11 +31,10 @@ type IsoDriver struct {
 }
 
 func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
-	name = strings.ToLower(name)
 	for iLayer, layer := range p.IsoLayers {
 		if layer != nil {
 			for _, f := range layer.ReadDir(nil) {
-				if strings.ToLower(f.Name()) == name {
+				if strings.ToLower(f.Name()) == strings.ToLower(name) {
 					return &f, iLayer
 				}
 			}
@@ -62,20 +63,13 @@ func (p *IsoDriver) prepareIsoStreams() error {
 			} else {
 				// minus 16 boot sectors, because they do not replicated over layers (volumes)
 				volumeSize := int64(binary.LittleEndian.Uint32(volSizeBuf[:])-16) * utils.SECTOR_SIZE
-				if volumeSize+32*utils.SECTOR_SIZE < isoinfo.Size() {
-					p.IsoLayers[1] = udf.NewUdfFromReader(io.NewSectionReader(p.IsoFile, volumeSize, isoinfo.Size()-volumeSize))
-					log.Printf("[pack] Detected second layer of disk. Start: %x (%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
-					p.SecondLayerStart = volumeSize
+				if volumeSize+256*utils.SECTOR_SIZE < isoinfo.Size() {
+					udfSecondLayer := io.NewSectionReader(p.IsoFile, volumeSize, isoinfo.Size()-volumeSize)
 
-					/*
-						TODO: remove and and function to dump packs in folder
-						f, err := os.Create("PART2.PAK")
-						defer f.Close()
-						if err != nil {
-							panic(err)
-						}
-						io.Copy(f, io.NewSectionReader(p.IsoFile, volumeSize, isoinfo.Size()-volumeSize))
-					*/
+					log.Printf("[pack] Detected second layer of disk. Start: 0x%x size(0x%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
+
+					p.IsoLayers[1] = udf.NewUdfFromReader(udfSecondLayer)
+					p.SecondLayerStart = volumeSize
 				}
 			}
 		} else {
@@ -87,7 +81,11 @@ func (p *IsoDriver) prepareIsoStreams() error {
 
 func (p *IsoDriver) preparePackStreams() error {
 	if p.PaksCount == 0 {
-		panic("p.PaksCount == 0, probably you have some problems with reading toc file or pack files naming")
+		if config.GetGOWVersion() == config.GOW2ps2 {
+			p.PaksCount = 16
+		} else {
+			panic("p.PaksCount == 0, probably you have some problems with reading toc file or pack files naming")
+		}
 	}
 	if p.PackStreams != nil {
 		return nil
@@ -99,7 +97,9 @@ func (p *IsoDriver) preparePackStreams() error {
 		if f, _ := p.openIsoFile(packName); f != nil {
 			p.PackStreams[i] = f.NewReader()
 		} else {
-			log.Println("[pack] WARNING: Cannot open pack stream '%s'", packName)
+			if config.GetGOWVersion() == config.GOW1ps2 {
+				log.Printf("[pack] WARNING: Cannot open pack stream '%s'", packName)
+			}
 			p.PackStreams[i] = nil
 		}
 	}
@@ -115,6 +115,9 @@ func (p *IsoDriver) parseFilesFromTok() error {
 	}
 
 	tocIso, _ := p.openIsoFile(toc.GetTocFileName())
+	if tocIso == nil {
+		return fmt.Errorf("[iso] Cannot open '%s'", toc.GetTocFileName())
+	}
 
 	if p.Files, tocEntries, err = toc.ParseFiles(tocIso.NewReader()); err != nil {
 		return err
@@ -140,14 +143,18 @@ func (p *IsoDriver) GetFileReader(fileName string) (pack.PackFile, *io.SectionRe
 		return nil, nil, err
 	}
 	if f, exists := p.Files[fileName]; exists {
-		for packNumber := range p.PackStreams {
-			if p.PackStreams[packNumber] != nil {
-				for _, enc := range f.Encounters {
-					if enc.Pack == packNumber {
-						return f, io.NewSectionReader(p.PackStreams[packNumber], enc.Start, f.Size()), nil
+		if config.GetGOWVersion() == config.GOW1ps2 {
+			for packNumber := range p.PackStreams {
+				if p.PackStreams[packNumber] != nil {
+					for _, enc := range f.Encounters {
+						if enc.Pack == packNumber {
+							return f, io.NewSectionReader(p.PackStreams[packNumber], enc.Start, f.Size()), nil
+						}
 					}
 				}
 			}
+		} else {
+			return f, io.NewSectionReader(toc.NewGOW2PackArrayDVD5Rader(p.PackStreams), f.Encounters[0].Start, f.Size()), nil
 		}
 		return f, nil, fmt.Errorf("Cannot open stream for '%s'", fileName)
 	} else {
@@ -194,7 +201,7 @@ func (p *IsoDriver) openIsoFileReaderWriterAt(file string) *IsoFileReaderWriterA
 	if layer == 1 {
 		filestart += p.SecondLayerStart
 	}
-	log.Println("filestart ", file, filestart)
+	log.Printf("openIsioFileReaderWriterAt: filestart 0x%x", file, filestart)
 	return &IsoFileReaderWriterAt{
 		f:    p.IsoFile,
 		off:  filestart,

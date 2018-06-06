@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -27,6 +28,26 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 		facesBuff.WriteString(fmt.Sprintf(format+"\n", args...))
 	}
 	lastb := uint32(0)
+
+	minimalTextureV := 0.0
+	for _, part := range m.Parts {
+		for _, group := range part.Groups {
+			for _, object := range group.Objects {
+				for iPacket := range object.Packets {
+					for _, packet := range object.Packets[iPacket] {
+						if packet.Uvs.U != nil {
+							for _, v := range packet.Uvs.V {
+								minimalTextureV = math.Min(minimalTextureV, float64(v))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	_ = math.Floor(-minimalTextureV)
+
 	for iPart, part := range m.Parts {
 		for iGroup, group := range part.Groups {
 			wi("o p%.2dg%.2d", iPart, iGroup)
@@ -58,7 +79,7 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 							w("v %f %f %f", vertex[0], vertex[1], vertex[2])
 							iV++
 							if haveUV {
-								w("vt %f %f", packet.Uvs.U[iVertex], 1.0-packet.Uvs.V[iVertex])
+								w("vt %f %f", 3.0+packet.Uvs.U[iVertex], 4.0-packet.Uvs.V[iVertex])
 								iT++
 							}
 							if haveNorm {
