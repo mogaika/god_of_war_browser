@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -163,7 +165,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 		t := UnmarshalTag(buf[:])
 		t.Id = id
 
-		if t.Tag == 0x18 {
+		if config.GetGOWVersion() == config.GOW1ps2 && t.Tag == 0x18 || config.GetGOWVersion() == config.GOW2ps2 && t.Tag == 0 {
 			// entity count
 			w.HeapSizes[t.Name] = t.Size
 			t.Size = 0
@@ -287,7 +289,9 @@ func (w *Wad) parseTags() error {
 			// data loading structs cleanup
 			addNode(tag)
 		default:
-			return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s offset 0x%.6x", tag.Id, tag.Tag, tag.Name, tag.DebugPos)
+			if config.GetGOWVersion() == config.GOW1ps2 {
+				return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s offset 0x%.6x", tag.Id, tag.Tag, tag.Name, tag.DebugPos)
+			}
 		}
 	}
 
