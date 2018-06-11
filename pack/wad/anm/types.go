@@ -186,7 +186,7 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int) 
 				_ = s5Array
 				_ = adManager
 
-				utils.LogDump("OUR TEST", adManager, a.InterpolationSettings)
+				// utils.LogDump("OUR TEST", adManager, a.InterpolationSettings)
 
 				unkoff_t8 := a.InterpolationSettings.OffsetToElement
 				unkoff_t9 := a.InterpolationSettings.PairedElementsCount

@@ -16,6 +16,7 @@ import (
 	file_vpk "github.com/mogaika/god_of_war_browser/pack/vpk"
 	file_wad "github.com/mogaika/god_of_war_browser/pack/wad"
 	file_vagp "github.com/mogaika/god_of_war_browser/ps2/vagp"
+	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
 
@@ -63,9 +64,14 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 
 func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
-	_, reader, err := ServerPack.GetFileReader(file)
-	if err == nil {
+	f, err := ServerPack.GetFile(file)
+	if err != nil {
+		webutils.WriteError(w, err)
+	}
+
+	if reader, err := vfs.OpenFileAndGetReader(f, true); err == nil {
 		webutils.WriteFile(w, reader, file)
+		defer f.Close()
 	} else {
 		fmt.Fprintf(w, "Error getting file reader: %v", err)
 	}
@@ -96,16 +102,24 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 			}
 		case *file_vpk.VPK:
 			vpk := data.(*file_vpk.VPK)
-			_, fr, err := ServerPack.GetFileReader(file)
+
+			f, err := ServerPack.GetFile(file)
 			if err != nil {
-				panic(err)
-			}
-			var buf bytes.Buffer
-			_, err = vpk.AsWave(fr, &buf)
-			if err != nil {
-				webutils.WriteError(w, fmt.Errorf("Error converting to wav: %v", err))
+				webutils.WriteError(w, err)
 			} else {
-				webutils.WriteFile(w, &buf, file+".WAV")
+				fr, err := vfs.OpenFileAndGetReader(f, true)
+				if err != nil {
+					webutils.WriteError(w, err)
+				}
+				defer f.Close()
+
+				var buf bytes.Buffer
+				_, err = vpk.AsWave(fr, &buf)
+				if err != nil {
+					webutils.WriteError(w, fmt.Errorf("Error converting to wav: %v", err))
+				} else {
+					webutils.WriteFile(w, &buf, file+".WAV")
+				}
 			}
 		default:
 			webutils.WriteError(w, fmt.Errorf("File %s not contain subdata", file))
@@ -156,8 +170,13 @@ func HandlerUploadPackFile(w http.ResponseWriter, r *http.Request) {
 	}
 	fileStream.Seek(0, os.SEEK_SET)
 
-	if err := ServerPack.UpdateFile(targetFile, io.NewSectionReader(fileStream, 0, fileSize)); err != nil {
-		webutils.WriteError(w, fmt.Errorf("Error when updating pack file: %v", err))
+	if f, err := ServerPack.GetFile(targetFile); err != nil {
+		webutils.WriteError(w, err)
+	} else {
+		defer f.Close()
+		if err := vfs.OpenFileAndCopy(f, io.NewSectionReader(fileStream, 0, fileSize)); err != nil {
+			webutils.WriteError(w, fmt.Errorf("Error when updating pack file: %v", err))
+		}
 	}
 }
 func HandlerUploadPackFileParam(w http.ResponseWriter, r *http.Request) {

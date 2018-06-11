@@ -4,23 +4,16 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/mogaika/god_of_war_browser/utils"
+	"github.com/mogaika/god_of_war_browser/vfs"
 )
 
 type PackDriver interface {
 	GetFileNamesList() []string
-	GetFile(fileName string) (PackFile, error)
-	GetFileReader(fileName string) (PackFile, *io.SectionReader, error)
+	GetFile(fileName string) (vfs.File, error)
 	GetInstance(fileName string) (interface{}, error)
-	UpdateFile(fileName string, in *io.SectionReader) error
-}
-
-type PackFile interface {
-	Name() string
-	Size() int64
 }
 
 type FileLoader func(src utils.ResourceSource, r *io.SectionReader) (interface{}, error)
@@ -41,49 +34,8 @@ func CallHandler(s utils.ResourceSource, r *io.SectionReader) (interface{}, erro
 	}
 }
 
-type InstanceCacheEntry struct {
-	Name     string
-	Instance interface{}
-}
-
-type InstanceCache struct {
-	Cache [16]*InstanceCacheEntry
-	Pos   int
-}
-
-func (ic *InstanceCache) getEntry(name string) *InstanceCacheEntry {
-	for _, ce := range ic.Cache {
-		if ce != nil && ce.Name == name {
-			return ce
-		}
-	}
-	return nil
-}
-
-func (ic *InstanceCache) Get(name string) interface{} {
-	if e := ic.getEntry(name); e != nil {
-		return e.Instance
-	}
-	return nil
-}
-
-func (ic *InstanceCache) Add(name string, val interface{}) {
-	if e := ic.getEntry(name); e != nil {
-		e.Instance = val
-	} else {
-		ic.Cache[ic.Pos] = &InstanceCacheEntry{
-			Name:     name,
-			Instance: val,
-		}
-		ic.Pos = (ic.Pos + 1) % len(ic.Cache)
-		if ic.Pos == 0 {
-			runtime.GC()
-		}
-	}
-}
-
 type PackResSrc struct {
-	pf PackFile
+	pf vfs.File
 	p  PackDriver
 }
 
@@ -95,23 +47,29 @@ func (s *PackResSrc) Size() int64 {
 	return s.pf.Size()
 }
 func (s *PackResSrc) Save(in *io.SectionReader) error {
-	return s.p.UpdateFile(s.pf.Name(), in)
+	if f, err := s.p.GetFile(s.pf.Name()); err != nil {
+		return fmt.Errorf("[pack] Cannot get file '%s': %v", s.pf.Name(), err)
+	} else {
+		return f.Copy(in)
+	}
 }
 
-func GetInstanceCachedHandler(p PackDriver, cache *InstanceCache, fileName string) (interface{}, error) {
-	f, r, err := p.GetFileReader(fileName)
+func GetInstanceHandler(p PackDriver, fileName string) (interface{}, error) {
+	f, err := p.GetFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("[pack] Cannot get file '%s': %v", fileName, err)
+	}
+
+	r, err := vfs.OpenFileAndGetReader(f, true)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot get instance of '%s': %v", fileName, err)
 	}
-
-	if cached := cache.Get(fileName); cached != nil {
-		return cached, nil
-	}
+	defer f.Close()
 
 	inst, err := CallHandler(&PackResSrc{p: p, pf: f}, r)
 	if err != nil {
 		return nil, fmt.Errorf("Handler error: %v", err)
 	}
-	cache.Add(fileName, inst)
+
 	return inst, nil
 }

@@ -4,14 +4,14 @@ import (
 	"flag"
 	"log"
 
+	"github.com/mogaika/god_of_war_browser/vfs"
+
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack"
-	"github.com/mogaika/god_of_war_browser/toc"
 	"github.com/mogaika/god_of_war_browser/web"
 
-	"github.com/mogaika/god_of_war_browser/pack/drivers/dirdriver"
-	"github.com/mogaika/god_of_war_browser/pack/drivers/isodriver"
-	"github.com/mogaika/god_of_war_browser/pack/drivers/tocdriver"
+	"github.com/mogaika/god_of_war_browser/drivers/directory"
+	"github.com/mogaika/god_of_war_browser/drivers/toc"
 
 	_ "github.com/mogaika/god_of_war_browser/pack/txt"
 	_ "github.com/mogaika/god_of_war_browser/pack/vag"
@@ -34,17 +34,12 @@ import (
 )
 
 func main() {
-	var addr, tocpath, dir, iso, partprefix, partpostfix, tocname string
-	var partindexing bool
+	var addr, tocpath, dir, iso string
 	var gowversion int
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
 	flag.StringVar(&dir, "dir", "", "Path to unpacked wads and other stuff")
 	flag.StringVar(&iso, "iso", "", "Pack to iso file")
-	flag.StringVar(&partprefix, "partprefix", "PART", "PAK name prefix override")
-	flag.StringVar(&partpostfix, "partpostfix", ".PAK", "PAK name postfix override")
-	flag.BoolVar(&partindexing, "partindexing", true, "use -partprefix%index%.PAK naming, or use -partprefix name instead")
-	flag.StringVar(&tocname, "tocname", "", "GODOFWAR.TOC name override")
 	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1 ps2', 2 - 'gow2 ps2'")
 	flag.Parse()
 
@@ -53,17 +48,15 @@ func main() {
 
 	config.SetGOWVersion(config.GOWVersion(gowversion))
 
-	toc.PartNamePrefix(partprefix)
-	toc.PartNamePostfix(partpostfix)
-	toc.PartNameUseIndexing(partindexing)
-	toc.TocNameOverride(tocname)
-
 	if iso != "" {
-		p, err = isodriver.NewPackFromIso(iso)
 	} else if tocpath != "" {
-		p, err = tocdriver.NewPackFromToc(tocpath)
+		var t *toc.TableOfContent
+		t, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
+		if err == nil {
+			p = directory.NewDirectoryDriver(t)
+		}
 	} else if dir != "" {
-		p, err = dirdriver.NewPackFromDirectory(dir)
+		p = directory.NewDirectoryDriver(vfs.NewDirectoryDriver(dir))
 	} else {
 		flag.PrintDefaults()
 		return
