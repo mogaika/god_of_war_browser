@@ -14,13 +14,12 @@ import (
 
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/pack/drivers/tocdriver"
-	"github.com/mogaika/god_of_war_browser/toc"
+	"github.com/mogaika/god_of_war_browser/pack/toc"
 	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/udf"
 )
 
 type IsoDriver struct {
-	Files            map[string]*toc.File
 	PaksCount        int
 	IsoFile          *os.File
 	IsoLayers        [2]*udf.Udf
@@ -28,6 +27,7 @@ type IsoDriver struct {
 	IsoPath          string
 	Cache            *pack.InstanceCache
 	SecondLayerStart int64
+	Toc              *toc.TableOfContent
 }
 
 func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
@@ -43,7 +43,7 @@ func (p *IsoDriver) openIsoFile(name string) (*udf.File, int) {
 	return nil, -1
 }
 
-func (p *IsoDriver) prepareIsoStreams() error {
+func (p *IsoDriver) prepareStreams() error {
 	if p.IsoFile == nil || p.IsoLayers[0] == nil {
 		var err error
 		if p.IsoFile, err = os.OpenFile(p.IsoPath, os.O_RDWR|os.O_SYNC, 0666); err != nil {

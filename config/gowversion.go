@@ -8,12 +8,12 @@ const (
 
 type GOWVersion int
 
-var GodOfWarVersion GOWVersion
+var godOfWarVersion GOWVersion
 
 func GetGOWVersion() GOWVersion {
-	return GodOfWarVersion
+	return godOfWarVersion
 }
 
 func SetGOWVersion(v GOWVersion) {
-	GodOfWarVersion = v
+	godOfWarVersion = v
 }

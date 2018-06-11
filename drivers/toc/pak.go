@@ -1,30 +1,25 @@
-package pak
+package toc
 
 import (
 	"fmt"
 	"io"
+
+	"github.com/mogaika/god_of_war_browser/vfs"
 )
 
 const (
-	PACK_ADDR_ABSOLUTE = iota // absolute offset of file relative to pak1
+	PACK_ADDR_ABSOLUTE = iota // absolute offset to file relative to pak1
 	PACK_ADDR_INDEX           // size of previous paks + offset
 )
 
-type Pak interface {
-	io.ReaderAt
-	io.WriterAt
-	Size() int64
-	Sync() error
-}
-
 type PaksArray struct {
-	paks     []Pak
+	paks     []vfs.File
 	addrType int
 }
 
-func NewPaksArray(paks []Pak, addrType int) *PaksArray {
+func NewPaksArray(paks []vfs.File, addrType int) *PaksArray {
 	pa := &PaksArray{
-		paks:     make([]Pak, len(paks)),
+		paks:     make([]vfs.File, len(paks)),
 		addrType: addrType,
 	}
 	copy(pa.paks, paks)
@@ -72,13 +67,14 @@ func (pa *PaksArray) absoluteReadWriteAt(p []byte, off int64, doRead bool) (n in
 	return n, io.EOF
 }
 
-func (pa *PaksArray) NewReader(e Encounter) *PakEncounterReader {
-	return &PakEncounterReader{pa: pa, e: e}
+func (pa *PaksArray) NewReaderWriter(e Encounter) *EncounterReaderWriter {
+	return &EncounterReaderWriter{pa: pa, e: e}
 }
 
 func (pa *PaksArray) Copy(from, to Encounter) error {
 	if from.Size != to.Size {
 		return fmt.Errorf("[pak] Wrong size amount %d != %d", from.Size, to.Size)
 	}
-
+	panic("Not implemented")
+	return nil
 }
