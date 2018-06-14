@@ -1,6 +1,9 @@
 package toc
 
-import "log"
+import (
+	"io"
+	"log"
+)
 
 type PakIndex int8
 
@@ -16,6 +19,9 @@ type EncounterReaderWriter struct {
 }
 
 func (per *EncounterReaderWriter) ReadAt(p []byte, off int64) (n int, err error) {
+	if off > per.e.Size {
+		return 0, io.EOF
+	}
 	switch per.pa.addrType {
 	case PACK_ADDR_ABSOLUTE:
 		return per.pa.absoluteReadWriteAt(p, per.e.Offset+off, true)

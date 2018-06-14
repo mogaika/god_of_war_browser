@@ -76,12 +76,6 @@ func (toc *TableOfContent) Marshal() []byte {
 	}
 }
 
-// Remove file duplicates and spaces
-func (toc *TableOfContent) Shrink() error {
-	panic("Not implemented")
-	return nil
-}
-
 func (t *TableOfContent) findTocFile() (vfs.File, error) {
 	for _, np := range defaultTocNamePair {
 		f, err := vfs.DirectoryGetFile(t.dir, np.TocName)
@@ -133,7 +127,6 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 
 	maxPaks := t.getMaximumPossiblePak()
 	if maxPaks >= 0 {
-
 		t.paks = make([]vfs.File, maxPaks+1)
 		for i := range t.paks {
 			name := t.namingPolicy.GetPakName(PakIndex(i))
@@ -183,7 +176,14 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 		}
 	}
 
-	t.openPakStreams(true)
+	if err := t.openPakStreams(true); err != nil {
+		return nil, err
+	}
+
+	for _, f := range sortFilesByEncounters(t.files) {
+		//log.Printf("%v - %v", f.Name(), f.encounters)
+		_ = f
+	}
 
 	return t, nil
 }

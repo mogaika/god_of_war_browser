@@ -1,7 +1,11 @@
 package toc
 
-import "github.com/mogaika/god_of_war_browser/vfs"
-import "io"
+import (
+	"io"
+	"sort"
+
+	"github.com/mogaika/god_of_war_browser/vfs"
+)
 
 type File struct {
 	name       string
@@ -36,4 +40,33 @@ func (f *File) Copy(src io.Reader) error {
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	panic("Not implemented")
 	return 0, nil
+}
+
+func sortFilesByEncounters(files map[string]*File) []*File {
+	result := make([]*File, 0, len(files))
+	for _, f := range files {
+		result = append(result, f)
+	}
+
+	sort.Slice(result, func(i int, j int) bool {
+		// if one of encounter of i file earlier then
+		// all encounters of j file
+		lesser := result[i]
+		bigger := result[j]
+
+		for _, le := range lesser.encounters {
+			isAllEncountersLess := true
+			for _, be := range bigger.encounters {
+				if le.Pak > be.Pak || (le.Pak == be.Pak && le.Offset >= be.Offset) {
+					isAllEncountersLess = false
+				}
+			}
+			if isAllEncountersLess {
+				return true
+			}
+		}
+		return false
+	})
+
+	return result
 }

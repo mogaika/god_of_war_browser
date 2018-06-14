@@ -27,7 +27,7 @@ func (rte *RawTocEntryGOW1) Marshal() []byte {
 	copy(buf[:12], utils.StringToBytesBuffer(rte.Name, 12, false))
 	binary.LittleEndian.PutUint32(buf[12:16], uint32(rte.Pak))
 	binary.LittleEndian.PutUint32(buf[16:20], uint32(rte.Size))
-	binary.LittleEndian.PutUint32(buf[20:24], uint32((rte.Offset+utils.SECTOR_SIZE-1)/utils.SECTOR_SIZE))
+	binary.LittleEndian.PutUint32(buf[20:24], uint32(utils.GetRequiredSectorsCount(rte.Offset)))
 	return buf
 }
 

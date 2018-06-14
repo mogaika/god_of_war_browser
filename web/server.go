@@ -32,7 +32,7 @@ func StartServer(addr string, _pack pack.PackDriver, webPath string) error {
 	h := handlers.RecoveryHandler()(r)
 	h = handlers.LoggingHandler(os.Stdout, r)
 
-	log.Printf("Starting server %v", addr)
+	log.Printf("[web] Starting server %v", addr)
 
 	return http.ListenAndServe(addr, h)
 }
