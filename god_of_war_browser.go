@@ -4,13 +4,13 @@ import (
 	"flag"
 	"log"
 
-	"github.com/mogaika/god_of_war_browser/vfs"
-
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack"
+	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/web"
 
 	"github.com/mogaika/god_of_war_browser/drivers/directory"
+	"github.com/mogaika/god_of_war_browser/drivers/psarc"
 	"github.com/mogaika/god_of_war_browser/drivers/toc"
 
 	_ "github.com/mogaika/god_of_war_browser/pack/txt"
@@ -34,12 +34,13 @@ import (
 )
 
 func main() {
-	var addr, tocpath, dir, iso string
+	var addr, tocpath, dirpath, isopath, psarcpath string
 	var gowversion int
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
-	flag.StringVar(&dir, "dir", "", "Path to unpacked wads and other stuff")
-	flag.StringVar(&iso, "iso", "", "Pack to iso file")
+	flag.StringVar(&dirpath, "dir", "", "Path to unpacked wads and other stuff")
+	flag.StringVar(&isopath, "iso", "", "Path to iso file")
+	flag.StringVar(&psarcpath, "psarc", "", "Path to ps3 psarc file")
 	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1 ps2', 2 - 'gow2 ps2'")
 	flag.Parse()
 
@@ -48,15 +49,25 @@ func main() {
 
 	config.SetGOWVersion(config.GOWVersion(gowversion))
 
-	if iso != "" {
+	psarcpath = `/run/user/1000/gvfs/smb-share:server=192.168.1.147,share=downloads2/BCES00791-[God of War Collection]/PS3_GAME/USRDIR/GOW1/exec/gow1.psarc`
+
+	if psarcpath != "" {
+		var arch *psarc.Psarc
+		f := vfs.NewDirectoryDriverFile(psarcpath)
+		if err = f.Open(true); err == nil {
+			if arch, err = psarc.NewPsarcDriver(f); err == nil {
+				p = directory.NewDirectoryDriver(arch)
+			}
+		}
+	} else if isopath != "" {
 	} else if tocpath != "" {
 		var t *toc.TableOfContent
 		t, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
 		if err == nil {
 			p = directory.NewDirectoryDriver(t)
 		}
-	} else if dir != "" {
-		p = directory.NewDirectoryDriver(vfs.NewDirectoryDriver(dir))
+	} else if dirpath != "" {
+		p = directory.NewDirectoryDriver(vfs.NewDirectoryDriver(dirpath))
 	} else {
 		flag.PrintDefaults()
 		return
