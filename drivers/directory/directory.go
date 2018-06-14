@@ -1,7 +1,9 @@
 package directory
 
-import "github.com/mogaika/god_of_war_browser/pack"
-import "github.com/mogaika/god_of_war_browser/vfs"
+import (
+	"github.com/mogaika/god_of_war_browser/pack"
+	"github.com/mogaika/god_of_war_browser/vfs"
+)
 
 type Directory struct {
 	dd vfs.Directory
@@ -18,7 +20,11 @@ func (d *Directory) GetFileNamesList() []string {
 
 func (d *Directory) GetFile(fileName string) (vfs.File, error) {
 	el, err := d.dd.GetElement(fileName)
-	return el.(vfs.File), err
+	if err != nil {
+		return nil, err
+	} else {
+		return el.(vfs.File), nil
+	}
 }
 
 func (d *Directory) GetInstance(fileName string) (interface{}, error) {
