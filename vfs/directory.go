@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	path_ "path"
+	"strings"
 )
 
 type DirectoryDriver struct {
@@ -28,7 +29,7 @@ func (dd *DirectoryDriver) List() ([]string, error) {
 	} else {
 		result := make([]string, 0, 32)
 		for _, f := range fileinfos {
-			result = append(result, f.Name())
+			result = append(result, strings.ToLower(f.Name()))
 		}
 		return result, nil
 	}

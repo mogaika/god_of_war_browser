@@ -109,7 +109,7 @@ func (t *TableOfContent) closePakStreams() error {
 }
 
 func (t *TableOfContent) getMaximumPossiblePak() PakIndex {
-	max := PakIndex(-1)
+	max := PakIndex(0)
 	for _, f := range t.files {
 		for _, e := range f.encounters {
 			if e.Pak > max {
@@ -125,31 +125,49 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 		return err
 	}
 
-	maxPaks := t.getMaximumPossiblePak()
-	if maxPaks >= 0 {
-		t.paks = make([]vfs.File, maxPaks+1)
-		for i := range t.paks {
-			name := t.namingPolicy.GetPakName(PakIndex(i))
+	log.Printf("[toc] Opening streams (readonly: %v)", readonly)
 
-			f, err := vfs.DirectoryGetFile(t.dir, name)
-			if err != nil {
-				log.Printf("[WARNING] [toc] Cannot get pak '%s': %v", name, err)
+	maxPaks := t.getMaximumPossiblePak()
+	t.paks = make([]vfs.File, maxPaks+1)
+	for i := range t.paks {
+		name := t.namingPolicy.GetPakName(PakIndex(i))
+
+		f, err := vfs.DirectoryGetFile(t.dir, name)
+		if err != nil {
+			log.Printf("[WARNING] [toc] Cannot get pak '%s': %v", name, err)
+			break
+		} else {
+			if err := f.Open(readonly); err != nil {
+				log.Printf("[WARNING] [toc] Cannot open pak '%s': %v", name, err)
 				break
+			}
+			t.paks[i] = f
+			log.Printf("[toc] Opened pak '%s'", name)
+		}
+	}
+	t.pa = NewPaksArray(t.paks, PACK_ADDR_INDEX)
+	return nil
+}
+
+func (t *TableOfContent) readTocFile() error {
+	t.files = make(map[string]*File)
+
+	if f, err := t.findTocFile(); err != nil {
+		return err
+	} else {
+		if r, err := vfs.OpenFileAndGetReader(f, true); err != nil {
+			return fmt.Errorf("[toc] Cannot open '%s': %v", err)
+		} else {
+			defer f.Close()
+			if rawToc, err := ioutil.ReadAll(r); err != nil {
+				return fmt.Errorf("[toc] ioutil.ReadAll(r): %v", err)
 			} else {
-				if err := f.Open(readonly); err != nil {
-					log.Printf("[WARNING] [toc] Cannot open pak '%s': %v", name, err)
-					break
+				if err := t.Unmarshal(rawToc); err != nil {
+					return fmt.Errorf("[toc]: Cannot unmarhsal: %v", err)
 				}
-				t.paks[i] = f
-				log.Printf("[toc] Opened pak '%s'", name)
 			}
 		}
-
-		t.pa = NewPaksArray(t.paks, PACK_ADDR_INDEX)
-	} else {
-		panic("Not implemented")
 	}
-
 	return nil
 }
 
@@ -159,30 +177,12 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 		dir:   dir,
 	}
 
-	f, err := t.findTocFile()
-	if err != nil {
+	if err := t.readTocFile(); err != nil {
 		return nil, err
-	}
-
-	if r, err := vfs.OpenFileAndGetReader(f, true); err != nil {
-		return nil, fmt.Errorf("[toc] Cannot open '%s': %v", err)
-	} else {
-		if rawToc, err := ioutil.ReadAll(r); err != nil {
-			return nil, fmt.Errorf("[toc] ioutil.ReadAll(r): %v", err)
-		} else {
-			if err := t.Unmarshal(rawToc); err != nil {
-				return nil, fmt.Errorf("[toc]: Cannot unmarhsal: %v", err)
-			}
-		}
 	}
 
 	if err := t.openPakStreams(true); err != nil {
 		return nil, err
-	}
-
-	for _, f := range sortFilesByEncounters(t.files) {
-		//log.Printf("%v - %v", f.Name(), f.encounters)
-		_ = f
 	}
 
 	return t, nil

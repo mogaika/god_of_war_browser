@@ -1,7 +1,9 @@
 package toc
 
 import (
+	"bytes"
 	"encoding/binary"
+	"sort"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -61,6 +63,28 @@ func (toc *TableOfContent) unmarshalGOW1(b []byte) error {
 }
 
 func (toc *TableOfContent) marshalGOW1() []byte {
-	panic("Not implemented")
-	return nil
+	entries := make([]RawTocEntryGOW1, 0, len(toc.files)*3)
+	for _, f := range toc.files {
+		for _, e := range f.encounters {
+			entries = append(entries, RawTocEntryGOW1{
+				Name:   f.name,
+				Size:   f.size,
+				Offset: e.Offset,
+				Pak:    e.Pak})
+		}
+	}
+
+	sort.Slice(entries, func(i int, j int) bool {
+		return entries[i].Pak < entries[j].Pak || (entries[i].Pak == entries[j].Pak && entries[i].Offset < entries[j].Offset)
+	})
+
+	var b bytes.Buffer
+	for i := range entries {
+		if _, err := b.Write(entries[i].Marshal()); err != nil {
+			panic(err)
+		}
+	}
+	// nil entry
+	b.Write(make([]byte, 0xc))
+	return b.Bytes()
 }
