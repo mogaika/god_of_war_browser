@@ -114,8 +114,6 @@ func NewFromData(f io.ReaderAt, isSblk bool, size uint32) (*SBK, error) {
 		return nil, err
 	}
 
-	log.Println("Sounds loaded: ", soundsCount)
-
 	sbk := &SBK{
 		Sounds:     make([]Sound, soundsCount),
 		IsVagFiles: !isSblk,

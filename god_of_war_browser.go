@@ -49,8 +49,6 @@ func main() {
 
 	config.SetGOWVersion(config.GOWVersion(gowversion))
 
-	psarcpath = `/run/user/1000/gvfs/smb-share:server=192.168.1.147,share=downloads2/BCES00791-[God of War Collection]/PS3_GAME/USRDIR/GOW1/exec/gow1.psarc`
-
 	if psarcpath != "" {
 		var arch *psarc.Psarc
 		f := vfs.NewDirectoryDriverFile(psarcpath)
