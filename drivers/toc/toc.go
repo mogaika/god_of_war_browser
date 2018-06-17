@@ -134,11 +134,11 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 
 		f, err := vfs.DirectoryGetFile(t.dir, name)
 		if err != nil {
-			log.Printf("[WARNING] [toc] Cannot get pak '%s': %v", name, err)
+			log.Printf("[toc] [WARNING] Cannot get pak '%s': %v", name, err)
 			break
 		} else {
 			if err := f.Open(readonly); err != nil {
-				log.Printf("[WARNING] [toc] Cannot open pak '%s': %v", name, err)
+				log.Printf("[toc] [WARNING] Cannot open pak '%s': %v", name, err)
 				break
 			}
 			t.paks[i] = f
@@ -156,7 +156,7 @@ func (t *TableOfContent) readTocFile() error {
 		return err
 	} else {
 		if r, err := vfs.OpenFileAndGetReader(f, true); err != nil {
-			return fmt.Errorf("[toc] Cannot open '%s': %v", err)
+			return fmt.Errorf("[toc] Cannot open '%s': %v", f.Name(), err)
 		} else {
 			defer f.Close()
 			if rawToc, err := ioutil.ReadAll(r); err != nil {

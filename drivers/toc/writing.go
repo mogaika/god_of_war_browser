@@ -44,17 +44,8 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 	f.encounters = make([]Encounter, 0)
 
 	if fs := toc.findFreeSpaceForFile(newSize); fs != nil {
-		e := Encounter{
-			Offset: fs.Start,
-			Size:   f.size,
-			Pak:    fs.Pak}
-		f.encounters = append(f.encounters, e)
-
-		if _, err := toc.pa.NewReaderWriter(e).WriteAt(b, 0); err != nil {
-			return fmt.Errorf("[toc] free space found, UpdateFile=>WriteAt: %v", err)
-		}
-		if err := toc.updateToc(); err != nil {
-			return fmt.Errorf("[toc] free space found, UpdateFile=>updateToc: %v", err)
+		if err := toc.replicaFileInFreeSpace(f, *fs, b); err != nil {
+			return fmt.Errorf("[toc] cannot create replica of file: %v", err)
 		}
 		return nil
 	}
@@ -66,22 +57,29 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 	}
 
 	if fs := toc.findFreeSpaceForFile(newSize); fs != nil {
-		e := Encounter{
-			Offset: fs.Start,
-			Size:   f.size,
-			Pak:    fs.Pak}
-		f.encounters = append(f.encounters, e)
-
-		if _, err := toc.pa.NewReaderWriter(e).WriteAt(b, 0); err != nil {
-			return fmt.Errorf("[toc] free space found after shrinking, UpdateFile=>WriteAt: %v", err)
-		}
-		if err := toc.updateToc(); err != nil {
-			return fmt.Errorf("[toc] free space found after shrinking, UpdateFile=>updateToc: %v", err)
+		if err := toc.replicaFileInFreeSpace(f, *fs, b); err != nil {
+			return fmt.Errorf("[toc] cannot create replica of file after shrinking: %v", err)
 		}
 		return nil
 	}
 
 	return fmt.Errorf("[toc] There is no free space available in packs. WORKAROUND: Manually increase size of paks files and try again.")
+}
+
+func (toc *TableOfContent) replicaFileInFreeSpace(f *File, fs FreeSpace, b []byte) error {
+	e := Encounter{
+		Offset: fs.Start,
+		Size:   f.size,
+		Pak:    fs.Pak}
+	f.encounters = append(f.encounters, e)
+
+	if _, err := toc.pa.NewReaderWriter(e).WriteAt(b, 0); err != nil {
+		return fmt.Errorf("[toc] replicaFileInFreeSpace=>WriteAt: %v", err)
+	}
+	if err := toc.updateToc(); err != nil {
+		return fmt.Errorf("[toc] replicaFileInFreeSpace=>updateToc: %v", err)
+	}
+	return nil
 }
 
 func (toc *TableOfContent) findFreeSpaceForFile(size int64) *FreeSpace {

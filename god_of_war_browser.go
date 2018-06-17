@@ -58,10 +58,20 @@ func main() {
 			}
 		}
 	} else if isopath != "" {
+		f := vfs.NewDirectoryDriverFile(isopath)
+		if err = f.Open(false); err == nil {
+			var t *toc.TableOfContent
+			var iso *vfs.IsoDriver
+			if iso, err = vfs.NewIsoDriver(f); err == nil {
+				if t, err = toc.NewTableOfContent(iso); err == nil {
+					p = directory.NewDirectoryDriver(t)
+				}
+			}
+
+		}
 	} else if tocpath != "" {
 		var t *toc.TableOfContent
-		t, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
-		if err == nil {
+		if t, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath)); err == nil {
 			p = directory.NewDirectoryDriver(t)
 		}
 	} else if dirpath != "" {
