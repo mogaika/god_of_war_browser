@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/mogaika/god_of_war_browser/pack"
 	file_vpk "github.com/mogaika/god_of_war_browser/pack/vpk"
 	file_wad "github.com/mogaika/god_of_war_browser/pack/wad"
 	file_vagp "github.com/mogaika/god_of_war_browser/ps2/vagp"
@@ -21,14 +22,17 @@ import (
 )
 
 func HandlerAjaxPack(w http.ResponseWriter, r *http.Request) {
-	files := ServerPack.GetFileNamesList()
-	sort.Strings(files)
-	webutils.WriteJson(w, files)
+	if files, err := ServerDirectory.List(); err != nil {
+		webutils.WriteError(w, err)
+	} else {
+		sort.Strings(files)
+		webutils.WriteJson(w, files)
+	}
 }
 
 func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
-	data, err := ServerPack.GetInstance(file)
+	data, err := pack.GetInstanceHandler(ServerDirectory, file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -40,7 +44,7 @@ func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
-	data, err := ServerPack.GetInstance(file)
+	data, err := pack.GetInstanceHandler(ServerDirectory, file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -64,7 +68,7 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 
 func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
-	f, err := ServerPack.GetFile(file)
+	f, err := vfs.DirectoryGetFile(ServerDirectory, file)
 	if err != nil {
 		webutils.WriteError(w, err)
 	}
@@ -80,7 +84,7 @@ func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
-	data, err := ServerPack.GetInstance(file)
+	data, err := pack.GetInstanceHandler(ServerDirectory, file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -103,7 +107,7 @@ func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 		case *file_vpk.VPK:
 			vpk := data.(*file_vpk.VPK)
 
-			f, err := ServerPack.GetFile(file)
+			f, err := vfs.DirectoryGetFile(ServerDirectory, file)
 			if err != nil {
 				webutils.WriteError(w, err)
 			} else {
@@ -131,7 +135,7 @@ func HandlerActionPackFileParam(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
 	action := mux.Vars(r)["action"]
-	data, err := ServerPack.GetInstance(file)
+	data, err := pack.GetInstanceHandler(ServerDirectory, file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
 		webutils.WriteError(w, err)
@@ -170,7 +174,7 @@ func HandlerUploadPackFile(w http.ResponseWriter, r *http.Request) {
 	}
 	fileStream.Seek(0, os.SEEK_SET)
 
-	if f, err := ServerPack.GetFile(targetFile); err != nil {
+	if f, err := vfs.DirectoryGetFile(ServerDirectory, targetFile); err != nil {
 		webutils.WriteError(w, err)
 	} else {
 		defer f.Close()
@@ -189,7 +193,7 @@ func HandlerUploadPackFileParam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := ServerPack.GetInstance(targetFile)
+	data, err := pack.GetInstanceHandler(ServerDirectory, targetFile)
 	if err != nil {
 		log.Printf("Error getting instance from pack: %v", err)
 		webutils.WriteError(w, err)

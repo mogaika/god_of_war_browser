@@ -5,11 +5,9 @@ import (
 	"log"
 
 	"github.com/mogaika/god_of_war_browser/config"
-	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/web"
 
-	"github.com/mogaika/god_of_war_browser/drivers/directory"
 	"github.com/mogaika/god_of_war_browser/drivers/psarc"
 	"github.com/mogaika/god_of_war_browser/drivers/toc"
 
@@ -44,49 +42,39 @@ func main() {
 	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1 ps2', 2 - 'gow2 ps2'")
 	flag.Parse()
 
-	var p pack.PackDriver
 	var err error
+	var rootdir vfs.Directory
 
 	config.SetGOWVersion(config.GOWVersion(gowversion))
 
 	if psarcpath != "" {
-		var arch *psarc.Psarc
 		f := vfs.NewDirectoryDriverFile(psarcpath)
 		if err = f.Open(true); err == nil {
-			if arch, err = psarc.NewPsarcDriver(f); err == nil {
-				p = directory.NewDirectoryDriver(arch)
-			}
+			rootdir, err = psarc.NewPsarcDriver(f)
 		}
 	} else if isopath != "" {
 		f := vfs.NewDirectoryDriverFile(isopath)
 		if err = f.Open(false); err == nil {
-			var t *toc.TableOfContent
 			var iso *vfs.IsoDriver
 			if iso, err = vfs.NewIsoDriver(f); err == nil {
-				if t, err = toc.NewTableOfContent(iso); err == nil {
-					p = directory.NewDirectoryDriver(t)
-				}
+				rootdir, err = toc.NewTableOfContent(iso)
 			}
-
 		}
 	} else if tocpath != "" {
-		var t *toc.TableOfContent
-		if t, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath)); err == nil {
-			p = directory.NewDirectoryDriver(t)
-		}
+		rootdir, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
 	} else if dirpath != "" {
-		p = directory.NewDirectoryDriver(vfs.NewDirectoryDriver(dirpath))
+		rootdir = vfs.NewDirectoryDriver(dirpath)
 	} else {
 		flag.PrintDefaults()
 		return
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Cannot start god of war browser: %v", err)
 	}
 
-	if err := web.StartServer(addr, p, "web"); err != nil {
-		log.Fatal(err)
+	if err := web.StartServer(addr, rootdir, "web"); err != nil {
+		log.Fatalf("Cannot start web server: %v", err)
 	}
 
 }

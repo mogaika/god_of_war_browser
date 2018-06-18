@@ -9,13 +9,13 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
-	"github.com/mogaika/god_of_war_browser/pack"
+	"github.com/mogaika/god_of_war_browser/vfs"
 )
 
-var ServerPack pack.PackDriver
+var ServerDirectory vfs.Directory
 
-func StartServer(addr string, _pack pack.PackDriver, webPath string) error {
-	ServerPack = _pack
+func StartServer(addr string, d vfs.Directory, webPath string) error {
+	ServerDirectory = d
 
 	r := mux.NewRouter()
 	r.HandleFunc("/action/{file}/{param}/{action}", HandlerActionPackFileParam)

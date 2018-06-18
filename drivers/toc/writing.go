@@ -27,6 +27,7 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 	newSize := int64(len(b))
 	if utils.GetRequiredSectorsCount(f.size) <= utils.GetRequiredSectorsCount(newSize) {
 		// we can reuse space
+		f.size = newSize
 		for i := range f.encounters {
 			f.encounters[i].Size = newSize
 
@@ -86,7 +87,7 @@ func (toc *TableOfContent) findFreeSpaceForFile(size int64) *FreeSpace {
 	freeSpaces := constructFreeSpaceArray(toc.files, toc.paks)
 	for iFreeSpace := range freeSpaces {
 		fs := &freeSpaces[iFreeSpace]
-		if fs.End-fs.Start < size {
+		if fs.End-fs.Start >= size {
 			result := freeSpaces[iFreeSpace]
 			return &result
 		}
