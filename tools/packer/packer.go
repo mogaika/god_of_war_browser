@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mogaika/god_of_war_browser/toc"
+	"github.com/mogaika/god_of_war_browser/tools/packer/toc"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
