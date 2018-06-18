@@ -35,7 +35,7 @@ func DirectoryGetFile(d Directory, name string) (File, error) {
 	if f, err := d.GetElement(name); err != nil {
 		return nil, fmt.Errorf("Cannot open file '%s': %v", name, err)
 	} else if f.IsDirectory() {
-		return nil, fmt.Errorf("File '%s' is directory, not a file!")
+		return nil, fmt.Errorf("File '%s' is directory, not a file!", name)
 	} else {
 		return f.(File), nil
 	}
