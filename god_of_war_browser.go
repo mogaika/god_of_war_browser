@@ -8,6 +8,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/web"
 
+	"github.com/mogaika/god_of_war_browser/drivers/iso"
 	"github.com/mogaika/god_of_war_browser/drivers/psarc"
 	"github.com/mogaika/god_of_war_browser/drivers/toc"
 
@@ -55,9 +56,9 @@ func main() {
 	} else if isopath != "" {
 		f := vfs.NewDirectoryDriverFile(isopath)
 		if err = f.Open(false); err == nil {
-			var iso *vfs.IsoDriver
-			if iso, err = vfs.NewIsoDriver(f); err == nil {
-				rootdir, err = toc.NewTableOfContent(iso)
+			var isoDriver *iso.IsoDriver
+			if isoDriver, err = iso.NewIsoDriver(f); err == nil {
+				rootdir, err = toc.NewTableOfContent(isoDriver)
 			}
 		}
 	} else if tocpath != "" {
