@@ -44,7 +44,7 @@ func (iso *IsoDriver) GetElement(name string) (Element, error) {
 				if strings.ToLower(dir[i].Name()) == strings.ToLower(name) {
 					return &IsoDriverFile{
 						iso: iso,
-						f:   dir[i]}, nil
+						f:   &dir[i]}, nil
 				}
 			}
 		}
@@ -72,7 +72,7 @@ func (iso *IsoDriver) OpenStreams() error {
 		volumeSize := int64(binary.LittleEndian.Uint32(volSizeBuf[:])-16) * utils.SECTOR_SIZE
 		if volumeSize+32*utils.SECTOR_SIZE < iso.f.Size() {
 			iso.layers[1] = udf.NewUdfFromReader(io.NewSectionReader(iso.f, volumeSize, iso.f.Size()-volumeSize))
-			log.Printf("[vfs] [iso] Detected second layer of disk. Start: %x (%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
+			log.Printf("[vfs] [iso] Detected second layer of disk. Start: 0x%x (0x%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
 			iso.secondLayerStart = volumeSize
 		}
 	}
@@ -86,7 +86,7 @@ func NewIsoDriver(f File) (*IsoDriver, error) {
 
 type IsoDriverFile struct {
 	iso *IsoDriver
-	f   udf.File
+	f   *udf.File
 }
 
 func (f *IsoDriverFile) Init(parent Directory)    {}
@@ -109,18 +109,18 @@ func (f *IsoDriverFile) Copy(src io.Reader) error {
 	if int64(b.Len()) != f.Size() {
 		return fmt.Errorf("[vfs] [iso] Do not support file size changing")
 	}
-	_, err := f.iso.f.WriteAt(b.Bytes(), f.f.GetFileOffset())
+	_, err := f.WriteAt(b.Bytes(), 0)
 	return err
 }
 func (f *IsoDriverFile) WriteAt(b []byte, off int64) (n int, err error) {
-	if off > f.Size() {
+	if off+int64(len(b)) > f.Size() {
 		return 0, fmt.Errorf("[vfs] [iso] Do not support file size increasing")
 	}
 
-	n, err = f.iso.f.WriteAt(b, f.f.GetFileOffset()+off)
-	log.Printf("[vfs] [iso] WriteAt(arr_len 0x%x, off 0x%x) => targetPos: 0x%x   :: 0x%x, %v   -%s",
-		len(b), off, f.f.GetFileOffset()+off, n, err, f.f.Name())
-	return n, err
+	if f.f.Udf == f.iso.layers[1] {
+		off += f.iso.secondLayerStart
+	}
+	return f.iso.f.WriteAt(b, f.f.GetFileOffset()+off)
 }
 func (f *IsoDriverFile) Sync() error {
 	return f.iso.Sync()
