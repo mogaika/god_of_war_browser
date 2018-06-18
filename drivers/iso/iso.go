@@ -1,4 +1,4 @@
-package vfs
+package iso
 
 import (
 	"bytes"
@@ -9,19 +9,21 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/udf"
+
+	"github.com/mogaika/god_of_war_browser/utils"
+	"github.com/mogaika/god_of_war_browser/vfs"
 )
 
 type IsoDriver struct {
-	f                File
+	f                vfs.File
 	layers           [2]*udf.Udf
 	secondLayerStart int64
 }
 
-func (iso *IsoDriver) Init(parent Directory) {}
-func (iso *IsoDriver) Name() string          { return iso.f.Name() }
-func (iso *IsoDriver) IsDirectory() bool     { return true }
+func (iso *IsoDriver) Init(parent vfs.Directory) {}
+func (iso *IsoDriver) Name() string              { return iso.f.Name() }
+func (iso *IsoDriver) IsDirectory() bool         { return true }
 
 func (iso *IsoDriver) List() ([]string, error) {
 	result := make([]string, 0, 48)
@@ -36,7 +38,7 @@ func (iso *IsoDriver) List() ([]string, error) {
 	return result, nil
 }
 
-func (iso *IsoDriver) GetElement(name string) (Element, error) {
+func (iso *IsoDriver) GetElement(name string) (vfs.Element, error) {
 	for _, layer := range iso.layers {
 		if layer != nil {
 			dir := layer.ReadDir(nil)
@@ -51,10 +53,10 @@ func (iso *IsoDriver) GetElement(name string) (Element, error) {
 	}
 	return nil, os.ErrNotExist
 }
-func (iso *IsoDriver) Add(e Element) error      { panic("Not implemented") }
+func (iso *IsoDriver) Add(e vfs.Element) error  { panic("Not implemented") }
 func (iso *IsoDriver) Remove(name string) error { panic("Not implemented") }
 func (iso *IsoDriver) Sync() error {
-	if s, ok := iso.f.(Syncer); ok {
+	if s, ok := iso.f.(vfs.Syncer); ok {
 		return s.Sync()
 	}
 	return nil
@@ -79,7 +81,7 @@ func (iso *IsoDriver) OpenStreams() error {
 	return nil
 }
 
-func NewIsoDriver(f File) (*IsoDriver, error) {
+func NewIsoDriver(f vfs.File) (*IsoDriver, error) {
 	iso := &IsoDriver{f: f}
 	return iso, iso.OpenStreams()
 }
@@ -89,12 +91,12 @@ type IsoDriverFile struct {
 	f   *udf.File
 }
 
-func (f *IsoDriverFile) Init(parent Directory)    {}
-func (f *IsoDriverFile) Name() string             { return f.f.Name() }
-func (f *IsoDriverFile) IsDirectory() bool        { return f.f.IsDir() }
-func (f *IsoDriverFile) Size() int64              { return f.f.Size() }
-func (f *IsoDriverFile) Open(readonly bool) error { return nil }
-func (f *IsoDriverFile) Close() error             { return f.Sync() }
+func (f *IsoDriverFile) Init(parent vfs.Directory) {}
+func (f *IsoDriverFile) Name() string              { return f.f.Name() }
+func (f *IsoDriverFile) IsDirectory() bool         { return f.f.IsDir() }
+func (f *IsoDriverFile) Size() int64               { return f.f.Size() }
+func (f *IsoDriverFile) Open(readonly bool) error  { return nil }
+func (f *IsoDriverFile) Close() error              { return f.Sync() }
 func (f *IsoDriverFile) Reader() (*io.SectionReader, error) {
 	return f.f.NewReader(), nil
 }
