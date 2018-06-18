@@ -1,9 +1,5 @@
 version: '1.{build}'
 
-branches:
-  only:
-    - master
-
 skip_tags: true
 
 clone_folder: c:\gopath\src\github.com\mogaika\god_of_war_browser
@@ -33,11 +29,12 @@ after_build:
   - 7z a god_of_war_browser.zip LOCALIZATION.md
   - 7z a god_of_war_browser.zip README.md
   - 7z a god_of_war_browser.zip LICENSE
+  - mv god_of_war_browser.zip god_of_war_browser.%APPVEYOR_BUILD_VERSION%.zip
 
 test: off
 
 deploy: off
 
 artifacts:
-  - path: god_of_war_browser.zip
-    name: god_of_war_browser
+  - path: god_of_war_browser.%APPVEYOR_BUILD_VERSION%.zip
+    name: god_of_war_browser archive
