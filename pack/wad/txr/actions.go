@@ -41,7 +41,7 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	b := img.Bounds().Max
 	log.Println("Calculating palette...")
 	newPal, newIdx := imgToPaletteAndIndex(img, gfxc.Encoding == 0)
-	log.Println("done")
+	//log.Println("done")
 
 	gfxc.Data[0] = newIdx
 	gfxc.DataSize = uint32(len(gfxc.Data[0]))
@@ -62,7 +62,6 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 		if err := gfxSecondPaletteToGrayscale(palc); err != nil {
 			return fmt.Errorf("Error when calculating grayscale palette: %v", err)
 		}
-		log.Println("done")
 	}
 
 	gfxBinRaw, err := gfxc.MarshalToBinary()
@@ -74,7 +73,6 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	if err != nil {
 		return fmt.Errorf("palc.MarshalToBinary(): %v", err)
 	}
-	log.Println("Updating wad...")
 	return wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
 		gfxcn.Tag.Id: gfxBinRaw,
 		palcn.Tag.Id: palBinRaw,
@@ -113,7 +111,7 @@ func (txr *Texture) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r 
 		}
 		defer fImg.Close()
 		if err := txr.ChangeTexture(wrsrc, fImg); err != nil {
-			log.Println(err)
+			log.Printf("[txr] Error changing texture: %v", err)
 			fmt.Fprintln(w, "change texture error:", err)
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	path_ "path"
-	"strings"
 )
 
 type DirectoryDriver struct {
@@ -29,7 +28,7 @@ func (dd *DirectoryDriver) List() ([]string, error) {
 	} else {
 		result := make([]string, 0, 32)
 		for _, f := range fileinfos {
-			result = append(result, strings.ToLower(f.Name()))
+			result = append(result, f.Name())
 		}
 		return result, nil
 	}
@@ -175,5 +174,13 @@ func (ddf *DirectoryDriverFile) WriteAt(b []byte, off int64) (n int, err error) 
 		return 0, fmt.Errorf("First you need to open file")
 	} else {
 		return ddf.f.WriteAt(b, off)
+	}
+}
+
+func (ddf *DirectoryDriverFile) Sync() error {
+	if ddf.f == nil {
+		return fmt.Errorf("First you need to open file")
+	} else {
+		return ddf.f.Sync()
 	}
 }

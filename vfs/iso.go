@@ -53,6 +53,12 @@ func (iso *IsoDriver) GetElement(name string) (Element, error) {
 }
 func (iso *IsoDriver) Add(e Element) error      { panic("Not implemented") }
 func (iso *IsoDriver) Remove(name string) error { panic("Not implemented") }
+func (iso *IsoDriver) Sync() error {
+	if s, ok := iso.f.(Syncer); ok {
+		return s.Sync()
+	}
+	return nil
+}
 
 func (iso *IsoDriver) OpenStreams() error {
 	iso.layers[0] = udf.NewUdfFromReader(iso.f)
@@ -88,7 +94,7 @@ func (f *IsoDriverFile) Name() string             { return f.f.Name() }
 func (f *IsoDriverFile) IsDirectory() bool        { return f.f.IsDir() }
 func (f *IsoDriverFile) Size() int64              { return f.f.Size() }
 func (f *IsoDriverFile) Open(readonly bool) error { return nil }
-func (f *IsoDriverFile) Close() error             { return nil }
+func (f *IsoDriverFile) Close() error             { return f.Sync() }
 func (f *IsoDriverFile) Reader() (*io.SectionReader, error) {
 	return f.f.NewReader(), nil
 }
@@ -110,5 +116,12 @@ func (f *IsoDriverFile) WriteAt(b []byte, off int64) (n int, err error) {
 	if off > f.Size() {
 		return 0, fmt.Errorf("[vfs] [iso] Do not support file size increasing")
 	}
-	return f.iso.f.WriteAt(b, f.f.GetFileOffset()+off)
+
+	n, err = f.iso.f.WriteAt(b, f.f.GetFileOffset()+off)
+	log.Printf("[vfs] [iso] WriteAt(arr_len 0x%x, off 0x%x) => targetPos: 0x%x   :: 0x%x, %v   -%s",
+		len(b), off, f.f.GetFileOffset()+off, n, err, f.f.Name())
+	return n, err
+}
+func (f *IsoDriverFile) Sync() error {
+	return f.iso.Sync()
 }

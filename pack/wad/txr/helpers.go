@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"log"
 	"sort"
 
 	_ "image/gif"
@@ -90,7 +89,7 @@ func imgToPaletteAndIndex(img image.Image, swizzleGfx bool) (color.Palette, []by
 		}
 		return nil
 	}
-	log.Println("Construct counters array")
+	// log.Println("Construct counters array")
 	b := img.Bounds().Max
 	for y := 0; y < b.Y; y++ {
 		for x := 0; x < b.X; x++ {
@@ -103,7 +102,7 @@ func imgToPaletteAndIndex(img image.Image, swizzleGfx bool) (color.Palette, []by
 			}
 		}
 	}
-	log.Println("Sorting")
+	// log.Println("Sorting")
 	sort.Slice(counter, func(i, j int) bool { return counter[i].counts > counter[j].counts })
 	pal := make(color.Palette, 256)
 
@@ -115,7 +114,7 @@ func imgToPaletteAndIndex(img image.Image, swizzleGfx bool) (color.Palette, []by
 		}
 	}
 
-	log.Println("Generating img indexes")
+	// log.Println("Generating img indexes")
 	idx := make([]byte, b.X*b.Y)
 	for y := 0; y < b.Y; y++ {
 		for x := 0; x < b.X; x++ {
@@ -127,7 +126,7 @@ func imgToPaletteAndIndex(img image.Image, swizzleGfx bool) (color.Palette, []by
 		}
 	}
 
-	log.Println("Swizzle palette")
+	// log.Println("Swizzle palette")
 	swizzledpal := make(color.Palette, 256)
 	for i := range pal {
 		swizzledpal[i] = pal[file_gfx.IndexSwizzlePalette(i)]
