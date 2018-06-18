@@ -43,3 +43,7 @@ func (f *File) Copy(src io.Reader) error {
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	panic("Not implemented")
 }
+
+func (f *File) Sync() error {
+	return f.toc.Sync()
+}

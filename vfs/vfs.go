@@ -30,3 +30,7 @@ type Directory interface {
 	Add(e Element) error
 	Remove(name string) error
 }
+
+type Syncer interface {
+	Sync() error
+}
