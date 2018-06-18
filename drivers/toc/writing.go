@@ -31,7 +31,6 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 		return fmt.Errorf("[toc] UpdateFile=>openPakStreams: %v", err)
 	}
 	defer func() {
-		toc.Sync()
 		toc.readTocFile()
 		toc.openPakStreams(true)
 	}()
