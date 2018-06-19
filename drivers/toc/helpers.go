@@ -72,6 +72,12 @@ func constructFreeSpaceArray(files map[string]*File, paks []vfs.File) []FreeSpac
 				End:   paks[lastPak].Size(),
 				Pak:   lastPak})
 		}
+		for curPak := lastPak + 1; curPak < newPak; curPak++ {
+			result = append(result, FreeSpace{
+				Start: 0,
+				End:   paks[curPak].Size(),
+				Pak:   curPak})
+		}
 		lastPak = newPak
 		lastPos = 0
 	}
@@ -92,6 +98,19 @@ func constructFreeSpaceArray(files map[string]*File, paks []vfs.File) []FreeSpac
 
 		lastPos = e.Offset + utils.GetRequiredSectorsCount(e.Size)*utils.SECTOR_SIZE
 	}
+	handlePakChange(PakIndex(len(paks)))
 
+	return result
+}
+
+func paksAsFreeSpaces(paks []vfs.File) []FreeSpace {
+	result := make([]FreeSpace, len(paks))
+	for iPak, f := range paks {
+		result[iPak] = FreeSpace{
+			Pak:   PakIndex(iPak),
+			Start: 0,
+			End:   f.Size(),
+		}
+	}
 	return result
 }
