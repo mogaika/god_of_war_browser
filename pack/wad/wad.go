@@ -153,6 +153,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 	w.Tags = make([]Tag, 0)
 	w.HeapSizes = make(map[string]uint32)
 	var buf [WAD_ITEM_SIZE]byte
+	pos := int64(0)
 	for id := TagId(0); ; id++ {
 		_, err := r.Read(buf[:])
 		if err != nil {
@@ -164,6 +165,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 		}
 		t := UnmarshalTag(buf[:])
 		t.Id = id
+		t.DebugPos = uint32(pos)
 
 		if config.GetGOWVersion() == config.GOW1ps2 && t.Tag == 0x18 || config.GetGOWVersion() == config.GOW2ps2 && t.Tag == 0 {
 			// entity count
@@ -180,9 +182,8 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 
 		w.Tags = append(w.Tags, t)
 
-		if pos, err := r.Seek(0, os.SEEK_CUR); err == nil {
+		if pos, err = r.Seek(0, os.SEEK_CUR); err == nil {
 			pos = int64(alignToWadTag(int(pos)))
-			t.DebugPos = uint32(pos)
 			if _, err := r.Seek(pos, os.SEEK_SET); err != nil {
 				return fmt.Errorf("Error when seek_set: %v", err)
 			}

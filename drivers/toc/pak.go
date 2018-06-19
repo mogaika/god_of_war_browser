@@ -89,7 +89,7 @@ func (pa *PaksArray) Move(from, to Encounter) error {
 	sizeInBytes := sizeInSectors * utils.SECTOR_SIZE
 
 	forwardCopy := true
-	bunchSize := int64(512)
+	bunchSize := int64(48)
 	if to.Pak == from.Pak {
 		// if we collide, then use memmove logic
 		if from.Offset < to.Offset+sizeInBytes && from.Offset+sizeInBytes >= to.Offset {
@@ -107,11 +107,11 @@ func (pa *PaksArray) Move(from, to Encounter) error {
 		pos += sizeInBytes
 	}
 
-	left := sizeInSectors
-	for left != int64(0) {
-		readSectorsAmount := left
-		if left > bunchSize {
-			left = bunchSize
+	leftSectorsToCopy := sizeInSectors
+	for leftSectorsToCopy != int64(0) {
+		readSectorsAmount := leftSectorsToCopy
+		if readSectorsAmount > bunchSize {
+			readSectorsAmount = bunchSize
 		}
 		readBytesAmount := readSectorsAmount * utils.SECTOR_SIZE
 
@@ -136,7 +136,7 @@ func (pa *PaksArray) Move(from, to Encounter) error {
 		} else {
 			pos -= readBytesAmount
 		}
-		left -= readSectorsAmount
+		leftSectorsToCopy -= readSectorsAmount
 	}
 
 	return nil

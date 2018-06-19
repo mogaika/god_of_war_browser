@@ -185,5 +185,22 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 		return nil, err
 	}
 
+	log.Printf("Free space: ")
+	for _, fs := range constructFreeSpaceArray(t.files, t.paks) {
+		log.Printf("[%d] 0x%.9x <=> 0x%.9x  0x%.7x  %dkB", fs.Pak, fs.Start, fs.End, fs.End-fs.Start, (fs.End-fs.Start)/1024)
+		for _, f := range t.files {
+			for _, e := range f.encounters {
+				if e.Size != f.size {
+					log.Printf("size  0x%.7x != 0x%.7x file '%v' offset %x:", e.Size, f.size, f.name, e)
+				}
+				if e.Pak == fs.Pak {
+					if e.Offset+e.Size > fs.Start && e.Offset < fs.End {
+						log.Printf("collision with file %s: 0x%.9x <=> 0x%.9x", f.name, e.Offset, e.Offset+e.Size)
+					}
+				}
+			}
+		}
+	}
+
 	return t, nil
 }

@@ -37,6 +37,9 @@ func (toc *TableOfContent) unmarshalGOW1(b []byte) error {
 	toc.files = make(map[string]*File)
 	var raw RawTocEntryGOW1
 	for len(b) >= GOW1_ENTRY_SIZE {
+		if b[0] == 0 {
+			break
+		}
 		raw.Unmarshal(b)
 		e := Encounter{
 			Offset: raw.Offset,
