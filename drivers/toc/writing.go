@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/mogaika/god_of_war_browser/status"
 	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/god_of_war_browser/vfs"
 )
@@ -76,10 +77,8 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 
 func (toc *TableOfContent) findFreeSpaceForFile(size int64) *FreeSpace {
 	freeSpaces := constructFreeSpaceArray(toc.files, toc.paks)
-	log.Printf("Free space table")
 	for iFreeSpace := range freeSpaces {
 		fs := &freeSpaces[iFreeSpace]
-		log.Printf("  - free space %+#v", fs)
 		if fs.End-fs.Start >= size {
 			result := freeSpaces[iFreeSpace]
 			return &result
@@ -101,8 +100,10 @@ func (t *TableOfContent) Shrink() error {
 	sortedFiles := sortFilesByEncounters(t.files)
 	paksUsage := paksAsFreeSpaces(t.paks)
 	alreadyProcessedFiles := make(map[string]*File)
+
 	for _, f := range sortedFiles {
 		if _, already := alreadyProcessedFiles[f.name]; !already {
+			status.Progress(float32(len(alreadyProcessedFiles))/float32(len(t.files)), "Shrinking iso image. Current file '%s'", f.name)
 			alreadyProcessedFiles[f.name] = f
 			if len(f.encounters) != 0 {
 				oldsencs := f.encounters
@@ -121,7 +122,6 @@ func (t *TableOfContent) Shrink() error {
 					}
 				}
 
-				log.Printf("Moving '%s' from %v to %v", f.name, oldE, newE)
 				if err := t.pa.Move(oldE, *newE); err != nil {
 					return fmt.Errorf("[toc] SHRINK ERROR! PROBABLY YOU LOSE YOUR DATA !: %v", err)
 				}
