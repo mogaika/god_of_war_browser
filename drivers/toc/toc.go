@@ -171,20 +171,7 @@ func (t *TableOfContent) readTocFile() error {
 	return nil
 }
 
-func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
-	t := &TableOfContent{
-		files: nil,
-		dir:   dir,
-	}
-
-	if err := t.readTocFile(); err != nil {
-		return nil, err
-	}
-
-	if err := t.openPakStreams(true); err != nil {
-		return nil, err
-	}
-
+func printFreeSpace(t *TableOfContent) {
 	log.Printf("Free space: ")
 	for _, fs := range constructFreeSpaceArray(t.files, t.paks) {
 		log.Printf("[%d] 0x%.9x <=> 0x%.9x  0x%.7x  %dkB", fs.Pak, fs.Start, fs.End, fs.End-fs.Start, (fs.End-fs.Start)/1024)
@@ -201,6 +188,23 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 			}
 		}
 	}
+}
+
+func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
+	t := &TableOfContent{
+		files: nil,
+		dir:   dir,
+	}
+
+	if err := t.readTocFile(); err != nil {
+		return nil, err
+	}
+
+	if err := t.openPakStreams(true); err != nil {
+		return nil, err
+	}
+
+	// printFreeSpace(t)
 
 	return t, nil
 }

@@ -8,11 +8,16 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 
 	"github.com/mogaika/god_of_war_browser/vfs"
 )
 
 var ServerDirectory vfs.Directory
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 func StartServer(addr string, d vfs.Directory, webPath string) error {
 	ServerDirectory = d
@@ -26,6 +31,7 @@ func StartServer(addr string, d vfs.Directory, webPath string) error {
 	r.HandleFunc("/dump/pack/{file}", HandlerDumpPackFile)
 	r.HandleFunc("/upload/pack/{file}", HandlerUploadPackFile)
 	r.HandleFunc("/upload/pack/{file}/{param}", HandlerUploadPackFileParam)
+	r.HandleFunc("/ws/status", HandlerWebsocketStatus)
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(path.Join(webPath, "data"))))
 

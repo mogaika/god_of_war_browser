@@ -17,6 +17,7 @@ import (
 	file_vpk "github.com/mogaika/god_of_war_browser/pack/vpk"
 	file_wad "github.com/mogaika/god_of_war_browser/pack/wad"
 	file_vagp "github.com/mogaika/god_of_war_browser/ps2/vagp"
+	"github.com/mogaika/god_of_war_browser/status"
 	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
@@ -215,5 +216,13 @@ func HandlerUploadPackFileParam(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
 
+func HandlerWebsocketStatus(w http.ResponseWriter, r *http.Request) {
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("[web] New ws connection error: %v", err)
+		return
+	}
+	status.NewClient(conn)
 }

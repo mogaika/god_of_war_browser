@@ -4,6 +4,8 @@ import (
 	"flag"
 	"log"
 
+	"github.com/mogaika/god_of_war_browser/status"
+
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/web"
@@ -73,6 +75,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Cannot start god of war browser: %v", err)
 	}
+
+	status.Info("Starting web server on address '%s'", addr)
 
 	if err := web.StartServer(addr, rootdir, "web"); err != nil {
 		log.Fatalf("Cannot start web server: %v", err)
