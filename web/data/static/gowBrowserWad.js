@@ -145,7 +145,7 @@ function treeLoadWadNode(wad, tagid) {
                 setLocation(wad + " => " + tag.Name, '#/' + wad + '/' + tagid);
             }
 
-            if (tag.Tag == 0x1e) {
+            if (tag.Tag == 0x1e || tag.Tag == 1) {
                 switch (resp.ServerId) {
                     case 0x00000021: // flp
                         summaryLoadWadFlp(data, wad, tagid);

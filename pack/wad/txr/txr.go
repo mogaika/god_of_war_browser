@@ -10,6 +10,8 @@ import (
 	"image/png"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_gfx "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -250,7 +252,9 @@ func (t *Texture) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(TXR_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
-	})
+	}
+	wad.SetHandler(config.GOW1ps2, TXR_MAGIC, h)
+	wad.SetHandler(config.GOW2ps2, TXR_MAGIC, h)
 }

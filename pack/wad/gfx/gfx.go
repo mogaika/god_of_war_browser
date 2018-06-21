@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
 
@@ -241,22 +242,14 @@ func (gfx *GFX) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(GFX_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		//log.Println(wrsrc.Name())
+	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		gfx, err := NewFromData(wrsrc.Name(), wrsrc.Tag.Data)
 		if err != nil {
 			return gfx, err
 		}
-
-		/*
-			for i := range gfx.Data {
-				fpath := filepath.Join("logs", w.Name, fmt.Sprintf("%.4d-%s.gfx.%d.dump", node.Id, node.Name, i))
-				os.MkdirAll(filepath.Dir(fpath), 0777)
-				dump, _ := os.Create(fpath)
-				dump.Write(gfx.Data[i])
-				dump.Close()
-			}
-		*/
 		return gfx, err
-	})
+	}
+
+	wad.SetHandler(config.GOW1ps2, GFX_MAGIC, h)
+	wad.SetHandler(config.GOW2ps2, GFX_MAGIC, h)
 }

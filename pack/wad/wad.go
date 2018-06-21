@@ -21,10 +21,10 @@ type File interface {
 
 type FileLoader func(rsrc *WadNodeRsrc) (File, error)
 
-var gHandlers map[uint32]FileLoader = make(map[uint32]FileLoader, 0)
+var gHandlers map[uint64]FileLoader = make(map[uint64]FileLoader, 0)
 
-func SetHandler(format uint32, ldr FileLoader) {
-	gHandlers[format] = ldr
+func SetHandler(version config.GOWVersion, serverId uint32, ldr FileLoader) {
+	gHandlers[(uint64(version)<<32)|uint64(serverId)] = ldr
 }
 
 var gTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
@@ -78,7 +78,7 @@ func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
 	} else if n.Tag.Tag == GetServerInstanceTag() {
 		if n.Tag.Data != nil && len(n.Tag.Data) >= 4 {
 			serverId = binary.LittleEndian.Uint32(n.Tag.Data)
-			if han, ex := gHandlers[serverId]; ex {
+			if han, ex := gHandlers[(uint64(config.GetGOWVersion())<<32)|uint64(serverId)]; ex {
 				h = han
 			}
 		}

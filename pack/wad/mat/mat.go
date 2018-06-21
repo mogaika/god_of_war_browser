@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_anm "github.com/mogaika/god_of_war_browser/pack/wad/anm"
 	file_txr "github.com/mogaika/god_of_war_browser/pack/wad/txr"
@@ -171,7 +173,7 @@ func (mat *Material) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		name := n.Tag.Name
 		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 		if err != nil {
-			return nil, fmt.Errorf("Error when extracting node %d->%s mat info: %v", i, name, err)
+			// return nil, fmt.Errorf("Error when extracting node %d->%s mat info: %v", i, name, err)
 		} else {
 			switch sn.(type) {
 			case *file_anm.Animations:
@@ -187,7 +189,9 @@ func (mat *Material) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(MAT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
-	})
+	}
+	wad.SetHandler(config.GOW1ps2, MAT_MAGIC, h)
+	wad.SetHandler(config.GOW2ps2, MAT_MAGIC, h)
 }
