@@ -13,11 +13,12 @@ import (
 const TOC_FILE_NAME = "GODOFWAR.TOC"
 
 type TableOfContent struct {
-	dir          vfs.Directory
-	files        map[string]*File
-	paks         []vfs.File
-	pa           *PaksArray
-	namingPolicy *TocNamingPolicy
+	dir                vfs.Directory
+	files              map[string]*File
+	paks               []vfs.File
+	pa                 *PaksArray
+	namingPolicy       *TocNamingPolicy
+	packsArrayIndexing int // only for gow2
 }
 
 // interface vfs.Element
@@ -145,7 +146,7 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 			log.Printf("[toc] Opened pak '%s'", name)
 		}
 	}
-	t.pa = NewPaksArray(t.paks, PACK_ADDR_INDEX)
+	t.pa = NewPaksArray(t.paks, t.packsArrayIndexing)
 	return nil
 }
 

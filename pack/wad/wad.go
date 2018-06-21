@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/mogaika/god_of_war_browser/config"
-
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -76,7 +75,7 @@ func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
 	n := w.GetNodeById(id)
 	if han, ex := gTagHandlers[n.Tag.Tag]; ex {
 		h = han
-	} else if n.Tag.Tag == TAG_SERVER_INSTANCE {
+	} else if n.Tag.Tag == GetServerInstanceTag() {
 		if n.Tag.Data != nil && len(n.Tag.Data) >= 4 {
 			serverId = binary.LittleEndian.Uint32(n.Tag.Data)
 			if han, ex := gHandlers[serverId]; ex {
@@ -167,7 +166,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 		t.Id = id
 		t.DebugPos = uint32(pos)
 
-		if config.GetGOWVersion() == config.GOW1ps2 && t.Tag == 0x18 || config.GetGOWVersion() == config.GOW2ps2 && t.Tag == 0 {
+		if isZeroSizedTag(&t) {
 			// entity count
 			w.HeapSizes[t.Name] = t.Size
 			t.Size = 0
@@ -227,73 +226,21 @@ func (w *Wad) parseTags() error {
 		return n
 	}
 
-	for id := range w.Tags {
-		tag := w.GetTagById(TagId(id))
-		switch tag.Tag {
-		case TAG_SERVER_INSTANCE: // file data packet
-			// Tell file server (server determined by first uint16)
-			// that new file is loaded
-			// if name start with space, then name ignored (unnamed)
-			// overwrite previous instance with same name
-			n := addNode(tag)
-			if newGroupTag {
-				newGroupTag = false
-				currentNode = n.Id
-			}
-		case TAG_FILE_GROUP_START: // file data group start
-			newGroupTag = true // same realization in game
-		case TAG_FILE_GROUP_END: // file data group end
-			// Tell server about group ended
-			if !newGroupTag {
-				// theres been some nodes and we change currentNode
-				if currentNode == NODE_INVALID {
-					return fmt.Errorf("Trying to end not started group id%d-%s", tag.Id, tag.Name)
-				}
-				currentNode = w.GetNodeById(currentNode).Parent
-			} else {
-				newGroupTag = false
-			}
-		case TAG_ENTITY_COUNT: // entity count
-			// Game also add empty named node to nodedirectory?
-		case TAG_FILE_MC_DATA: // MC_DATA   < R_PERM.WAD
-			// Just add node to nodedirectory
-			addNode(tag)
-		case TAG_FILE_MC_ICON: // MC_ICON   < R_PERM.WAD
-			// Like 0x006e, but also store size of data
-			addNode(tag)
-		case TAG_FILE_RAW_DATA: // MSH_BDepoly6Shape
-			// Add node to nodedirectory only if
-			// another node with this name not exists
-			addNode(tag)
-		case TAG_TWK_INSTANCE: // TWK_Cloth_195
-			// Tweaks affect VFS of game
-			// AI logics, animation
-			// exec twk asap?
-			addNode(tag)
-		case TAG_TWK_OBJECT: // TWK_CombatFile_328
-			// Affect VFS too
-			// store twk in mem?
-			addNode(tag)
-		case TAG_RSRCS: // RSRCS
-			// probably affect WadReader
-			// (internally transformed to R_RSRCS)
-			addNode(tag)
-		case TAG_DATA_START1, TAG_DATA_START2, TAG_DATA_START3: // file data start
-			// PopBatchServerStack of server from first uint16
-			addNode(tag)
-		case TAG_HEADER_START: // file header start
-			// create new memory namespace and push to memorystack
-			// create new nodedirectory and push to nodestack
-			// data loading init
-			addNode(tag)
-		case TAG_HEADER_POP: // file header pop heap
-			// data loading structs cleanup
-			addNode(tag)
-		default:
-			if config.GetGOWVersion() == config.GOW1ps2 {
-				return fmt.Errorf("unknown tag id%.4x-tag%.4x-%s offset 0x%.6x", tag.Id, tag.Tag, tag.Name, tag.DebugPos)
+	switch config.GetGOWVersion() {
+	case config.GOW1ps2:
+		for id := range w.Tags {
+			if err := w.gow1parseTag(&w.Tags[id], &currentNode, &newGroupTag, addNode); err != nil {
+				return fmt.Errorf("Error parsing gow1 tag: %v", err)
 			}
 		}
+	case config.GOW2ps2:
+		for id := range w.Tags {
+			if err := w.gow2parseTag(&w.Tags[id], &currentNode, &newGroupTag, addNode); err != nil {
+				return fmt.Errorf("Error parsing gow2 tag: %v", err)
+			}
+		}
+	default:
+		panic("not implemented")
 	}
 
 	return nil
@@ -325,7 +272,8 @@ func (w *Wad) GetNodeById(nodeId NodeId) *Node {
 		return nil
 	}
 	n := w.Nodes[nodeId]
-	if n.Tag.Tag == TAG_SERVER_INSTANCE {
+
+	if n.Tag.Tag == GetServerInstanceTag() {
 		if n.Tag.Size == 0 {
 			linked := w.GetNodeByName(n.Tag.Name, n.Id-1, false)
 			if linked != nil && linked.Tag.Data != nil && len(linked.Tag.Data) >= 4 {
@@ -365,7 +313,7 @@ func (w *Wad) Save(tags []Tag) error {
 	var buf bytes.Buffer
 
 	for _, t := range tags {
-		if t.Tag == TAG_ENTITY_COUNT {
+		if isZeroSizedTag(&t) {
 			t.Size = w.HeapSizes[t.Name]
 		} else {
 			t.Size = uint32(len(t.Data))
