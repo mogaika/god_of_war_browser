@@ -3,6 +3,7 @@ package status
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"sync"
 	"time"
@@ -29,26 +30,29 @@ type client struct {
 }
 
 func (c *client) writePump() {
-	ticker := time.NewTicker(time.Second * 20)
+	ticker := time.NewTicker(time.Second * 30)
 	defer func() {
 		unregisterClient(c)
-		ticker.Stop()
 		c.conn.Close()
 	}()
 	for {
 		select {
 		case msg, ok := <-c.send:
-			c.conn.SetWriteDeadline(time.Now().Add(40 * time.Second))
+			if err := c.conn.SetWriteDeadline(time.Now().Add(40 * time.Second)); err != nil {
+				panic(err)
+			}
 			if !ok {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			if c.conn.WriteMessage(websocket.TextMessage, msg) != nil {
+			if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				log.Printf("[status] ws write msg error: %v", err)
 				return
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(40 * time.Second))
-			if c.conn.WriteMessage(websocket.PingMessage, nil) != nil {
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("[status] ws write ping error: %v", err)
 				return
 			}
 		}
@@ -56,7 +60,7 @@ func (c *client) writePump() {
 }
 
 func NewClient(conn *websocket.Conn) *client {
-	c := &client{conn: conn, send: make(chan []byte, 4)}
+	c := &client{conn: conn, send: make(chan []byte, 32)}
 	registerClient(c)
 	go c.writePump()
 	globalLock.Lock()
@@ -83,7 +87,7 @@ func unregisterClient(c *client) {
 }
 
 func init() {
-	statusBroadcast = make(chan *status, 2)
+	statusBroadcast = make(chan *status, 16)
 	broadcastList = make(map[*client]bool)
 	go func() {
 		for {

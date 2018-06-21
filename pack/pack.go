@@ -24,7 +24,7 @@ func CallHandler(s utils.ResourceSource, r *io.SectionReader) (interface{}, erro
 	if h, found := gHandlers[ext]; found {
 		return h(s, r)
 	} else {
-		return nil, fmt.Errorf("Cannot find handler for '%s' extension", ext)
+		return nil, fmt.Errorf("[pack] Cannot find handler for '%s' extension", ext)
 	}
 }
 
@@ -40,6 +40,7 @@ func (s *PackResSrc) Name() string {
 func (s *PackResSrc) Size() int64 {
 	return s.pf.Size()
 }
+
 func (s *PackResSrc) Save(in *io.SectionReader) error {
 	if f, err := vfs.DirectoryGetFile(s.d, s.pf.Name()); err != nil {
 		return fmt.Errorf("[pack] Cannot get file '%s': %v", s.pf.Name(), err)
@@ -56,13 +57,13 @@ func GetInstanceHandler(d vfs.Directory, fileName string) (interface{}, error) {
 
 	r, err := vfs.OpenFileAndGetReader(f, true)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot get instance of '%s': %v", fileName, err)
+		return nil, fmt.Errorf("[pack] Cannot get instance of '%s': %v", fileName, err)
 	}
 	defer f.Close()
 
 	inst, err := CallHandler(&PackResSrc{d: d, pf: f}, r)
 	if err != nil {
-		return nil, fmt.Errorf("Handler error: %v", err)
+		return nil, fmt.Errorf("[pack] Handler error: %v", err)
 	}
 
 	return inst, nil

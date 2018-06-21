@@ -18,10 +18,12 @@ function getActionLinkForWadNode(wad, nodeid, action, params = '') {
     return '/action/' + wad + '/' + nodeid + '/' + action + '?' + params;
 }
 
-function treeInputFilterHandler() {
-    var filterText = $(this).val().toLowerCase();
-
-    $(this).parent().find("div li label").each(function(a1, a2, a3) {
+function treeInputFilterHandler($el, localStorageKey) {
+    var filterText = $el.val().toLowerCase();
+    if (localStorageKey) {
+        localStorage.setItem(localStorageKey, filterText);
+    }
+    $el.parent().find("div li label").each(function(a1, a2, a3) {
         var p = $(this).parent();
         if ($(this).text().toLowerCase().includes(filterText)) {
             while (p.is("li")) {
@@ -32,6 +34,14 @@ function treeInputFilterHandler() {
             p.hide();
         }
     });
+};
+
+function treePackInputFilterHandler() {
+    treeInputFilterHandler($(this), 'tree-filter');
+};
+
+function treeItemInputFilterHandler() {
+    treeInputFilterHandler($(this), 'item-filter');
 };
 
 function set3dVisible(show) {
@@ -145,7 +155,7 @@ function packLoadFile(filename) {
             case 'va2':
             case 'va3':
             case 'va4':
-			case 'va5':
+            case 'va5':
             case 'vpk':
             case 'vp1':
             case 'vp2':
@@ -239,9 +249,10 @@ $(document).ready(function() {
     dataSummarySelectors = viewSummary.children('.view-item-selectors');
     data3d = view3d.children('.view-item-container');
 
-
-    $('#view-pack-filter').on('input', treeInputFilterHandler).val('.wad');
-    $('#view-item-filter').on('input', treeInputFilterHandler);
+    var packFilter = localStorage.getItem('tree-filter');
+    var itemFilter = localStorage.getItem('item-filter');
+    $('#view-pack-filter').on('input', treePackInputFilterHandler).val(packFilter ? packFilter : '.wad');
+    $('#view-item-filter').on('input', treeItemInputFilterHandler).val(itemFilter ? itemFilter : '');
 
     var urlParts = decodeURI(window.location.hash).split("/");
     if (urlParts.length > 1) {
