@@ -1,15 +1,50 @@
 'use strict';
 
+var wsStatusSocket;
+
 function gowWsStatusConnect() {
-	console.info("Trying to connect to ws server");
-	if (window["WebSocket"]) {
-        var conn = new WebSocket("ws://" + document.location.host + "/ws/status");
-        conn.onclose = function (evt) {
-            console.info("Connection closed");
-			setTimeout(gowWsStatusConnect, 3*1000);
+    console.info("Trying to connect to ws server");
+    if (window["WebSocket"]) {
+        wsStatusSocket = new WebSocket("ws://" + document.location.host + "/ws/status");
+        wsStatusSocket.onclose = function(evt) {
+            console.info("SOCKET CLOSED", evt);
+            wsStatusSocket = undefined;
+            setTimeout(gowWsStatusConnect, 2 * 1000);
         };
-        conn.onmessage = function (evt) {
-			console.log("msg", evt.data);
+        wsStatusSocket.onerror = function(evt) {
+            console.error("SOCKET ERROR", evt);
+            wsStatusSocket.close();
+            wsStatusSocket = undefined;
+            setTimeout(gowWsStatusConnect, 2 * 1000);
+        }
+        wsStatusSocket.onmessage = function(evt) {
+            var s = JSON.parse(evt.data);
+            var $sp = $("#status-progress");
+            var $st = $("#status-text");
+            $st.text(s.Message);
+            $sp.removeClass("info error progress");
+            switch (s.Type) {
+                case 0:
+                    $sp.addClass("info");
+                    $sp.width("100%");
+                    break;
+                case 1:
+                    $sp.addClass("error");
+                    $sp.width("100%");
+                    break;
+                case 2:
+                    $sp.addClass("progress");
+                    var progress = s.Progress;
+                    if (progress > 1) {
+                        progress = 1;
+                    }
+                    if (progress < 0) {
+                        progress = 0;
+                    }
+                    $sp.width(progress * 100 + "%");
+                    break;
+            }
+            // console.log("SOCKET MSG", evt.data);
         };
     } else {
         console.warn("Your browser do not support websocket");
@@ -17,5 +52,10 @@ function gowWsStatusConnect() {
 }
 
 $(document).ready(function() {
-	gowWsStatusConnect();
+    $(window).on('beforeunload', function() {
+        if (wsStatusSocket) {
+            wsStatusSocket.close();
+        }
+    });
+    gowWsStatusConnect();
 });

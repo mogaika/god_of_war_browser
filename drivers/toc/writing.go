@@ -101,6 +101,15 @@ func (t *TableOfContent) Shrink() error {
 	paksUsage := paksAsFreeSpaces(t.paks)
 	alreadyProcessedFiles := make(map[string]*File)
 
+	deferError := true
+	defer func() {
+		if deferError {
+			status.Error("Data array shrinking error! Probably you lost all data!")
+		} else {
+			status.Info("Shrinking done!")
+		}
+	}()
+
 	for _, f := range sortedFiles {
 		if _, already := alreadyProcessedFiles[f.name]; !already {
 			status.Progress(float32(len(alreadyProcessedFiles))/float32(len(t.files)), "Shrinking iso image. Current file '%s'", f.name)
@@ -128,7 +137,11 @@ func (t *TableOfContent) Shrink() error {
 			}
 		}
 	}
-	return t.updateToc()
+	if err := t.updateToc(); err != nil {
+		return err
+	}
+	deferError = false
+	return nil
 }
 
 func (t *TableOfContent) updateToc() error {

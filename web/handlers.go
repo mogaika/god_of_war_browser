@@ -36,8 +36,10 @@ func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
 	data, err := pack.GetInstanceHandler(ServerDirectory, file)
 	if err != nil {
 		log.Printf("Error getting file from pack: %v", err)
+		status.Error("Error loading file '%s': %v", file, err)
 		webutils.WriteError(w, err)
 	} else {
+		status.Info("Loaded and parsed file '%s'", file)
 		webutils.WriteJson(w, data)
 	}
 }
