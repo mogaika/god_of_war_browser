@@ -58,9 +58,10 @@ func CreateNewTextureInWad(wad *file_wad.Wad, baseTextureName string, insertAfte
 	}
 
 	return wad.InsertNewTags(insertAfterTag, []file_wad.Tag{
-		{Tag: file_wad.TAG_SERVER_INSTANCE, Flags: 3, Name: txr.GfxName, Data: gfxBinRaw},
-		{Tag: file_wad.TAG_SERVER_INSTANCE, Flags: 3, Name: txr.PalName, Data: palBinRaw},
-		{Tag: file_wad.TAG_SERVER_INSTANCE, Flags: 0, Name: "TXR_" + baseTextureName, Data: txr.MarshalToBinary()},
+		// flags are same for gow1 and gow2
+		{Tag: file_wad.GetServerInstanceTag(), Flags: 3, Name: txr.GfxName, Data: gfxBinRaw},
+		{Tag: file_wad.GetServerInstanceTag(), Flags: 3, Name: txr.PalName, Data: palBinRaw},
+		{Tag: file_wad.GetServerInstanceTag(), Flags: 0, Name: "TXR_" + baseTextureName, Data: txr.MarshalToBinary()},
 	})
 }
 

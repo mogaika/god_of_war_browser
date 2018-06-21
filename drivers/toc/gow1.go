@@ -62,6 +62,7 @@ func (toc *TableOfContent) unmarshalGOW1(b []byte) error {
 		b = b[GOW1_ENTRY_SIZE:]
 	}
 
+	toc.packsArrayIndexing = PACK_ADDR_INDEX
 	return nil
 }
 

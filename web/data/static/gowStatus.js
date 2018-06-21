@@ -1,23 +1,31 @@
 'use strict';
 
 var wsStatusSocket;
+var wsStatusTimeout = false;
+
+function gowWsStatusTimer() {
+	if (wsStatusSocket) {
+        wsStatusSocket.close();
+    }
+    wsStatusSocket = undefined;
+	if (!wsStatusTimeout) {
+		wsStatusTimeout = true;
+		setTimeout(gowWsStatusConnect, 2 * 1000);
+	}
+}
 
 function gowWsStatusConnect() {
+	wsStatusTimeout = false;
     console.info("Trying to connect to ws server");
     if (window["WebSocket"]) {
         wsStatusSocket = new WebSocket("ws://" + document.location.host + "/ws/status");
         wsStatusSocket.onclose = function(evt) {
             console.info("SOCKET CLOSED", evt);
-            wsStatusSocket = undefined;
-            setTimeout(gowWsStatusConnect, 2 * 1000);
+            gowWsStatusTimer();
         };
         wsStatusSocket.onerror = function(evt) {
             console.error("SOCKET ERROR", evt);
-            if (wsStatusSocket) {
-                wsStatusSocket.close();
-            }
-            wsStatusSocket = undefined;
-            setTimeout(gowWsStatusConnect, 2 * 1000);
+            gowWsStatusTimer();
         }
         wsStatusSocket.onmessage = function(evt) {
             var s = JSON.parse(evt.data);
