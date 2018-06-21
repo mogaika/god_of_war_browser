@@ -13,7 +13,9 @@ function gowWsStatusConnect() {
         };
         wsStatusSocket.onerror = function(evt) {
             console.error("SOCKET ERROR", evt);
-            wsStatusSocket.close();
+            if (wsStatusSocket) {
+                wsStatusSocket.close();
+            }
             wsStatusSocket = undefined;
             setTimeout(gowWsStatusConnect, 2 * 1000);
         }
@@ -44,7 +46,6 @@ function gowWsStatusConnect() {
                     $sp.width(progress * 100 + "%");
                     break;
             }
-            // console.log("SOCKET MSG", evt.data);
         };
     } else {
         console.warn("Your browser do not support websocket");
