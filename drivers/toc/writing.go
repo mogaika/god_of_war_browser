@@ -41,14 +41,14 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 	f.encounters = make([]Encounter, 0)
 
 	fs := toc.findFreeSpaceForFile(newSize)
-	if fs == nil && false {
+	if fs == nil {
 		log.Printf("[toc] There is no free space in paks, trying to remove file replicas (dups)")
 		if err := toc.RemoveReplicas(); err != nil {
 			return fmt.Errorf("[toc] Cannot remove replicas: %v", err)
 		}
 		fs = toc.findFreeSpaceForFile(newSize)
 	}
-	if fs == nil || true {
+	if fs == nil {
 		log.Printf("[toc] There is no free space in paks, trying to shrink data and find place for file")
 		if err := toc.Shrink(); err != nil {
 			return fmt.Errorf("[toc] Cannot shrink files: %v", err)
