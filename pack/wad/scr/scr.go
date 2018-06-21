@@ -1,6 +1,7 @@
 package scr
 
 import (
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/scr/store"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr/targets"
@@ -32,7 +33,7 @@ func (sp *ScriptParams) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1ps2, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }

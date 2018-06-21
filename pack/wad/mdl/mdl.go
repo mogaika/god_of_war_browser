@@ -6,6 +6,8 @@ import (
 	"math"
 	"reflect"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_mat "github.com/mogaika/god_of_war_browser/pack/wad/mat"
 	file_mesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
@@ -82,7 +84,7 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1ps2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		mdl, err := NewFromData(wrsrc.Tag.Data)
 		if err == nil {
 			/*

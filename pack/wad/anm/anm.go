@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -161,7 +163,7 @@ func (anm *Animations) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(ANIMATIONS_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1ps2, ANIMATIONS_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }

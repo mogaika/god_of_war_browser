@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -288,7 +290,7 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1ps2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		/*
 			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 			os.MkdirAll(filepath.Dir(fpath), 0777)

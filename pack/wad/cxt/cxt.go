@@ -3,6 +3,8 @@ package cxt
 import (
 	"fmt"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/inst"
 	"github.com/mogaika/god_of_war_browser/pack/wad/obj"
@@ -58,7 +60,7 @@ func (cxt *Chunk) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(CHUNK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1ps2, CHUNK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }
