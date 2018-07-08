@@ -1,6 +1,8 @@
 package anm
 
 import (
+	"encoding/binary"
+	"fmt"
 	"math"
 	"math/bits"
 
@@ -32,9 +34,9 @@ type AnimDuplicationManager struct {
 	// then there is others managers inside state
 	// for mat layer uv animation this is count of datas
 	// even if datascount3 defined
-	DatasCount1  uint16 // Datas count intro part?
-	DatasCount2  uint16 // Datas count outro part?
-	DatasCount3  uint16 // Datas count repeated part?, can be bigger than DatasCount1
+	DatasCount1  uint16 // count of shits
+	DatasCount2  uint16 // delay, offset
+	DatasCount3  uint16 //
 	OffsetToData uint16 // low 2 bytes of 3 byte offset value
 }
 
@@ -140,7 +142,7 @@ type AnimState0Skinning struct {
 	SubDms                []AnimDuplicationManager
 }
 
-func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int) *AnimState0Skinning {
+func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger) *AnimState0Skinning {
 	stateBuf := buf[stateIndex*0xc:]
 
 	a := &AnimState0Skinning{
@@ -152,98 +154,163 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int) 
 	a.Dm.FromBuf(stateBuf[4:])
 
 	stateData := stateBuf[(uint32(a.HowMany64kbWeNeedSkip)<<16)+uint32(a.Dm.OffsetToData):]
-	if a.Dm.DatasCount1 == 0 {
-		interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
+	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, dm: %+v) >>>>>>>>>>>>>>>",
+		stateIndex, a.BaseTargetDataIndex, a.FlagsProbably, a.Dm)
 
+	interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
+
+	if a.Dm.DatasCount1 == 0 {
 		stateDataFirstByte := stateData[0]
 		stateDataSecondByte := stateData[1]
 		stateDataArrayBuf := stateData[2:]
 
 		if a.FlagsProbably&2 != 0 {
-			interpolationSettingsBuf = stateData[2+int(stateDataSecondByte)*8:]
+			interpolationSettingsBuf = stateDataArrayBuf[int(stateDataSecondByte)*8:]
 		}
-
 		a.InterpolationSettings = NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
 
-		a.SubDms = make([]AnimDuplicationManager, stateDataFirstByte)
+		_l.Printf("   ! DATA: state (fb: %d, subs count) (sb: %d, total subs)", stateDataFirstByte, stateDataSecondByte)
+		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", a.FlagsProbably&2 == 0, *a.InterpolationSettings)
 
-		if stateDataFirstByte != 0 {
-			// cycle over strange data
-			for iSDFB := 0; iSDFB < int(stateDataFirstByte); iSDFB++ {
-				a.SubDms[iSDFB].FromBuf(stateDataArrayBuf[iSDFB*8:])
-				adManager := &a.SubDms[iSDFB]
+		a.SubDms = make([]AnimDuplicationManager, stateDataSecondByte)
 
-				var s5Array []byte // actualy this is int8
-				if a.InterpolationSettings.PairedElementsCount != 1 {
-					s5Array = make([]byte, 1)
-					// must be signed shift
-					s5Array[0] = byte(int8(a.FlagsProbably) >> 4)
-				} else {
-					// must correspond to setted bits count in interpolationSettings.words array probably
-					s5Array = interpolationSettingsBuf[a.InterpolationSettings.CountOfWords*2+4:]
-				}
+		for iRotationSubDm := 0; iRotationSubDm < int(stateDataFirstByte); iRotationSubDm++ {
+			a.SubDms[iRotationSubDm].FromBuf(stateDataArrayBuf[iRotationSubDm*8:])
+			adManager := &a.SubDms[iRotationSubDm]
 
-				_ = s5Array
-				_ = adManager
+			// next DatasCount2 = prev DatasCount1 + prev DataCount2 + prev DataCount - 1
 
-				// utils.LogDump("OUR TEST", adManager, a.InterpolationSettings)
+			var s5Array []byte // actualy this is int8
+			if a.InterpolationSettings.PairedElementsCount == 1 {
+				s5Array = make([]byte, 1)
+				// must be signed shift
+				s5Array[0] = byte(int8(a.FlagsProbably) >> 4)
+			} else {
+				// must correspond to setted bits count in interpolationSettings.words array probably
+				s5Array = interpolationSettingsBuf[a.InterpolationSettings.CountOfWords*2+4:]
+			}
+			s5Array = s5Array[:a.InterpolationSettings.PairedElementsCount]
 
-				unkoff_t8 := a.InterpolationSettings.OffsetToElement
-				unkoff_t9 := a.InterpolationSettings.PairedElementsCount
+			_l.Printf("      - SDFB %d: %+v,  s5Array: %v", iRotationSubDm, *adManager, s5Array)
+			indx_t7 := 0
 
-				indx_t7 := 0
+			// t3, a2 := range ...
+			for iInterpolationWord, interpolationWord := range a.InterpolationSettings.Words {
 
-				_ = unkoff_t8
-				_ = unkoff_t9
+				// ((x ^ (x & (-x))) << 16) >> 16
+				// this bit magic "eats" lower non-zero bit
+				// and must be applyed to int32 because of signed shifts
 
-				// probably
-				// (next frame time - prev frame time) * samples per second * 16384
-				s0 := 0
+				for bitmask := interpolationWord; bitmask != 0; {
 
-				// s7 or t1 later
-				jointDataOffset := a.BaseTargetDataIndex
-				// s3 - offset to elements, with step of a.InterpolationSettings.PairedElementsCount
-				// (also + a.InterpolationSettings.OffsetToElement )
-				// s3elementOffset :=
+					// take lowest bit index, indexation from zero (if zero, then lowest bit was 1 and so)
+					curBitIndex := bits.TrailingZeros16(bitmask)
 
-				// t3, a2 := range ...
-				for _, interpolationWord := range a.InterpolationSettings.Words {
+					// update bitmask value
+					bitmaski32 := int32(bitmask)
+					bitmask = uint16(((bitmaski32 ^ (bitmaski32 & (-bitmaski32))) << 16) >> 16)
 
-					// ((x ^ (x & (-x))) << 16) >> 16
-					// this bit magic "eats" lower non-zero bit
-					// and must be applyed to int32 because of signed shifts
+					shiftAmount := int8(s5Array[indx_t7])
 
-					for bitmask := interpolationWord; bitmask != 0; {
+					/*
+						// $s0  probably position between frames in range [0.0,1.0] but in fixedpoint [0,16384]
+						frame_time_fixedpoint := (1 << 14)
+						var mult int32
+						if a1 >= 0 {
+							mult = int32(frame_time_fixedpoint >> uint(a1))
+						} else {
+							mult = int32(frame_time_fixedpoint << uint(-a1))
+						}
+						_ = mult
+					*/
 
-						// lowest bit index, indexation from zero (if zero, then lowest bit was 1 and so)
-						curBitIndex := bits.TrailingZeros16(bitmask)
+					//frames := make([]int8, a.Dm.DatasCount1+a.Dm.DatasCount2+a.Dm.DatasCount3)
+					frames := make([]int8, adManager.DatasCount1)
 
-						_ = curBitIndex
+					frameStep := int(a.InterpolationSettings.PairedElementsCount) * 1 // sizeof byte
 
-						// update bitmask value
-						bitmaski32 := int32(bitmask)
-						bitmask = uint16(((bitmaski32 ^ (bitmaski32 & (-bitmaski32))) << 16) >> 16)
-
-						/*
-							a1 := int8(s5Array[indx_t7])
-							var unkmult int
-							if a1 >= 0 {
-								unkmult = s0 >> uint(a1)
-							} else {
-								unkmult = s0 << uint(-a1)
-							}
-
-							_ = unkmult
-						*/
-						_ = s0
-						indx_t7 += 1
+					for iFrame := range frames {
+						index := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + int(adManager.OffsetToData) + indx_t7
+						frames[iFrame] = int8(stateBuf[index+(int(a.HowMany64kbWeNeedSkip)<<16)])
 					}
-					jointDataOffset += 0x10
+
+					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+
+					_l.Printf("          time shift %d frames (additive) for index %d (%d): %v", shiftAmount, dataIndex, curBitIndex, frames)
+
+					indx_t7++
+				}
+			}
+		}
+
+		for iOtherSubDm := int(stateDataFirstByte); iOtherSubDm < int(stateDataSecondByte); iOtherSubDm++ {
+			a.SubDms[iOtherSubDm].FromBuf(stateDataArrayBuf[iOtherSubDm*8:])
+			adManager := &a.SubDms[iOtherSubDm]
+
+			_l.Printf("      - RDTDM %d: %+v", iOtherSubDm, *adManager)
+			indx_t7 := 0
+
+			for iInterpolationWord, interpolationWord := range a.InterpolationSettings.Words {
+				for bitmask := interpolationWord; bitmask != 0; {
+					curBitIndex := bits.TrailingZeros16(bitmask)
+
+					// update bitmask value
+					bitmaski32 := int32(bitmask)
+					bitmask = uint16(((bitmaski32 ^ (bitmaski32 & (-bitmaski32))) << 16) >> 16)
+
+					//frames := make([]int16, a.Dm.DatasCount1+a.Dm.DatasCount2+a.Dm.DatasCount3)
+					frames := make([]int16, adManager.DatasCount1)
+					frameStep := int(a.InterpolationSettings.PairedElementsCount) * 2 // 16 bit
+
+					for iFrame := range frames {
+						offset := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + int(adManager.OffsetToData) + indx_t7*2
+
+						frames[iFrame] = int16(binary.LittleEndian.Uint16(stateBuf[offset+(int(a.HowMany64kbWeNeedSkip)<<16):]))
+					}
+
+					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+
+					_l.Printf("              frames (REAL) for index %d (%d): %v", dataIndex, curBitIndex, frames)
+					indx_t7++
 				}
 			}
 		}
 
 		_ = utils.LogDump
+	} else if a.Dm.DatasCount1 != 0 {
+		if a.FlagsProbably&2 != 0 {
+			interpolationSettingsBuf = stateData[:]
+		}
+		a.InterpolationSettings = NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
+
+		_l.Printf("       JUST DO IT %+v", *a.InterpolationSettings)
+		if a.FlagsProbably&1 == 0 {
+			animDataArrayIndex := 0
+			for iInterpolationWord, interpolationWord := range a.InterpolationSettings.Words {
+				for bitmask := interpolationWord; bitmask != 0; {
+					curBitIndex := bits.TrailingZeros16(bitmask)
+
+					// update bitmask value
+					bitmaski32 := int32(bitmask)
+					bitmask = uint16(((bitmaski32 ^ (bitmaski32 & (-bitmaski32))) << 16) >> 16)
+
+					frames := make([]float32, a.Dm.DatasCount1)
+					frameStep := int(a.InterpolationSettings.PairedElementsCount) * 2 // 16 bit
+
+					for iFrame := range frames {
+						offset := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + animDataArrayIndex*2
+						frames[iFrame] = float32(binary.LittleEndian.Uint16(stateData[offset:])) / 65536.0
+					}
+
+					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+					a.Stream[fmt.Sprintf("%d", dataIndex)] = frames
+					animDataArrayIndex++
+					_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
+				}
+			}
+		} else {
+			//panic("not implemented")
+		}
 	}
 
 	return a

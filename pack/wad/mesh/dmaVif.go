@@ -20,7 +20,7 @@ type MeshParserStream struct {
 	Offset              uint32
 	Packets             []Packet
 	Object              *Object
-	Log                 *Logger
+	Log                 *utils.Logger
 	state               *MeshParserState
 	lastPacketDataStart uint32
 	lastPacketDataEnd   uint32
@@ -37,7 +37,7 @@ type MeshParserState struct {
 	Buffer     int
 }
 
-func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, exlog *Logger) *MeshParserStream {
+func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, exlog *utils.Logger) *MeshParserStream {
 	return &MeshParserStream{
 		Data:    allb,
 		Object:  object,
@@ -94,7 +94,7 @@ func (ms *MeshParserStream) ParsePackets() error {
 	return nil
 }
 
-func (state *MeshParserState) ToPacket(exlog *Logger, debugPos uint32) (*Packet, error) {
+func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*Packet, error) {
 	if state.XYZW == nil {
 		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
 			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: 0x%x. State: %+#v", debugPos, state)

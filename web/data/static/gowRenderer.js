@@ -119,6 +119,7 @@ function grModel() {
     this.meshes = [];
     this.materials = [];
     this.skeleton = undefined;
+	this.matrices = undefined;
     this.matrix = mat4.create();
     this.type = undefined;
     this.exclusiveMeshes = undefined;
@@ -126,6 +127,7 @@ function grModel() {
 
 grModel.prototype.showExclusiveMeshes = function(meshes) {
     this.exclusiveMeshes = meshes;
+	gr_instance.flushScene();
 }
 
 grModel.prototype.setType = function(type) {
@@ -174,11 +176,24 @@ function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
 
 grModel.prototype.loadSkeleton = function(sklt) {
     //this.addMesh(grModel__mshFromSklt(sklt));
-    this.skeleton = [];
+	this.skeleton = sklt;
+    this.matrices = [];
 
     for (var i in sklt) {
-        this.skeleton.push(new Float32Array(sklt[i].RenderMat));
+        this.matrices.push(new Float32Array(sklt[i].RenderMat));
     }
+}
+
+grModel.prototype.getSkeleton = function() {
+	return this.skeleton;
+}
+
+grModel.prototype.setNodeMatrix = function(nodeid, matrix) {
+	this.matrices[nodeid] = new Float32Array(matrix);
+}
+
+grModel.prototype.getSkeletonNode = function(nodeid) {
+	return this.skeleton[nodeid];
 }
 
 grModel.prototype.free = function() {

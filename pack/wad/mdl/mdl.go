@@ -24,7 +24,6 @@ type Model struct {
 }
 
 const MODEL_MAGIC = 0x0002000f
-const FILE_SIZE = 0x48
 
 func NewFromData(buf []byte) (*Model, error) {
 	mdl := new(Model)
@@ -58,7 +57,9 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		name := n.Tag.Name
 		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 		if err != nil {
-			return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, name, err)
+			if config.GetGOWVersion() == config.GOW1ps2 {
+				return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, name, err)
+			}
 		} else {
 			switch sn.(type) {
 			case *file_mesh.Mesh:
@@ -113,5 +114,9 @@ func init() {
 			*/
 		}
 		return mdl, err
+	})
+
+	wad.SetHandler(config.GOW2ps2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
 	})
 }
