@@ -9,7 +9,7 @@ import (
 )
 
 func (o *Object) Marshal() *bytes.Buffer {
-	var buf [OBJECT_HEADER_SIZE]byte
+	var buf [OBJECT_GOW1_HEADER_SIZE]byte
 
 	binary.LittleEndian.PutUint16(buf[0:], o.Type)
 	binary.LittleEndian.PutUint16(buf[2:], o.Unk02)
@@ -47,14 +47,14 @@ func (o *Object) Marshal() *bytes.Buffer {
 }
 
 func (g *Group) Marshal(off uint32) *bytes.Buffer {
-	var buf [GROUP_HEADER_SIZE]byte
+	var buf [GROUP_GOW1_HEADER_SIZE]byte
 	binary.LittleEndian.PutUint32(buf[0:], g.Unk00)
 	binary.LittleEndian.PutUint32(buf[4:], uint32(len(g.Objects)))
 	binary.LittleEndian.PutUint32(buf[8:], g.Unk08)
 
 	objectsOffset := uint32(len(g.Objects) * 4)
 
-	needToPad := (objectsOffset + off + GROUP_HEADER_SIZE) % 0x10
+	needToPad := (objectsOffset + off + GROUP_GOW1_HEADER_SIZE) % 0x10
 	if needToPad != 0 {
 		objectsOffset += 0x10 - needToPad
 	}
@@ -62,7 +62,7 @@ func (g *Group) Marshal(off uint32) *bytes.Buffer {
 	offsetsBuf := make([]byte, objectsOffset)
 	var dataStream bytes.Buffer
 	for i := range g.Objects {
-		binary.LittleEndian.PutUint32(offsetsBuf[i*4:], GROUP_HEADER_SIZE+objectsOffset+uint32(dataStream.Len()))
+		binary.LittleEndian.PutUint32(offsetsBuf[i*4:], GROUP_GOW1_HEADER_SIZE+objectsOffset+uint32(dataStream.Len()))
 		dataStream.Write(g.Objects[i].Marshal().Bytes())
 
 		needToPad := dataStream.Len() % 0x10
@@ -79,7 +79,7 @@ func (g *Group) Marshal(off uint32) *bytes.Buffer {
 }
 
 func (p *Part) Marshal(off uint32) *bytes.Buffer {
-	var buf [PART_HEADER_SIZE]byte
+	var buf [PART_GOW1_HEADER_SIZE]byte
 	binary.LittleEndian.PutUint16(buf[0:], p.Unk00)
 	binary.LittleEndian.PutUint16(buf[2:], uint16(len(p.Groups)))
 
@@ -88,7 +88,7 @@ func (p *Part) Marshal(off uint32) *bytes.Buffer {
 	binary.LittleEndian.PutUint16(offsetsBuf[len(p.Groups)*4:], p.JointId)
 	var dataStream bytes.Buffer
 	for i := range p.Groups {
-		groupOffset := PART_HEADER_SIZE + groupsOffset + uint32(dataStream.Len())
+		groupOffset := PART_GOW1_HEADER_SIZE + groupsOffset + uint32(dataStream.Len())
 		binary.LittleEndian.PutUint32(offsetsBuf[i*4:], groupOffset)
 		dataStream.Write(p.Groups[i].Marshal(off + groupOffset).Bytes())
 	}
@@ -101,7 +101,7 @@ func (p *Part) Marshal(off uint32) *bytes.Buffer {
 }
 
 func (v *Vector) Marshal() []byte {
-	var buf [MESH_VECTOR_SIZE]byte
+	var buf [MESH_GOW1_VECTOR_SIZE]byte
 	binary.LittleEndian.PutUint16(buf[0:], v.Unk00)
 	binary.LittleEndian.PutUint16(buf[2:], v.Unk02)
 	for i, f := range v.Value {
@@ -112,10 +112,10 @@ func (v *Vector) Marshal() []byte {
 
 func (m *Mesh) MarshalBuffer() *bytes.Buffer {
 	offsetsBuf := make([]byte, uint32(len(m.Parts)*4))
-	partsOffset := uint32(len(offsetsBuf) + len(m.Vectors)*MESH_VECTOR_SIZE)
+	partsOffset := uint32(len(offsetsBuf) + len(m.Vectors)*MESH_GOW1_VECTOR_SIZE)
 	var partsStream bytes.Buffer
 	for i := range m.Parts {
-		partOffset := MESH_HEADER_SIZE + partsOffset + uint32(partsStream.Len())
+		partOffset := MESH_GOW1_HEADER_SIZE + partsOffset + uint32(partsStream.Len())
 		binary.LittleEndian.PutUint32(offsetsBuf[i*4:], partOffset)
 		partsStream.Write(m.Parts[i].Marshal(partOffset).Bytes())
 	}
@@ -125,9 +125,9 @@ func (m *Mesh) MarshalBuffer() *bytes.Buffer {
 		vectorsBuf.Write(m.Vectors[i].Marshal())
 	}
 
-	var buf [MESH_HEADER_SIZE]byte
+	var buf [MESH_GOW1_HEADER_SIZE]byte
 	binary.LittleEndian.PutUint32(buf[0:], MESH_MAGIC)
-	binary.LittleEndian.PutUint32(buf[4:], MESH_HEADER_SIZE+partsOffset+uint32(partsStream.Len()))
+	binary.LittleEndian.PutUint32(buf[4:], MESH_GOW1_HEADER_SIZE+partsOffset+uint32(partsStream.Len()))
 	binary.LittleEndian.PutUint32(buf[8:], uint32(len(m.Parts)))
 	binary.LittleEndian.PutUint32(buf[0xc:], m.Unk0c)
 	binary.LittleEndian.PutUint32(buf[0x10:], m.Unk10)

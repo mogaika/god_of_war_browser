@@ -3,6 +3,7 @@ package anm
 import (
 	"encoding/binary"
 	"math"
+	"os"
 
 	"github.com/mogaika/god_of_war_browser/config"
 
@@ -77,9 +78,9 @@ func NewFromData(data []byte) (*Animations, error) {
 	}
 
 	defer func() {
-		if r := recover(); r != nil {
+		/*if r := recover(); r != nil {
 			utils.LogDump("Animation parsing panic: %v", r)
-		}
+		}*/
 	}()
 
 	flags := u32(data, 8)
@@ -87,6 +88,10 @@ func NewFromData(data []byte) (*Animations, error) {
 	a.ParsedFlags.JointRotationAnimated = flags&0x1000 != 0
 	a.ParsedFlags.JointPositionAnimated = flags&0x2000 != 0
 	a.ParsedFlags.JointScaleAnimated = flags&0x4000 != 0
+
+	var _l *utils.Logger
+	var fff *os.File
+	defer fff.Close()
 
 	rawFormats := data[0x18+len(a.Groups)*4:]
 	for i := range a.DataTypes {
@@ -96,6 +101,11 @@ func NewFromData(data []byte) (*Animations, error) {
 		dt.TypeId = u16(rawFmt, 0)
 		dt.Param1 = rawFmt[2]
 		dt.Param2 = rawFmt[3]
+
+		if dt.TypeId == 0 {
+			fff, _ = os.Create(`currentanim.log`)
+			_l = &utils.Logger{fff}
+		}
 	}
 
 	rawGroupsPointers := data[0x18:]
@@ -107,6 +117,9 @@ func NewFromData(data []byte) (*Animations, error) {
 		g.Name = utils.BytesToString(rawGroup[0x14:0x2c])
 		g.IsExternal = u32(rawGroup, 8)&0x20000 != 0
 
+		_l.Printf("++++++++++++++ GROUP '%s' +++++++++++++++++++++++++++++++++++++++++++++++++++++",
+			g.Name)
+
 		if !g.IsExternal {
 			g.Acts = make([]AnimAct, u32(rawGroup, 0xc))
 			for j := range g.Acts {
@@ -115,6 +128,9 @@ func NewFromData(data []byte) (*Animations, error) {
 
 				rawAct := rawGroup[act.Offset:]
 				act.Name = utils.BytesToString(rawAct[0x24:0x3c])
+
+				_l.Printf("=================== ACT '%s'  (datatypes cnt: %d)  =================================================================================",
+					act.Name, len(a.DataTypes))
 
 				act.StateDescrs = make([]AnimActStateDescr, len(a.DataTypes))
 				for iStateDescr := range act.StateDescrs {
@@ -137,7 +153,7 @@ func NewFromData(data []byte) (*Animations, error) {
 					case DATATYPE_SKINNING:
 						data := make([]*AnimState0Skinning, sd.CountOfSomething)
 						for i := 0; i < int(sd.CountOfSomething); i++ {
-							data[i] = AnimState0SkinningFromBuf(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i)
+							data[i] = AnimState0SkinningFromBuf(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i, _l)
 						}
 						sd.Data = data
 					case DATATYPE_TEXTURESHEET:

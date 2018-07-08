@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/pack/wad/anm"
+
 	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -37,6 +39,7 @@ type Joint struct {
 
 	OurJointToIdleMat mgl32.Mat4
 	RenderMat         mgl32.Mat4
+	TransformMat      mgl32.Mat4
 }
 
 const JOINT_CHILD_NONE = -1
@@ -218,6 +221,7 @@ func (obj *Object) FeelJoints() {
 	for i := range obj.Joints {
 		j := &obj.Joints[i]
 		j.ParentToJoint = obj.Matrixes1[i]
+		j.TransformMat = mgl32.Ident4()
 
 		if j.IsSkinned {
 			j.BindToJointMat = obj.Matrixes3[j.InvId]
@@ -239,10 +243,11 @@ func (obj *Object) FeelJoints() {
 }
 
 type ObjMarshal struct {
-	Data      *Object
-	Model     interface{}
-	Collision interface{}
-	Script    interface{}
+	Data       *Object
+	Model      interface{}
+	Collision  interface{}
+	Script     interface{}
+	Animations interface{}
 }
 
 func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
@@ -251,7 +256,7 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		n := wrsrc.Wad.GetNodeById(id)
 		if inst, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id); err == nil {
 			switch inst.(type) {
-			case *mdl.Model, *scr.ScriptParams, *collision.Collision:
+			case *mdl.Model, *scr.ScriptParams, *collision.Collision, *anm.Animations:
 				if subFileMarshled, err := inst.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
 					panic(err)
 				} else {
@@ -262,6 +267,8 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 						mrshl.Collision = subFileMarshled
 					case *scr.ScriptParams:
 						mrshl.Script = subFileMarshled
+					case *anm.Animations:
+						mrshl.Animations = subFileMarshled
 					}
 				}
 			}

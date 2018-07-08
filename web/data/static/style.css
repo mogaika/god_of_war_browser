@@ -241,6 +241,12 @@ table.staticlabelrendercommandlist input.no-width {
 	width: auto;
 }
 
+select.animation {
+	margin: 4px 6px;
+	display: block;
+    min-width: 75%;
+}
+
 div#flpimportfont {
 	padding: 12px;
 	margin: 0 auto;

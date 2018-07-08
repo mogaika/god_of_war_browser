@@ -1,6 +1,7 @@
 'use strict';
 
 var gw_cxt_group_loading = false;
+var currentObjAnim;
 
 function treeLoadWad_dumpButtons(li, wadName, tag) {
     li.append($('<div>')
@@ -35,7 +36,7 @@ function treeLoadWadAsNodes(wadName, data) {
                 .attr('nodetag', node.Tag.Tag)
                 .append($('<label>').append(("0000" + node.Tag.Id).substr(-4, 4) + '.' + node.Tag.Name));
 
-            if (node.Tag.Tag == 30) {
+            if (node.Tag.Tag == 30 || node.Tag.Tag == 1) {
                 if (node.Tag.Size == 0) {
                     li.addClass('wad-node-link');
                 } else {
@@ -95,7 +96,7 @@ function treeLoadWadAsTags(wadName, data) {
             .attr('tagflags', tag.Flags)
             .append($('<label>').append(("0000" + tag.Id).substr(-4, 4) + '.[' + ("000" + tag.Tag).substr(-3, 3) + ']' + tag.Name));
 
-        if (tag.Tag == 30) {
+        if (tag.Tag == 30 || tag.Tag == 1) {
             if (tag.Size == 0) {
                 li.addClass('wad-node-link');
             } else {
@@ -357,7 +358,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                     var chbox = $('<input type="checkbox" checked>');
                     var td = $('<td>').append(label);
                     chbox.click(meshes, function(ev) {
-                        for (i in ev.data) {
+                        for (var i in ev.data) {
                             ev.data[i].setVisible(this.checked);
                         }
                         gr_instance.requestRedraw();
@@ -641,7 +642,7 @@ function summaryLoadWadMat(data) {
         });
 
         table.append($('<tr>')
-            .append($('<td>').append('Layer ' + (l + 1)))
+            .append($('<td>').append('Layer ' + l))
             .append($('<td>').append(ltable))
         );
     };
@@ -715,6 +716,42 @@ function summaryLoadWadObj(data, wad, nodeid) {
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
 
     var jointsTable = $('<table>');
+
+	if (data.Animations) {
+		var $animSelector = $("<select>").attr("size", 6).addClass("animation");
+		currentObjAnim = undefined;
+
+	    var anim = data.Animations;
+        if (anim && anim.Groups && anim.Groups.length) {
+			for (var iGroup in anim.Groups) {
+				var group = anim.Groups[iGroup];
+				for (var iAct in group.Acts) {
+					var act = group.Acts[iAct];
+                    for (var dt in anim.DataTypes) {
+                        switch (anim.DataTypes[dt].TypeId) {
+                            case 0:
+								var $option = $("<option>").text(group.Name + ": " + act.Name);
+								$option.dblclick([anim, act, dt], function (ev) {
+									if (currentObjAnim) {
+										ga_instance.freeAnimation(currentObjAnim);
+										currentObjAnim = undefined;
+									}
+			
+									currentObjAnim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], gr_instance.models[0]);
+			                        ga_instance.addAnimation(currentObjAnim);
+								});
+								
+								$animSelector.append($option);
+								break;
+						}
+					}
+				}
+			}
+            
+		}
+
+		dataSummary.append($animSelector);
+	}
 
     $.each(data.Data.Joints, function(joint_id, joint) {
         var row = $('<tr>').append($('<td>').attr('style', 'background-color:rgb(' +
