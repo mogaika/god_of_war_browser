@@ -62,9 +62,9 @@ type Object struct {
 
 	Matrixes1 []mgl32.Mat4 // bind pose
 	Vectors2  [][4]uint32
-	Matrixes3 []mgl32.Mat4 // inverce matrices bind pose (not att all joints)
-	Vectors4  []mgl32.Vec4 // idle pose xyz
-	Vectors5  [][4]int32
+	Matrixes3 []mgl32.Mat4 // inverse bind pose matrix (only for joints that animated? or rendered? (skinned))
+	Vectors4  []mgl32.Vec4 // idle pos xyz
+	Vectors5  [][4]int32   // idle pos rot Q.14fp
 	Vectors6  []mgl32.Vec4 // idle pose scale
 	Vectors7  []mgl32.Vec4
 }

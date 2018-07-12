@@ -1,7 +1,6 @@
 'use strict';
 
 var gw_cxt_group_loading = false;
-var currentObjAnim;
 
 function treeLoadWad_dumpButtons(li, wadName, tag) {
     li.append($('<div>')
@@ -719,7 +718,6 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
 	if (data.Animations) {
 		var $animSelector = $("<select>").attr("size", 6).addClass("animation");
-		currentObjAnim = undefined;
 
 	    var anim = data.Animations;
         if (anim && anim.Groups && anim.Groups.length) {
@@ -731,14 +729,9 @@ function summaryLoadWadObj(data, wad, nodeid) {
                         switch (anim.DataTypes[dt].TypeId) {
                             case 0:
 								var $option = $("<option>").text(group.Name + ": " + act.Name);
-								$option.dblclick([anim, act, dt], function (ev) {
-									if (currentObjAnim) {
-										ga_instance.freeAnimation(currentObjAnim);
-										currentObjAnim = undefined;
-									}
-			
-									currentObjAnim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], gr_instance.models[0]);
-			                        ga_instance.addAnimation(currentObjAnim);
+								$option.dblclick([anim, act, dt, data.Data], function (ev) {
+									var anim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], ev.data[3], gr_instance.models[0]);
+			                        ga_instance.addAnimation(anim);
 								});
 								
 								$animSelector.append($option);

@@ -1,6 +1,7 @@
 'use strict';
 
 var ga_instance;
+var globalMul = 360; // 16*90;
 
 function gaAnimationManager() {
     this.lastUpdateTime = window.performance.now() / 1000.0;
@@ -128,17 +129,72 @@ gaMatertialLayerAnimation.prototype.enable = function(enable) {
     this.enabled = (enable === undefined) || (!!enable);
 }
 
-function gaObjSkeletAnimation(anim, act, stateIndex, mdl) {
+function gaObjSkeletAnimation(anim, act, stateIndex, obj, mdl) {
     this.type = 0;
     this.anim = anim;
     this.stateIndex = stateIndex;
     this.act = act;
-    this.mdl = mdl;
+	this.object = obj;
     this.step = 0;
 
-    var skeleton = mdl.getSkeleton();
-	for (var i in skeleton) {
-		mdl.setNodeMatrix(i, skeleton[i].RenderMat);
+	this.jointLocalScale = Array(obj.Joints.length);
+	this.jointLocalPos = Array(obj.Joints.length);
+	this.jointLocalRots = Array(obj.Joints.length);
+	this.jointLocalMatrices = Array(obj.Joints.length);
+	this.jointGlobalMatrices = Array(obj.Joints.length);
+
+	if (mdl.animation != undefined) {
+		ga_instance.freeAnimation(mdl.animation);
+	}
+
+    this.mdl = mdl;
+	mdl.animation = this;
+	this.reset();
+}
+
+gaObjSkeletAnimation.prototype.recalcMatrices = function() {
+	var obj = this.object;
+	var mdl = this.mdl;
+	
+	for (var i = 0; i < obj.Joints.length; i++) {
+		var joint = obj.Joints[i];
+
+		var localRots = this.jointLocalRots[i];
+		var localQ = quat.fromEuler(quat.create(), localRots[0], localRots[1], localRots[2]);
+		var localRotMatrix = mat4.fromQuat(mat4.create(), localQ);
+
+		var local = this.jointLocalMatrices[i];
+
+		mat4.identity(local);
+		//local = mat4.translate(local, local, this.jointLocalPos[i]);
+		//local = mat4.mul(local, local, localRotMatrix);
+		//local = mat4.mul(local, local, localRotMatrix);
+		local = mat4.fromRotationTranslationScale(local, localQ, this.jointLocalPos[i], this.jointLocalScale[i])
+		
+		
+		
+		
+		this.jointLocalMatrices[i] = local;
+		
+		var global = (joint.Parent >= 0) ? mat4.mul(mat4.create(), this.jointGlobalMatrices[joint.Parent], local) : local;
+		this.jointGlobalMatrices[i] = global;
+		
+		var inverseBindPose = joint.IsSkinned ? obj.Matrixes3[joint.InvId] : mat4.create();
+		
+		var result = mat4.mul(mat4.create(), global, inverseBindPose);
+		mdl.setJointMatrix(i, new Float32Array(result));
+	}
+}
+
+gaObjSkeletAnimation.prototype.reset = function() {
+	this.step = 0;
+	var obj = this.object;
+	
+	for (var i = 0; i < obj.Joints.length; i++) {
+		this.jointLocalRots[i] = obj.Vectors5[i];
+		this.jointLocalPos[i] = obj.Vectors4[i];
+		this.jointLocalScale[i] = obj.Vectors6[i];
+		this.jointLocalMatrices[i] = mat4.create();
 	}
 }
 
@@ -149,52 +205,29 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 
     if (dataType.TypeId == 0) {
 		var mdl = this.mdl;
-		var skeleton = mdl.getSkeleton();
+		var skeleton = this.object.Joints;
 		
 		for (var iData in stateDesc.Data) {
 			var data = stateDesc.Data[iData];
 
 			for (var iStream in data.Stream) {
-				var bone = parseInt(iStream / 4);
+				var jointId = parseInt(iStream / 4);
 				var coord = parseInt(iStream) % 4;
 				
-				var rots = [0, 0, 0];
-				rots[coord] = data.Stream[iStream][parseInt(this.step) % data.Stream[iStream].length] * 16 * 90.0;
-				var localRot = quat.fromEuler(quat.create(), rots[0], rots[1], rots[2]);
-				var joint = skeleton[bone];
-
-				//mdl.setNodeMatrix(bone, mat4.mul(mat4.create(), mat4.fromQuat(mat4.create(), localRot), mdl.skeleton[bone].BindToJointMat));
-				//mdl.setNodeMatrix(bone, mat4.fromQuat(mat4.create(), localRot));
-				//mdl.setNodeMatrix(bone, mat4.mul(mat4.create(), joint.OurJointToIdleMat, mat4.fromQuat(mat4.create(), localRot)));
-				var rotmatrix = mat4.fromQuat(mat4.create(), localRot);
 				
-
-				//var result = mat4.mul(mat4.create(), joint.BindToJointMat, rotmatrix);
-				// result = mat4.mul(mat4.create(), rotmatrix, result);
-				//mdl.setNodeMatrix(bone, rotmatrix);
-				joint.TransformMat = rotmatrix;
+				var newValue = data.Stream[iStream][parseInt(this.step) % data.Stream[iStream].length] * globalMul;
+				//console.log( data.Stream[iStream][parseInt(this.step) % data.Stream[iStream].length], "*", globalMul, "=", newValue);
+				this.jointLocalRots[jointId][coord] = newValue;
 			}
 		}
 		
-		for (var iJoint in skeleton) {
-			var j = skeleton[iJoint];
-	
-			if (iJoint != 0) {
-				var result = mat4.mul(mat4.create(), j.TransformMat, j.ParentToJoint);
-				result = mat4.mul(mat4.create(), skeleton[j.Parent].OurJointToIdleMat, result);
-				//var result = mat4.mul(mat4.create(), j.OurJointToIdleMat, mdl.matrices[j.Parent]);
-				//result = mat4.mul(mat4.create(), result, mdl.matrices[j.Parent]);
-				
-				mdl.setNodeMatrix(iJoint, result);
-			}
-		}
-		
+		this.recalcMatrices();
 		gr_instance.requireRedraw = true;
     } else {
         console.error("incorrect animation typeid");
     }
 	
-	this.step+=0.2;
+	this.step += 0.2;
     this.time = newTime;
 }
 
