@@ -39,13 +39,15 @@ type Joint struct {
 
 	OurJointToIdleMat mgl32.Mat4
 	RenderMat         mgl32.Mat4
-	TransformMat      mgl32.Mat4
 }
 
 const JOINT_CHILD_NONE = -1
 
 type Object struct {
 	Joints []Joint
+
+	File0x20 uint32 // only if jointsCount != 0
+	File0x24 uint32
 
 	dataOffset  uint32
 	jointsCount uint32
@@ -62,7 +64,7 @@ type Object struct {
 
 	Matrixes1 []mgl32.Mat4 // bind pose
 	Vectors2  [][4]uint32
-	Matrixes3 []mgl32.Mat4 // inverse bind pose matrix (only for joints that animated? or rendered? (skinned))
+	Matrixes3 []mgl32.Mat4 // inverse bind pose matrix (only for joints that animated? or rendered? (skinned) or have ident mat for this)
 	Vectors4  []mgl32.Vec4 // idle pos xyz
 	Vectors5  [][4]int32   // idle pos rot Q.14fp
 	Vectors6  []mgl32.Vec4 // idle pose scale
@@ -221,7 +223,6 @@ func (obj *Object) FeelJoints() {
 	for i := range obj.Joints {
 		j := &obj.Joints[i]
 		j.ParentToJoint = obj.Matrixes1[i]
-		j.TransformMat = mgl32.Ident4()
 
 		if j.IsSkinned {
 			j.BindToJointMat = obj.Matrixes3[j.InvId]
