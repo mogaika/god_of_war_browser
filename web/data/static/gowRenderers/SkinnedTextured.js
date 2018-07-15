@@ -183,7 +183,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
                     }
                     var jointId = mesh.jointMapping[i];
                     if (jointId >= mdl.matrices.length) {
-                        console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.matrices.length);
+                        //console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.matrices.length);
                     } else {
                         gl.uniformMatrix4fv(this.umJoints[i], false, mdl.matrices[jointId]);
                     }

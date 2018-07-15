@@ -299,7 +299,7 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, 
 
 					for iFrame := range frames {
 						offset := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + animDataArrayIndex*2
-						frames[iFrame] = float32(binary.LittleEndian.Uint16(stateData[offset:])) / 65536.0
+						frames[iFrame] = float32(int16(binary.LittleEndian.Uint16(stateData[offset:])))
 					}
 
 					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
