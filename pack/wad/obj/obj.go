@@ -30,6 +30,7 @@ type Joint struct {
 	ChildsEnd   int16
 	Parent      int16
 	UnkCoeef    float32
+	Flags       uint32
 
 	IsSkinned bool
 	InvId     int16
@@ -66,7 +67,7 @@ type Object struct {
 	Vectors2  [][4]uint32
 	Matrixes3 []mgl32.Mat4 // inverse bind pose matrix (only for joints that animated? or rendered? (skinned) or have ident mat for this)
 	Vectors4  []mgl32.Vec4 // idle pos xyz
-	Vectors5  [][4]int32   // idle pos rot Q.14fp
+	Vectors5  [][4]int32   // idle pos rot quaterion Q.14fp
 	Vectors6  []mgl32.Vec4 // idle pose scale
 	Vectors7  []mgl32.Vec4
 }
@@ -147,6 +148,7 @@ func NewFromData(buf []byte) (*Object, error) {
 		isInvMat := flags&0xa0 == 0xa0 || obj.jointsCount == obj.Mat3count
 		obj.Joints[i] = Joint{
 			Name:        utils.BytesToString(nameBuf[:]),
+			Flags:       flags,
 			ChildsStart: int16(binary.LittleEndian.Uint16(jointBuf[0x4:0x6])),
 			ChildsEnd:   int16(binary.LittleEndian.Uint16(jointBuf[0x6:0x8])),
 			Parent:      int16(binary.LittleEndian.Uint16(jointBuf[0x8:0xa])),
