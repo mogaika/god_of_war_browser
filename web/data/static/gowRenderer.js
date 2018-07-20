@@ -1,5 +1,5 @@
-var gr_instance;
-var gl;
+let gr_instance;
+let gl;
 
 function grMesh(vertexArray, indexArray, primitive) {
     this.refs = 0;
@@ -11,7 +11,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 
     // construct array of unique indexes
     this.usedIndexes = [];
-    for (var i in indexArray) {
+    for (let i in indexArray) {
         if (this.usedIndexes.indexOf(indexArray[i]) === -1) {
             this.usedIndexes.push(indexArray[i]);
         }
@@ -49,7 +49,7 @@ grMesh.prototype.setBlendColors = function(data) {
     }
     this.hasAlpha = false;
 
-    for (var i in this.usedIndexes) {
+    for (let i in this.usedIndexes) {
         if (data[this.usedIndexes[i] * 4 + 3] < 127) {
             this.hasAlpha = true;
             break;
@@ -145,15 +145,15 @@ grModel.prototype.addMaterial = function(material) {
 }
 
 function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
-    var vrtxs = [];
-    var indxs = [];
-    var clrs = [];
+    let vrtxs = [];
+    let indxs = [];
+    let clrs = [];
 
     vrtxs.length = 3 * sklt.length;
     clrs.length = 4 * sklt.length;
 
-    for (var i in sklt) {
-        var joint = sklt[i];
+    for (let i in sklt) {
+        let joint = sklt[i];
         vrtxs[i * 3 + 0] = joint[key][12];
         vrtxs[i * 3 + 1] = joint[key][13];
         vrtxs[i * 3 + 2] = joint[key][14];
@@ -168,7 +168,7 @@ function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
         }
     }
 
-    var sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
+    let sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
     sklMesh.setDepthTest(false);
     sklMesh.setBlendColors(clrs);
     return sklMesh;
@@ -178,7 +178,7 @@ grModel.prototype.loadSkeleton = function(sklt) {
     //this.addMesh(grModel__mshFromSklt(sklt));
     this.matrices = [];
 
-    for (var i in sklt) {
+    for (let i in sklt) {
         this.matrices.push(new Float32Array(sklt[i].RenderMat));
     }
 }
@@ -188,10 +188,10 @@ grModel.prototype.setJointMatrix = function(nodeid, matrix) {
 }
 
 grModel.prototype.free = function() {
-    for (var i in this.meshes) {
+    for (let i in this.meshes) {
         this.meshes[i].unclaim();
     }
-    for (var i in this.materials) {
+    for (let i in this.materials) {
         this.materials[i].unclaim();
     }
 	
@@ -228,9 +228,9 @@ function grTexture(src, wait = false) {
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
-    var img = new Image();
+    let img = new Image();
     img.src = src;
-    var _this = this;
+    let _this = this;
     img.onload = function() {
         grTexture__handleLoading(img, _this);
     };
@@ -302,7 +302,7 @@ grMaterialLayer.prototype.setMethodUnknown = function() {
 
 grMaterialLayer.prototype.free = function() {
     if (this.textures) {
-        for (var i in this.textures) {
+        for (let i in this.textures) {
             this.textures[i].free();
         }
     }
@@ -333,10 +333,10 @@ grMaterial.prototype.unclaim = function() {
 }
 
 grMaterial.prototype.free = function() {
-    for (var i in this.layers) {
+    for (let i in this.layers) {
         this.layers[i].free();
     }
-    for (var i in this.anims) {
+    for (let i in this.anims) {
         ga_instance.freeAnimation(this.anims[i]);
     }
     gr_instance.flushScene();
@@ -368,15 +368,15 @@ grTextMesh.prototype.setText = function(text, charBoxSize = 9) {
         this.bufferIndexType = undefined;
 
     }
-    var vrtxs = [];
-    var uvs = [];
-    var indxs = [];
-    var chsz = 1 / 16; // char size in texture units
-    var x = 0;
-    var y = 0;
+    let vrtxs = [];
+    let uvs = [];
+    let indxs = [];
+    let chsz = 1 / 16; // char size in texture units
+    let x = 0;
+    let y = 0;
 
-    for (var i = 0; i < text.length; i++) {
-        var char = text.charCodeAt(i);
+    for (let i = 0; i < text.length; i++) {
+        let char = text.charCodeAt(i);
         if (char > 0xff) {
             char = 182; // ¶
         }
@@ -391,8 +391,8 @@ grTextMesh.prototype.setText = function(text, charBoxSize = 9) {
         vrtxs.push(y + charBoxSize);
         x += charBoxSize;
 
-        var tx = Math.floor(char % 16) / 16;
-        var ty = Math.floor(char / 16) / 16;
+        let tx = Math.floor(char % 16) / 16;
+        let ty = Math.floor(char / 16) / 16;
         uvs.push(tx);
         uvs.push(ty + chsz);
         uvs.push(tx + chsz);
@@ -402,7 +402,7 @@ grTextMesh.prototype.setText = function(text, charBoxSize = 9) {
         uvs.push(tx + chsz);
         uvs.push(ty);
 
-        var idx = i * 4;
+        let idx = i * 4;
         indxs.push(idx);
         indxs.push(idx + 1);
         indxs.push(idx + 2);
@@ -452,7 +452,7 @@ grCameraTargeted.prototype.getProjectionMatrix = function() {
 }
 
 grCameraTargeted.prototype.getViewMatrix = function() {
-    var viewMatrix = mat4.create();
+    let viewMatrix = mat4.create();
     mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -this.distance]);
     mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[0]), [1, 0, 0]);
     mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[1]), [0, 1, 0]);
@@ -465,7 +465,7 @@ grCameraTargeted.prototype.getProjViewMatrix = function() {
 }
 
 grCameraTargeted.prototype.onMouseWheel = function(delta) {
-    var resizeDelta = Math.sqrt(this.distance) * delta * 0.01;
+    let resizeDelta = Math.sqrt(this.distance) * delta * 0.01;
     this.distance -= resizeDelta * 2;
     if (this.distance < 1.0)
         this.distance = 1.0;
@@ -494,8 +494,8 @@ grCameraInterface.prototype = Object.create(grCameraTargeted.prototype);
 grCameraInterface.prototype.constructor = grCameraInterface;
 
 grCameraInterface.prototype.getProjectionMatrix = function() {
-    var w = gr_instance.rectX * this.distance * 0.004;
-    var h = gr_instance.rectY * this.distance * 0.004;
+    let w = gr_instance.rectX * this.distance * 0.004;
+    let h = gr_instance.rectY * this.distance * 0.004;
     return mat4.ortho(mat4.create(), -w, w, h, -h, this.nearPlane, this.farPlane);
 }
 
@@ -506,9 +506,9 @@ grCameraInterface.prototype.onMouseMove = function(btns, moveDelta) {
 }
 
 function grController(viewDomObject) {
-    var canvas = $(viewDomObject).find('canvas');
-    var contextNames = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
-    for (var i in contextNames) {
+    let canvas = $(viewDomObject).find('canvas');
+    let contextNames = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
+    for (let i in contextNames) {
         try {
             gl = canvas[0].getContext(contextNames[i]);
         } catch (e) {};
@@ -570,7 +570,7 @@ function grController(viewDomObject) {
         }
     }).mousemove(function(event) {
         if (gr_instance.mouseDown.reduce((a, b) => (a | b), false)) {
-            var posDiff = [event.originalEvent.movementX, event.originalEvent.movementY];
+            let posDiff = [event.originalEvent.movementX, event.originalEvent.movementY];
             gr_instance.camera.onMouseMove(gr_instance.mouseDown, posDiff);
             event.stopPropagation();
             event.preventDefault();
@@ -620,7 +620,7 @@ grController.prototype._onResize = function() {
 
 grController.prototype.render = function() {
     if (this.requireRedraw) {
-        var glError = gl.getError();
+        let glError = gl.getError();
         if (glError !== gl.NONE) {
             console.warn("pre-draw gl.getError()", glError);
         }
@@ -653,7 +653,7 @@ grController.prototype.initFrameCallback = function() {
 }
 
 grController.prototype.destroyModels = function() {
-    for (var i in this.models) {
+    for (let i in this.models) {
         this.models[i].free(this);
     }
     this.models.length = 0;
@@ -661,7 +661,7 @@ grController.prototype.destroyModels = function() {
 }
 
 grController.prototype.destroyTexts = function() {
-    for (var i in this.texts) {
+    for (let i in this.texts) {
         this.texts[i].free(this);
     }
     this.texts.length = 0;
@@ -674,7 +674,7 @@ grController.prototype.cleanup = function() {
 }
 
 grController.prototype.downloadFile = function(link, async) {
-    var txt;
+    let txt;
     $.ajax({
         url: link,
         async: !!async,
@@ -686,7 +686,7 @@ grController.prototype.downloadFile = function(link, async) {
 }
 
 grController.prototype.createShader = function(text, isFragment) {
-    var shader = gl.createShader(isFragment ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER);
+    let shader = gl.createShader(isFragment ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER);
     gl.shaderSource(shader, text);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
@@ -697,7 +697,7 @@ grController.prototype.createShader = function(text, isFragment) {
 }
 
 grController.prototype.createProgram = function(vertexShader, fragmentShader) {
-    var shaderProgram = gl.createProgram();
+    let shaderProgram = gl.createProgram();
     gl.attachShader(shaderProgram, vertexShader);
     gl.attachShader(shaderProgram, fragmentShader);
     gl.linkProgram(shaderProgram);
@@ -710,7 +710,7 @@ grController.prototype.createProgram = function(vertexShader, fragmentShader) {
 }
 
 grController.prototype.downloadShader = function(link, isFragment) {
-    var text = this.downloadFile(link, false);
+    let text = this.downloadFile(link, false);
     if (text)
         return this.createShader(text, isFragment);
 }

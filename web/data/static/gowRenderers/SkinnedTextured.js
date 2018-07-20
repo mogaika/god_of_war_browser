@@ -60,7 +60,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
     this.uUseModelTransform = gl.getUniformLocation(this.program, "uUseModelTransform");
 
     this.umJoints = [];
-    for (var i = 0; i < 12; i += 1) {
+    for (let i = 0; i < 12; i += 1) {
         this.umJoints.push(gl.getUniformLocation(this.program, "umJoints[" + i + "]"));
     }
     this.uUseJoints = gl.getUniformLocation(this.program, "uUseJoints");
@@ -148,15 +148,15 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 }
 
 grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flashesBatch, useSkelet) {
-    var mdl = -1;
-    var material = -1;
-    var mesh = -1;
-    var layer = -1;
-    var texture = -1;
-    var hasTxr = false;
-    var hasSkelet = false;
-    for (var iFlash in flashesBatch) {
-        var flash = flashesBatch[iFlash];
+    let mdl = -1;
+    let material = -1;
+    let mesh = -1;
+    let layer = -1;
+    let texture = -1;
+    let hasTxr = false;
+    let hasSkelet = false;
+    for (let iFlash in flashesBatch) {
+        let flash = flashesBatch[iFlash];
 
         if (flash.model != mdl) {
             mdl = flash.model;
@@ -177,11 +177,11 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             }
 
             if (mesh.jointMapping && useSkelet && mdl && mdl.matrices) {
-                for (var i in mesh.jointMapping) {
+                for (let i in mesh.jointMapping) {
                     if (i >= 12) {
                         console.warn("jointMap array in shader is overflowed", mesh.jointMapping);
                     }
-                    var jointId = mesh.jointMapping[i];
+                    let jointId = mesh.jointMapping[i];
                     if (jointId >= mdl.matrices.length) {
                         //console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.matrices.length);
                     } else {
@@ -229,7 +229,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesBatch = function(ctrl, flas
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
 
-    var cnt = this.renderFlashesArray(ctrl, flashesBatch.normalFlashes, useSkelet);
+    let cnt = this.renderFlashesArray(ctrl, flashesBatch.normalFlashes, useSkelet);
 
     gl.blendEquation(gl.FUNC_ADD);
     gl.depthMask(false);
@@ -262,9 +262,9 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
     gl.uniform4f(this.uLayerColor, 1.0, 1.0, 1.0, 1.0);
     gl.uniform2f(this.uLayerOffset, 0.0, 0.0);
 	
-	var projViewMat = ctrl.camera.getProjViewMatrix();
-    for (var i = 0; i < ctrl.texts.length; i++) {
-        var text = ctrl.texts[i];
+	let projViewMat = ctrl.camera.getProjViewMatrix();
+    for (let i = 0; i < ctrl.texts.length; i++) {
+        let text = ctrl.texts[i];
 
         gl.enableVertexAttribArray(this.aVertexPos);
         gl.bindBuffer(gl.ARRAY_BUFFER, text.bufferVertex);
@@ -274,13 +274,13 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
         gl.bindBuffer(gl.ARRAY_BUFFER, text.bufferUV);
         gl.vertexAttribPointer(this.aVertexUV, 2, gl.FLOAT, false, 0, 0);
 
-        var isVisible = true;
-        var mat = mat4.identity(mat4.create());
+        let isVisible = true;
+        let mat = mat4.identity(mat4.create());
         if (text.is3d) {
-            var pos3d = vec3.fromValues(text.position[0], text.position[1], text.position[2]);
-            var pos2d = vec3.transformMat4(vec3.create(), pos3d, projViewMat);
+            let pos3d = vec3.fromValues(text.position[0], text.position[1], text.position[2]);
+            let pos2d = vec3.transformMat4(vec3.create(), pos3d, projViewMat);
             if (pos2d[2] < 1) {
-                var pos = [(pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth, (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight, 0];
+                let pos = [(pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth, (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight, 0];
                 mat = mat4.translate(mat4.create(), mat, pos);
             } else {
                 isVisible = false;
@@ -299,7 +299,7 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
 }
 
 grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
-    var wasRebuilded = needRebuildScene;
+    let wasRebuilded = needRebuildScene;
     if (needRebuildScene) {
         this.rebuildScene(ctrl);
     }
@@ -307,14 +307,14 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
     gl.uniformMatrix4fv(this.umModelTransform, false, mat4.create());
     gl.activeTexture(gl.TEXTURE0);
 
-    var cnt = 0;
+    let cnt = 0;
 
 	gl.uniformMatrix4fv(this.umProjection, false, ctrl.camera.getProjectionMatrix());
     // render sky
     if (this.skyBatchMatrix) {
         gl.uniform1i(this.uUseModelTransform, 0);
-        var finalMat = mat4.mul(mat4.create(), ctrl.camera.getViewMatrix(), this.skyBatchMatrix);
-        var rot = mat4.getRotation(quat.create(), finalMat);
+        let finalMat = mat4.mul(mat4.create(), ctrl.camera.getViewMatrix(), this.skyBatchMatrix);
+        let rot = mat4.getRotation(quat.create(), finalMat);
 		gl.uniformMatrix4fv(this.umView, false, mat4.fromQuat(mat4.create(), rot));
 		
         cnt += this.renderFlashesBatch(ctrl, this.skyBatch, false);
@@ -342,24 +342,24 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
     if (mdl.visible === false) {
         return;
     }
-    var meshes = (mdl.exclusiveMeshes != undefined) ? mdl.exclusiveMeshes : mdl.meshes;
+    let meshes = (mdl.exclusiveMeshes != undefined) ? mdl.exclusiveMeshes : mdl.meshes;
 
-    for (var iMesh in meshes) {
-        var mesh = meshes[iMesh];
+    for (let iMesh in meshes) {
+        let mesh = meshes[iMesh];
         if (mesh.isVisible === false) {
             continue;
         }
 
         if (mesh.materialIndex != undefined && mdl.materials && mesh.materialIndex < mdl.materials.length) {
-            var mat = mdl.materials[mesh.materialIndex];
+            let mat = mdl.materials[mesh.materialIndex];
 
-			var usualLayer = undefined;
-			var strangeBlendedLayer = undefined;
-			var additiveLayer = undefined;
+			let usualLayer = undefined;
+			let strangeBlendedLayer = undefined;
+			let additiveLayer = undefined;
 			
-            for (var iLayer in mat.layers) {
-                var layer = mat.layers[iLayer];
-                var flash = this.createFlash(mdl, mesh);
+            for (let iLayer in mat.layers) {
+                let layer = mat.layers[iLayer];
+                let flash = this.createFlash(mdl, mesh);
 				switch (layer.method) {
 					case 0: usualLayer = layer; break;
 					case 1: additiveLayer = layer; break;
@@ -373,15 +373,15 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
 			
 			
         } else {
-            var flash = this.createFlash(mdl, mesh);
+            let flash = this.createFlash(mdl, mesh);
             flashesBatch.addFlash(flash, 0);
         }
     }
 }
 
 grRenderChain_SkinnedTextured.prototype.fillFlashesFromModels = function(models) {
-    for (var iMdl in models) {
-        var mdl = models[iMdl];
+    for (let iMdl in models) {
+        let mdl = models[iMdl];
         if (!mdl.type) {
             this.fillFlashesFromModel(this.normalBatch, mdl);
         } else if (mdl.type == "sky") {
