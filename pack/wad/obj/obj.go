@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad/anm"
@@ -47,7 +48,10 @@ type Object struct {
 	Joints []Joint
 
 	File0x20 uint32 // only if jointsCount != 0
-	File0x24 uint32
+	File0x24 uint32 /*
+		more flags
+		0bit - need creation of array(joints count) of words
+	*/
 
 	dataOffset  uint32
 	jointsCount uint32
@@ -119,6 +123,10 @@ func NewFromData(buf []byte) (*Object, error) {
 	obj.jointsCount = binary.LittleEndian.Uint32(buf[0x1c:0x20])
 	obj.dataOffset = binary.LittleEndian.Uint32(buf[0x28:0x2c])
 	obj.Joints = make([]Joint, obj.jointsCount)
+	obj.File0x20 = binary.LittleEndian.Uint32(buf[0x20:])
+	obj.File0x24 = binary.LittleEndian.Uint32(buf[0x24:])
+
+	log.Println(obj.File0x20, obj.File0x24)
 
 	matdata := buf[obj.dataOffset : obj.dataOffset+DATA_HEADER_SIZE]
 
