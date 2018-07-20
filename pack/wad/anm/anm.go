@@ -35,7 +35,7 @@ type AnimActStateDescr struct {
 	Unk0             uint16
 	OffsetToData     uint32
 	CountOfSomething uint16
-	ImportantFloat   float32
+	FrameTime        float32
 	Data             interface{}
 }
 
@@ -140,7 +140,7 @@ func NewFromData(data []byte) (*Animations, error) {
 					sd.Unk0 = u16(rawActStateDescr, 0)
 					sd.CountOfSomething = u16(rawActStateDescr, 2)
 					sd.OffsetToData = u32(rawActStateDescr, 8)
-					sd.ImportantFloat = math.Float32frombits(u32(rawActStateDescr, 0xc))
+					sd.FrameTime = math.Float32frombits(u32(rawActStateDescr, 0xc))
 
 					//log.Println(iStateDescr, a.DataTypes, a.DataTypes[iStateDescr].TypeId)
 					switch a.DataTypes[iStateDescr].TypeId {
