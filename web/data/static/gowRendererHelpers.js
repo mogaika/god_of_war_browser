@@ -21,7 +21,7 @@ function grHelper_PivotMesh(size) {
         0, 1, 2, 3, 4, 5,
     ]
 
-    var mesh = new grMesh(vertexData, indexData, gl.LINES)
+    var mesh = new grMesh(vertexData, indexData, gl.LINES);
     mesh.setBlendColors(colorData);
     return mesh;
 }
@@ -47,7 +47,7 @@ function grHelper_Cube(x, y, z, size) {
     return new grMesh(vertexData, indexData, gl.TRIANGLES)
 }
 
-function grHelper_CubeLines(x, y, z, size_x, size_y, size_z, diaglines = true) {
+function grHelper_CubeLines(x, y, z, size_x, size_y, size_z, diaglines = true, jointid = 0) {
     if (size_x == undefined) {
         size_x = 50;
     }
@@ -78,7 +78,7 @@ function grHelper_CubeLines(x, y, z, size_x, size_y, size_z, diaglines = true) {
     ];
 
     var mesh = new grMesh(vertexData, indexData, gl.LINES);
-    mesh.setJointIds([0], Array(vertexData.length / 3).fill(0));
+    mesh.setJointIds([0], Array(vertexData.length / 3).fill(jointid));
     return mesh;
 }
 

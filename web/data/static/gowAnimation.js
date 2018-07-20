@@ -1,7 +1,6 @@
 'use strict';
 
 let ga_instance;
-const fp14_conv = (1<<14);
 
 function gaAnimationManager() {
     this.lastUpdateTime = window.performance.now() / 1000.0;
@@ -100,7 +99,7 @@ gaMatertialLayerAnimation.prototype.update = function(dt, currentTime) {
         for (let iData in stateDesc.Data) {
             let data = stateDesc.Data[iData];
 
-            let floatStep = newTime / stateDesc.ImportantFloat;
+            let floatStep = newTime / stateDesc.FrameTime;
 
             let step = Math.trunc(floatStep) % (data.Dm.DatasCount1 - 1);
             let nextStep = (step + 1) % data.Dm.DatasCount1;
@@ -139,7 +138,8 @@ function gaObjSkeletAnimation(anim, act, stateIndex, obj, mdl) {
     this.stateIndex = stateIndex;
     this.act = act;
 	this.object = obj;
-    this.step = 0;
+    this.time = 0;
+	this.enabled = true;
 
 	this.jointLocalScale = Array(obj.Joints.length);
 	this.jointLocalPos = Array(obj.Joints.length);
@@ -163,18 +163,27 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
 	
 	for (let i = 0; i < obj.Joints.length; i++) {
 		let joint = obj.Joints[i];
+		
+		//const convv = (360.0 / (1<<14));
+		const convv = (1.0 / 16384.0);
 
-		let localRots = this.jointLocalRots[i];
-		let localQ = quat.fromEuler(quat.create(), localRots[0], localRots[1], localRots[2]);
-		//localQ = quat.fromEuler(quat.create(), 0,0,0);
-
+		let localQ;	
+		if ((joint.Flags & 0x8000) != 0) {
+			localQ = vec4.scale(vec4.create(), this.jointLocalRots[i], convv);
+			localQ = quat.normalize(localQ, localQ);
+		} else {
+			let localE = vec4.scale(vec4.create(), this.jointLocalRots[i], convv*360.0);
+			localQ = quat.fromEuler(quat.create(), localE[0], localE[1], localE[2]);
+		}
+		
 		let local = this.jointLocalMatrices[i];
+		local = mat4.fromRotationTranslationScale(local, localQ, this.jointLocalPos[i], this.jointLocalScale[i]);
 
-		//mat4.identity(local);
-		//let localRotMatrix = mat4.fromQuat(mat4.create(), localQ);
-		//local = mat4.translate(local, local, this.jointLocalPos[i]);
-		//local = mat4.mul(local, local, localRotMatrix);
-		local = mat4.fromRotationTranslationScale(local, localQ, this.jointLocalPos[i], this.jointLocalScale[i])
+		//console.log(i, "o", quat.str(vec4.scale(vec4.create(), this.jointLocalRots[i], convv)));
+		//console.log(i, "n", quat.str(quat.normalize(quat.create(), vec4.scale(vec4.create(), this.jointLocalRots[i], convv))));
+		//console.log(i, "r", quat.str(mat4.getRotation(quat.create(), local)));
+		//console.log(i, "strage shit", !!(joint.Flags & 0x8000), joint.Flags, this.jointLocalPos[i],  this.jointLocalScale[i]);
+
 		this.jointLocalMatrices[i] = local;
 
 		let global = (joint.Parent >= 0) ? mat4.mul(this.jointGlobalMatrices[i], this.jointGlobalMatrices[joint.Parent], local) : local;
@@ -191,21 +200,28 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
 }
 
 gaObjSkeletAnimation.prototype.reset = function() {
-	this.step = 0;
+	this.time = 0;
 	let obj = this.object;
 	
 	for (let i = 0; i < obj.Joints.length; i++) {
-		this.jointLocalRots[i] =  vec4.scale(vec4.create(), obj.Vectors5[i], 360.0/fp14_conv);
-		//console.log(i, obj.Vectors5[i], this.jointLocalRots[i]);
-		this.jointLocalPos[i] = obj.Vectors4[i];
-		this.jointLocalScale[i] = obj.Vectors6[i];
+		this.jointLocalRots[i] = obj.Vectors5[i].slice();
+		this.jointLocalPos[i] = obj.Vectors4[i].slice();
+		this.jointLocalScale[i] = obj.Vectors6[i].slice();
 		this.jointLocalMatrices[i] = mat4.create();
 		this.jointGlobalMatrices[i] = mat4.create();
 	}
 }
 
+function animationReturnStreamData(dm, step, animTime) {
+	
+}
+
 gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
-    let newTime = this.time + dt * 0.5;
+	let newTime = this.time + dt;
+    if (!this.enabled) {
+        return;
+    }
+
     let stateDesc = this.act.StateDescrs[this.stateIndex];
     let dataType = this.anim.DataTypes[this.stateIndex];
 
@@ -216,22 +232,24 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 		
 		for (let iData in stateDesc.Data) {
 			let data = stateDesc.Data[iData];
-
+			
+			
 			for (let iStream in data.Stream) {
 				changed = true;
 				let jointId = parseInt(iStream / 4);
 				let coord = parseInt(iStream) % 4;
-				
-				let frame = parseInt(Math.floor(this.step));
-				let nextFrame = (frame + 1) % data.Stream[iStream].length;
-				let curFrame = nextFrame - 1;
-				let framePos = this.step - Math.floor(this.step);
-				//let framePos = this.step % 1;
-				//console.log("step", this.step, "nf", nextFrame, "fp", framePos, "curFram", curFrame, "le", data.Stream[iStream].length);
+
+				let floatStep = newTime / stateDesc.FrameTime;
+				let streamLen = data.Stream[iStream].length;
+				let curFrame = Math.trunc(floatStep) % (streamLen - 1);
+            	let nextFrame = (curFrame + 1) % streamLen;
+
+				let framePos = floatStep - Math.floor(floatStep);
 				
 				let newValue;
 				let curVal = data.Stream[iStream][curFrame];
 				let nextVal = data.Stream[iStream][nextFrame];
+
 				if (framePos < 0.0001) {
 					newValue = curVal;
 				} else if (framePos > 0.9999) {
@@ -239,10 +257,9 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 				} else {
 					newValue = (nextVal - curVal) * framePos + curVal;
 				}
-				
-				//let newValue = data.Stream[iStream][parseInt(this.step) % data.Stream[iStream].length] * globalMul;
-				//console.log( data.Stream[iStream][parseInt(this.step) % data.Stream[iStream].length], "*", globalMul, "=", newValue);
-				this.jointLocalRots[jointId][coord] =  newValue * 360 / fp14_conv;
+
+				this.jointLocalRots[jointId][coord] =  newValue;
+				//console.log("u", this.jointLocalRots[jointId], coord, jointId, coord, newValue, newValue / (1<<14));
 			}
 		}
 		if (changed) {
@@ -252,60 +269,33 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
     } else {
         console.error("incorrect animation typeid");
     }
-	
-	this.step += 0.25;
+
     this.time = newTime;
 }
 
-
-function gaMatertialLayerAnimation(anim, act, stateIndex, material) {
-    this.type = 8;
-    this.enabled = false;
+function gaMatertialSheetAnimation(anim, act, stateIndex, material) {
+    this.type = 9;
     this.anim = anim;
     this.act = act;
     this.stateIndex = stateIndex;
     this.material = material;
     this.time = 0.0;
+    this.step = 0;
     material.anims.push(this);
 }
 
-gaMatertialLayerAnimation.prototype.update = function(dt, currentTime) {
-    let newTime = this.time + dt;
-    if (!this.enabled) {
-        return;
-    }
+gaMatertialSheetAnimation.prototype.update = function(dt, currentTime) {
+    var newTime = this.time + dt * 0.5;
+    var stateDesc = this.act.StateDescrs[this.stateIndex];
+    var dataType = this.anim.DataTypes[this.stateIndex];
 
-    let stateDesc = this.act.StateDescrs[this.stateIndex];
-    let dataType = this.anim.DataTypes[this.stateIndex];
-
-    if (dataType.TypeId == 8) {
-        let layer = this.material.layers[dataType.Param1 & 0x7f];
-
-        for (let iData in stateDesc.Data) {
-            let data = stateDesc.Data[iData];
-
-            let floatStep = newTime / stateDesc.ImportantFloat;
-
-            let step = Math.trunc(floatStep) % (data.Dm.DatasCount1 - 1);
-            let nextStep = (step + 1) % data.Dm.DatasCount1;
-
-            let blendFactor2 = floatStep - Math.floor(floatStep);
-            let blendFactor1 = (1 - blendFactor2);
-
-            for (let key in data.Stream) {
-                let stream = data.Stream[key];
-                switch (key) {
-                    case "U":
-                        layer.uvoffset[0] = stream[step] * blendFactor1 + stream[nextStep] * blendFactor2;
-                        break;
-                    case "V":
-                        layer.uvoffset[1] = stream[step] * blendFactor1 + stream[nextStep] * blendFactor2;
-                        break;
-                }
-            }
+    if (dataType.TypeId == 9) {
+        var floatStep = newTime / stateDesc.FrameTime;
+        var step = Math.trunc(floatStep) % stateDesc.Data.length;
+        if (step != this.step) {
+            gr_instance.requireRedraw = true;
+            this.material.layers[0].setTextureIndex(stateDesc.Data[step]);
         }
-
-        gr_instance.requireRedraw = true;
     } else {
         log.error("incorrect animation typeid");
     }
