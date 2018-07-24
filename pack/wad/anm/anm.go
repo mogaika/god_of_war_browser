@@ -41,6 +41,9 @@ type AnimActStateDescr struct {
 
 type AnimAct struct {
 	Offset      uint32
+	UnkFloat0x4 float32
+	UnkFloat0xc float32
+	Duration    float32
 	Name        string
 	StateDescrs []AnimActStateDescr
 }
@@ -127,10 +130,15 @@ func NewFromData(data []byte) (*Animations, error) {
 				act.Offset = u32(rawGroup, uint32(0x30+j*4))
 
 				rawAct := rawGroup[act.Offset:]
+
+				act.UnkFloat0x4 = math.Float32frombits(u32(rawAct, 0x4))
+				act.UnkFloat0xc = math.Float32frombits(u32(rawAct, 0xc))
+				act.Duration = math.Float32frombits(u32(rawAct, 0x1c))
 				act.Name = utils.BytesToString(rawAct[0x24:0x3c])
 
-				_l.Printf("=================== ACT '%s'  (datatypes cnt: %d)  =================================================================================",
-					act.Name, len(a.DataTypes))
+				_l.Printf("======= ACT '%s'  (datatypes cnt: %d   f0x4: %f   f0xc: %f    duration: %f) ======================================================",
+					act.Name, len(a.DataTypes), act.UnkFloat0x4, act.UnkFloat0xc, act.Duration)
+				_l.Printf("---- SDUMP: %s", utils.SDump(rawAct[:0x64]))
 
 				act.StateDescrs = make([]AnimActStateDescr, len(a.DataTypes))
 				for iStateDescr := range act.StateDescrs {
@@ -141,6 +149,9 @@ func NewFromData(data []byte) (*Animations, error) {
 					sd.CountOfSomething = u16(rawActStateDescr, 2)
 					sd.OffsetToData = u32(rawActStateDescr, 8)
 					sd.FrameTime = math.Float32frombits(u32(rawActStateDescr, 0xc))
+
+					_l.Printf("   . . . . . . . . . . STATE '%d'  FrameTime: %f  unk0: 0x%x  unk4: 0x%x . . . . . . . . . . . . . . . . . . . . . . . . . . . ",
+						iStateDescr, sd.FrameTime, sd.Unk0, u32(rawActStateDescr, 4))
 
 					//log.Println(iStateDescr, a.DataTypes, a.DataTypes[iStateDescr].TypeId)
 					switch a.DataTypes[iStateDescr].TypeId {

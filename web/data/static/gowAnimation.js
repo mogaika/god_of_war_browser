@@ -101,22 +101,15 @@ gaMatertialLayerAnimation.prototype.update = function(dt, currentTime) {
 
             let floatStep = newTime / stateDesc.FrameTime;
 
-            let step = Math.trunc(floatStep) % (data.Dm.DatasCount1 - 1);
-            let nextStep = (step + 1) % data.Dm.DatasCount1;
+            let step = Math.trunc(floatStep) % (data.Stream.Manager.Count - 1);
+            let nextStep = (step + 1) % data.Stream.Manager.Count;
 
             let blendFactor2 = floatStep - Math.floor(floatStep);
             let blendFactor1 = (1 - blendFactor2);
 
-            for (let key in data.Stream) {
-                let stream = data.Stream[key];
-                switch (key) {
-                    case "U":
-                        layer.uvoffset[0] = stream[step] * blendFactor1 + stream[nextStep] * blendFactor2;
-                        break;
-                    case "V":
-                        layer.uvoffset[1] = stream[step] * blendFactor1 + stream[nextStep] * blendFactor2;
-                        break;
-                }
+            for (let key in data.Stream.Samples) {
+                let stream = data.Stream.Samples[key];
+				layer.uvoffset[key] = stream[step] * blendFactor1 + stream[nextStep] * blendFactor2;
             }
         }
 
@@ -212,8 +205,27 @@ gaObjSkeletAnimation.prototype.reset = function() {
 	}
 }
 
-function animationReturnStreamData(dm, step, animTime) {
+
+// return first sample index
+function animationReturnStreamData(manager, globalManager, animNextTime, frameTime) {
+	const eps = 1.0/(1024.0 * 16.0);
 	
+	// TODO: parse reverse animation situation if (animNextTime < animPrevTime)
+	
+	let globalFramesCount = globalManager.Count + globalManager.Offset + globalManager.DatasCount3 - 1;
+	let animFrameTime = animNextTime / frameTime;
+	if ((animFrameTime + eps) > globalFramesCount ||
+	    (animFrameTime - eps) < manager.Offset){
+		return undefined;
+	}
+	
+	let streamSampleIdx = animFrameTime - manager.Offset;
+	if (animFrameTime > manager.Count-1) {
+		animFrameTime = manager.Count-1;
+	} else if (animFrameTime < 0) {
+		animFrameTime = 0;
+	}
+	return animFrameTime;
 }
 
 gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
@@ -224,53 +236,91 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 
     let stateDesc = this.act.StateDescrs[this.stateIndex];
     let dataType = this.anim.DataTypes[this.stateIndex];
-
-    if (dataType.TypeId == 0) {
+	
+	if (dataType.TypeId == 0) {
 		let mdl = this.mdl;
 		let skeleton = this.object.Joints;
 		let changed = false;
 		
 		for (let iData in stateDesc.Data) {
 			let data = stateDesc.Data[iData];
-			
-			
-			for (let iStream in data.Stream) {
-				changed = true;
-				let jointId = parseInt(iStream / 4);
-				let coord = parseInt(iStream) % 4;
+			let globalStream = data.Stream;
 
-				let floatStep = newTime / stateDesc.FrameTime;
-				let streamLen = data.Stream[iStream].length;
-				let curFrame = Math.trunc(floatStep) % (streamLen - 1);
-            	let nextFrame = (curFrame + 1) % streamLen;
+			if (globalStream.Manager.Count) {
+				let stream = globalStream;
+				let samplePos = animationReturnStreamData(stream.Manager, stream.Manager, newTime, stateDesc.FrameTime);
+				if (samplePos == undefined) { continue; }
 
-				let framePos = floatStep - Math.floor(floatStep);
-				
-				let newValue;
-				let curVal = data.Stream[iStream][curFrame];
-				let nextVal = data.Stream[iStream][nextFrame];
+				let sampleNextIndex = Math.ceil(samplePos);
+				let samplePrevIndex = Math.floor(samplePos);
+				let sampleBlendCoof = samplePos - samplePrevIndex;
 
-				if (framePos < 0.0001) {
-					newValue = curVal;
-				} else if (framePos > 0.9999) {
-					newValue = nextVal;
-				} else {
-					newValue = (nextVal - curVal) * framePos + curVal;
+				for (let iStream in stream.Samples) {
+					changed = true;
+
+					let jointId = parseInt(iStream / 4);
+					let coord = parseInt(iStream) % 4;
+					
+					let newValue;
+					let prevVal = data.Stream.Samples[iStream][samplePrevIndex];
+					let nextVal = data.Stream.Samples[iStream][sampleNextIndex];
+	
+					if (sampleBlendCoof < 0.0001 || (sampleNextIndex == sampleNextIndex)) {
+						newValue = prevVal;
+					} else if (sampleBlendCoof > 0.9999) {
+						newValue = nextVal;
+					} else {
+						newValue = (nextVal - prevVal) * sampleBlendCoof + prevVal;
+					}
+
+					this.jointLocalRots[jointId][coord] =  newValue;
+					//console.log("u", this.jointLocalRots[jointId], coord, jointId, coord, newValue, newValue / (1<<14));
 				}
-
-				this.jointLocalRots[jointId][coord] =  newValue;
-				//console.log("u", this.jointLocalRots[jointId], coord, jointId, coord, newValue, newValue / (1<<14));
+			} else { // if (globalStream.Manager.Count) else
+				for (let iAdditiveSample in data.SubStreamsAdd) {
+					let stream = data.SubStreamsAdd[iAdditiveSample];
+					
+					let samplePos = animationReturnStreamData(stream.Manager, globalStream.Manager, newTime, stateDesc.FrameTime);
+					if (samplePos == undefined) { continue; }
+	
+					let sampleNextIndex = Math.ceil(samplePos);
+					let samplePrevIndex = Math.floor(samplePos);
+					let sampleBlendCoof = samplePos - samplePrevIndex;
+	
+					let multiplyerArray = iStream[-100];
+					for (let iStream in stream.Samples) {
+						if (iStream < 0) { continue; }
+						changed = true;
+	
+						let jointId = parseInt(iStream / 4);
+						let coord = parseInt(iStream) % 4;
+						
+						let newValue;
+						let prevVal = data.Stream.Samples[iStream][samplePrevIndex];
+						let nextVal = data.Stream.Samples[iStream][sampleNextIndex];
+		
+						if (sampleBlendCoof < 0.001) {
+							this.jointLocalRots[jointId][coord] =  this.jointLocalRots[jointId][coord] + multiplyerArray
+						} 
+	
+						this.jointLocalRots[jointId][coord] =  newValue;
+						//console.log("u", this.jointLocalRots[jointId], coord, jointId, coord, newValue, newValue / (1<<14));
+					}
+				}
 			}
 		}
 		if (changed) {
 			this.recalcMatrices();
+			gr_instance.requireRedraw = true;
 		}
-		gr_instance.requireRedraw = true;
     } else {
         console.error("incorrect animation typeid");
     }
-
+	
     this.time = newTime;
+	if (this.time >= this.act.Duration) {
+		this.reset();
+	}
 }
 
 function gaMatertialSheetAnimation(anim, act, stateIndex, material) {
