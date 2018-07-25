@@ -16,13 +16,25 @@ type AnimInterpolationSettings struct {
 	Words               []uint16 // bit mask of values or something
 }
 
+type AnimStateDescrHeader struct {
+	BaseTargetDataIndex   uint16
+	FlagsProbably         byte
+	HowMany64kbWeNeedSkip byte // high byte of 3 byte offset value
+}
+
+func (asdh *AnimStateDescrHeader) FromBuf(descrStateBuf []byte) {
+	asdh.BaseTargetDataIndex = u16(descrStateBuf, 0)
+	asdh.FlagsProbably = descrStateBuf[2]
+	asdh.HowMany64kbWeNeedSkip = descrStateBuf[3]
+}
+
 type AnimStateSubstream struct {
 	Manager AnimSamplesManager
 	Samples map[int]interface{}
 }
 
-func NewAnimInterpolationSettingsFromBuf(b []byte) *AnimInterpolationSettings {
-	ais := &AnimInterpolationSettings{
+func NewAnimInterpolationSettingsFromBuf(b []byte) AnimInterpolationSettings {
+	ais := AnimInterpolationSettings{
 		CountOfWords:        b[0],
 		PairedElementsCount: b[1],
 		OffsetToElement:     u16(b, 2),
@@ -54,12 +66,9 @@ func NewAnimSamplesManagerFromBuf(b []byte) *AnimSamplesManager {
 }
 
 type AnimState8Texturepos struct {
-	BaseTargetDataIndex   uint16
-	FlagsProbably         byte
-	HowMany64kbWeNeedSkip byte // high byte of 3 byte offset value
-
+	Descr                 AnimStateDescrHeader
 	Stream                AnimStateSubstream
-	InterpolationSettings *AnimInterpolationSettings
+	InterpolationSettings AnimInterpolationSettings
 }
 
 var defaultInterpolationSettingsForSingleElement = []byte{01, 01, 00, 00, 01, 00, 00, 00}
@@ -68,14 +77,11 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 	stateBuf := buf[index*0xc:]
 
 	a := &AnimState8Texturepos{
-		BaseTargetDataIndex:   u16(stateBuf, 0),
-		FlagsProbably:         stateBuf[2],
-		HowMany64kbWeNeedSkip: stateBuf[3],
-
 		Stream: AnimStateSubstream{
 			Samples: make(map[int]interface{}),
 		},
 	}
+	a.Descr.FromBuf(stateBuf)
 	a.Stream.Manager.FromBuf(stateBuf[4:])
 
 	if a.Stream.Manager.Count == 0 {
@@ -94,10 +100,10 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 	// Also game checks dtype.Param1 & 0x80 != 0, otherwise it is similar material animation
 	// But color animation have Type == 3, not 8, so we can skip this checks
 
-	stateData := stateBuf[(uint32(a.HowMany64kbWeNeedSkip)<<16)+uint32(a.Stream.Manager.OffsetToData):]
+	stateData := stateBuf[(uint32(a.Descr.HowMany64kbWeNeedSkip)<<16)+uint32(a.Stream.Manager.OffsetToData):]
 
 	interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
-	if a.FlagsProbably&2 != 0 {
+	if a.Descr.FlagsProbably&2 != 0 {
 		interpolationSettingsBuf = stateData
 	}
 	a.InterpolationSettings = NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
@@ -106,7 +112,7 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 		panic("DATATYPE_TEXUREPOS Unsuported len(word) != 1")
 	}
 
-	animTargetDataIndex := a.BaseTargetDataIndex
+	animTargetDataIndex := a.Descr.BaseTargetDataIndex
 	animDataOffset := uint32(a.InterpolationSettings.OffsetToElement)
 	animDataStep := uint32(a.InterpolationSettings.PairedElementsCount) * 4
 	for animIterator := a.InterpolationSettings.Words[0]; animIterator != 0; animIterator = ((animIterator - 1) / 2) * 2 {
@@ -131,15 +137,14 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 type AnimState0Skinning struct {
 	// Every anim act hold its own copy of encoded quaterion array for every joint
 	// Then they blended together
-	BaseTargetDataIndex   uint16
-	FlagsProbably         byte
-	HowMany64kbWeNeedSkip byte
+	RotationDescr AnimStateDescrHeader
+	PositionDescr AnimStateDescrHeader
 
 	Stream          AnimStateSubstream
 	SubStreamsRough []AnimStateSubstream
 	SubStreamsAdd   []AnimStateSubstream
 
-	InterpolationSettings *AnimInterpolationSettings
+	RotationInterpolation AnimInterpolationSettings
 }
 
 func bitmaskZeroBitsShift(bitmask uint16) uint16 {
@@ -147,34 +152,55 @@ func bitmaskZeroBitsShift(bitmask uint16) uint16 {
 	return uint16(((bitmaski32 ^ (bitmaski32 & (-bitmaski32))) << 16) >> 16)
 }
 
+func (a *AnimState0Skinning) getInterpolationSettingsOffset(descr *AnimStateDescrHeader, stateData []byte) []byte {
+	interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
+	if descr.FlagsProbably&2 != 0 {
+		interpolationSettingsBuf = stateData[2+int(stateData[1])*8:]
+	}
+	return interpolationSettingsBuf
+}
+
+func (a *AnimState0Skinning) GetInterpolationSettings(descr *AnimStateDescrHeader, stateData []byte) AnimInterpolationSettings {
+	return NewAnimInterpolationSettingsFromBuf(a.getInterpolationSettingsOffset(descr, stateData))
+}
+
+func (a *AnimState0Skinning) GetShiftsArray(descr *AnimStateDescrHeader, interpolation *AnimInterpolationSettings, stateData []byte) []int8 {
+	shifts := make([]int8, interpolation.PairedElementsCount)
+	if interpolation.PairedElementsCount == 1 {
+		shifts[0] = int8(descr.FlagsProbably) >> 4
+	} else {
+		s5ArrayRaw := a.getInterpolationSettingsOffset(descr, stateData)[interpolation.CountOfWords*2+4:]
+		for i := range shifts {
+			shifts[i] = int8(s5ArrayRaw[i])
+		}
+	}
+	return shifts
+}
+
 func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger) *AnimState0Skinning {
 	stateBuf := buf[stateIndex*0xc:]
-
-	a := &AnimState0Skinning{
-		BaseTargetDataIndex:   u16(stateBuf, 0),
-		FlagsProbably:         stateBuf[2],
-		HowMany64kbWeNeedSkip: stateBuf[3],
-	}
+	a := &AnimState0Skinning{}
+	a.RotationDescr.FromBuf(stateBuf)
 	a.Stream.Manager.FromBuf(stateBuf[4:])
+	return a
+}
 
-	stateData := stateBuf[(uint32(a.HowMany64kbWeNeedSkip)<<16)+uint32(a.Stream.Manager.OffsetToData):]
+func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger) {
+	stateBuf := buf[stateIndex*0xc:]
+	stateData := stateBuf[(uint32(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.Stream.Manager.OffsetToData):]
 	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
-		stateIndex, a.BaseTargetDataIndex, a.FlagsProbably, a.Stream.Manager)
+		stateIndex, a.RotationDescr.BaseTargetDataIndex, a.RotationDescr.FlagsProbably, a.Stream.Manager)
 
-	interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
+	a.RotationInterpolation = a.GetInterpolationSettings(&a.RotationDescr, stateData)
 
+	// Parse rotations
 	if a.Stream.Manager.Count == 0 {
 		stateDataFirstByte := stateData[0]
 		stateDataSecondByte := stateData[1]
 		stateDataArrayBuf := stateData[2:]
 
-		if a.FlagsProbably&2 != 0 {
-			interpolationSettingsBuf = stateDataArrayBuf[int(stateDataSecondByte)*8:]
-		}
-		a.InterpolationSettings = NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
-
 		_l.Printf("   ! DATA: state (fb: %d, subs count) (sb: %d, total subs)", stateDataFirstByte, stateDataSecondByte)
-		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", a.FlagsProbably&2 == 0, *a.InterpolationSettings)
+		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", a.RotationDescr.FlagsProbably&2 == 0, a.RotationInterpolation)
 
 		a.SubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
 		for iRotationSubDm := 0; iRotationSubDm < int(stateDataFirstByte); iRotationSubDm++ {
@@ -183,27 +209,13 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, 
 			subSm.FromBuf(stateDataArrayBuf[iRotationSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
 
-			var s5Array []int8 // actualy this is int8
-			if a.InterpolationSettings.PairedElementsCount == 1 {
-				s5Array = make([]int8, 1)
-				// must be signed shift
-				s5Array[0] = int8(a.FlagsProbably) >> 4
-			} else {
-				// must correspond to setted bits count in interpolationSettings.words array probably
-				s5ArrayRaw := interpolationSettingsBuf[a.InterpolationSettings.CountOfWords*2+4:]
-				s5Array = make([]int8, len(s5ArrayRaw))
-				for i := range s5Array {
-					s5Array[i] = int8(s5ArrayRaw[i])
-				}
-			}
-			s5Array = s5Array[:a.InterpolationSettings.PairedElementsCount]
-
-			_l.Printf("      - SDFB %d: %+v,  s5Array: %v", iRotationSubDm, *subSm, s5Array)
+			shifts := a.GetShiftsArray(&a.RotationDescr, &a.RotationInterpolation, stateData)
+			_l.Printf("      - SDFB %d: %+v,  s5Array: %v", iRotationSubDm, *subSm, shifts)
 			indx_t7 := 0
 			shiftAmountMap := make(map[int]int32)
 
 			// t3, a2 := range ...
-			for iInterpolationWord, interpolationWord := range a.InterpolationSettings.Words {
+			for iInterpolationWord, interpolationWord := range a.RotationInterpolation.Words {
 
 				// ((x ^ (x & (-x))) << 16) >> 16
 				// this bit magic "eats" lower non-zero bit
@@ -213,7 +225,7 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, 
 					curBitIndex := bits.TrailingZeros16(bitmask)
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
-					shiftAmount := s5Array[indx_t7]
+					shiftAmount := shifts[indx_t7]
 					/*
 						// $s0  probably position between frames in range [0.0,1.0] but in fixedpoint [0,16384]
 						frame_time_fixedpoint := (1 << 14)
@@ -227,14 +239,14 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, 
 					*/
 
 					frames := make([]int8, subSm.Count)
-					frameStep := int(a.InterpolationSettings.PairedElementsCount) * 1 // sizeof byte
+					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 1 // sizeof byte
 
 					for iFrame := range frames {
-						index := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + int(subSm.OffsetToData) + indx_t7
-						frames[iFrame] = int8(stateBuf[index+(int(a.HowMany64kbWeNeedSkip)<<16)])
+						index := frameStep*iFrame + int(a.RotationInterpolation.OffsetToElement) + int(subSm.OffsetToData) + indx_t7
+						frames[iFrame] = int8(stateBuf[index+(int(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)])
 					}
 
-					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
 					subStream.Samples[dataIndex] = frames
 					shiftAmountMap[dataIndex] = int32(shiftAmount)
 
@@ -253,27 +265,27 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, 
 			subSm.FromBuf(stateDataArrayBuf[iOtherSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
 
-			_l.Printf("      - RDTDM %d: %+v", iOtherSubDm, *subSm)
+			_l.Printf("      - halfs %d: %+v", iOtherSubDm, *subSm)
 			indx_t7 := 0
 
-			for iInterpolationWord, interpolationWord := range a.InterpolationSettings.Words {
+			for iInterpolationWord, interpolationWord := range a.RotationInterpolation.Words {
 				for bitmask := interpolationWord; bitmask != 0; {
 					curBitIndex := bits.TrailingZeros16(bitmask)
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
-					frames := make([]int32, subSm.Count)
-					frameStep := int(a.InterpolationSettings.PairedElementsCount) * 2 // 16 bit
+					frames := make([]int16, subSm.Count)
+					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 2 // 16 bit
 
 					for iFrame := range frames {
-						offset := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + int(subSm.OffsetToData) + indx_t7*2
+						offset := frameStep*iFrame + int(a.RotationInterpolation.OffsetToElement) + int(subSm.OffsetToData) + indx_t7*2
 
-						frames[iFrame] = int32(int16(binary.LittleEndian.Uint16(stateBuf[offset+(int(a.HowMany64kbWeNeedSkip)<<16):])))
+						frames[iFrame] = int16(binary.LittleEndian.Uint16(stateBuf[offset+(int(a.RotationDescr.HowMany64kbWeNeedSkip)<<16):]))
 					}
 
-					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
 					subStream.Samples[dataIndex] = frames
 
-					_l.Printf("              frames (REAL) for index %d (%d): %v", dataIndex, curBitIndex, frames)
+					_l.Printf("              frames (halfs) for index %d (%d): %v", dataIndex, curBitIndex, frames)
 					indx_t7++
 				}
 			}
@@ -281,38 +293,40 @@ func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, 
 
 		_ = utils.LogDump
 	} else if a.Stream.Manager.Count != 0 {
-		if a.FlagsProbably&2 != 0 {
-			interpolationSettingsBuf = stateData[:]
-		}
-		a.InterpolationSettings = NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
 		a.Stream.Samples = make(map[int]interface{})
 
-		_l.Printf("       JUST DO IT %+v  flag %v", *a.InterpolationSettings, a.FlagsProbably&1 != 0)
-		if a.FlagsProbably&1 == 0 {
+		_l.Printf("       RAW %+v  flag %v", a.RotationInterpolation, a.RotationDescr.FlagsProbably&1 != 0)
+		if a.RotationDescr.FlagsProbably&1 == 0 {
 			animDataArrayIndex := 0
-			for iInterpolationWord, interpolationWord := range a.InterpolationSettings.Words {
+			for iInterpolationWord, interpolationWord := range a.RotationInterpolation.Words {
 				for bitmask := interpolationWord; bitmask != 0; {
 					curBitIndex := bits.TrailingZeros16(bitmask)
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
 					frames := make([]int32, a.Stream.Manager.Count)
-					frameStep := int(a.InterpolationSettings.PairedElementsCount) * 2 // 16 bit
+					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 2 // 16 bit
 
 					for iFrame := range frames {
-						offset := frameStep*iFrame + int(a.InterpolationSettings.OffsetToElement) + animDataArrayIndex*2
+						offset := frameStep*iFrame + int(a.RotationInterpolation.OffsetToElement) + animDataArrayIndex*2
 						frames[iFrame] = int32(int16(binary.LittleEndian.Uint16(stateData[offset:])))
 					}
 
-					dataIndex := int(a.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
 					a.Stream.Samples[dataIndex] = frames
 					animDataArrayIndex++
 					_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
 				}
 			}
 		} else {
+			_l.Printf("       RAW ADDITIVE %+v  flag %v", a.RotationInterpolation, a.RotationDescr.FlagsProbably&1 != 0)
 			//panic("not implemented")
 		}
 	}
+}
 
-	return a
+func (a *AnimState0Skinning) ParsePositions(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger, rawAct []byte) {
+	stateData := rawAct[binary.LittleEndian.Uint32(rawAct[0x80:])+uint32(stateIndex*0xc):]
+	a.PositionDescr.FromBuf(stateData)
+	utils.LogDump(stateData[:0x100])
+
 }
