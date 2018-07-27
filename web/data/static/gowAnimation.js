@@ -243,7 +243,7 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 		
 		for (let iData in stateDesc.Data) {
 			let data = stateDesc.Data[iData];
-			let globalStream = data.Stream;
+			let globalStream = data.RotationStream;
 	
 			if (globalStream.Manager.Count) {
 				let stream = globalStream;
@@ -260,14 +260,14 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 					let jointId = parseInt(iStream / 4);
 					let coord = parseInt(iStream) % 4;
 
-					let prevVal = data.Stream.Samples[iStream][samplePrevIndex];
-					let nextVal = data.Stream.Samples[iStream][sampleNextIndex];
+					let prevVal = stream.Samples[iStream][samplePrevIndex];
+					let nextVal = stream.Samples[iStream][sampleNextIndex];
 
 					this.jointLocalRots[jointId][coord] =  (nextVal - prevVal) * sampleBlendCoof + prevVal;
 				}
 			} else { // if (globalStream.Manager.Count) else
-				for (let iAdditiveSample in data.SubStreamsAdd) {
-					let stream = data.SubStreamsAdd[iAdditiveSample];
+				for (let iAdditiveSample in data.RotationSubStreamsAdd) {
+					let stream = data.RotationSubStreamsAdd[iAdditiveSample];
 					
 					let samplePos = animationReturnStreamData(stream.Manager, globalStream.Manager, newTime, stateDesc.FrameTime);
 					if (samplePos == undefined) { continue; }
@@ -312,8 +312,8 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 					}
 				}
 
-				for (let iRoughSample in data.SubStreamsRough) {
-					let stream = data.SubStreamsRough[iRoughSample];
+				for (let iRoughSample in data.RotationSubStreamsRough) {
+					let stream = data.RotationSubStreamsRough[iRoughSample];
 					
 					let samplePos = animationReturnStreamData(stream.Manager, stream.Manager, newTime, stateDesc.FrameTime);
 					if (samplePos == undefined) { continue; }

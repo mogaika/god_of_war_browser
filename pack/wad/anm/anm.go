@@ -164,10 +164,15 @@ func NewFromData(data []byte) (*Animations, error) {
 					case DATATYPE_SKINNING:
 						data := make([]*AnimState0Skinning, sd.CountOfSomething)
 						for i := 0; i < int(sd.CountOfSomething); i++ {
-							skinAnim := AnimState0SkinningFromBuf(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i, _l)
-							skinAnim.ParseRotations(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i, _l)
-							skinAnim.ParsePositions(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i, _l, rawAct)
+							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
+							skinAnim.ParseRotations(rawAct[sd.OffsetToData:], i, _l)
 							data[i] = skinAnim
+						}
+						_l.Printf("SIZE ANIMATIONS COUNT: %v", int(u16(rawAct, 0x8e)))
+						for i := 0; i < int(u16(rawAct, 0x7a)); i++ {
+							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
+							skinAnim.ParsePositions(rawAct[sd.OffsetToData:], i, _l, rawAct)
+							data = append(data, skinAnim)
 						}
 						sd.Data = data
 					case DATATYPE_TEXTURESHEET:
