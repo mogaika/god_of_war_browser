@@ -2,6 +2,7 @@ package anm
 
 import (
 	"encoding/binary"
+	"log"
 	"math"
 	"math/bits"
 
@@ -137,14 +138,14 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 type AnimState0Skinning struct {
 	// Every anim act hold its own copy of encoded quaterion array for every joint
 	// Then they blended together
-	RotationDescr AnimStateDescrHeader
-	PositionDescr AnimStateDescrHeader
+	PositionDescr  AnimStateDescrHeader
+	PositionStream AnimStateSubstream
 
-	Stream          AnimStateSubstream
-	SubStreamsRough []AnimStateSubstream
-	SubStreamsAdd   []AnimStateSubstream
-
-	RotationInterpolation AnimInterpolationSettings
+	RotationDescr           AnimStateDescrHeader
+	RotationStream          AnimStateSubstream
+	RotationSubStreamsRough []AnimStateSubstream
+	RotationSubStreamsAdd   []AnimStateSubstream
+	RotationInterpolation   AnimInterpolationSettings
 }
 
 func bitmaskZeroBitsShift(bitmask uint16) uint16 {
@@ -155,7 +156,7 @@ func bitmaskZeroBitsShift(bitmask uint16) uint16 {
 func (a *AnimState0Skinning) getInterpolationSettingsOffset(descr *AnimStateDescrHeader, stateData []byte) []byte {
 	interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
 	if descr.FlagsProbably&2 != 0 {
-		interpolationSettingsBuf = stateData[2+int(stateData[1])*8:]
+		interpolationSettingsBuf = stateData
 	}
 	return interpolationSettingsBuf
 }
@@ -177,34 +178,34 @@ func (a *AnimState0Skinning) GetShiftsArray(descr *AnimStateDescrHeader, interpo
 	return shifts
 }
 
-func AnimState0SkinningFromBuf(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger) *AnimState0Skinning {
-	stateBuf := buf[stateIndex*0xc:]
-	a := &AnimState0Skinning{}
-	a.RotationDescr.FromBuf(stateBuf)
-	a.Stream.Manager.FromBuf(stateBuf[4:])
-	return a
+func AnimState0SkinningFromBuf(buf []byte, stateIndex int, _l *utils.Logger) *AnimState0Skinning {
+	return &AnimState0Skinning{}
 }
 
-func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger) {
+func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *utils.Logger) {
 	stateBuf := buf[stateIndex*0xc:]
-	stateData := stateBuf[(uint32(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.Stream.Manager.OffsetToData):]
-	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
-		stateIndex, a.RotationDescr.BaseTargetDataIndex, a.RotationDescr.FlagsProbably, a.Stream.Manager)
 
-	a.RotationInterpolation = a.GetInterpolationSettings(&a.RotationDescr, stateData)
+	a.RotationDescr.FromBuf(stateBuf)
+	a.RotationStream.Manager.FromBuf(stateBuf[4:])
+
+	stateData := stateBuf[(uint32(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.RotationStream.Manager.OffsetToData):]
+	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
+		stateIndex, a.RotationDescr.BaseTargetDataIndex, a.RotationDescr.FlagsProbably, a.RotationStream.Manager)
 
 	// Parse rotations
-	if a.Stream.Manager.Count == 0 {
+	if a.RotationStream.Manager.Count == 0 {
 		stateDataFirstByte := stateData[0]
 		stateDataSecondByte := stateData[1]
 		stateDataArrayBuf := stateData[2:]
 
+		a.RotationInterpolation = a.GetInterpolationSettings(&a.RotationDescr, stateData[2+int(stateDataSecondByte)*8:])
+
 		_l.Printf("   ! DATA: state (fb: %d, subs count) (sb: %d, total subs)", stateDataFirstByte, stateDataSecondByte)
 		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", a.RotationDescr.FlagsProbably&2 == 0, a.RotationInterpolation)
 
-		a.SubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
+		a.RotationSubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
 		for iRotationSubDm := 0; iRotationSubDm < int(stateDataFirstByte); iRotationSubDm++ {
-			subStream := &a.SubStreamsAdd[iRotationSubDm]
+			subStream := &a.RotationSubStreamsAdd[iRotationSubDm]
 			subSm := &subStream.Manager
 			subSm.FromBuf(stateDataArrayBuf[iRotationSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
@@ -226,17 +227,6 @@ func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, sta
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
 					shiftAmount := shifts[indx_t7]
-					/*
-						// $s0  probably position between frames in range [0.0,1.0] but in fixedpoint [0,16384]
-						frame_time_fixedpoint := (1 << 14)
-						var mult int32
-						if shiftAmount >= 0 {
-							mult = int32(frame_time_fixedpoint >> uint(shiftAmount))
-						} else {
-							mult = int32(frame_time_fixedpoint << uint(-shiftAmount))
-						}
-						_ = mult
-					*/
 
 					frames := make([]int8, subSm.Count)
 					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 1 // sizeof byte
@@ -258,9 +248,9 @@ func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, sta
 			subStream.Samples[-100] = shiftAmountMap
 		}
 
-		a.SubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
+		a.RotationSubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
 		for iOtherSubDm := int(stateDataFirstByte); iOtherSubDm < int(stateDataSecondByte); iOtherSubDm++ {
-			subStream := &a.SubStreamsRough[iOtherSubDm-int(stateDataFirstByte)]
+			subStream := &a.RotationSubStreamsRough[iOtherSubDm-int(stateDataFirstByte)]
 			subSm := &subStream.Manager
 			subSm.FromBuf(stateDataArrayBuf[iOtherSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
@@ -292,8 +282,10 @@ func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, sta
 		}
 
 		_ = utils.LogDump
-	} else if a.Stream.Manager.Count != 0 {
-		a.Stream.Samples = make(map[int]interface{})
+	} else if a.RotationStream.Manager.Count != 0 {
+		a.RotationInterpolation = a.GetInterpolationSettings(&a.RotationDescr, stateData)
+
+		a.RotationStream.Samples = make(map[int]interface{})
 
 		_l.Printf("       RAW %+v  flag %v", a.RotationInterpolation, a.RotationDescr.FlagsProbably&1 != 0)
 		if a.RotationDescr.FlagsProbably&1 == 0 {
@@ -303,7 +295,7 @@ func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, sta
 					curBitIndex := bits.TrailingZeros16(bitmask)
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
-					frames := make([]int32, a.Stream.Manager.Count)
+					frames := make([]int32, a.RotationStream.Manager.Count)
 					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 2 // 16 bit
 
 					for iFrame := range frames {
@@ -312,7 +304,7 @@ func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, sta
 					}
 
 					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
-					a.Stream.Samples[dataIndex] = frames
+					a.RotationStream.Samples[dataIndex] = frames
 					animDataArrayIndex++
 					_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
 				}
@@ -324,9 +316,18 @@ func (a *AnimState0Skinning) ParseRotations(dtype *AnimDatatype, buf []byte, sta
 	}
 }
 
-func (a *AnimState0Skinning) ParsePositions(dtype *AnimDatatype, buf []byte, stateIndex int, _l *utils.Logger, rawAct []byte) {
-	stateData := rawAct[binary.LittleEndian.Uint32(rawAct[0x80:])+uint32(stateIndex*0xc):]
-	a.PositionDescr.FromBuf(stateData)
-	utils.LogDump(stateData[:0x100])
+func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *utils.Logger, rawAct []byte) {
+	stateBuf := rawAct[binary.LittleEndian.Uint32(rawAct[0x80:])+uint32(stateIndex*0xc):]
+	a.PositionDescr.FromBuf(stateBuf)
+	a.PositionStream.Manager.FromBuf(stateBuf[4:])
+	log.Printf("%v %+v %+v %v", len(stateBuf), a.PositionDescr, a.PositionStream, (uint32(a.PositionDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.PositionStream.Manager.OffsetToData))
+	stateData := stateBuf[(uint32(a.PositionDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.PositionStream.Manager.OffsetToData):]
 
+	_ = stateData
+	if a.PositionDescr.FlagsProbably&1 != 0 {
+		_l.Printf("       POSITION RAW %+v", a.PositionDescr)
+
+	} else {
+		_l.Printf("       POSITION ADDITIVE %+v", a.PositionDescr)
+	}
 }
