@@ -12,7 +12,7 @@ sruct Chunk {
 	Interval Interval
 }
 
-struct AssignBitMap {
+struct DataBitMap {
 	uint8  WordsCount
 	uint8  ElementsPerSample
 	uint16 Offset
@@ -23,11 +23,11 @@ const FP_EPSILON = 1.0 / 4096.0 // 0.00024414062
 
 // f23 - prevTime
 // f24 - nextTime
-// f21 - sampleTime - from 
+// f21 - frameTimeLength
 
-func (i *Interval) MustUpdateForTime() bool {
-	intervalStartTime = float32(interval.Offset) * f21_sampleTime
-	intervalEndTime = float32(interval.Count + interval.Offset + interval.Unk4 - 1) * f21_sampleTime
+func (i *Interval) MustUpdateForTime(nextTime, prevTime float32) bool {
+	intervalStartTime = float32(interval.Offset) * frameTimeLength
+	intervalEndTime = float32(interval.Count + interval.Offset + interval.Unk4 - 1) * frameTimeLength
 	if nextTime > prevTime {
 		return intervalStartTime < nextTime - FP_EPSILON && prevTime - FP_EPSILON < intervalEndTime
 	} else {
@@ -37,47 +37,119 @@ func (i *Interval) MustUpdateForTime() bool {
 
 func stateThreadPosHandle(chunk *Chunk)  {
 	// s1 - chunk
-	// s5 - dataBuffer []float32 (unified vec4 space)
-	if !interval.MustUpdateForTime() {
+	// s5 - targetDataBuffer []float32 (unified vec4 space)
+	// f21 - frameTimeLength
+	if !interval.MustUpdateForTime(nextTime, prevTime) {
 		return
 	}
 	
-	if f21 < abs(f23  - f24) {
-		
-		f25 = (f24 < f23) ? f21 : (-f21)
-		f20 = f24
-		while {
-			if f21 < abs(f23 - f20) {
-				v0 = chunk.interval.Count 
-				f20 += f25
-				a2 = &chunk.interval
-				if v0 != 0 {
-					a3 = (chunk.Flags & 2)
-						? (chunk + (chunk.Offset_In64kb << 16) + interval.Offset)
-						: defaultAssignBitMap
-					if chunk.Flags & 1 != 0 {
-						chunk.handleVec4fAdd(s5, f22, f20, f21, 0.00390625)
-					} else {
-						chunk.handleVec4fRaw(s5, f20, f21)
-					}
-					f22 = f20
+	// if we skipped some samples, we have to handle them anyway
+	if frameTimeLength < abs(f23 - f24) {
+		sampleStep := (f24 < f23) ? frameTimeLength : (-frameTimeLength)
+		for currentNextTime := f24; frameTimeLength < abs(f23 - currentNextTime); {
+			currentNextTime += f25
+			if chunk.interval.Count != 0 {
+				assignBitMap = (chunk.Flags & 2 != 0)
+					? (chunk + (chunk.Offset_In64kb << 16) + interval.Offset)
+					: defaultDataBitMap
+				if chunk.Flags & 1 != 0 {
+					chunk.handleVec4fAdd(s5, chunk.interval, assignBitMap, f22, currentNextTime, frameTimeLength, 0.00390625)
 				} else {
-					
+					chunk.handleVec4fRaw(s5, chunk.interval, assignBitMap, currentNextTime, frameTimeLength)
 				}
 			} else {
-				break
+				chunkData = chunk + (chunk.Offset_In64kb << 16) + interval.Offset // chunkData = s3
+				assignBitMap = (chunk.Flags & 2 != 0)
+					? chunkData + ((1(chunkData)b << 3) | 2)
+					: defaultDataBitMap
+				subIntervalsCountAdd = 0(chunkData)b
+				subIntervalsCountTotal = 1(chunkData)b
+				subChunksData = chunkData + 2 // s7
+				
+				iSubIntervalIndex := 0
+				for ; iSubIntervalIndex < subIntervalsCountAdd; iSubIntervalIndex++ {
+					// f22 = -0.03333, currentNextTime = 0.00000
+					subInterval = subChunksData + iSubIntervalIndex*8
+					if subInterval.MustUpdateForTime(currentNextTime, f22) {
+						chunk.handleVec4fAdd(s5, subInterval, assignBitMap, f22, currentNextTime, frameTimeLength, 0.00390625)
+					}
+				}
+				for ; iSubIntervalIndex < subIntervalsCountTotal; iSubIntervalIndex++ {
+					subInterval = subChunksData + iSubIntervalIndex*8
+					if subInterval.MustUpdateForTime(currentNextTime, f22) {
+						chunk.handleVec4fRaw(s5, subInterval, assignBitMap, currentNextTime, frameTimeLength)
+					}
+				}
 			}
+			f22 = currentNextTime
 		}
 	} else {
 		f22 = f24
 	}
 	
-}
-
-func (Chunk *a0) handleVec4fAdd(a1 []float32, f12, f13, f14, f15 float32) {
-
-}
-
-func (Chunk *a0) handleVec4fRaw(a1 []float32, f12, f13 float32) {
+	// TODO: same as inside of for cycle above, only agains f23, f22 pair. Need to move body of for above to method
 	
 }
+
+func (Chunk *a0) handleVec4fAdd(a1 []float32, a2 Interval, a3 Bitmap, f12, f13, f14, f15 float32) {
+
+}
+
+func (Chunk *a0) handleVec4fRaw(targetDataBuffer []float32, interval Interval, bitmap Bitmap, nextTime, frameTimeLength float32) {
+	f12 = nextTime
+	f13 = frameTimeLength
+	t2 = interval.Count
+	t3 = interval
+	t4 = bitmap
+	t5 = targetDataBuffer
+	
+	targetSampleIndexInsideInterval = int32((FP_EPSILON + nextTime) * (1.0 / frameTimeLength)) - interval.Offset
+	if targetSampleIndexInsideInterval > interval.Count {
+		targetSampleIndexInsideInterval = interval.Count - 1
+		nextTime = float32(targetSampleIndexInsideInterval + interval.Offset) * frameTimeLength
+	}
+
+	if targetSampleIndexInsideInterval < 0 {
+		targetSampleIndexInsideInterval = 0
+		if interval.Offset < 0 {
+			nextTime = float32((interval.Offset & 1) | interval.Offset >> 1) * frameTimeLength
+		} else {
+			nextTime = float32(interval.Offset) * frameTimeLength
+		}
+	}
+	
+	t6 = bitmap.ElementsPerSample * 4
+	a3 = bitmap.Offset
+
+	t0 = ((targetSampleIndexInsideInterval + 2) < interval.Count) ? 2 : (interval.Count - targetSampleIndexInsideInterval)
+
+	v1 = chunk + (chunk.Offset_In64kb << 16) + interval.Offset + bitmap.Offset + targetSampleIndexInsideInterval * 4 * bitmap.ElementsPerSample
+
+	a0 = chunk.DataIndex * 4 + targetDataBuffer
+	
+	f1 = (t0 < 2) ? 0.0 : (1.0 / (frameTimeLength * float32(t0 - 1)))
+
+	nextTime = (nextTime - float32(targetSampleIndexInsideInterval + interval.Offset) * frameTimeLength) * f1
+	f2 = 0
+	
+	if nextTime < 0.0 {
+		nextTime = 0.0
+	}
+	
+	// 0x2316E8
+	useSamplesBlending := false
+	if t0 < 2 {
+		useSamplesBlending = true
+	} else {
+		if nextTime - 0.00024414062 < 0.0 {
+			useSamplesBlending = true
+		} else {	
+			if nextTime + 0.00024414062 > 1.0 {
+				useSamplesBlending = true
+				a2 = v1
+			}
+		}
+	}
+	
+}
+
