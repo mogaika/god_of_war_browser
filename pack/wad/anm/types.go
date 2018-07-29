@@ -2,7 +2,6 @@ package anm
 
 import (
 	"encoding/binary"
-	"log"
 	"math"
 	"math/bits"
 
@@ -138,8 +137,9 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 type AnimState0Skinning struct {
 	// Every anim act hold its own copy of encoded quaterion array for every joint
 	// Then they blended together
-	PositionDescr  AnimStateDescrHeader
-	PositionStream AnimStateSubstream
+	PositionDescr         AnimStateDescrHeader
+	PositionStream        AnimStateSubstream
+	PositionInterpolation AnimInterpolationSettings
 
 	RotationDescr           AnimStateDescrHeader
 	RotationStream          AnimStateSubstream
@@ -239,7 +239,7 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
 					subStream.Samples[dataIndex] = frames
 					shiftAmountMap[dataIndex] = int32(shiftAmount)
-
+					// TODO: http://127.0.0.1:8000/#/R_PERM.WAD/962 minigamecircle broken
 					_l.Printf("          time shift %d frames (additive) for index %d (%d): %v", shiftAmount, dataIndex, curBitIndex, frames)
 
 					indx_t7++
@@ -299,6 +299,7 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 2 // 16 bit
 
 					for iFrame := range frames {
+						// TODO: deside about animDataArrayIndex*2
 						offset := frameStep*iFrame + int(a.RotationInterpolation.OffsetToElement) + animDataArrayIndex*2
 						frames[iFrame] = int32(int16(binary.LittleEndian.Uint16(stateData[offset:])))
 					}
@@ -320,14 +321,38 @@ func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *util
 	stateBuf := rawAct[binary.LittleEndian.Uint32(rawAct[0x80:])+uint32(stateIndex*0xc):]
 	a.PositionDescr.FromBuf(stateBuf)
 	a.PositionStream.Manager.FromBuf(stateBuf[4:])
-	log.Printf("%v %+v %+v %v", len(stateBuf), a.PositionDescr, a.PositionStream, (uint32(a.PositionDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.PositionStream.Manager.OffsetToData))
 	stateData := stateBuf[(uint32(a.PositionDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.PositionStream.Manager.OffsetToData):]
 
-	_ = stateData
-	if a.PositionDescr.FlagsProbably&1 != 0 {
-		_l.Printf("       POSITION RAW %+v", a.PositionDescr)
+	a.PositionInterpolation = a.GetInterpolationSettings(&a.PositionDescr, stateData)
+	_l.Printf("       POSITION Manager %+v", a.PositionStream.Manager)
+	_l.Printf("       POSITION Interpolation %+v", a.PositionInterpolation)
+	if a.PositionStream.Manager.Count != 0 {
+		if a.PositionDescr.FlagsProbably&1 != 0 {
+			_l.Printf("       POSITION ADDITIVE %+v ", a.PositionDescr)
+			// TODO:
+		} else {
+			_l.Printf("       POSITION RAW %+v", a.PositionDescr)
+			a.PositionStream.Samples = make(map[int]interface{})
+			animDataArrayIndex := 0
+			for iInterpolationWord, interpolationWord := range a.PositionInterpolation.Words {
+				for bitmask := interpolationWord; bitmask != 0; {
+					curBitIndex := bits.TrailingZeros16(bitmask)
+					bitmask = bitmaskZeroBitsShift(bitmask)
 
-	} else {
-		_l.Printf("       POSITION ADDITIVE %+v", a.PositionDescr)
+					frames := make([]float32, a.PositionStream.Manager.Count)
+					frameStep := int(a.PositionInterpolation.PairedElementsCount) * 4 // float32
+
+					for iFrame := range frames {
+						offset := frameStep*iFrame + int(a.PositionInterpolation.OffsetToElement) //+ animDataArrayIndex*2
+						frames[iFrame] = math.Float32frombits(binary.LittleEndian.Uint32(stateData[offset:]))
+					}
+
+					dataIndex := int(a.PositionDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+					a.PositionStream.Samples[dataIndex] = frames
+					animDataArrayIndex++
+					_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
+				}
+			}
+		}
 	}
 }

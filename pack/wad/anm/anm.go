@@ -169,6 +169,7 @@ func NewFromData(data []byte) (*Animations, error) {
 							data[i] = skinAnim
 						}
 						_l.Printf("SIZE ANIMATIONS COUNT: %v", int(u16(rawAct, 0x8e)))
+						_l.Printf("POSITION ANIMATIONS COUNT: %v", int(u16(rawAct, 0x7a)))
 						for i := 0; i < int(u16(rawAct, 0x7a)); i++ {
 							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
 							skinAnim.ParsePositions(rawAct[sd.OffsetToData:], i, _l, rawAct)

@@ -326,11 +326,12 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
     gl.uniformMatrix4fv(this.umView, false, ctrl.camera.getViewMatrix());
     cnt += this.renderFlashesBatch(ctrl, this.normalBatch, true);
 
-    console.info("total", cnt,
+    /*
+	console.info("total", cnt,
         "normal", this.skyBatch.normalFlashes.length + this.normalBatch.normalFlashes.length,
         "additive", this.skyBatch.additiveFlashes.length + this.normalBatch.additiveFlashes.length,
         "was rebuilded", wasRebuilded);
-
+	*/
     this.renderText(ctrl);
 }
 
