@@ -21,17 +21,16 @@ struct DataBitMap {
 
 const FP_EPSILON = 1.0 / 4096.0 // 0.00024414062
 
-// f23 - prevTime
-// f24 - nextTime
-// f21 - frameTimeLength
-
-func (i *Interval) MustUpdateForTime(nextTime, prevTime float32) bool {
+func (i *Interval) MustUpdateForTime(prevTime, nextTime float32) bool {
+	// f21 - frameTimeLength
+	// f23 - nextTime
+	// f24 - prevTime
 	intervalStartTime = float32(interval.Offset) * frameTimeLength
 	intervalEndTime = float32(interval.Count + interval.Offset + interval.Unk4 - 1) * frameTimeLength
-	if nextTime > prevTime {
-		return intervalStartTime < nextTime - FP_EPSILON && prevTime - FP_EPSILON < intervalEndTime
+	if prevTime < nextTime {
+		return intervalStartTime < nextTime + FP_EPSILON && prevTime + FP_EPSILON < intervalEndTime
 	} else {
-		return intervalStartTime < prevTime + FP_EPSILON && nextTime + FP_EPSILON < intervalEndTime
+		return intervalStartTime < prevTime - FP_EPSILON && nextTime - FP_EPSILON < intervalEndTime
 	}
 }
 
@@ -39,10 +38,13 @@ func stateThreadPosHandle(chunk *Chunk)  {
 	// s1 - chunk
 	// s5 - targetDataBuffer []float32 (unified vec4 space)
 	// f21 - frameTimeLength
-	if !interval.MustUpdateForTime(nextTime, prevTime) {
+	// f23 - nextTime
+	// f24 - prevTime
+	if !interval.MustUpdateForTime(prevTime, nextTime) {
 		return
 	}
 	
+	f22 = f24
 	// if we skipped some samples, we have to handle them anyway
 	if frameTimeLength < abs(f23 - f24) {
 		sampleStep := (f24 < f23) ? frameTimeLength : (-frameTimeLength)
@@ -70,13 +72,13 @@ func stateThreadPosHandle(chunk *Chunk)  {
 				for ; iSubIntervalIndex < subIntervalsCountAdd; iSubIntervalIndex++ {
 					// f22 = -0.03333, currentNextTime = 0.00000
 					subInterval = subChunksData + iSubIntervalIndex*8
-					if subInterval.MustUpdateForTime(currentNextTime, f22) {
+					if subInterval.MustUpdateForTime(f22, currentNextTime) {
 						chunk.handleVec4fAdd(s5, subInterval, assignBitMap, f22, currentNextTime, frameTimeLength, 0.00390625)
 					}
 				}
 				for ; iSubIntervalIndex < subIntervalsCountTotal; iSubIntervalIndex++ {
 					subInterval = subChunksData + iSubIntervalIndex*8
-					if subInterval.MustUpdateForTime(currentNextTime, f22) {
+					if subInterval.MustUpdateForTime(f22, currentNextTime) {
 						chunk.handleVec4fRaw(s5, subInterval, assignBitMap, currentNextTime, frameTimeLength)
 					}
 				}
@@ -95,59 +97,118 @@ func (Chunk *a0) handleVec4fAdd(a1 []float32, a2 Interval, a3 Bitmap, f12, f13, 
 
 }
 
-func (Chunk *a0) handleVec4fRaw(targetDataBuffer []float32, interval Interval, bitmap Bitmap, nextTime, frameTimeLength float32) {
-	f12 = nextTime
+func (Chunk *a0) handleVec4fRaw(targetDataBuffer []float32, interval Interval, bitmap DataBitMap, nextTime, frameTimeLength float32) {
 	f13 = frameTimeLength
+	t0 = interval.Offset
 	t2 = interval.Count
 	t3 = interval
 	t4 = bitmap
 	t5 = targetDataBuffer
-	
-	targetSampleIndexInsideInterval = int32((FP_EPSILON + nextTime) * (1.0 / frameTimeLength)) - interval.Offset
-	if targetSampleIndexInsideInterval > interval.Count {
-		targetSampleIndexInsideInterval = interval.Count - 1
-		nextTime = float32(targetSampleIndexInsideInterval + interval.Offset) * frameTimeLength
-	}
 
-	if targetSampleIndexInsideInterval < 0 {
-		targetSampleIndexInsideInterval = 0
-		if interval.Offset < 0 {
-			nextTime = float32((interval.Offset & 1) | interval.Offset >> 1) * frameTimeLength
+	// t1 - currentFrameNumber
+	t1 = int((nextTime + FP_EPSILON) * (1.0 / frameTimeLength)) - interval.Offset
+	if t1 >= interval.Count {
+		t1 = interval.Count - 1
+		f0 = float32(t1 + interval.Offset)
+		nextTime = f0 * f13
+	}
+	if (t1 < 0) {
+		t1 = 0
+		if (interval.Offset < 0) {
+			nextTime = float32((interval.Offset & 1) | (interval.Offset >> 1)) * frameTimeLength
 		} else {
 			nextTime = float32(interval.Offset) * frameTimeLength
 		}
 	}
+
+	a2 = t1 * sizeof(float32) * bitmap.ElementsPerSample
+	sampleFrameOffsetStep = bitmap.ElementsPerSample *  sizeof(float32) // t6
 	
-	t6 = bitmap.ElementsPerSample * 4
-	a3 = bitmap.Offset
-
-	t0 = ((targetSampleIndexInsideInterval + 2) < interval.Count) ? 2 : (interval.Count - targetSampleIndexInsideInterval)
-
-	v1 = chunk + (chunk.Offset_In64kb << 16) + interval.Offset + bitmap.Offset + targetSampleIndexInsideInterval * 4 * bitmap.ElementsPerSample
-
-	a0 = chunk.DataIndex * 4 + targetDataBuffer
-	
-	f1 = (t0 < 2) ? 0.0 : (1.0 / (frameTimeLength * float32(t0 - 1)))
-
-	nextTime = (nextTime - float32(targetSampleIndexInsideInterval + interval.Offset) * frameTimeLength) * f1
-	f2 = 0
-	
-	if nextTime < 0.0 {
-		nextTime = 0.0
+	v0 = chunk.Offset_In64kb << 16 + chunk + interval.Offset
+	f0 = float32(t1 + interval.Offset)
+	v1 = t1 + 2
+	v1 = v2 < t1
+	a1 = interval.Count - t1
+	t0 = 2
+	v0 = chunk.Offset_In64kb << 16 + chunk + interval.Offset + bitmap.Offset
+	if v1 == 0 {
+		t0 = a1
 	}
 	
-	// 0x2316E8
-	useSamplesBlending := false
-	if t0 < 2 {
-		useSamplesBlending = true
+	a0 = chunk.DataIndex * sizeof(float32) + t5
+	v1 = v0 + a2
+	a3 = t0 < 2
+	f2 = f0 * f13
+	if a3 != 0 {
+		f1 = 0.0
+		f0 = nextTime - f2
 	} else {
-		if nextTime - 0.00024414062 < 0.0 {
-			useSamplesBlending = true
-		} else {	
-			if nextTime + 0.00024414062 > 1.0 {
-				useSamplesBlending = true
-				a2 = v1
+		v0 = t0 - 1
+		f1 = 1.0
+		f0 = float32(v0)
+		f0 *= f13
+		f1 /= f0
+		f0 = nextTime - f2
+	}
+	f2 = 0.0
+	nextTime = f0 * f1
+	
+	if nextTime < f2 {
+		nextTime = f2
+	}
+	
+	
+	isSingleElementSelectNoBlend := false
+	if a3 != 0 {
+		isSingleElementSelectNoBlend = true
+	} else {
+		f1 = FP_EPSILON
+		f0 = nextTime - f1
+		if f2 >= f0 {
+			isSingleElementSelectNoBlend = true
+		} else {
+			f1 += nextTime
+			f0 = 1.0
+			if f1 >= f0 {
+				isSingleElementSelectNoBlend = true
 			}
+		}
+	}
+	
+	a1 = a0
+	if (isSingleElementSelectNoBlend) {
+		f0 = max(nextTime + FP_EPSILON, 0.0)
+		v0 = int(f0)
+		a2 = v0 * sampleFrameOffsetStep + v1
+		for iBitmapWord = 0; iBitmapWord < bitmap.countOfWords; iBitmapWord++ {
+			bitmapWord = bitmap.Words[iBitmapWord]
+			while bitmapWord != 0 {
+				value = 0(a2)f
+				
+				v1 = a1 + TrailingZeros(bitmapWord) * sizeof(float32)
+				0(v1)f = value
+
+				a2 += sizeof(float32)
+				bitmapWord = bitmaskZeroBitsShift(bitmapWord)
+			}
+			a1 += 0x10 * sizeof(float32)
+		}
+	} else {
+		a2 = v1
+		for iBitmapWord = 0; iBitmapWord < bitmap.countOfWords; iBitmapWord++ {
+			bitmapWord = bitmap.Words[iBitmapWord]
+			while bitmapWord != 0 {
+				prevValue = 0(a2)f  
+				nextValue = 0(a2 + sampleFrameOffsetStep)f
+				value = prevValue + (nextValue - prevValue) * f12
+
+				a0 = TrailingZeros(bitmapWord) * sizeof(float32) + a1
+				0(a0)f = value
+
+				a2 += sizeof(float32)
+				bitmapWord = bitmaskZeroBitsShift(bitmapWord)
+			}
+			a1 += 0x10 * sizeof(float32)
 		}
 	}
 	

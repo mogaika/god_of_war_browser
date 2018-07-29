@@ -41,20 +41,20 @@ func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *An
 
 	stateData := stateBuf[(uint32(a.Descr.HowMany64kbWeNeedSkip)<<16)+uint32(a.Stream.Manager.OffsetToData):]
 
-	interpolationSettingsBuf := defaultInterpolationSettingsForSingleElement
+	dataBitMapBuf := defaultDataBitMap
 	if a.Descr.FlagsProbably&2 != 0 {
-		interpolationSettingsBuf = stateData
+		dataBitMapBuf = stateData
 	}
-	a.InterpolationSettings = NewAnimInterpolationSettingsFromBuf(interpolationSettingsBuf)
+	a.DataBitMap = NewDataBitMapFromBuf(dataBitMapBuf)
 
-	if len(a.InterpolationSettings.Words) != 1 {
+	if len(a.DataBitMap.Bitmap) != 1 {
 		panic("DATATYPE_TEXUREPOS Unsuported len(word) != 1")
 	}
 
 	animTargetDataIndex := a.Descr.BaseTargetDataIndex
-	animDataOffset := uint32(a.InterpolationSettings.OffsetToElement)
-	animDataStep := uint32(a.InterpolationSettings.PairedElementsCount) * 4
-	for animIterator := a.InterpolationSettings.Words[0]; animIterator != 0; animIterator = ((animIterator - 1) / 2) * 2 {
+	animDataOffset := uint32(a.DataBitMap.DataOffset)
+	animDataStep := uint32(a.DataBitMap.PairedElementsCount) * 4
+	for animIterator := a.DataBitMap.Bitmap[0]; animIterator != 0; animIterator = ((animIterator - 1) / 2) * 2 {
 		floatsDataArray := make([]float32, a.Stream.Manager.Count)
 
 		for j := range floatsDataArray {
