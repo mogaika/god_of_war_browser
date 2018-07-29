@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/mogaika/god_of_war_browser/config"
-
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
