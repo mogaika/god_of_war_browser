@@ -2,7 +2,6 @@ package anm
 
 import (
 	"encoding/binary"
-	"math"
 	"math/bits"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -157,35 +156,35 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 
 		_ = utils.LogDump
 	} else if a.RotationStream.Manager.Count != 0 {
-		a.RotationInterpolation = a.GetInterpolationSettings(&a.RotationDescr, stateData)
+		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, stateData)
 
 		a.RotationStream.Samples = make(map[int]interface{})
 
-		_l.Printf("       RAW %+v  flag %v", a.RotationInterpolation, a.RotationDescr.FlagsProbably&1 != 0)
+		_l.Printf("       RAW %+v  flag %v", a.RotationDataBitMap, a.RotationDescr.FlagsProbably&1 != 0)
 		if a.RotationDescr.FlagsProbably&1 == 0 {
 			animDataArrayIndex := 0
-			for iInterpolationWord, interpolationWord := range a.RotationInterpolation.Words {
-				for bitmask := interpolationWord; bitmask != 0; {
+			for iBitMapWord, bitMapWord := range a.RotationDataBitMap.Bitmap {
+				for bitmask := bitMapWord; bitmask != 0; {
 					curBitIndex := bits.TrailingZeros16(bitmask)
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
 					frames := make([]int32, a.RotationStream.Manager.Count)
-					frameStep := int(a.RotationInterpolation.PairedElementsCount) * 2 // 16 bit
+					frameStep := int(a.RotationDataBitMap.PairedElementsCount) * 2 // 16 bit
 
 					for iFrame := range frames {
 						// TODO: deside about animDataArrayIndex*2
-						offset := frameStep*iFrame + int(a.RotationInterpolation.OffsetToElement) + animDataArrayIndex*2
+						offset := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + animDataArrayIndex*2
 						frames[iFrame] = int32(int16(binary.LittleEndian.Uint16(stateData[offset:])))
 					}
 
-					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iBitMapWord*16 + curBitIndex
 					a.RotationStream.Samples[dataIndex] = frames
 					animDataArrayIndex++
 					_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
 				}
 			}
 		} else {
-			_l.Printf("       RAW ADDITIVE %+v  flag %v", a.RotationInterpolation, a.RotationDescr.FlagsProbably&1 != 0)
+			_l.Printf("       RAW ADDITIVE %+v  flag %v", a.RotationDataBitMap, a.RotationDescr.FlagsProbably&1 != 0)
 			//panic("not implemented")
 		}
 	}
@@ -197,36 +196,39 @@ func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *util
 	a.PositionStream.Manager.FromBuf(stateBuf[4:])
 	stateData := stateBuf[(uint32(a.PositionDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.PositionStream.Manager.OffsetToData):]
 
-	a.PositionInterpolation = a.GetInterpolationSettings(&a.PositionDescr, stateData)
-	_l.Printf("       POSITION Manager %+v", a.PositionStream.Manager)
-	_l.Printf("       POSITION Interpolation %+v", a.PositionInterpolation)
-	if a.PositionStream.Manager.Count != 0 {
-		if a.PositionDescr.FlagsProbably&1 != 0 {
-			_l.Printf("       POSITION ADDITIVE %+v ", a.PositionDescr)
-			// TODO:
-		} else {
-			_l.Printf("       POSITION RAW %+v", a.PositionDescr)
-			a.PositionStream.Samples = make(map[int]interface{})
-			animDataArrayIndex := 0
-			for iInterpolationWord, interpolationWord := range a.PositionInterpolation.Words {
-				for bitmask := interpolationWord; bitmask != 0; {
-					curBitIndex := bits.TrailingZeros16(bitmask)
-					bitmask = bitmaskZeroBitsShift(bitmask)
+	_ = stateData
+	/*
+		a.PositionInterpolation = a.GetInterpolationSettings(&a.PositionDescr, stateData)
+		_l.Printf("       POSITION Manager %+v", a.PositionStream.Manager)
+		_l.Printf("       POSITION Interpolation %+v", a.PositionInterpolation)
+		if a.PositionStream.Manager.Count != 0 {
+			if a.PositionDescr.FlagsProbably&1 != 0 {
+				_l.Printf("       POSITION ADDITIVE %+v ", a.PositionDescr)
+				// TODO:
+			} else {
+				_l.Printf("       POSITION RAW %+v", a.PositionDescr)
+				a.PositionStream.Samples = make(map[int]interface{})
+				animDataArrayIndex := 0
+				for iInterpolationWord, interpolationWord := range a.PositionInterpolation.Words {
+					for bitmask := interpolationWord; bitmask != 0; {
+						curBitIndex := bits.TrailingZeros16(bitmask)
+						bitmask = bitmaskZeroBitsShift(bitmask)
 
-					frames := make([]float32, a.PositionStream.Manager.Count)
-					frameStep := int(a.PositionInterpolation.PairedElementsCount) * 4 // float32
+						frames := make([]float32, a.PositionStream.Manager.Count)
+						frameStep := int(a.PositionInterpolation.PairedElementsCount) * 4 // float32
 
-					for iFrame := range frames {
-						offset := frameStep*iFrame + int(a.PositionInterpolation.OffsetToElement) //+ animDataArrayIndex*2
-						frames[iFrame] = math.Float32frombits(binary.LittleEndian.Uint32(stateData[offset:]))
+						for iFrame := range frames {
+							offset := frameStep*iFrame + int(a.PositionInterpolation.OffsetToElement) //+ animDataArrayIndex*2
+							frames[iFrame] = math.Float32frombits(binary.LittleEndian.Uint32(stateData[offset:]))
+						}
+
+						dataIndex := int(a.PositionDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
+						a.PositionStream.Samples[dataIndex] = frames
+						animDataArrayIndex++
+						_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
 					}
-
-					dataIndex := int(a.PositionDescr.BaseTargetDataIndex) + iInterpolationWord*16 + curBitIndex
-					a.PositionStream.Samples[dataIndex] = frames
-					animDataArrayIndex++
-					_l.Printf("        frames (RAW) for index %d (%d): %v", dataIndex, curBitIndex, frames)
 				}
 			}
 		}
-	}
+	*/
 }
