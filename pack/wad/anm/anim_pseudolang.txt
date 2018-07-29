@@ -1,0 +1,83 @@
+struct Interval {
+	uint16 Count
+	uint16 Offset
+	uint16 Unk4
+	uint16 DataOffset
+}
+
+sruct Chunk {
+	uint16 DataIndex
+	uint8  Flags
+	uint8  Offset_In64kb
+	Interval Interval
+}
+
+struct AssignBitMap {
+	uint8  WordsCount
+	uint8  ElementsPerSample
+	uint16 Offset
+	uint16 []Bitmap // every word is 4 * 4vector bitmap (4*4=16 bits)
+}
+
+const FP_EPSILON = 1.0 / 4096.0 // 0.00024414062
+
+// f23 - prevTime
+// f24 - nextTime
+// f21 - sampleTime - from 
+
+func (i *Interval) MustUpdateForTime() bool {
+	intervalStartTime = float32(interval.Offset) * f21_sampleTime
+	intervalEndTime = float32(interval.Count + interval.Offset + interval.Unk4 - 1) * f21_sampleTime
+	if nextTime > prevTime {
+		return intervalStartTime < nextTime - FP_EPSILON && prevTime - FP_EPSILON < intervalEndTime
+	} else {
+		return intervalStartTime < prevTime + FP_EPSILON && nextTime + FP_EPSILON < intervalEndTime
+	}
+}
+
+func stateThreadPosHandle(chunk *Chunk)  {
+	// s1 - chunk
+	// s5 - dataBuffer []float32 (unified vec4 space)
+	if !interval.MustUpdateForTime() {
+		return
+	}
+	
+	if f21 < abs(f23  - f24) {
+		
+		f25 = (f24 < f23) ? f21 : (-f21)
+		f20 = f24
+		while {
+			if f21 < abs(f23 - f20) {
+				v0 = chunk.interval.Count 
+				f20 += f25
+				a2 = &chunk.interval
+				if v0 != 0 {
+					a3 = (chunk.Flags & 2)
+						? (chunk + (chunk.Offset_In64kb << 16) + interval.Offset)
+						: defaultAssignBitMap
+					if chunk.Flags & 1 != 0 {
+						chunk.handleVec4fAdd(s5, f22, f20, f21, 0.00390625)
+					} else {
+						chunk.handleVec4fRaw(s5, f20, f21)
+					}
+					f22 = f20
+				} else {
+					
+				}
+			} else {
+				break
+			}
+		}
+	} else {
+		f22 = f24
+	}
+	
+}
+
+func (Chunk *a0) handleVec4fAdd(a1 []float32, f12, f13, f14, f15 float32) {
+
+}
+
+func (Chunk *a0) handleVec4fRaw(a1 []float32, f12, f13 float32) {
+	
+}
