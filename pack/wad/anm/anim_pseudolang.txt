@@ -105,15 +105,15 @@ func (Chunk *a0) handleVec4fRaw(targetDataBuffer []float32, interval Interval, b
 	t4 = bitmap
 	t5 = targetDataBuffer
 
-	// t1 - currentFrameNumber
-	t1 = int((nextTime + FP_EPSILON) * (1.0 / frameTimeLength)) - interval.Offset
-	if t1 >= interval.Count {
-		t1 = interval.Count - 1
-		f0 = float32(t1 + interval.Offset)
+	// t1 - samplesBankIndex
+	samplesBankIndex = int((nextTime + FP_EPSILON) * (1.0 / frameTimeLength)) - interval.Offset
+	if samplesBankIndex >= interval.Count {
+		samplesBankIndex = interval.Count - 1
+		f0 = float32(samplesBankIndex + interval.Offset)
 		nextTime = f0 * f13
 	}
-	if (t1 < 0) {
-		t1 = 0
+	if (samplesBankIndex < 0) {
+		samplesBankIndex = 0
 		if (interval.Offset < 0) {
 			nextTime = float32((interval.Offset & 1) | (interval.Offset >> 1)) * frameTimeLength
 		} else {
@@ -121,25 +121,18 @@ func (Chunk *a0) handleVec4fRaw(targetDataBuffer []float32, interval Interval, b
 		}
 	}
 
-	a2 = t1 * sizeof(float32) * bitmap.ElementsPerSample
+	a2 = samplesBankIndex * sizeof(float32) * bitmap.ElementsPerSample
 	sampleFrameOffsetStep = bitmap.ElementsPerSample *  sizeof(float32) // t6
 	
-	v0 = chunk.Offset_In64kb << 16 + chunk + interval.Offset
-	f0 = float32(t1 + interval.Offset)
-	v1 = t1 + 2
-	v1 = v2 < t1
-	a1 = interval.Count - t1
-	t0 = 2
+	// f0 = currentFrameNumber + interval.Offset
+	f0 = float32(samplesBankIndex + interval.Offset)
 	v0 = chunk.Offset_In64kb << 16 + chunk + interval.Offset + bitmap.Offset
-	if v1 == 0 {
-		t0 = a1
-	}
+	t0 = (samplesBankIndex + 2 < interval.Count) ? 2 : (interval.Count - samplesBankIndex)
 	
 	a0 = chunk.DataIndex * sizeof(float32) + t5
 	v1 = v0 + a2
-	a3 = t0 < 2
 	f2 = f0 * f13
-	if a3 != 0 {
+	if t0 < 2 {
 		f1 = 0.0
 		f0 = nextTime - f2
 	} else {
@@ -159,7 +152,7 @@ func (Chunk *a0) handleVec4fRaw(targetDataBuffer []float32, interval Interval, b
 	
 	
 	isSingleElementSelectNoBlend := false
-	if a3 != 0 {
+	if t0 < 2 {
 		isSingleElementSelectNoBlend = true
 	} else {
 		f1 = FP_EPSILON
