@@ -172,7 +172,7 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 					frameStep := int(a.RotationDataBitMap.PairedElementsCount) * 2 // 16 bit
 
 					for iFrame := range frames {
-						// TODO: deside about animDataArrayIndex*2
+						// TODO: decide about animDataArrayIndex*2
 						offset := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + animDataArrayIndex*2
 						frames[iFrame] = int32(int16(binary.LittleEndian.Uint16(stateData[offset:])))
 					}

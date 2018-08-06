@@ -20,7 +20,7 @@ func (tnp *TocNamingPolicy) GetPakName(pi PakIndex) string {
 }
 
 var defaultTocNamePair = []TocNamingPolicy{
-	TocNamingPolicy{"GODOFWAR.TOC", true, "PART", ".PAK"},
+	{"GODOFWAR.TOC", true, "PART", ".PAK"},
 	// TODO: I'm not sure about this. Need to find related discussion
-	TocNamingPolicy{"GODOFWAR.BIN", true, "DATA", ".BIN"},
+	{"GODOFWAR.BIN", true, "DATA", ".BIN"},
 }

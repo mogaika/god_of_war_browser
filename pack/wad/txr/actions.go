@@ -28,11 +28,15 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	gfxcn := wrsrc.Wad.GetNodeByName(txr.GfxName, wrsrc.Node.Id, false)
 	palcn := wrsrc.Wad.GetNodeByName(txr.PalName, wrsrc.Node.Id, false)
 
-	gfxcw, _, err := wrsrc.Wad.GetInstanceFromNode(gfxcn.Id)
-	palcw, _, err := wrsrc.Wad.GetInstanceFromNode(palcn.Id)
+	gfxcw, _, gfxErr := wrsrc.Wad.GetInstanceFromNode(gfxcn.Id)
+	palcw, _, palErr := wrsrc.Wad.GetInstanceFromNode(palcn.Id)
 
 	gfxc := gfxcw.(*file_gfx.GFX)
 	palc := palcw.(*file_gfx.GFX)
+
+	if gfxErr != nil || palErr != nil {
+		return fmt.Errorf("Cannot get gfx or pal instance: %v, %v", gfxErr, palErr)
+	}
 
 	if len(gfxc.Data) != 1 {
 		return fmt.Errorf("Do not support gfx with DatasCount != 1")

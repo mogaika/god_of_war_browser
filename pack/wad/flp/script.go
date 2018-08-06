@@ -30,7 +30,7 @@ type ScriptOpcode struct {
 }
 
 type ScriptOpcodeStringPushReference struct {
-	Opcode *ScriptOpcode `json""-"`
+	Opcode *ScriptOpcode `json:"-"`
 	String []byte
 }
 

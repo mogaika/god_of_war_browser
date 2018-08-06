@@ -89,5 +89,4 @@ func (toc *TableOfContent) unmarshalGOW2(b []byte) error {
 
 func (toc *TableOfContent) marshalGOW2() []byte {
 	panic("Not implemented")
-	return nil
 }

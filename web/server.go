@@ -35,8 +35,8 @@ func StartServer(addr string, d vfs.Directory, webPath string) error {
 
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(path.Join(webPath, "data"))))
 
-	h := handlers.RecoveryHandler()(r)
-	h = handlers.LoggingHandler(os.Stdout, r)
+	h := handlers.RecoveryHandler(handlers.PrintRecoveryStack(true))(r)
+	h = handlers.LoggingHandler(os.Stdout, h)
 
 	log.Printf("[web] Starting server %v", addr)
 
