@@ -83,10 +83,8 @@ func MakeWad(metaDir string, inMeta *bufio.Reader, outWad io.Writer) {
 
 			outWad.Write(buf[:])
 
-			written := int64(0)
-
 			if hasFile {
-				written = CopyFileToStream(outWad, filepath.Join(metaDir, fileName))
+				written := CopyFileToStream(outWad, filepath.Join(metaDir, fileName))
 
 				var zeroes [16]byte
 				if written%16 != 0 {
