@@ -3,6 +3,7 @@ package mesh
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -18,7 +19,7 @@ const (
 func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Logger) error {
 	b := allb[pos:]
 	o.Offset = pos
-	o.RawDmaAndJointsData = b[OBJECT_GOW1_HEADER_SIZE:size]
+	o.RawDmaAndJointsData = b[OBJECT_GOW2_HEADER_SIZE:size]
 
 	o.Type = binary.LittleEndian.Uint16(b[0:])
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
@@ -68,7 +69,11 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 			trias, trias, verts, verts)
 		o.Packets[iDmaChain] = ds.Packets
 	}
-	exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
+	if len(o.Packets) == 0 || o.Packets[0] == nil {
+		log.Printf(" object have %d packets", len(o.Packets))
+	} else {
+		exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
+	}
 	if o.JointMapper != nil {
 		// right after dma calls
 		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.PacketsPerFilter
@@ -86,7 +91,7 @@ func (g *Group) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Log
 	g.Offset = pos
 
 	g.Unk00 = binary.LittleEndian.Uint32(b[0:])
-	g.Objects = make([]Object, binary.LittleEndian.Uint32(b[4:]))
+	g.Objects = make([]Object, binary.LittleEndian.Uint16(b[4:]))
 	g.Unk08 = binary.LittleEndian.Uint32(b[8:])
 	exlog.Printf("      | unk00: 0x%.8x unk08: 0x%.8x objects count: %v", g.Unk00, g.Unk08, len(g.Objects))
 
@@ -115,6 +120,7 @@ func (p *Part) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Logg
 	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+PART_GOW2_HEADER_SIZE:])
 	exlog.Printf("    | unk00: 0x%.4x jointid: %d groups count: %v", p.Unk00, p.JointId, len(p.Groups))
 
+	utils.LogDump(p)
 	for i := range p.Groups {
 		groupOffset := binary.LittleEndian.Uint32(b[PART_GOW2_HEADER_SIZE+i*4:])
 		exlog.Printf(" - - group %d offset 0x%.8x", i, pos+groupOffset)
