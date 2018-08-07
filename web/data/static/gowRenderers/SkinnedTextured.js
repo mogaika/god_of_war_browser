@@ -3,7 +3,7 @@ function grRenderChain_SkinnedTexturedFlash(model, mesh) {
     this.mesh = mesh;
     this.material = undefined;
     this.diffuselayer = undefined;
-	this.envLayer = undefined;
+	this.envmaplayer = undefined;
 }
 
 function grRenderChain_SkinnedTexturedFlashesBatch() {
@@ -95,7 +95,7 @@ grRenderChain_SkinnedTextured.prototype.free = function(ctrl) {
     gl.deleteShader(this.fragmentShader);
 }
 
-grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = false, hasJoints = false) {
+grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = false, hasJoints = false, hasEnvMap = false) {
     gl.enableVertexAttribArray(this.aVertexPos);
     gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferVertex);
     gl.vertexAttribPointer(this.aVertexPos, 3, gl.FLOAT, false, 0, 0);
@@ -119,6 +119,11 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
         gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
         gl.disableVertexAttribArray(this.aVertexUV);
     }
+ 	if (hasEnvMap) {
+		gl.uniform1i(this.uUseEnvmapSampler, 1);
+	} else {
+		gl.uniform1i(this.uUseEnvmapSampler, 0);
+	}
 
     if (mesh.bufferJointIds && hasJoints) {
         gl.uniform1i(this.uUseJoints, 1);
@@ -152,13 +157,16 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
     let material = -1;
     let mesh = -1;
     let layer = -1;
+	let envmaplayer = -1;
     let texture = -1;
-    let hasTxr = false;
-    let hasSkelet = false;
+
     for (let iFlash in flashesBatch) {
         let flash = flashesBatch[iFlash];
+		let hasEnvMap = false;
+	    let hasSkelet = false;
+		let hasTexture = false;
 
-        if (flash.model != mdl) {
+        if (mdl != flash.model) {
             mdl = flash.model;
             if (mdl) {
                 gl.uniform1i(this.uUseModelTransform, 1);
@@ -168,7 +176,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             }
         }
 
-        if (flash.mesh != mesh) {
+        if (mesh != flash.mesh) {
             mesh = flash.mesh;
             if (mesh.isDepthTested) {
                 gl.enable(gl.DEPTH_TEST);
@@ -192,7 +200,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             }
         }
 
-        if (flash.material != material) {
+        if (material != flash.material) {
             material = flash.material;
             if (material != undefined) {
                 gl.uniform4f(this.uMaterialColor, material.color[0], material.color[1], material.color[2], material.color[3]);
@@ -201,7 +209,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             }
         }
 
-        if (flash.diffuselayer != layer) {
+        if (layer != flash.diffuselayer) {
             layer = flash.diffuselayer;
             if (layer != undefined) {
                 gl.uniform4f(this.uLayerColor, layer.color[0], layer.color[1], layer.color[2], layer.color[3]);
@@ -211,13 +219,22 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
                 gl.uniform2f(this.uLayerOffset, 0.0, 0.0);
             }
         }
+		if (envmaplayer != flash.envmaplayer){ 
+			envmaplayer = flash.envmaplayer;
+		}
 
-        if (layer != undefined && layer.textures && layer.textures.length && layer.textures[layer.textureIndex]) {
-            gl.bindTexture(gl.TEXTURE_2D, layer.textures[layer.textureIndex].get());
-            hasTxr = true;
+		if (envmaplayer != undefined && envmaplayer.textures && envmaplayer.textures.length && envmaplayer.textures[envmaplayer.textureIndex]) {
+			gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, envmaplayer.textures[envmaplayer.textureIndex].get());
+            hasEnvMap = true;
         }
 
-        this.drawMesh(mesh, hasTxr, hasSkelet);
+        if (layer != undefined && layer.textures && layer.textures.length && layer.textures[layer.textureIndex]) {
+			gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, layer.textures[layer.textureIndex].get());
+            hasTexture = true;
+        }
+        this.drawMesh(mesh, hasTexture, hasSkelet, hasEnvMap);
     }
     return flashesBatch.length;
 }
@@ -254,6 +271,7 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
 	gl.uniformMatrix4fv(this.umView, false, mat4.create());
     gl.uniformMatrix4fv(this.umProjection, false, ctrl.orthoMatrix);
     gl.uniform1i(this.uUseLayerDiffuseSampler, 1);
+	gl.uniform1i(this.uUseEnvmapSampler, 0);
     gl.uniform1i(this.uUseVertexColor, 0);
     gl.uniform1i(this.uUseJoints, 0);
 
@@ -358,21 +376,32 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
 			let strangeBlendedLayer = undefined;
 			let additiveLayer = undefined;
 			
+			let flash = this.createFlash(mdl, mesh);
+			
             for (let iLayer in mat.layers) {
                 let layer = mat.layers[iLayer];
-                let flash = this.createFlash(mdl, mesh);
 				switch (layer.method) {
 					case 0: usualLayer = layer; break;
 					case 1: additiveLayer = layer; break;
-					
+					case 3: strangeBlendedLayer = layer; break;
 					default: console.warn("unknown layer method " + layer.method, layer, mat); break;
 				}
-                flash.diffuselayer = layer;
-                flash.material = mat;
-                flashesBatch.addFlash(flash, layer.method);
             }
 			
-			
+			if (additiveLayer != undefined) {
+				flash.diffuselayer = additiveLayer;
+				flashesBatch.addFlash(flash, 1);
+			} else {
+				if (strangeBlendedLayer != undefined) {
+	               	flash.diffuselayer = strangeBlendedLayer;
+					flash.envmaplayer = usualLayer;
+				} else {
+					flash.diffuselayer = usualLayer;
+				}
+				flashesBatch.addFlash(flash, 0);
+			}
+
+			flash.material = mat;
         } else {
             let flash = this.createFlash(mdl, mesh);
             flashesBatch.addFlash(flash, 0);

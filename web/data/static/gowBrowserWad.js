@@ -437,14 +437,12 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
 
             if (textures && textures[iLayer] && textures[iLayer].Images) {
                 var imgs = textures[iLayer].Images;
-                if (imgs.hasOwnProperty(iLayer)) {
-                    var txrs = [];
-                    for (var iImg in imgs) {
-                        txrs.push(new grTexture('data:image/png;base64,' + imgs[iImg].Image));
-                    }
-                    layer.setTextures(txrs);
-                    layer.setHasAlphaAttribute(textures[iLayer].HaveTransparent);
+                var txrs = [];
+                for (var iImg in imgs) {
+                    txrs.push(new grTexture('data:image/png;base64,' + imgs[iImg].Image));
                 }
+                layer.setTextures(txrs);
+                layer.setHasAlphaAttribute(textures[iLayer].HaveTransparent);
             }
             material.addLayer(layer);
         }
