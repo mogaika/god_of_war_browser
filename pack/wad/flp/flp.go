@@ -49,13 +49,13 @@ type FLP struct {
 	Unk04                 uint32
 	Unk08                 uint32
 	GlobalHandlersIndexes []GlobalHandlerIndex
-	MeshPartReferences    []MeshPartReference `json:"-"`
+	MeshPartReferences    []MeshPartReference
 	Fonts                 []Font
 	StaticLabels          []StaticLabel
 	DynamicLabels         []DynamicLabel `json:"-"`
 	Datas6                []Data6
-	Datas7                []Data6Subtype1 `json:"-"`
-	Data8                 Data6Subtype1   // Root logic node
+	Datas7                []Data6Subtype1
+	Data8                 Data6Subtype1 // Root logic node
 	Transformations       []Transformation
 	BlendColors           []BlendColor `json:"-"`
 	Strings               []string     `json:"-"`
