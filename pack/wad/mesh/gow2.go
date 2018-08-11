@@ -120,7 +120,6 @@ func (p *Part) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Logg
 	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+PART_GOW2_HEADER_SIZE:])
 	exlog.Printf("    | unk00: 0x%.4x jointid: %d groups count: %v", p.Unk00, p.JointId, len(p.Groups))
 
-	utils.LogDump(p)
 	for i := range p.Groups {
 		groupOffset := binary.LittleEndian.Uint32(b[PART_GOW2_HEADER_SIZE+i*4:])
 		exlog.Printf(" - - group %d offset 0x%.8x", i, pos+groupOffset)

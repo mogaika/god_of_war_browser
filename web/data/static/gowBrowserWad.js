@@ -1039,14 +1039,10 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     var bclri = $("<input type=text id='blendclr'>").val(JSON.stringify(cmd.BlendColor));
                     rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").append(bclri)));
                 }
-                if (cmd.Flags & 2) {
-                    var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
-                    rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
-                }
-                if (cmd.Flags & 1) {
-                    var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
-                    rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
-                }
+                var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
+                rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
+                var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
+                rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
 
                 var str = cmd.Glyphs.reduce(function(str, glyph) {
                     var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
@@ -1101,11 +1097,15 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                             cmd.Flags |= 4;
                             cmd.BlendColor = JSON.parse($(row).find("#blendclr").val());
                         } else if (rname.includes("X offset")) {
-                            cmd.Flags |= 2;
                             cmd.OffsetX = Number.parseFloat($(row).find("#xoffset").val());
+							if (Math.abs(cmd.OffsetX) > 0.000001) {
+								cmd.Flags |= 2;
+							}
                         } else if (rname.includes("Y offset")) {
-                            cmd.Flags |= 1;
                             cmd.OffsetY = Number.parseFloat($(row).find("#yoffset").val());
+							if (Math.abs(cmd.OffsetY) > 0.000001) {
+								cmd.Flags |= 1;
+							}
                         } else if (rname.includes("glyphs")) {
                             var text = $(row).find("textarea").val();
                             var glyphs = [];
@@ -1231,7 +1231,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                             var layer = new grMaterialLayer();
                             layer.setTextures([texture]);
                             material.addLayer(layer);
-
 
                             matmap[txr_name] = mdl.materials.length;
                             mdl.addMaterial(material);
