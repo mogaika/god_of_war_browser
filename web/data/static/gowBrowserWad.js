@@ -714,35 +714,35 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
     var jointsTable = $('<table>');
 
-	if (data.Animations) {
-		var $animSelector = $("<select>").attr("size", 6).addClass("animation");
+    if (data.Animations) {
+        var $animSelector = $("<select>").attr("size", 6).addClass("animation");
 
-	    var anim = data.Animations;
+        var anim = data.Animations;
         if (anim && anim.Groups && anim.Groups.length) {
-			for (var iGroup in anim.Groups) {
-				var group = anim.Groups[iGroup];
-				for (var iAct in group.Acts) {
-					var act = group.Acts[iAct];
+            for (var iGroup in anim.Groups) {
+                var group = anim.Groups[iGroup];
+                for (var iAct in group.Acts) {
+                    var act = group.Acts[iAct];
                     for (var dt in anim.DataTypes) {
                         switch (anim.DataTypes[dt].TypeId) {
                             case 0:
-								var $option = $("<option>").text(group.Name + ": " + act.Name);
-								$option.dblclick([anim, act, dt, data.Data], function (ev) {
-									var anim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], ev.data[3], gr_instance.models[0]);
-			                        ga_instance.addAnimation(anim);
-								});
-								
-								$animSelector.append($option);
-								break;
-						}
-					}
-				}
-			}
-            
-		}
+                                var $option = $("<option>").text(group.Name + ": " + act.Name);
+                                $option.dblclick([anim, act, dt, data.Data], function(ev) {
+                                    var anim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], ev.data[3], gr_instance.models[0]);
+                                    ga_instance.addAnimation(anim);
+                                });
 
-		dataSummary.append($animSelector);
-	}
+                                $animSelector.append($option);
+                                break;
+                        }
+                    }
+                }
+            }
+
+        }
+
+        dataSummary.append($animSelector);
+    }
 
     $.each(data.Data.Joints, function(joint_id, joint) {
         var row = $('<tr>').append($('<td>').attr('style', 'background-color:rgb(' +
@@ -1098,14 +1098,14 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                             cmd.BlendColor = JSON.parse($(row).find("#blendclr").val());
                         } else if (rname.includes("X offset")) {
                             cmd.OffsetX = Number.parseFloat($(row).find("#xoffset").val());
-							if (Math.abs(cmd.OffsetX) > 0.000001) {
-								cmd.Flags |= 2;
-							}
+                            if (Math.abs(cmd.OffsetX) > 0.000001) {
+                                cmd.Flags |= 2;
+                            }
                         } else if (rname.includes("Y offset")) {
                             cmd.OffsetY = Number.parseFloat($(row).find("#yoffset").val());
-							if (Math.abs(cmd.OffsetY) > 0.000001) {
-								cmd.Flags |= 1;
-							}
+                            if (Math.abs(cmd.OffsetY) > 0.000001) {
+                                cmd.Flags |= 1;
+                            }
                         } else if (rname.includes("glyphs")) {
                             var text = $(row).find("textarea").val();
                             var glyphs = [];
