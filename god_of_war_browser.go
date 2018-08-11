@@ -67,6 +67,9 @@ func main() {
 		rootdir, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
 	} else if dirpath != "" {
 		rootdir = vfs.NewDirectoryDriver(dirpath)
+		if gowversion == 0 {
+			log.Fatalf("You must provide 'gowversion' argument if you use directory driver")
+		}
 	} else {
 		flag.PrintDefaults()
 		return
