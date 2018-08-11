@@ -118,16 +118,16 @@ function grModel() {
     this.visible = true;
     this.meshes = [];
     this.materials = [];
-	this.matrices = undefined;
+    this.matrices = undefined;
     this.matrix = mat4.create();
     this.type = undefined;
-	this.animation = undefined;
+    this.animation = undefined;
     this.exclusiveMeshes = undefined;
 }
 
 grModel.prototype.showExclusiveMeshes = function(meshes) {
     this.exclusiveMeshes = meshes;
-	gr_instance.flushScene();
+    gr_instance.flushScene();
 }
 
 grModel.prototype.setType = function(type) {
@@ -184,7 +184,7 @@ grModel.prototype.loadSkeleton = function(sklt) {
 }
 
 grModel.prototype.setJointMatrix = function(nodeid, matrix) {
-	this.matrices[nodeid] = matrix;
+    this.matrices[nodeid] = matrix;
 }
 
 grModel.prototype.free = function() {
@@ -194,10 +194,10 @@ grModel.prototype.free = function() {
     for (let i in this.materials) {
         this.materials[i].unclaim();
     }
-	
-	if (this.animation != undefined) {
-		ga_instance.freeAnimation(this.animation);
-	}
+
+    if (this.animation != undefined) {
+        ga_instance.freeAnimation(this.animation);
+    }
     gr_instance.flushScene();
 }
 

@@ -4,18 +4,18 @@ var wsStatusSocket;
 var wsStatusTimeout = false;
 
 function gowWsStatusTimer() {
-	if (wsStatusSocket) {
+    if (wsStatusSocket) {
         wsStatusSocket.close();
     }
     wsStatusSocket = undefined;
-	if (!wsStatusTimeout) {
-		wsStatusTimeout = true;
-		setTimeout(gowWsStatusConnect, 2 * 1000);
-	}
+    if (!wsStatusTimeout) {
+        wsStatusTimeout = true;
+        setTimeout(gowWsStatusConnect, 2 * 1000);
+    }
 }
 
 function gowWsStatusConnect() {
-	wsStatusTimeout = false;
+    wsStatusTimeout = false;
     console.info("Trying to connect to ws server");
     if (window["WebSocket"]) {
         wsStatusSocket = new WebSocket("ws://" + document.location.host + "/ws/status");
