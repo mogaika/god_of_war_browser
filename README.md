@@ -14,7 +14,8 @@ Some functional broken on: *Jp version*.
 - Download and unzip [lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 - Open console and launch binary with one of the argument
   - ```-iso "Path_to_game_ISO_file"``` if you have iso file (detection of second layer implemented)
-  - ```-toc "Path_to_directory_with_GODOFWAR.TOC_and_PART?.pak_files"``` if you have unpacked iso
+  - ```-toc "Path_to_directory_with_GODOFWAR.TOC_and_PART?.pak_files"``` if you have pak and toc files
+  - ```-dir "Path_to_directory_with_WAD_files"``` if you have wad files
 - You can override .TOC and .PAK file names using -partname1, -partname2 and -tocname arguments
 - Open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)
 
