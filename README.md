@@ -8,6 +8,8 @@ Based on version: *God of War (2005)  NTSC(USA)  PS2DVD-9*.
 Also working with: *European multilang version*.
 Some functional broken on: *Jp version*.
 
+### [Download lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
+
 ## Instruction
 - Download and unzip [lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 - Open console and launch binary with one of the argument
