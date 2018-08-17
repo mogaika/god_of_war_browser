@@ -3,6 +3,7 @@ package flp
 import (
 	"archive/zip"
 	"encoding/base64"
+	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -79,6 +80,25 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
 		}); err != nil {
 			webutils.WriteError(w, err)
+		}
+	case "transofrm":
+		if strings.ToUpper(r.Method) == "POST" {
+			if err := r.ParseForm(); err != nil {
+				webutils.WriteError(w, err)
+			}
+
+			id, err := strconv.Atoi(r.PostFormValue("id"))
+			if err != nil {
+				webutils.WriteError(w, err)
+			}
+
+			if err := json.Unmarshal([]byte(r.PostFormValue("data")), &f.Transformations[id]); err != nil {
+				webutils.WriteError(w, err)
+			}
+
+			wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+				wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
+			})
 		}
 	}
 }

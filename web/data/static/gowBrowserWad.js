@@ -1,6 +1,10 @@
 'use strict';
 
 var gw_cxt_group_loading = false;
+var flp_obj_view_history = [{
+    TypeArrayId: 8,
+    IdInThatTypeArray: 0
+}];
 
 function treeLoadWad_dumpButtons(li, wadName, tag) {
     li.append($('<div>')
@@ -1010,6 +1014,172 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         dataSummary.append($("<table>").width("100%").append($("<thead>").append(headtr)).append(tbody));
     }
 
+    let print_static_label_as_tr = function(iSl, needref = true) {
+        let sl = flpdata.StaticLabels[iSl];
+        let row = $("<tr>");
+
+        if (needref) {
+            row.append($("<td>").append($("<a>").addClass('flpobjref').text("id " + iSl).click(function() {
+                flp_obj_view_history.unshift({
+                    TypeArrayId: 4,
+                    IdInThatTypeArray: iSl
+                });
+                flp_view_object_viewer();
+            })));
+        }
+
+        var font = undefined;
+        var cmdsContainer = $("<td>");
+        for (var iCmd in sl.RenderCommandsList) {
+            var rcmds = $("<table width='100%'>");
+            var cmd = sl.RenderCommandsList[iCmd];
+
+            if (cmd.Flags & 8) {
+                var fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
+                var fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
+                let $link = $("<a>").addClass('flpobjref').text("handler ").click(function() {
+                    flp_obj_view_history.unshift({
+                        TypeArrayId: 3,
+                        IdInThatTypeArray: cmd.FontHandler
+                    });
+                    flp_view_object_viewer();
+                })
+                rcmds.append($("<tr>").append($("<td>").text("Set font")).append($("<td>").append($link).append("#").append(fhi).append(" with scale ").append(fsi)));
+                font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[cmd.FontHandler].IdInThatTypeArray];
+            }
+            if (cmd.Flags & 4) {
+                var bclri = $("<input type=text id='blendclr'>").val(JSON.stringify(cmd.BlendColor));
+                rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").append(bclri)));
+            }
+            var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
+            rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
+            var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
+            rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
+
+            var str = cmd.Glyphs.reduce(function(str, glyph) {
+                var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
+                if (flp.FontCharAliases) {
+                    var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
+                        return flp.FontCharAliases[charString] == char;
+                    });
+                    if (map_chars && map_chars.length !== 0) {
+                        char = map_chars[0];
+                    }
+                }
+                return str + (char > 0 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
+            }, '');
+
+            rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
+            cmdsContainer.append(rcmds);
+        }
+
+        var open_preview_for_label = function(sl) {
+            var u = new URLSearchParams();
+            u.append('c', JSON.stringify(sl.RenderCommandsList));
+            u.append('f', wad);
+            u.append('r', tagid);
+
+            var t = sl.Transformation;
+            var m = t.Matrix;
+            u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
+            window.open('/label.html?' + u, '_blank');
+        }
+
+        var get_label_from_table_tr = function(tr) {
+            var sl = {
+                'Transformation': JSON.parse(tr.find("td").last().text()),
+                'RenderCommandsList': [],
+            };
+
+            var fontscale = 1.0;
+            var fonthandler = -1;
+            tr.find("table").each(function(cmdIndex, tbl) {
+                var cmd = {
+                    'Flags': 0
+                };
+                $(tbl).find("tr").each(function(i, row) {
+                    var rname = $(row).find("td").first().text();
+                    if (rname.includes("font")) {
+                        cmd.Flags |= 8;
+                        cmd.FontHandler = Number.parseInt($(row).find("#fonthandler").val());
+                        cmd.FontScale = Number.parseFloat($(row).find("#fontscale").val());
+                        fonthandler = cmd.FontHandler;
+                        fontscale = cmd.FontScale;
+                    } else if (rname.includes("blend")) {
+                        cmd.Flags |= 4;
+                        cmd.BlendColor = JSON.parse($(row).find("#blendclr").val());
+                    } else if (rname.includes("X offset")) {
+                        cmd.OffsetX = Number.parseFloat($(row).find("#xoffset").val());
+                        if (Math.abs(cmd.OffsetX) > 0.000001) {
+                            cmd.Flags |= 2;
+                        }
+                    } else if (rname.includes("Y offset")) {
+                        cmd.OffsetY = Number.parseFloat($(row).find("#yoffset").val());
+                        if (Math.abs(cmd.OffsetY) > 0.000001) {
+                            cmd.Flags |= 1;
+                        }
+                    } else if (rname.includes("glyphs")) {
+                        var text = $(row).find("textarea").val();
+                        var glyphs = [];
+
+                        var font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
+                        for (var char of text) {
+                            var charCode = char.charCodeAt(0);
+                            if (flp.FontCharAliases) {
+                                if (flp.FontCharAliases.hasOwnProperty(charCode)) {
+                                    charCode = flp.FontCharAliases[charCode];
+                                }
+                            }
+                            var glyphId = font.CharNumberToSymbolIdMap[charCode];
+                            var width = font.SymbolWidths[glyphId] * fontscale;
+                            glyphs.push({
+                                'GlyphId': glyphId,
+                                'Width': width / 16
+                            });
+                        }
+                        cmd.Glyphs = glyphs;
+                    }
+                });
+                sl.RenderCommandsList.push(cmd);
+            })
+            return sl;
+        }
+
+        var btns = $("<div>");
+        btns.append($("<button>peview original</button>").click(sl, function(e) {
+            open_preview_for_label(e.data);
+        }));
+        btns.append($("<br>"));
+        btns.append($("<button>preview changes</button>").click(function(e) {
+            open_preview_for_label(get_label_from_table_tr($(this).parent().parent().parent()));
+        }));
+        btns.append($("<br>"));
+        btns.append($("<button>apply changes</button>").click(iSl, function(e) {
+            var sl = get_label_from_table_tr($(this).parent().parent().parent());
+
+            $.post({
+                url: getActionLinkForWadNode(wad, tagid, 'staticlabels'),
+                data: {
+                    'id': e.data,
+                    'sl': JSON.stringify(sl)
+                },
+                success: function(a) {
+                    if (a != "" && a.error) {
+                        alert('Error uploading: ' + a.error);
+                    } else {
+                        alert('Success!');
+                    }
+                }
+            });
+
+        }));
+
+        row.append($("<td>").append(cmdsContainer));
+        row.append($("<td>").append(btns));
+        row.append($("<td>").text(JSON.stringify(sl.Transformation)));
+        return row;
+    }
+
     var flp_list_labels = function() {
         set3dVisible(false);
         dataSummary.empty();
@@ -1017,159 +1187,396 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         var table = $("<table class='staticlabelrendercommandlist'>");
         table.append($("<tr>").append($("<td>").text("Id")).append($("<td>").text("Render commands")));
 
-        for (var iSl in flpdata.StaticLabels) {
-            var sl = flpdata.StaticLabels[iSl];
-            var row = $("<tr>");
-
-            row.append($("<td>").text(iSl));
-
-            var font = undefined;
-            var cmdsContainer = $("<td>");
-            for (var iCmd in sl.RenderCommandsList) {
-                var rcmds = $("<table width='100%'>");
-                var cmd = sl.RenderCommandsList[iCmd];
-
-                if (cmd.Flags & 8) {
-                    var fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
-                    var fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
-                    rcmds.append($("<tr>").append($("<td>").text("Set font")).append($("<td>").text("handler #").append(fhi).append(" with scale ").append(fsi)));
-                    font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[cmd.FontHandler].IdInThatTypeArray];
-                }
-                if (cmd.Flags & 4) {
-                    var bclri = $("<input type=text id='blendclr'>").val(JSON.stringify(cmd.BlendColor));
-                    rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").append(bclri)));
-                }
-                var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
-                rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
-                var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
-                rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
-
-                var str = cmd.Glyphs.reduce(function(str, glyph) {
-                    var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
-                    if (flp.FontCharAliases) {
-                        var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
-                            return flp.FontCharAliases[charString] == char;
-                        });
-                        if (map_chars && map_chars.length !== 0) {
-                            char = map_chars[0];
-                        }
-                    }
-                    return str + (char > 0 ? String.fromCharCode(char) : ("$$" + glyph.GlyphId));
-                }, '');
-
-                rcmds.append($("<tr>").append($("<td>").text("Print glyphs")).append($("<td>").append($("<textarea>").val(str))));
-                cmdsContainer.append(rcmds);
-            }
-
-            var open_preview_for_label = function(sl) {
-                var u = new URLSearchParams();
-                u.append('c', JSON.stringify(sl.RenderCommandsList));
-                u.append('f', wad);
-                u.append('r', tagid);
-
-                var t = sl.Transformation;
-                var m = t.Matrix;
-                u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
-                window.open('/label.html?' + u, '_blank');
-            }
-
-            var get_label_from_table_tr = function(tr) {
-                var sl = {
-                    'Transformation': JSON.parse(tr.find("td").last().text()),
-                    'RenderCommandsList': [],
-                };
-
-                var fontscale = 1.0;
-                var fonthandler = -1;
-                tr.find("table").each(function(cmdIndex, tbl) {
-                    var cmd = {
-                        'Flags': 0
-                    };
-                    $(tbl).find("tr").each(function(i, row) {
-                        var rname = $(row).find("td").first().text();
-                        if (rname.includes("font")) {
-                            cmd.Flags |= 8;
-                            cmd.FontHandler = Number.parseInt($(row).find("#fonthandler").val());
-                            cmd.FontScale = Number.parseFloat($(row).find("#fontscale").val());
-                            fonthandler = cmd.FontHandler;
-                            fontscale = cmd.FontScale;
-                        } else if (rname.includes("blend")) {
-                            cmd.Flags |= 4;
-                            cmd.BlendColor = JSON.parse($(row).find("#blendclr").val());
-                        } else if (rname.includes("X offset")) {
-                            cmd.OffsetX = Number.parseFloat($(row).find("#xoffset").val());
-                            if (Math.abs(cmd.OffsetX) > 0.000001) {
-                                cmd.Flags |= 2;
-                            }
-                        } else if (rname.includes("Y offset")) {
-                            cmd.OffsetY = Number.parseFloat($(row).find("#yoffset").val());
-                            if (Math.abs(cmd.OffsetY) > 0.000001) {
-                                cmd.Flags |= 1;
-                            }
-                        } else if (rname.includes("glyphs")) {
-                            var text = $(row).find("textarea").val();
-                            var glyphs = [];
-
-                            var font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
-                            for (var char of text) {
-                                var charCode = char.charCodeAt(0);
-                                if (flp.FontCharAliases) {
-                                    if (flp.FontCharAliases.hasOwnProperty(charCode)) {
-                                        charCode = flp.FontCharAliases[charCode];
-                                    }
-                                }
-                                var glyphId = font.CharNumberToSymbolIdMap[charCode];
-                                var width = font.SymbolWidths[glyphId] * fontscale;
-                                glyphs.push({
-                                    'GlyphId': glyphId,
-                                    'Width': width / 16
-                                });
-                            }
-                            cmd.Glyphs = glyphs;
-                        }
-                    });
-                    sl.RenderCommandsList.push(cmd);
-                })
-                return sl;
-            }
-
-            var btns = $("<div>");
-            btns.append($("<button>peview original</button>").click(sl, function(e) {
-                open_preview_for_label(e.data);
-            }));
-            btns.append($("<br>"));
-            btns.append($("<button>preview changes</button>").click(function(e) {
-                open_preview_for_label(get_label_from_table_tr($(this).parent().parent().parent()));
-            }));
-            btns.append($("<br>"));
-            btns.append($("<button>apply changes</button>").click(iSl, function(e) {
-                var sl = get_label_from_table_tr($(this).parent().parent().parent());
-
-                $.post({
-                    url: getActionLinkForWadNode(wad, tagid, 'staticlabels'),
-                    data: {
-                        'id': e.data,
-                        'sl': JSON.stringify(sl)
-                    },
-                    success: function(a) {
-                        if (a != "" && a.error) {
-                            alert('Error uploading: ' + a.error);
-                        } else {
-                            alert('Success!');
-                        }
-                    }
-                });
-
-            }));
-
-            row.append($("<td>").append(cmdsContainer));
-            row.append($("<td>").append(btns));
-            row.append($("<td>").text(JSON.stringify(sl.Transformation)));
-
-            table.append(row);
+        for (let iSl in flpdata.StaticLabels) {
+            table.append(print_static_label_as_tr(iSl));
         }
 
         dataSummary.append(table);
+    }
+
+    var flp_view_object_viewer = function() {
+        dataSummary.empty();
+        gr_instance.cleanup();
+        set3dVisible(false);
+        let $history_element = $("<div>").css('margin', '7px').css('white-space', 'nowrap').css('overflow', 'hidden');
+        let $data_element = $("<div>");
+        const objNamesArray = ['Nothing', 'Textured mesh part', 'UNKNOWN', 'Font',
+            'Static label', 'Dynamic label', 'Data6', 'Data7',
+            'Root', 'Transform', 'Color'
+        ];
+        let element_view = function(h) {
+            $data_element.empty();
+            if (h == undefined) {
+                h = flp_obj_view_history[0];
+            } else {
+                flp_obj_view_history.unshift(h);
+            } {
+                $history_element.empty();
+                $history_element.append($("<span>").text("History: ").css('padding', '6px'));
+                let new_history = [h];
+                for (let i in flp_obj_view_history) {
+                    if (i != 0) {
+                        if (flp_obj_view_history[i].IdInThatTypeArray != h.IdInThatTypeArray ||
+                            flp_obj_view_history[i].TypeArrayId != h.TypeArrayId) {
+                            new_history.push(flp_obj_view_history[i]);
+                        }
+                    }
+                }
+                flp_obj_view_history = new_history;
+                if (flp_obj_view_history.length > 16) {
+                    flp_obj_view_history.shift();
+                }
+                for (let i in flp_obj_view_history) {
+                    let h = flp_obj_view_history[i];
+                    let $a = $("<a>").text(objNamesArray[h.TypeArrayId] + "[" + h.IdInThatTypeArray + "] ");
+                    $a.addClass('flpobjref').click(function() {
+                        element_view(flp_obj_view_history[i]);
+                    });
+                    if (i == 0) {
+                        $history_element.append(" > ", $a.css('color', 'white'), " <");
+                    } else {
+                        $history_element.append(" | ", $a);
+                    }
+                }
+            }
+
+            let get_obj_by_handler = function(h) {
+                switch (h.TypeArrayId) {
+                    //case 1: return flpdata.GlobalHandlersIndexes[h.IdInThatTypeArray]; break;
+                    case 1:
+                        return flpdata.MeshPartReferences[h.IdInThatTypeArray];
+                        break;
+                    case 2:
+                        console.error("UNKNOWN element");
+                        break;
+                    case 3:
+                        return flpdata.Fonts[h.IdInThatTypeArray];
+                        break;
+                    case 4:
+                        return flpdata.StaticLabels[h.IdInThatTypeArray];
+                        break;
+                    case 5:
+                        return flpdata.DynamicLabels[h.IdInThatTypeArray];
+                        break;
+                    case 6:
+                        return flpdata.Datas6[h.IdInThatTypeArray];
+                        break;
+                    case 7:
+                        return flpdata.Datas7[h.IdInThatTypeArray];
+                        break;
+                    case 8:
+                        return flpdata.Data8;
+                        break;
+                    case 9:
+                        return flpdata.Transformations[h.IdInThatTypeArray];
+                        break;
+                    case 10:
+                        return flpdata.BlendColors[h.IdInThatTypeArray];
+                        break;
+                    default:
+                        return undefined;
+                        break;
+                }
+            }
+            let obj = get_obj_by_handler(h);
+
+            let _row = function() {
+                return $("<tr>").append(Array.prototype.slice.call(arguments));
+            }
+
+            let _column = function() {
+                return $("<td>").append(Array.prototype.slice.call(arguments));
+            }
+
+            let print_ref_handler = function(handler) {
+                let $a = $("<a>").text('&' + objNamesArray[handler.TypeArrayId] + '[' + handler.IdInThatTypeArray + ']')
+                $a.addClass('flpobjref');
+                $a.click(function() {
+                    element_view(handler);
+                });
+                switch (handler.TypeArrayId) {
+                    case 1:
+                        let mats = [];
+                        let meshref = get_obj_by_handler(handler);
+                        for (let i in meshref.Materials) {
+                            let matname = meshref.Materials[i].TextureName;
+                            if (matname != "") {
+                                mats.push(matname);
+                            }
+                        }
+                        if (mats.length != 0) {
+                            return $("<div>").append($a, " (meshpart " + meshref.MeshPartIndex + ", textures: " + mats.join(",") + ")");
+                        } else {
+                            return $("<div>").append($a, " (meshpart " + meshref.MeshPartIndex + ", no textures used)");
+                        }
+                        break;
+                    case 9:
+                        let t = get_obj_by_handler(handler);
+                        return $("<div>").append($a, " (x: ", t.OffsetX, " y: ", t.OffsetY, ")");
+                    case 10:
+                        let clr = get_obj_by_handler(handler).Color;
+                        let css_rgb = "rgb(" + (clr[0] / 256.0) * 255 + "," + (clr[1] / 256.0) * 255 + "," + (clr[2] / 256.0) * 255;
+                        let $rgb = $("<div>").addClass('flpcolorpreview').css('background-color', css_rgb);
+                        let $rgba = $("<div>").addClass('flpcolorpreview').css('background-color', css_rgb).css('opacity', clr[3] / 256.0);
+                        return $("<div>").append($a, " (without alpha: ", $rgb, " with alpha: ", $rgba, "  a: ", clr[3], ")");
+                        break;
+                }
+                return $a;
+            }
+
+            let print_ref_handler_index = function(handler_index) {
+                if (flpdata.GlobalHandlersIndexes[handler_index]) {
+                    return print_ref_handler(flpdata.GlobalHandlersIndexes[handler_index]);
+                } else {
+                    return "%bad handler index " + handler_index + "%";
+                }
+            }
+
+            let $data_table = $("<table>");
+
+            let print_script = function(script) {
+                let code = script.Decompiled;
+                let $code_element = $("<div>").text(" > click to show decompiled script < ").css('cursor', 'pointer').click(function() {
+                    $(this).empty().css('cursor', '').append(code).off('click');
+                })
+                return $code_element;
+            }
+
+            let print_data6 = function() {
+                let $data6_table = print_data6_subtype1(obj.Sub1);
+                let $events_table = $("<table>");
+
+                $data_table.append(_row(_column($data6_table)), _row(_column($events_table)));
+            }
+
+            let print_data6_subtype1 = function(obj) {
+                let $elements_table = $("<table>");
+                let $scripts_table = $("<table>");
+
+                for (let i in obj.ElementsAnimation) {
+                    let el = obj.ElementsAnimation[i];
+                    let $el = $("<div>");
+
+                    let $frames_table = $("<table>");
+                    for (let j in el.KeyFrames) {
+                        let frame = el.KeyFrames[j];
+                        let $frame = $("<table>");
+                        $frame.append(_row(_column("name"), _column(frame.Name)));
+                        $frame.append(_row(_column("frame end time"), _column(frame.WhenThisFrameEnds)));
+                        $frame.append(_row(_column("element"), _column(print_ref_handler(frame.ElementHandler))));
+                        $frame.append(_row(_column("color"), _column(print_ref_handler({
+                            TypeArrayId: 10,
+                            IdInThatTypeArray: frame.ColorId
+                        }))));
+                        $frame.append(_row(_column("transformation"), _column(print_ref_handler({
+                            TypeArrayId: 9,
+                            IdInThatTypeArray: frame.TransformationId
+                        }))));
+
+                        $frames_table.append(_row(_column("frame " + j), _column($frame)));
+                    }
+                    $el.append($frames_table);
+
+                    $elements_table.append(_row(_column("element " + i), _column($el)));
+                }
+
+                for (let i in obj.FrameScriptLables) {
+                    let script = obj.FrameScriptLables[i];
+                    let $script = $("<div>");
+
+                    $script.append(_row(_column("triggered after frame"), _column(script.TriggerFrameNumber)));
+                    $script.append(_row(_column("name"), _column(script.LabelName)));
+                    let $streams_table = $("<table>");
+                    for (let iStream in script.Subs) {
+                        $streams_table.append(_row(_column(print_script(script.Subs[iStream].Script))));
+                    }
+                    $script.append(_row(_column("threads"), _column($streams_table)));
+
+                    $scripts_table.append(_row(_column("script " + i), _column($script)));
+                }
+
+                $data_table.append(_row(_column("elements"), _column($elements_table)), _row(_column("methods"), _column($scripts_table)));
+            }
+
+            let print_mesh = function(obj) {
+                $data_table.append(_row(_column("Mesh part index "),
+                    _column("<b>" + obj.MeshPartIndex + "</b><br><sub>You can open related MDL_%flpname% resource and check this object part (mesh that index starts with o_" + obj.MeshPartIndex + "_g0_...) </sub>")));
+                let $materials = [];
+                for (let i in obj.Materials) {
+                    console.log(obj.Materials, obj, flp);
+                    let mat = obj.Materials[i];
+                    let $mat = $("<div>");
+                    $mat.append("Color: <b>0x" + mat.Color.toString(16) + "</b><br>");
+                    $mat.append("Texture name: <b>" + mat.TextureName + "</b><br>");
+                    if (mat.TextureName != "") {
+                        $mat.append($('<img>').addClass('no-interpolate').attr('src', 'data:image/png;base64,' + flp.Textures[mat.TextureName].Images[0].Image));
+                    }
+                    $materials.push(_row(_column("material " + i), _column($mat)));
+                }
+                $data_table.append($materials);
+            }
+
+            let print_transform = function(obj) {
+                let $form = $("<div>");
+                $data_table.append(_row(_column("Offset X"), _column($("<input id='x' type='text'>").val(obj.OffsetX))));
+                $data_table.append(_row(_column("Offset Y"), _column($("<input id='y' type='text'>").val(obj.OffsetY))));
+                let $matrix = $("<textarea id='matrix'>").css('height', '8em').val(JSON.stringify(obj.Matrix, null, ' '));
+                $matrix.append("<sub>You can read about 2d matrices <a href='https://en.wikipedia.org/wiki/Transformation_matrix#Examples_in_2D_computer_graphics'>there</a></sub>")
+                $data_table.append(_row(_column("Matrix"), _column($matrix)));
+                let $submit = $("<button>").text("Update resource").click(function() {
+                    $table = $(this).parent().parent().parent();
+                    let newTransform = {
+                        OffsetX: Number.parseFloat($table.find("#x").val()),
+                        OffsetY: Number.parseFloat($table.find("#y").val()),
+                        Matrix: JSON.parse($table.find("#matrix").val()),
+                    };
+                    $.post({
+                        url: getActionLinkForWadNode(wad, tagid, 'transofrm'),
+                        data: {
+                            'id': h.IdInThatTypeArray,
+                            'data': JSON.stringify(newTransform),
+                        },
+                        success: function(a) {
+                            if (a != "" && a.error) {
+                                alert('Error uploading: ' + a.error);
+                            } else {
+                                flpdata.Transformations[h.IdInThatTypeArray] = newTransform;
+                                alert('Success!');
+                            }
+                        }
+                    });
+                })
+                let warning = ("<sub>You can miss changes in web interface, but they must appear on disk</sub>")
+                $data_table.append(_row(_column(), _column($submit, warning)));
+            }
+
+            switch (h.TypeArrayId) {
+                default: $data_table.append(JSON.stringify(obj));
+                break;
+                case 1:
+                        print_mesh(obj);
+                    break;
+                case 4:
+                        $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
+                    break;
+                case 6:
+                        print_data6(obj);
+                    break;
+                case 7:
+                        print_data6_subtype1(obj);
+                    break;
+                case 8:
+                        print_data6_subtype1(obj);
+                    break;
+                case 9:
+                        print_transform(obj);
+                    break;
+            }
+
+            let get_parents = function(child_h) {
+                let parents = [];
+                let check_parenting = function(parent, h) {
+                    if (h.IdInThatTypeArray == child_h.IdInThatTypeArray && h.TypeArrayId == child_h.TypeArrayId) {
+                        let already = false;
+                        for (let i in parents) {
+                            if (parent.IdInThatTypeArray == parents[i].IdInThatTypeArray && parent.TypeArrayId == parents[i].TypeArrayId) {
+                                already = true;
+                            }
+                        }
+                        if (!already) {
+                            parents.push(parent);
+                        }
+                    }
+                }
+                for (var i in flpdata.GlobalHandlersIndexes) {
+                    let h = flpdata.GlobalHandlersIndexes[i];
+                    let o = get_obj_by_handler(h);
+
+                    let parse_parenting_data6_sub1 = function(o) {
+                        for (let i in o.ElementsAnimation) {
+                            let anim = o.ElementsAnimation[i];
+                            for (let j in anim.KeyFrames) {
+                                let frame = anim.KeyFrames[j];
+                                check_parenting(h, frame.ElementHandler);
+                                check_parenting(h, {
+                                    TypeArrayId: 9,
+                                    IdInThatTypeArray: frame.TransformationId
+                                });
+                                check_parenting(h, {
+                                    TypeArrayId: 10,
+                                    IdInThatTypeArray: frame.ColorId
+                                });
+                            }
+                        }
+                    }
+                    switch (h.TypeArrayId) {
+                        case 4:
+                            for (let j in o.RenderCommandsList) {
+                                if (o.RenderCommandsList[j].Flags & 8 != 0) {
+                                    check_parenting(h, {
+                                        TypeArrayId: 3,
+                                        IdInThatTypeArray: o.RenderCommandsList[j].FontHandler
+                                    });
+                                }
+                            }
+                            break;
+                        case 5:
+                            check_parenting(h, o.FontHandler);
+                            break;
+                        case 6:
+                            check_parenting(h, {
+                                TypeArrayId: 3,
+                                IdInThatTypeArray: o.FontHandler
+                            });
+                            break;
+                        case 7:
+                            parse_parenting_data6_sub1(o);
+                            break;
+                        case 8:
+                            parse_parenting_data6_sub1(o);
+                            break;
+                    }
+                }
+                return parents;
+            }
+
+            console.log(obj);
+            let $table = $("<table>");
+
+
+            let $header = $("<span>").text(" Viewing object " + objNamesArray[h.TypeArrayId] + "[" + h.IdInThatTypeArray + "]");
+
+            let parents_list = [];
+            let parents = get_parents(h);
+            let curParentRow = _row();
+            let colums_cnt = 6;
+            for (var i in parents) {
+                if (i != 0 && (i % colums_cnt == 0)) {
+                    parents_list.push(curParentRow);
+                    curParentRow = _row().attr('colspan', colums_cnt);
+                }
+                curParentRow.append(_column(print_ref_handler(parents[i])));
+            }
+            if (parents.length < colums_cnt || (parents.length % colums_cnt != 0)) {
+                parents_list.push(curParentRow);
+            }
+
+            console.log("parents", parents_list, parents);
+            $table.append(_row(_column($header).attr('colspan', colums_cnt + 1)));
+            if (parents.length != 0) {
+                $table.append(_row(_column("parents").attr('rowspan', parents_list.length + 1)), parents_list);
+            } else {
+                $table.append(_row(_column("parents"), _column("no parents found")));
+            }
+            $table.append(_row(_column($data_table).attr('colspan', colums_cnt + 1)));
+            $data_element.append($table);
+            console.log($('#view-item-container'));
+            $('#view-item-container').animate({
+                scrollTop: 0
+            }, 200);
+        }
+        dataSummary.append($history_element, $data_element);
+        element_view();
     }
 
     var flp_view_font = function() {
@@ -1286,6 +1693,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_scripts_strings).text("Scripts strings"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
+    dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_object_viewer).text("Obj viewer"));
 
-    flp_list_labels();
+    // flp_list_labels();
+    flp_view_object_viewer();
 }

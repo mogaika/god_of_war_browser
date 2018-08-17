@@ -139,6 +139,10 @@ function packLoadFile(filename) {
     dataTree.empty();
     dataSummary.empty();
     dataSelectors.empty();
+    flp_obj_view_history = [{
+        TypeArrayId: 8,
+        IdInThatTypeArray: 0
+    }];
     $.getJSON('/json/pack/' + filename, function(data) {
         var ext = filename.slice(-3).toLowerCase();
         switch (ext) {

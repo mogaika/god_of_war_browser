@@ -259,3 +259,15 @@ div#flpimportfont input{
 div#flpimportfont button{
 	width: 100%;
 }
+
+div.flpcolorpreview {
+	width: 1.5em;
+	display: inline-block;
+	height: 0.95em;
+	margin: 0 4px;
+}
+
+.flpobjref {
+	color: yellow;
+	cursor: pointer;
+}

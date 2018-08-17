@@ -33,11 +33,7 @@ const (
 
 func posPad4(pos int) int {
 	if pos%4 != 0 {
-		newPos := pos + 4 - pos%4
-		if newPos&3 != 0 {
-			panic(fmt.Sprintf("How it even possible? %x + 4 - %x = %x", pos, pos%4, newPos))
-		}
-		return newPos
+		return pos + 4 - pos%4
 	} else {
 		return pos
 	}
@@ -52,13 +48,13 @@ type FLP struct {
 	MeshPartReferences    []MeshPartReference
 	Fonts                 []Font
 	StaticLabels          []StaticLabel
-	DynamicLabels         []DynamicLabel `json:"-"`
+	DynamicLabels         []DynamicLabel
 	Datas6                []Data6
 	Datas7                []Data6Subtype1
 	Data8                 Data6Subtype1 // Root logic node
 	Transformations       []Transformation
-	BlendColors           []BlendColor `json:"-"`
-	Strings               []string     `json:"-"`
+	BlendColors           []BlendColor
+	Strings               []string `json:"-"`
 
 	scriptPushRefs []ScriptOpcodeStringPushReference
 }
@@ -228,31 +224,34 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		log.Printf("Cannot find mdl_ for %s", wrsrc.Name())
 	}
 
-	for _, font := range f.Fonts {
-		marshalData2 := func(d2 *MeshPartReference) {
-			for _, ref := range d2.Materials {
-				if ref.TextureName != "" {
-					if _, ok := mrsh.Textures[ref.TextureName]; !ok {
-						txr := wrsrc.Wad.GetNodeByName(ref.TextureName, wrsrc.Node.Id, false)
-						if txr != nil {
-							if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(txr.Id); err == nil {
-								if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(txr.Id)); err == nil {
-									mrsh.Textures[ref.TextureName] = marshaledNode
-								} else {
-									log.Printf("Cannot marshal txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
-								}
+	marshalData2 := func(d2 *MeshPartReference) {
+		for _, ref := range d2.Materials {
+			if ref.TextureName != "" {
+				if _, ok := mrsh.Textures[ref.TextureName]; !ok {
+					txr := wrsrc.Wad.GetNodeByName(ref.TextureName, wrsrc.Node.Id, false)
+					if txr != nil {
+						if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(txr.Id); err == nil {
+							if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(txr.Id)); err == nil {
+								mrsh.Textures[ref.TextureName] = marshaledNode
 							} else {
-								log.Printf("Cannot get txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
+								log.Printf("Cannot marshal txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
 							}
+						} else {
+							log.Printf("Cannot get txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
 						}
-
 					}
+
 				}
 			}
 		}
+	}
+	for _, font := range f.Fonts {
 		for i := range font.MeshesRefs {
 			marshalData2(&font.MeshesRefs[i])
 		}
+	}
+	for i := range f.MeshPartReferences {
+		marshalData2(&f.MeshPartReferences[i])
 	}
 
 	return mrsh, nil
