@@ -1,7 +1,7 @@
 'use strict';
 
-var gw_cxt_group_loading = false;
-var flp_obj_view_history = [{
+let gw_cxt_group_loading = false;
+let flp_obj_view_history = [{
     TypeArrayId: 8,
     IdInThatTypeArray: 0
 }];
@@ -29,11 +29,11 @@ function treeLoadWadAsNodes(wadName, data) {
     }
     dataTree.empty();
 
-    var addNodes = function(nodes) {
-        var ol = $('<ol>');
-        for (var sn in nodes) {
-            var node = data.Nodes[nodes[sn]];
-            var li = $('<li>')
+    let addNodes = function(nodes) {
+        let ol = $('<ol>');
+        for (let sn in nodes) {
+            let node = data.Nodes[nodes[sn]];
+            let li = $('<li>')
                 .attr('nodeid', node.Tag.Id)
                 .attr('nodename', node.Tag.Name)
                 .attr('nodetag', node.Tag.Tag)
@@ -65,8 +65,8 @@ function treeLoadWadAsNodes(wadName, data) {
 
     $('#view-item-filter').trigger('input');
     $('#view-tree ol li label').click(function(ev) {
-        var node_element = $(this).parent();
-        var node_id = parseInt(node_element.attr('nodeid'));
+        let node_element = $(this).parent();
+        let node_id = parseInt(node_element.attr('nodeid'));
         if (node_id !== 0) {
             gw_cxt_group_loading = false;
             treeLoadWadNode(wadName, node_id);
@@ -76,7 +76,7 @@ function treeLoadWadAsNodes(wadName, data) {
             gr_instance.cleanup();
             $("#view-tree ol li").each(function(i, node) {
                 gw_cxt_group_loading = true;
-                var $node = $(node);
+                let $node = $(node);
                 if ($node.attr("nodename").startsWith("CXT_")) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"));
                 }
@@ -89,10 +89,10 @@ function treeLoadWadAsTags(wadName, data) {
     wad_last_load_view_type = 'tags';
     dataTree.empty();
 
-    var ol = $('<ol>');
-    for (var tagId in data.Tags) {
-        var tag = data.Tags[tagId];
-        var li = $('<li>')
+    let ol = $('<ol>');
+    for (let tagId in data.Tags) {
+        let tag = data.Tags[tagId];
+        let li = $('<li>')
             .attr('tagid', tag.Id)
             .attr('tagname', tag.Name)
             .attr('tagtag', tag.Tag)
@@ -120,8 +120,8 @@ function treeLoadWadAsTags(wadName, data) {
 
     $('#view-item-filter').trigger('input');
     $('#view-tree ol li label').click(function(ev) {
-        var node_element = $(this).parent();
-        var tagid = parseInt(node_element.attr('tagid'));
+        let node_element = $(this).parent();
+        let tagid = parseInt(node_element.attr('tagid'));
         treeLoadWadTag(wadName, tagid);
     });
 }
@@ -132,11 +132,11 @@ function treeLoadWadNode(wad, tagid) {
     set3dVisible(false);
 
     $.getJSON('/json/pack/' + wad + '/' + tagid, function(resp) {
-        var data = resp.Data;
-        var tag = resp.Tag;
+        let data = resp.Data;
+        let tag = resp.Tag;
 
-        var needHexDump = false;
-        var needMarshalDump = false;
+        let needHexDump = false;
+        let needMarshalDump = false;
 
         if (resp.error) {
             set3dVisible(false);
@@ -169,7 +169,7 @@ function treeLoadWadNode(wad, tagid) {
                         gr_instance.cleanup();
                         set3dVisible(true);
 
-                        var mdl = new grModel();
+                        let mdl = new grModel();
                         loadCollisionFromAjax(mdl, data);
 
                         gr_instance.models.push(mdl);
@@ -230,9 +230,9 @@ function treeLoadWadTag(wad, tagid) {
     set3dVisible(false);
     displayResourceHexDump(wad, tagid);
 
-    var form = $('<form class="flexedform" action="' + getActionLinkForWadNode(wad, tagid, 'updatetag') + '" method="post">');
-    var tagel = $('li[tagid=' + tagid + ']');
-    var tbl = $('<table>');
+    let form = $('<form class="flexedform" action="' + getActionLinkForWadNode(wad, tagid, 'updatetag') + '" method="post">');
+    let tagel = $('li[tagid=' + tagid + ']');
+    let tbl = $('<table>');
     tbl.append($('<tr>').append($('<td>').text("tag type")).append($('<td>').append($('<input type="text" id="tagtag" name="tagtag" value="' + tagel.attr("tagtag") + '">'))));
     tbl.append($('<tr>').append($('<td>').text("name")).append($('<td>').append($('<input type="text" id="tagname" name="tagname" value="' + tagel.attr("tagname") + '">'))));
     tbl.append($('<tr>').append($('<td>').text("flags")).append($('<td>').append($('<input type="text" id="tagflags" name="tagflags" value="' + tagel.attr("tagflags") + '">'))));
@@ -248,9 +248,9 @@ function displayResourceHexDump(wad, tagid) {
         dataType: 'binary',
         processData: false,
         success: function(blob) {
-            var fileReader = new FileReader();
+            let fileReader = new FileReader();
             fileReader.onload = function() {
-                var arr = new Uint8Array(this.result);
+                let arr = new Uint8Array(this.result);
                 dataSummary.append($("<h5>").append('Size in bytes:' + arr.length));
                 dataSummary.append(hexdump(arr));
             };
@@ -260,16 +260,16 @@ function displayResourceHexDump(wad, tagid) {
 }
 
 function parseMeshPacket(object, packet) {
-    var m_vertexes = [];
-    var m_indexes = [];
-    var m_colors;
-    var m_textures;
-    var m_normals;
+    let m_vertexes = [];
+    let m_indexes = [];
+    let m_colors;
+    let m_textures;
+    let m_normals;
 
     m_vertexes.length = packet.Trias.X.length * 3;
 
-    for (var i in packet.Trias.X) {
-        var j = i * 3;
+    for (let i in packet.Trias.X) {
+        let j = i * 3;
         m_vertexes[j] = packet.Trias.X[i];
         m_vertexes[j + 1] = packet.Trias.Y[i];
         m_vertexes[j + 2] = packet.Trias.Z[i];
@@ -280,13 +280,13 @@ function parseMeshPacket(object, packet) {
         }
     }
 
-    var mesh = new grMesh(m_vertexes, m_indexes);
+    let mesh = new grMesh(m_vertexes, m_indexes);
 
     if (packet.Blend.R && packet.Blend.R.length) {
-        var m_colors = [];
+        let m_colors = [];
         m_colors.length = packet.Blend.R.length * 4;
-        for (var i in packet.Blend.R) {
-            var j = i * 4;
+        for (let i in packet.Blend.R) {
+            let j = i * 4;
             m_colors[j] = packet.Blend.R[i];
             m_colors[j + 1] = packet.Blend.G[i];
             m_colors[j + 2] = packet.Blend.B[i];
@@ -302,8 +302,8 @@ function parseMeshPacket(object, packet) {
         m_textures = [];
         m_textures.length = packet.Uvs.U.length * 2;
 
-        for (var i in packet.Uvs.U) {
-            var j = i * 2;
+        for (let i in packet.Uvs.U) {
+            let j = i * 2;
             m_textures[j] = packet.Uvs.U[i];
             m_textures[j + 1] = packet.Uvs.V[i];
         }
@@ -314,8 +314,8 @@ function parseMeshPacket(object, packet) {
         m_normals = [];
         m_normals.length = packet.Norms.X.length * 3;
 
-        for (var i in packet.Norms.X) {
-            var j = i * 3;
+        for (let i in packet.Norms.X) {
+            let j = i * 3;
             m_normals[j] = packet.Norms.X[i];
             m_normals[j + 1] = packet.Norms.Y[i];
             m_normals[j + 2] = packet.Norms.Z[i];
@@ -326,8 +326,8 @@ function parseMeshPacket(object, packet) {
 
     if (packet.Joints && packet.Joints.length && object.JointMapper && object.JointMapper.length) {
         //console.log(packet.Joints, packet.Joints2, object.JointMapper);
-        var joints1 = packet.Joints;
-        var joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
+        let joints1 = packet.Joints;
+        let joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
         mesh.setJointIds(object.JointMapper, joints1, joints2);
     }
 
@@ -335,33 +335,33 @@ function parseMeshPacket(object, packet) {
 }
 
 function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
-    var part = data.Parts[iPart];
-    var totalMeshes = [];
-    for (var iGroup in part.Groups) {
-        var group = part.Groups[iGroup];
-        for (var iObject in group.Objects) {
-            var object = group.Objects[iObject];
+    let part = data.Parts[iPart];
+    let totalMeshes = [];
+    for (let iGroup in part.Groups) {
+        let group = part.Groups[iGroup];
+        for (let iObject in group.Objects) {
+            let object = group.Objects[iObject];
 
-            //var iSkin = 0;
-            for (var iSkin in object.Packets) {
-                var skin = object.Packets[iSkin];
-                var objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
+            //let iSkin = 0;
+            for (let iSkin in object.Packets) {
+                let skin = object.Packets[iSkin];
+                let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
 
-                var meshes = [];
-                for (var iPacket in skin) {
-                    var packet = skin[iPacket];
-                    var mesh = parseMeshPacket(object, packet);
+                let meshes = [];
+                for (let iPacket in skin) {
+                    let packet = skin[iPacket];
+                    let mesh = parseMeshPacket(object, packet);
                     meshes.push(mesh);
                     totalMeshes.push(mesh);
                     model.addMesh(mesh);
                 }
 
                 if (table) {
-                    var label = $('<label>');
-                    var chbox = $('<input type="checkbox" checked>');
-                    var td = $('<td>').append(label);
+                    let label = $('<label>');
+                    let chbox = $('<input type="checkbox" checked>');
+                    let td = $('<td>').append(label);
                     chbox.click(meshes, function(ev) {
-                        for (var i in ev.data) {
+                        for (let i in ev.data) {
                             ev.data[i].setVisible(this.checked);
                         }
                         gr_instance.requestRedraw();
@@ -384,8 +384,8 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
 }
 
 function loadMeshFromAjax(model, data, needTable = false) {
-    var table = needTable ? $('<table>') : undefined;
-    for (var iPart in data.Parts) {
+    let table = needTable ? $('<table>') : undefined;
+    for (let iPart in data.Parts) {
         loadMeshPartFromAjax(model, data, iPart, table);
     }
     gr_instance.flushScene();
@@ -396,12 +396,12 @@ function summaryLoadWadMesh(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    var mdl = new grModel();
+    let mdl = new grModel();
 
-    var dumplink = getActionLinkForWadNode(wad, nodeid, 'obj');
+    let dumplink = getActionLinkForWadNode(wad, nodeid, 'obj');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .obj (xyz+norm+uv)'));
 
-    var table = loadMeshFromAjax(mdl, data, true);
+    let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
 
     gr_instance.models.push(mdl);
@@ -409,21 +409,21 @@ function summaryLoadWadMesh(data, wad, nodeid) {
 }
 
 function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
-    var table = undefined;
+    let table = undefined;
     if (data.Meshes && data.Meshes.length) {
         table = loadMeshFromAjax(mdl, data.Meshes[0], needTable);
     }
 
-    for (var iMaterial in data.Materials) {
-        var material = new grMaterial();
+    for (let iMaterial in data.Materials) {
+        let material = new grMaterial();
 
-        var textures = data.Materials[iMaterial].Textures;
-        var rawMat = data.Materials[iMaterial].Mat;
+        let textures = data.Materials[iMaterial].Textures;
+        let rawMat = data.Materials[iMaterial].Mat;
         material.setColor(rawMat.Color);
 
-        for (var iLayer in rawMat.Layers) {
-            var rawLayer = rawMat.Layers[iLayer];
-            var layer = new grMaterialLayer();
+        for (let iLayer in rawMat.Layers) {
+            let rawLayer = rawMat.Layers[iLayer];
+            let layer = new grMaterialLayer();
 
             layer.setColor(rawLayer.BlendColor);
             if (rawLayer.ParsedFlags.RenderingSubstract === true) {
@@ -440,9 +440,9 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
             }
 
             if (textures && textures[iLayer] && textures[iLayer].Images) {
-                var imgs = textures[iLayer].Images;
-                var txrs = [];
-                for (var iImg in imgs) {
+                let imgs = textures[iLayer].Images;
+                let txrs = [];
+                for (let iImg in imgs) {
                     txrs.push(new grTexture('data:image/png;base64,' + imgs[iImg].Image));
                 }
                 layer.setTextures(txrs);
@@ -452,21 +452,21 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
         }
         mdl.addMaterial(material);
 
-        var anim = data.Materials[iMaterial].Animations;
+        let anim = data.Materials[iMaterial].Animations;
         if (anim && anim.Groups && anim.Groups.length) {
-            var group = anim.Groups[0];
+            let group = anim.Groups[0];
             if (!group.IsExternal && group.Acts && group.Acts.length) {
-                for (var iAct in group.Acts) {
-                    var act = group.Acts[iAct];
-                    for (var dt in anim.DataTypes) {
+                for (let iAct in group.Acts) {
+                    let act = group.Acts[iAct];
+                    for (let dt in anim.DataTypes) {
                         switch (anim.DataTypes[dt].TypeId) {
                             case 8:
-                                var animInstance = new gaMatertialLayerAnimation(anim, act, dt, material);
+                                let animInstance = new gaMatertialLayerAnimation(anim, act, dt, material);
                                 animInstance.enable();
                                 ga_instance.addAnimation(animInstance);
                                 break;
                             case 9:
-                                var animSheetInstance = new gaMatertialSheetAnimation(anim, act, dt, material);
+                                let animSheetInstance = new gaMatertialSheetAnimation(anim, act, dt, material);
                                 ga_instance.addAnimation(animSheetInstance);
                                 break;
                         }
@@ -477,8 +477,8 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
     }
 
     if (parseScripts) {
-        for (var i in data.Scripts) {
-            var scr = data.Scripts[i];
+        for (let i in data.Scripts) {
+            let scr = data.Scripts[i];
             switch (scr.TargetName) {
                 case "SCR_Sky":
                     mdl.setType("sky");
@@ -496,9 +496,9 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    var mdl = new grModel();
+    let mdl = new grModel();
 
-    var table = $('<table>');
+    let table = $('<table>');
     if (data.Raw) {
         $.each(data.Raw, function(k, val) {
             switch (k) {
@@ -515,11 +515,11 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     }
     dataSummary.append(table);
 
-    var dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
+    let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
 
-    var table = loadMdlFromAjax(mdl, data, false, true);
-    dataSummary.append(table);
+    let mdlTable = loadMdlFromAjax(mdl, data, false, true);
+    dataSummary.append(mdlTable);
 
     gr_instance.models.push(mdl);
     gr_instance.requestRedraw();
@@ -527,7 +527,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
 
 function summaryLoadWadTxr(data, wad, nodeid) {
     set3dVisible(false);
-    var table = $('<table>');
+    let table = $('<table>');
     $.each(data.Data, function(k, val) {
         if (k == 'Flags') {
             val = '0x' + val.toString(16);
@@ -548,19 +548,19 @@ function summaryLoadWadTxr(data, wad, nodeid) {
     });
 
     dataSummary.append(table);
-    for (var i in data.Images) {
-        var img = data.Images[i];
+    for (let i in data.Images) {
+        let img = data.Images[i];
         dataSummary.append($('<img>')
             .addClass('no-interpolate')
             .attr('src', 'data:image/png;base64,' + img.Image)
             .attr('alt', 'gfx:' + img.Gfx + '  pal:' + img.Pal));
     }
 
-    var form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'upload') + '" method="post" enctype="multipart/form-data">');
+    let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'upload') + '" method="post" enctype="multipart/form-data">');
     form.append($('<input type="file" name="img">'));
-    var replaceBtn = $('<input type="button" value="Replace texture">')
+    let replaceBtn = $('<input type="button" value="Replace texture">')
     replaceBtn.click(function() {
-        var form = $(this).parent();
+        let form = $(this).parent();
         $.ajax({
             url: form.attr('action'),
             type: 'post',
@@ -584,10 +584,10 @@ function summaryLoadWadTxr(data, wad, nodeid) {
 
 function summaryLoadWadMat(data) {
     set3dVisible(false);
-    var clr = data.Mat.Color;
-    var clrBgAttr = 'background-color: rgb(' + parseInt(clr[0] * 255) + ',' + parseInt(clr[1] * 255) + ',' + parseInt(clr[2] * 255) + ')';
+    let clr = data.Mat.Color;
+    let clrBgAttr = 'background-color: rgb(' + parseInt(clr[0] * 255) + ',' + parseInt(clr[1] * 255) + ',' + parseInt(clr[2] * 255) + ')';
 
-    var table = $('<table>');
+    let table = $('<table>');
     table.append($('<tr>')
         .append($('<td>').append('Color'))
         .append($('<td>').attr('style', clrBgAttr).append(
@@ -595,23 +595,23 @@ function summaryLoadWadMat(data) {
         ))
     );
 
-    for (var l in data.Mat.Layers) {
-        var layer = data.Mat.Layers[l];
-        var ltable = $('<table>')
+    for (let l in data.Mat.Layers) {
+        let layer = data.Mat.Layers[l];
+        let ltable = $('<table>')
 
         $.each(layer, function(k, v) {
-            var td = $('<td>');
+            let td = $('<td>');
             switch (k) {
                 case 'Flags':
-                    var str = '';
-                    for (var i in v) {
+                    let str = '';
+                    for (let i in v) {
                         str = str + '0x' + v[i].toString(0x10) + ', ';
                     }
                     td.append(str);
                     break;
                 case 'BlendColor':
-                    var r = Array(4);
-                    for (var i in data.Mat.Color) {
+                    let r = Array(4);
+                    for (let i in data.Mat.Color) {
                         r[i] = v[i] * data.Mat.Color[i];
                     }
                     td.attr('style', 'background-color: rgb(' + parseInt(r[0] * 255) + ',' + parseInt(r[1] * 255) + ',' + parseInt(r[2] * 255) + ')')
@@ -620,8 +620,8 @@ function summaryLoadWadMat(data) {
                 case 'Texture':
                     td.append(v);
                     if (v != '') {
-                        var txrobj = data.Textures[l];
-                        var txrblndobj = data.TexturesBlended[l];
+                        let txrobj = data.Textures[l];
+                        let txrblndobj = data.TexturesBlended[l];
                         td.append(' \\ ' + txrobj.Data.GfxName + ' \\ ' + txrobj.Data.PalName).append('<br>');
                         td.append('Color + Alpha \\ Color only \\ Alpha(green=100%) ').append('<br>');
                         td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].Image));
@@ -653,7 +653,7 @@ function summaryLoadWadMat(data) {
 
 function loadCollisionFromAjax(mdl, data) {
     if (data.ShapeName == "BallHull") {
-        var vec = data.Shape.Vector;
+        let vec = data.Shape.Vector;
         mdl.addMesh(grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3] * 2, 7, 7));
     }
 }
@@ -668,25 +668,25 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
     if (data.Script) {
         if (data.Script.TargetName == "SCR_Entities") {
             $.each(data.Script.Data.Array, function(entity_id, entity) {
-                var objMat = new Float32Array(data.Data.Joints[0].RenderMat);
-                var entityMat = new Float32Array(entity.Matrix);
+                let objMat = new Float32Array(data.Data.Joints[0].RenderMat);
+                let entityMat = new Float32Array(entity.Matrix);
 
                 if (matrix) {
                     // obj = obj * transformMat
                     objMat = mat4.mul(mat4.create(), matrix, objMat);
                 }
                 // mat = obj * entity
-                var mat = mat4.mul(mat4.create(), objMat, entityMat);
+                let mat = mat4.mul(mat4.create(), objMat, entityMat);
 
-                var pos = mat4.getTranslation(vec3.create(), mat);
+                let pos = mat4.getTranslation(vec3.create(), mat);
 
-                var radius = entity.Matrix[0];
-                var text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
+                let radius = entity.Matrix[0];
+                let text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
 
-                //var mdl = new grModel();
+                //let mdl = new grModel();
                 //mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));
 
-                var alpha = 1;
+                let alpha = 1;
                 switch (entity_id % 3) {
                     case 0:
                         text3d.setColor(1, 0, 0, alpha);
@@ -713,26 +713,26 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
 function summaryLoadWadObj(data, wad, nodeid) {
     gr_instance.cleanup();
 
-    var dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
+    let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
 
-    var jointsTable = $('<table>');
+    let jointsTable = $('<table>');
 
     if (data.Animations) {
-        var $animSelector = $("<select>").attr("size", 6).addClass("animation");
+        let $animSelector = $("<select>").attr("size", 6).addClass("animation");
 
-        var anim = data.Animations;
+        let anim = data.Animations;
         if (anim && anim.Groups && anim.Groups.length) {
-            for (var iGroup in anim.Groups) {
-                var group = anim.Groups[iGroup];
-                for (var iAct in group.Acts) {
-                    var act = group.Acts[iAct];
-                    for (var dt in anim.DataTypes) {
+            for (let iGroup in anim.Groups) {
+                let group = anim.Groups[iGroup];
+                for (let iAct in group.Acts) {
+                    let act = group.Acts[iAct];
+                    for (let dt in anim.DataTypes) {
                         switch (anim.DataTypes[dt].TypeId) {
                             case 0:
-                                var $option = $("<option>").text(group.Name + ": " + act.Name);
+                                let $option = $("<option>").text(group.Name + ": " + act.Name);
                                 $option.dblclick([anim, act, dt, data.Data], function(ev) {
-                                    var anim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], ev.data[3], gr_instance.models[0]);
+                                    let anim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], ev.data[3], gr_instance.models[0]);
                                     ga_instance.addAnimation(anim);
                                 });
 
@@ -745,17 +745,25 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
         }
 
-        dataSummary.append($animSelector);
+        let $stopAnim = $("<button>").text("> stop anim <").css("margin-left", "10%");
+        $stopAnim.click(function() {
+            let anims = ga_instance.objSkeletAnimations;
+            for (let i in anims) {
+                ga_instance.freeAnimation(anims[i]);
+            }
+        });
+
+        dataSummary.append($animSelector).append($stopAnim);
     }
 
     $.each(data.Data.Joints, function(joint_id, joint) {
-        var row = $('<tr>').append($('<td>').attr('style', 'background-color:rgb(' +
+        let row = $('<tr>').append($('<td>').attr('style', 'background-color:rgb(' +
                 parseInt((joint.Id % 8) * 15) + ',' +
                 parseInt(((joint.Id / 8) % 8) * 15) + ',' +
                 parseInt(((joint.Id / 64) % 8) * 15) + ');')
             .append(joint.Id).attr("rowspan", 7 * 2));
 
-        for (var k in joint) {
+        for (let k in joint) {
             if (k === "Name" ||
                 k === "IsSkinned" ||
                 k === "OurJointToIdleMat" ||
@@ -766,7 +774,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
                 row.append($('<td>').text(k));
                 jointsTable.append(row);
                 jointsTable.append($('<tr>').append($('<td>').text(JSON.stringify(joint[k]))));
-                var row = $('<tr>');
+                row = $('<tr>');
             }
         }
         jointsTable.append(row);
@@ -776,7 +784,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
     if (data.Model || data.Collision) {
         set3dVisible(true);
 
-        var mdl = new grModel();
+        let mdl = new grModel();
         loadObjFromAjax(mdl, data);
 
         gr_instance.models.push(mdl);
@@ -790,32 +798,32 @@ function summaryLoadWadObj(data, wad, nodeid) {
 function summaryLoadWadGameObject(data) {
     gr_instance.cleanup();
     set3dVisible(false);
-    var table = $('<table>');
-    for (var k in data) {
+    let table = $('<table>');
+    for (let k in data) {
         table.append($('<tr>').append($('<td>').text(k)).append($('<td>').text(JSON.stringify(data[k]))));
     }
     dataSummary.append(table);
 }
 
 function loadCxtFromAjax(data, parseScripts = true) {
-    for (var i in data.Instances) {
-        var inst = data.Instances[i];
-        var obj = data.Objects[inst.Object];
+    for (let i in data.Instances) {
+        let inst = data.Instances[i];
+        let obj = data.Objects[inst.Object];
 
-        var rs = 180.0 / Math.PI;
-        var rot = quat.fromEuler(quat.create(), inst.Rotation[0] * rs, inst.Rotation[1] * rs, inst.Rotation[2] * rs);
+        let rs = 180.0 / Math.PI;
+        let rot = quat.fromEuler(quat.create(), inst.Rotation[0] * rs, inst.Rotation[1] * rs, inst.Rotation[2] * rs);
 
-        //var instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
+        //let instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
         //instMat = mat4.mul(mat4.create(), instMat, mat4.fromQuat(mat4.create(), rot));
 
         // same as above
-        var instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
+        let instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
 
         //console.log(inst.Object, instMat);
         //if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {
         //if (obj && (obj.Model)) {
         if (obj && (obj.Model || obj.Collision)) {
-            var mdl = new grModel();
+            let mdl = new grModel();
             loadObjFromAjax(mdl, obj, instMat, parseScripts);
             gr_instance.models.push(mdl);
         }
@@ -839,19 +847,19 @@ function summaryLoadWadCxt(data, wad, nodeid) {
 
 function summaryLoadWadSbk(data, wad, nodeid) {
     set3dVisible(false);
-    var list = $("<ul>");
-    for (var i = 0; i < data.Sounds.length; i++) {
-        var snd = data.Sounds[i];
-        var link = '/action/' + wad + '/' + nodeid + '/';
+    let list = $("<ul>");
+    for (let i = 0; i < data.Sounds.length; i++) {
+        let snd = data.Sounds[i];
+        let link = '/action/' + wad + '/' + nodeid + '/';
 
-        var getSndLink = function(type) {
+        let getSndLink = function(type) {
             return getActionLinkForWadNode(wad, nodeid, type, 'snd=' + snd.Name);
         };
 
-        var vaglink = $("<a>").append(snd.Name).attr('href', getSndLink('vag'));
-        var wavlink = $("<audio controls>").attr("preload", "none").append($("<source>").attr("src", getSndLink('wav')));
+        let vaglink = $("<a>").append(snd.Name).attr('href', getSndLink('vag'));
+        let wavlink = $("<audio controls>").attr("preload", "none").append($("<source>").attr("src", getSndLink('wav')));
 
-        var li = $("<li>").append(vaglink);
+        let li = $("<li>").append(vaglink);
 
         if (data.IsVagFiles) {
             li.append("<br>").append(wavlink);
@@ -865,27 +873,27 @@ function summaryLoadWadGeomShape(data) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    var m_vertexes = [];
+    let m_vertexes = [];
     m_vertexes.length = data.Vertexes.length * 3;
-    for (var i in data.Vertexes) {
-        var j = i * 3;
-        var v = data.Vertexes[i];
+    for (let i in data.Vertexes) {
+        let j = i * 3;
+        let v = data.Vertexes[i];
         m_vertexes[j] = v.Pos[0];
         m_vertexes[j + 1] = v.Pos[1];
         m_vertexes[j + 2] = v.Pos[2];
     }
 
-    var m_indexes = [];
+    let m_indexes = [];
     m_indexes.length = data.Indexes.length * 3;
-    for (var i in data.Indexes) {
-        var j = i * 3;
-        var v = data.Indexes[i];
+    for (let i in data.Indexes) {
+        let j = i * 3;
+        let v = data.Indexes[i];
         m_indexes[j] = v.Indexes[0];
         m_indexes[j + 1] = v.Indexes[1];
         m_indexes[j + 2] = v.Indexes[2];
     }
 
-    var mdl = new grModel();
+    let mdl = new grModel();
     mdl.addMesh(new grMesh(m_vertexes, m_indexes));
 
     gr_instance.models.push(mdl);
@@ -898,14 +906,14 @@ function summaryLoadWadScript(data) {
     dataSummary.append($("<h3>").append("Scirpt " + data.TargetName));
 
     if (data.TargetName == 'SCR_Entities') {
-        for (var i in data.Data.Array) {
-            var e = data.Data.Array[i];
+        for (let i in data.Data.Array) {
+            let e = data.Data.Array[i];
 
-            var ht = $("<table>").append($("<tr>").append($("<td>").attr("colspan", 2).append(e.Name)));
-            for (var j in e) {
-                var v = e[j];
+            let ht = $("<table>").append($("<tr>").append($("<td>").attr("colspan", 2).append(e.Name)));
+            for (let j in e) {
+                let v = e[j];
                 if (j == "Handlers") {
-                    for (var hi in v) {
+                    for (let hi in v) {
                         ht.append(
                             $("<tr>").append($("<td>").append('Handler #' + hi))
                             .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
@@ -930,31 +938,31 @@ function summaryLoadWadScript(data) {
 }
 
 function summaryLoadWadFlp(flp, wad, tagid) {
-    var flpdata = flp.FLP;
-    var flp_print_dump = function() {
+    let flpdata = flp.FLP;
+    let flp_print_dump = function() {
         set3dVisible(false);
         dataSummary.empty();
         dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));
     }
 
-    var flp_scripts_strings = function() {
+    let flp_scripts_strings = function() {
         set3dVisible(false);
         dataSummary.empty();
 
-        var tbody = $("<tbody>");
-        for (var iRef in flp.ScriptPushRefs) {
-            var tr = $("<tr>");
-            var ref = flp.ScriptPushRefs[iRef];
+        let tbody = $("<tbody>");
+        for (let iRef in flp.ScriptPushRefs) {
+            let tr = $("<tr>");
+            let ref = flp.ScriptPushRefs[iRef];
 
-            var str = atob(ref.String);
+            let str = atob(ref.String);
             if (flp.FontCharAliases) {
-                var originalStr = str;
+                let originalStr = str;
                 str = "";
-                for (var i = 0; i < originalStr.length; i++) {
-                    var charCode = originalStr.charCodeAt(i);
-                    var replaced = false;
+                for (let i = 0; i < originalStr.length; i++) {
+                    let charCode = originalStr.charCodeAt(i);
+                    let replaced = false;
 
-                    for (var charToReplace in flp.FontCharAliases) {
+                    for (let charToReplace in flp.FontCharAliases) {
                         if (flp.FontCharAliases[charToReplace] === charCode) {
                             str += String.fromCharCode(charToReplace);
                             replaced = true;
@@ -972,13 +980,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             tr.append($("<td>").append($("<input type=text>").val(str).css("width", "100%")));
             tr.append($("<td>").append($("<button>").text("Update").click(
                 function(ev) {
-                    var str = $(this).parent().parent().find('input[type="text"]').val();
-                    var id = Number.parseInt($(this).parent().parent().children().first().text());
+                    let str = $(this).parent().parent().find('input[type="text"]').val();
+                    let id = Number.parseInt($(this).parent().parent().children().first().text());
 
                     if (flp.FontCharAliases) {
-                        var originalStr = str;
+                        let originalStr = str;
                         str = "";
-                        for (var char of originalStr) {
+                        for (let char of originalStr) {
                             if (flp.FontCharAliases.hasOwnProperty(char.charCodeAt(0))) {
                                 str += String.fromCharCode(flp.FontCharAliases[char.charCodeAt(0)]);
                             } else {
@@ -1006,7 +1014,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             tbody.append(tr);
         }
 
-        var headtr = $("<tr>");
+        let headtr = $("<tr>");
         headtr.append($("<td>").text("Id"));
         headtr.append($("<td>").text("Text"));
         headtr.append($("<td>"));
@@ -1028,15 +1036,15 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             })));
         }
 
-        var font = undefined;
-        var cmdsContainer = $("<td>");
-        for (var iCmd in sl.RenderCommandsList) {
-            var rcmds = $("<table width='100%'>");
-            var cmd = sl.RenderCommandsList[iCmd];
+        let font = undefined;
+        let cmdsContainer = $("<td>");
+        for (let iCmd in sl.RenderCommandsList) {
+            let rcmds = $("<table width='100%'>");
+            let cmd = sl.RenderCommandsList[iCmd];
 
             if (cmd.Flags & 8) {
-                var fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
-                var fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
+                let fhi = $("<input type=text id='fonthandler' class=no-width>").val(cmd.FontHandler);
+                let fsi = $("<input type=text id='fontscale' class=no-width>").val(cmd.FontScale);
                 let $link = $("<a>").addClass('flpobjref').text("handler ").click(function() {
                     flp_obj_view_history.unshift({
                         TypeArrayId: 3,
@@ -1048,18 +1056,18 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[cmd.FontHandler].IdInThatTypeArray];
             }
             if (cmd.Flags & 4) {
-                var bclri = $("<input type=text id='blendclr'>").val(JSON.stringify(cmd.BlendColor));
+                let bclri = $("<input type=text id='blendclr'>").val(JSON.stringify(cmd.BlendColor));
                 rcmds.append($("<tr>").append($("<td>").text("Set blend color")).append($("<td>").append(bclri)));
             }
-            var xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
+            let xoi = $("<input type=text id='xoffset'>").val(cmd.OffsetX);
             rcmds.append($("<tr>").append($("<td>").text("Set X offset")).append($("<td>").append(xoi)));
-            var yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
+            let yoi = $("<input type=text id='yoffset'>").val(cmd.OffsetY);
             rcmds.append($("<tr>").append($("<td>").text("Set Y offset")).append($("<td>").append(yoi)));
 
-            var str = cmd.Glyphs.reduce(function(str, glyph) {
-                var char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
+            let str = cmd.Glyphs.reduce(function(str, glyph) {
+                let char = font.CharNumberToSymbolIdMap.indexOf(glyph.GlyphId);
                 if (flp.FontCharAliases) {
-                    var map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
+                    let map_chars = Object.keys(flp.FontCharAliases).filter(function(charString) {
                         return flp.FontCharAliases[charString] == char;
                     });
                     if (map_chars && map_chars.length !== 0) {
@@ -1073,32 +1081,32 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             cmdsContainer.append(rcmds);
         }
 
-        var open_preview_for_label = function(sl) {
-            var u = new URLSearchParams();
+        let open_preview_for_label = function(sl) {
+            let u = new URLSearchParams();
             u.append('c', JSON.stringify(sl.RenderCommandsList));
             u.append('f', wad);
             u.append('r', tagid);
 
-            var t = sl.Transformation;
-            var m = t.Matrix;
+            let t = sl.Transformation;
+            let m = t.Matrix;
             u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
             window.open('/label.html?' + u, '_blank');
         }
 
-        var get_label_from_table_tr = function(tr) {
-            var sl = {
+        let get_label_from_table_tr = function(tr) {
+            let sl = {
                 'Transformation': JSON.parse(tr.find("td").last().text()),
                 'RenderCommandsList': [],
             };
 
-            var fontscale = 1.0;
-            var fonthandler = -1;
+            let fontscale = 1.0;
+            let fonthandler = -1;
             tr.find("table").each(function(cmdIndex, tbl) {
-                var cmd = {
+                let cmd = {
                     'Flags': 0
                 };
                 $(tbl).find("tr").each(function(i, row) {
-                    var rname = $(row).find("td").first().text();
+                    let rname = $(row).find("td").first().text();
                     if (rname.includes("font")) {
                         cmd.Flags |= 8;
                         cmd.FontHandler = Number.parseInt($(row).find("#fonthandler").val());
@@ -1119,19 +1127,19 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                             cmd.Flags |= 1;
                         }
                     } else if (rname.includes("glyphs")) {
-                        var text = $(row).find("textarea").val();
-                        var glyphs = [];
+                        let text = $(row).find("textarea").val();
+                        let glyphs = [];
 
-                        var font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
-                        for (var char of text) {
-                            var charCode = char.charCodeAt(0);
+                        let font = flpdata.Fonts[flpdata.GlobalHandlersIndexes[fonthandler].IdInThatTypeArray];
+                        for (let char of text) {
+                            let charCode = char.charCodeAt(0);
                             if (flp.FontCharAliases) {
                                 if (flp.FontCharAliases.hasOwnProperty(charCode)) {
                                     charCode = flp.FontCharAliases[charCode];
                                 }
                             }
-                            var glyphId = font.CharNumberToSymbolIdMap[charCode];
-                            var width = font.SymbolWidths[glyphId] * fontscale;
+                            let glyphId = font.CharNumberToSymbolIdMap[charCode];
+                            let width = font.SymbolWidths[glyphId] * fontscale;
                             glyphs.push({
                                 'GlyphId': glyphId,
                                 'Width': width / 16
@@ -1145,7 +1153,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             return sl;
         }
 
-        var btns = $("<div>");
+        let btns = $("<div>");
         btns.append($("<button>peview original</button>").click(sl, function(e) {
             open_preview_for_label(e.data);
         }));
@@ -1155,7 +1163,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         }));
         btns.append($("<br>"));
         btns.append($("<button>apply changes</button>").click(iSl, function(e) {
-            var sl = get_label_from_table_tr($(this).parent().parent().parent());
+            let sl = get_label_from_table_tr($(this).parent().parent().parent());
 
             $.post({
                 url: getActionLinkForWadNode(wad, tagid, 'staticlabels'),
@@ -1180,11 +1188,11 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         return row;
     }
 
-    var flp_list_labels = function() {
+    let flp_list_labels = function() {
         set3dVisible(false);
         dataSummary.empty();
 
-        var table = $("<table class='staticlabelrendercommandlist'>");
+        let table = $("<table class='staticlabelrendercommandlist'>");
         table.append($("<tr>").append($("<td>").text("Id")).append($("<td>").text("Render commands")));
 
         for (let iSl in flpdata.StaticLabels) {
@@ -1194,7 +1202,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         dataSummary.append(table);
     }
 
-    var flp_view_object_viewer = function() {
+    let flp_view_object_viewer = function() {
         dataSummary.empty();
         gr_instance.cleanup();
         set3dVisible(false);
@@ -1488,7 +1496,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                         }
                     }
                 }
-                for (var i in flpdata.GlobalHandlersIndexes) {
+                for (let i in flpdata.GlobalHandlersIndexes) {
                     let h = flpdata.GlobalHandlersIndexes[i];
                     let o = get_obj_by_handler(h);
 
@@ -1550,7 +1558,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             let parents = get_parents(h);
             let curParentRow = _row();
             let colums_cnt = 6;
-            for (var i in parents) {
+            for (let i in parents) {
                 if (i != 0 && (i % colums_cnt == 0)) {
                     parents_list.push(curParentRow);
                     curParentRow = _row().attr('colspan', colums_cnt);
@@ -1579,63 +1587,63 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         element_view();
     }
 
-    var flp_view_font = function() {
+    let flp_view_font = function() {
         gr_instance.cleanup();
         set3dVisible(true);
         gr_instance.setInterfaceCameraMode(true);
         dataSummary.empty();
 
-        var importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
-        var importBMFontInput = $('<button>');
+        let importBMFontScale = $('<input id="importbmfontscale" type="number" min="0" max="20" value="1" step="0.1">');
+        let importBMFontInput = $('<button>');
         importBMFontInput.text('Import glyphs from BMFont file');
         importBMFontInput.attr("href", getActionLinkForWadNode(wad, tagid, 'importbmfont')).click(function() {
             $(this).attr('href', getActionLinkForWadNode(wad, tagid, 'importbmfont', 'scale=' + $("#importbmfontscale").val()));
             console.log($(this).attr('href'));
             uploadAjaxHandler.call(this);
         });
-        var importDiv = $('<div id="flpimportfont">');
+        let importDiv = $('<div id="flpimportfont">');
         importDiv.append($('<label>').text('font scale').append(importBMFontScale));
         importDiv.append(importBMFontInput);
         importDiv.append($('<a>').text('Link to usage instruction').attr('target', '_blank')
             .attr('href', 'https://github.com/mogaika/god_of_war_browser/blob/master/LOCALIZATION.md'));
         dataSummary.append(importDiv);
 
-        var charstable = $("<table>");
+        let charstable = $("<table>");
 
-        var mdl = new grModel();
-        var matmap = {};
+        let mdl = new grModel();
+        let matmap = {};
 
-        for (var iFont in flpdata.Fonts) {
-            var font = flpdata.Fonts[iFont];
-            for (var iChar in font.CharNumberToSymbolIdMap) {
+        for (let iFont in flpdata.Fonts) {
+            let font = flpdata.Fonts[iFont];
+            for (let iChar in font.CharNumberToSymbolIdMap) {
                 if (font.CharNumberToSymbolIdMap[iChar] == -1) {
                     continue;
                 }
 
-                var glyphId = font.CharNumberToSymbolIdMap[iChar];
+                let glyphId = font.CharNumberToSymbolIdMap[iChar];
                 if (glyphId >= font.CharsCount) {
                     continue;
                 }
 
-                var chrdata = font.MeshesRefs[glyphId];
+                let chrdata = font.MeshesRefs[glyphId];
 
-                var meshes = [];
+                let meshes = [];
                 if (chrdata.MeshPartIndex !== -1) {
                     meshes = loadMeshPartFromAjax(mdl, flp.Model.Meshes[0], chrdata.MeshPartIndex);
-                    var txrid = undefined;
+                    let txrid = undefined;
                     if (chrdata.Materials && chrdata.Materials.length !== 0 && chrdata.Materials[0].TextureName) {
-                        var txr_name = chrdata.Materials[0].TextureName;
+                        let txr_name = chrdata.Materials[0].TextureName;
 
                         if (!matmap.hasOwnProperty(txr_name)) {
-                            var material = new grMaterial();
+                            let material = new grMaterial();
                             console.log(txr_name);
 
-                            var img = flp.Textures[txr_name].Images[0].Image
+                            let img = flp.Textures[txr_name].Images[0].Image
 
-                            var texture = new grTexture('data:image/png;base64,' + img);
+                            let texture = new grTexture('data:image/png;base64,' + img);
                             texture.markAsFontTexture();
 
-                            var layer = new grMaterialLayer();
+                            let layer = new grMaterialLayer();
                             layer.setTextures([texture]);
                             material.addLayer(layer);
 
@@ -1644,19 +1652,19 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                         }
                         txrid = matmap[txr_name];
                     }
-                    for (var iMesh in meshes) {
+                    for (let iMesh in meshes) {
                         meshes[iMesh].setMaterialID(txrid);
                     }
                 }
 
-                var symbolWidth = font.SymbolWidths[glyphId];
-                var cubemesh = grHelper_CubeLines(symbolWidth / 32, 0, 0, symbolWidth / 32, 500, 5, false);
+                let symbolWidth = font.SymbolWidths[glyphId];
+                let cubemesh = grHelper_CubeLines(symbolWidth / 32, 0, 0, symbolWidth / 32, 500, 5, false);
                 mdl.addMesh(cubemesh);
                 meshes.push(cubemesh);
 
-                var char = String.fromCharCode(iChar);
+                let char = String.fromCharCode(iChar);
                 if (flp.FontCharAliases) {
-                    var map_chars = Object.keys(flp.FontCharAliases).filter(function(charUnicode) {
+                    let map_chars = Object.keys(flp.FontCharAliases).filter(function(charUnicode) {
                         return flp.FontCharAliases[charUnicode] == iChar
                     });
                     if (map_chars && map_chars.length !== 0) {
@@ -1664,10 +1672,10 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     }
                 }
 
-                var table = $("<table>");
+                let table = $("<table>");
 
-                var tr1 = $("<tr>");
-                var tr2 = $("<tr>");
+                let tr1 = $("<tr>");
+                let tr2 = $("<tr>");
                 tr1.append($("<td>").text('#' + glyphId));
                 tr1.append($("<td>").text('width ' + symbolWidth));
                 tr1.append($("<td>").text('ansii ' + iChar));

@@ -20,8 +20,8 @@ var hashTests = []struct {
 func TestStringHashNodes(t *testing.T) {
 	for _, test := range hashTests {
 		result := GameStringHashNodes(test.in_str, test.in_init)
-		if result != test.out_nodes {
-			t.Errorf("GameStringHashNodes(%q,%d)=%d; expected %d", test.in_str, test.in_init, result, test.out_nodes)
+		if uint32(result) != test.out_nodes {
+			t.Errorf("GameStringHashNodes(%q,%d)=%d; expected %d ", test.in_str, test.in_init, result, test.out_nodes)
 		}
 	}
 }
