@@ -27,5 +27,5 @@ func Status(text string, _type int8) {
 }
 
 func StatusInfof(format string, a ...interface{}) {
-	Status(fmt.Sprintf(format, a), INFO)
+	Status(fmt.Sprintf(format, a...), INFO)
 }
