@@ -207,7 +207,6 @@ gaObjSkeletAnimation.prototype.reset = function() {
         this.jointLocalMatrices[i] = mat4.create();
         this.jointGlobalMatrices[i] = mat4.create();
     }
-    this.recalcMatrices();
     gr_instance.requireRedraw = true;
 }
 
