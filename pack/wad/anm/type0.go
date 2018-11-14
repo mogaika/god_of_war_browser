@@ -38,7 +38,8 @@ func (a *AnimState0Skinning) GetDataBitMap(descr *AnimStateDescrHeader, stateDat
 	return NewDataBitMapFromBuf(a.getDataBitMapOffset(descr, stateData))
 }
 
-func (a *AnimState0Skinning) GetShiftsArray(descr *AnimStateDescrHeader, dataBitMap *DataBitMap, stateData []byte) []int8 {
+func (a *AnimState0Skinning) GetShiftsArray(descr *AnimStateDescrHeader, stateData []byte) []int8 {
+	dataBitMap := a.GetDataBitMap(descr, stateData)
 	shifts := make([]int8, dataBitMap.PairedElementsCount)
 	if dataBitMap.PairedElementsCount == 1 {
 		shifts[0] = int8(descr.FlagsProbably) >> 4
@@ -71,7 +72,8 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 		stateDataSecondByte := stateData[1]
 		stateDataArrayBuf := stateData[2:]
 
-		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, stateData[2+int(stateDataSecondByte)*8:])
+		bitMapOffset := stateData[2+int(stateDataSecondByte)*8:]
+		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, bitMapOffset)
 
 		_l.Printf("   ! DATA: state (fb: %d, subs count) (sb: %d, total subs)", stateDataFirstByte, stateDataSecondByte)
 		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", a.RotationDescr.FlagsProbably&2 == 0, a.RotationDataBitMap)
@@ -83,9 +85,9 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 			subSm.FromBuf(stateDataArrayBuf[iRotationSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
 
-			shifts := a.GetShiftsArray(&a.RotationDescr, &a.RotationDataBitMap, stateData)
+			shifts := a.GetShiftsArray(&a.RotationDescr, bitMapOffset)
 			_l.Printf("      - SDFB %d: %+v,  s5Array: %v", iRotationSubDm, *subSm, shifts)
-			indx_t7 := 0
+			animDataArrayIndex := 0
 			shiftAmountMap := make(map[int]int32)
 
 			// t3, a2 := range ...
@@ -99,23 +101,21 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 					curBitIndex := bits.TrailingZeros16(bitmask)
 					bitmask = bitmaskZeroBitsShift(bitmask)
 
-					shiftAmount := shifts[indx_t7]
-
 					frames := make([]int8, subSm.Count)
 					frameStep := int(a.RotationDataBitMap.PairedElementsCount) * 1 // sizeof byte
 
 					for iFrame := range frames {
-						index := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + int(subSm.OffsetToData) + indx_t7
-						frames[iFrame] = int8(stateBuf[index+(int(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)])
+						offset := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + int(subSm.OffsetToData) + animDataArrayIndex
+						frames[iFrame] = int8(stateBuf[offset+(int(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)])
 					}
 
 					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iBitMapWord*16 + curBitIndex
 					subStream.Samples[dataIndex] = frames
-					shiftAmountMap[dataIndex] = int32(shiftAmount)
-					// TODO: http://127.0.0.1:8000/#/R_PERM.WAD/962 minigamecircle broken
-					_l.Printf("          time shift %d frames (additive) for index %d (%d): %v", shiftAmount, dataIndex, curBitIndex, frames)
+					shiftAmountMap[dataIndex] = int32(shifts[animDataArrayIndex])
+					_l.Printf("          time shift %d frames (additive) for index %d (%d): %v",
+						shiftAmountMap[dataIndex], dataIndex, curBitIndex, frames)
 
-					indx_t7++
+					animDataArrayIndex++
 				}
 			}
 			subStream.Samples[-100] = shiftAmountMap
@@ -141,7 +141,6 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 
 					for iFrame := range frames {
 						offset := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + int(subSm.OffsetToData) + indx_t7*2
-
 						frames[iFrame] = int16(binary.LittleEndian.Uint16(stateBuf[offset+(int(a.RotationDescr.HowMany64kbWeNeedSkip)<<16):]))
 					}
 
@@ -155,13 +154,14 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 		}
 
 		_ = utils.LogDump
-	} else if a.RotationStream.Manager.Count != 0 {
+	} else {
 		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, stateData)
 
 		a.RotationStream.Samples = make(map[int]interface{})
 
 		_l.Printf("       RAW %+v  flag %v", a.RotationDataBitMap, a.RotationDescr.FlagsProbably&1 != 0)
 		if a.RotationDescr.FlagsProbably&1 == 0 {
+			_l.Printf("       RAW RAW %+v", a.RotationDataBitMap)
 			animDataArrayIndex := 0
 			for iBitMapWord, bitMapWord := range a.RotationDataBitMap.Bitmap {
 				for bitmask := bitMapWord; bitmask != 0; {
@@ -173,6 +173,7 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 
 					for iFrame := range frames {
 						// TODO: decide about animDataArrayIndex*2
+						//   added later: IDK WHAT I NEED TO DECIDE
 						offset := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + animDataArrayIndex*2
 						frames[iFrame] = int32(int16(binary.LittleEndian.Uint16(stateData[offset:])))
 					}
@@ -184,8 +185,33 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 				}
 			}
 		} else {
-			_l.Printf("       RAW ADDITIVE %+v  flag %v", a.RotationDataBitMap, a.RotationDescr.FlagsProbably&1 != 0)
-			//panic("not implemented")
+			shifts := a.GetShiftsArray(&a.RotationDescr, stateData)
+			_l.Printf("       RAW ADDITIVE %+v shifts: %v", a.RotationDataBitMap, shifts)
+			a.RotationStream.Samples = make(map[int]interface{})
+			animDataArrayIndex := 0
+			shiftAmountMap := make(map[int]int32)
+			for iBitMapWord, bitMapWord := range a.RotationDataBitMap.Bitmap {
+				for bitmask := bitMapWord; bitmask != 0; {
+					curBitIndex := bits.TrailingZeros16(bitmask)
+					bitmask = bitmaskZeroBitsShift(bitmask)
+
+					frames := make([]int16, a.RotationStream.Manager.Count)
+					frameStep := int(a.RotationDataBitMap.PairedElementsCount)
+
+					for iFrame := range frames {
+						offset := frameStep*iFrame + int(a.RotationDataBitMap.DataOffset) + animDataArrayIndex
+						frames[iFrame] = int16(int8(stateData[offset]))
+					}
+
+					dataIndex := int(a.RotationDescr.BaseTargetDataIndex) + iBitMapWord*16 + curBitIndex
+					a.RotationStream.Samples[dataIndex] = frames
+					shiftAmountMap[dataIndex] = int32(shifts[animDataArrayIndex])
+
+					animDataArrayIndex++
+					_l.Printf("        frames (RAW ADDITIVE) for index %d (%d): %v", dataIndex, curBitIndex, frames)
+				}
+			}
+			a.RotationStream.Samples[-100] = shiftAmountMap
 		}
 	}
 }
