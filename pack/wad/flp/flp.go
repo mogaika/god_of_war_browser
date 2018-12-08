@@ -258,7 +258,7 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1ps2, FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1, FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err

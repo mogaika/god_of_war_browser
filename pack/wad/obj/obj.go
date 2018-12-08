@@ -78,12 +78,12 @@ type Object struct {
 
 func (obj *Object) StringJoint(id int16, spaces string) string {
 	j := obj.Joints[id]
-	/*return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
-	spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
-	spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
-	spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
-	spaces, obj.Vectors7[j.Id])
-	*/
+	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
+		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
+		spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
+		spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
+		spaces, obj.Vectors7[j.Id])
+
 	return fmt.Sprintf("[%.4x]%s %s\n", j.Id, spaces, j.Name)
 }
 
@@ -152,6 +152,7 @@ func NewFromData(buf []byte) (*Object, error) {
 		flags := binary.LittleEndian.Uint32(jointBuf[0:4])
 		// if flags & 0x6000 != 0
 		// then make strange calculation with matrix invert
+		log.Printf("joint %d flag %t", i, flags&0x6000 != 0)
 
 		isInvMat := flags&0xa0 == 0xa0 || obj.jointsCount == obj.Mat3count
 		obj.Joints[i] = Joint{
@@ -218,14 +219,14 @@ func NewFromData(buf []byte) (*Object, error) {
 	}
 
 	obj.FeelJoints()
-	/*
-		s := ""
-		for i, m := range obj.Matrixes3 {
-			s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
-		}
 
-		log.Printf("%s\n%s", s, obj.StringTree())
-	*/
+	s := ""
+	for i, m := range obj.Matrixes3 {
+		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
+	}
+
+	log.Printf("%s\n%s", s, obj.StringTree())
+
 	return obj, nil
 }
 
@@ -290,7 +291,7 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1ps2, OBJECT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1, OBJECT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }

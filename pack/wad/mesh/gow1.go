@@ -26,7 +26,7 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.PacketsPerFilter = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
 	if jmLen := binary.LittleEndian.Uint16(b[0xa:]); jmLen != 0 {
-		o.JointMapper = make([]uint32, binary.LittleEndian.Uint16(b[0xa:]))
+		o.JointMapper = make([]uint32, jmLen)
 	}
 	o.Unk0c = binary.LittleEndian.Uint32(b[0xc:])
 	o.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
@@ -69,12 +69,13 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 			trias, trias, verts, verts)
 		o.Packets[iDmaChain] = ds.Packets
 	}
-	exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
+	//exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
 	if o.JointMapper != nil {
 		// right after dma calls
 		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.PacketsPerFilter
 		for i := range o.JointMapper {
-			o.JointMapper[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
+			jid := binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
+			o.JointMapper[i] = jid
 		}
 		exlog.Printf("              - joint map: %+#v", o.JointMapper)
 	}

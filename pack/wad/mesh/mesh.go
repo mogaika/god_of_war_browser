@@ -98,13 +98,13 @@ const (
 func NewFromData(b []byte, exlog *utils.Logger) (*Mesh, error) {
 	m := &Mesh{}
 	switch config.GetGOWVersion() {
-	case config.GOW1ps2:
+	case config.GOW1:
 		if err := m.parseGow1(b, exlog); err != nil {
 			return nil, err
 		} else {
 			return m, nil
 		}
-	case config.GOW2ps2:
+	case config.GOW2:
 		if err := m.parseGow2(b, exlog); err != nil {
 			return nil, err
 		} else {
@@ -120,19 +120,18 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1ps2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		/*
-			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
-			os.MkdirAll(filepath.Dir(fpath), 0777)
-			f, _ := os.Create(fpath)
-			defer f.Close()
-			logger := Logger{f}
-			//logger := Logger{os.Stdout}
-		*/
+	wad.SetHandler(config.GOW1, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 
-		return NewFromData(wrsrc.Tag.Data, nil)
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+		os.MkdirAll(filepath.Dir(fpath), 0777)
+		f, _ := os.Create(fpath)
+		defer f.Close()
+		logger := utils.Logger{f}
+		//logger := Logger{os.Stdout}
+
+		return NewFromData(wrsrc.Tag.Data, &logger)
 	})
-	wad.SetHandler(config.GOW2ps2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		fpath := filepath.Join("logs_gow2", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
