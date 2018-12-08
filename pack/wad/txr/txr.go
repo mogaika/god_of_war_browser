@@ -255,6 +255,6 @@ func init() {
 	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	}
-	wad.SetHandler(config.GOW1ps2, TXR_MAGIC, h)
-	wad.SetHandler(config.GOW2ps2, TXR_MAGIC, h)
+	wad.SetHandler(config.GOW1, TXR_MAGIC, h)
+	wad.SetHandler(config.GOW2, TXR_MAGIC, h)
 }

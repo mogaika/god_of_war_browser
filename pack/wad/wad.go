@@ -227,13 +227,13 @@ func (w *Wad) parseTags() error {
 	}
 
 	switch config.GetGOWVersion() {
-	case config.GOW1ps2:
+	case config.GOW1:
 		for id := range w.Tags {
 			if err := w.gow1parseTag(&w.Tags[id], &currentNode, &newGroupTag, addNode); err != nil {
 				return fmt.Errorf("Error parsing gow1 tag: %v", err)
 			}
 		}
-	case config.GOW2ps2:
+	case config.GOW2:
 		for id := range w.Tags {
 			if err := w.gow2parseTag(&w.Tags[id], &currentNode, &newGroupTag, addNode); err != nil {
 				return fmt.Errorf("Error parsing gow2 tag: %v", err)

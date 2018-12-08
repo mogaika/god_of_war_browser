@@ -116,7 +116,9 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 		packet.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixedPoint8
 		packet.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixedPoint8
 		packet.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
-		// exlog.Printf(" %.5d == %f %f %f %t", i, packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i], packet.Trias.Skip[i])
+		//exlog.Printf(" %.5d == %f %f %f %t (%.4x)",
+		//	i, packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i], packet.Trias.Skip[i],
+		//	binary.LittleEndian.Uint16(state.XYZW[bp+6:]))
 	}
 
 	if state.UV != nil {

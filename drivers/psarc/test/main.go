@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	f := vfs.NewDirectoryDriverFile(`/run/user/1000/gvfs/smb-share:server=192.168.1.147,share=downloads2/BCES00791-[God of War Collection]/PS3_GAME/USRDIR/GOW1/exec/gow1.psarc`)
+	f := vfs.NewDirectoryDriverFile(`E:\Downloads\BCES00791-[God of War Collection]/PS3_GAME/USRDIR/GOW1/exec/gow1.psarc`)
 	if err := f.Open(true); err != nil {
 		log.Panic(err)
 	}
@@ -19,4 +19,26 @@ func main() {
 		log.Panic(err)
 	}
 	_ = p
+
+	/*
+		if files, err := p.List(); err != nil {
+			log.Panic(err)
+		} else {
+			for _, f := range files {
+				if fel, err := p.GetElement(f); err != nil {
+					log.Panic(err)
+				} else {
+					log.Printf("%-48s %+#v", f, fel.(vfs.File).Size())
+				}
+			}
+		}
+	*/
+	if f, err := vfs.DirectoryGetFile(p, "wad/r_ah3.wad_ps3"); err != nil {
+		log.Panic(err)
+	} else {
+		if err := f.Open(true); err != nil {
+			log.Panic(err)
+		}
+		defer f.Close()
+	}
 }

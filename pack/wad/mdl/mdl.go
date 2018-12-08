@@ -57,7 +57,8 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		name := n.Tag.Name
 		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 		if err != nil {
-			if config.GetGOWVersion() == config.GOW1ps2 {
+			// TODO: improve
+			if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == 2 {
 				return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, name, err)
 			}
 		} else {
@@ -85,7 +86,7 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1ps2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		mdl, err := NewFromData(wrsrc.Tag.Data)
 		if err == nil {
 			/*
@@ -116,7 +117,7 @@ func init() {
 		return mdl, err
 	})
 
-	wad.SetHandler(config.GOW2ps2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }

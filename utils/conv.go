@@ -90,9 +90,20 @@ func ReadBytes(out interface{}, raw []byte) {
 
 func Read40bitUint(o binary.ByteOrder, bin []byte) uint64 {
 	var buf [8]byte
-	copy(buf[:], bin[:5])
 	if o == binary.LittleEndian {
-		panic("Not tested, probably not work")
+		copy(buf[0:], bin[:5])
+	} else {
+		copy(buf[3:], bin[:5])
 	}
-	return o.Uint64(buf[:]) >> 24
+	return o.Uint64(buf[:])
+}
+
+func Read24bitUint(o binary.ByteOrder, bin []byte) uint32 {
+	var buf [4]byte
+	if o == binary.LittleEndian {
+		copy(buf[0:], bin[:3])
+	} else {
+		copy(buf[1:], bin[:3])
+	}
+	return o.Uint32(buf[:])
 }

@@ -196,10 +196,10 @@ func (sbk *SBK) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1ps2, SBK_SBLK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1, SBK_SBLK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), true, wrsrc.Tag.Size)
 	})
-	wad.SetHandler(config.GOW1ps2, SBK_VAG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1, SBK_VAG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), false, wrsrc.Tag.Size)
 	})
 }

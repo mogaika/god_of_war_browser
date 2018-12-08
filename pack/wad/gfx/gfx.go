@@ -205,11 +205,15 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 		return nil, errors.New("Wrong magic.")
 	}
 
-	pos := uint32(24)
-	gfx.DataSize = (((gfx.Width * gfx.RealHeight) * gfx.Bpi) / 8)
-	for iData := range gfx.Data {
-		gfx.Data[iData] = buf[pos : pos+gfx.DataSize]
-		pos += gfx.DataSize
+	if config.GetPlayStationVersion() == 2 {
+		pos := uint32(24)
+		gfx.DataSize = (((gfx.Width * gfx.RealHeight) * gfx.Bpi) / 8)
+		for iData := range gfx.Data {
+			gfx.Data[iData] = buf[pos : pos+gfx.DataSize]
+			pos += gfx.DataSize
+		}
+	} else {
+		gfx.Data = nil
 	}
 
 	return gfx, nil
@@ -250,6 +254,6 @@ func init() {
 		return gfx, err
 	}
 
-	wad.SetHandler(config.GOW1ps2, GFX_MAGIC, h)
-	wad.SetHandler(config.GOW2ps2, GFX_MAGIC, h)
+	wad.SetHandler(config.GOW1, GFX_MAGIC, h)
+	wad.SetHandler(config.GOW2, GFX_MAGIC, h)
 }

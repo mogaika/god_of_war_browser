@@ -48,17 +48,17 @@ func (t *TableOfContent) Remove(name string) error { panic("Not impelemented") }
 func (toc *TableOfContent) Unmarshal(b []byte) error {
 	if config.GetGOWVersion() == config.GOWunknown {
 		if b[2] != 0 {
-			log.Println("[toc] Detected gow version: GOW1ps1")
-			config.SetGOWVersion(config.GOW1ps2)
+			log.Println("[toc] Detected gow version: GOW1")
+			config.SetGOWVersion(config.GOW1)
 		} else {
-			log.Println("[toc] Detected gow version: GOW2ps1")
-			config.SetGOWVersion(config.GOW2ps2)
+			log.Println("[toc] Detected gow version: GOW2")
+			config.SetGOWVersion(config.GOW2)
 		}
 	}
 	switch config.GetGOWVersion() {
-	case config.GOW1ps2:
+	case config.GOW1:
 		return toc.unmarshalGOW1(b)
-	case config.GOW2ps2:
+	case config.GOW2:
 		return toc.unmarshalGOW2(b)
 	default:
 		return fmt.Errorf("[toc] Unknown GOW version: %d", config.GetGOWVersion())
@@ -67,9 +67,9 @@ func (toc *TableOfContent) Unmarshal(b []byte) error {
 
 func (toc *TableOfContent) Marshal() []byte {
 	switch config.GetGOWVersion() {
-	case config.GOW1ps2:
+	case config.GOW1:
 		return toc.marshalGOW1()
-	case config.GOW2ps2:
+	case config.GOW2:
 		return toc.marshalGOW2()
 	default:
 		log.Panicf("[toc] Unknown GOW version: %v", config.GetGOWVersion())

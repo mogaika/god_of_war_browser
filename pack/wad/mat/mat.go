@@ -173,6 +173,7 @@ func (mat *Material) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		name := n.Tag.Name
 		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 		if err != nil {
+			// TODO: improve
 			// return nil, fmt.Errorf("Error when extracting node %d->%s mat info: %v", i, name, err)
 		} else {
 			switch sn.(type) {
@@ -192,6 +193,6 @@ func init() {
 	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	}
-	wad.SetHandler(config.GOW1ps2, MAT_MAGIC, h)
-	wad.SetHandler(config.GOW2ps2, MAT_MAGIC, h)
+	wad.SetHandler(config.GOW1, MAT_MAGIC, h)
+	wad.SetHandler(config.GOW2, MAT_MAGIC, h)
 }

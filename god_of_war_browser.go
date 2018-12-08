@@ -42,7 +42,7 @@ func main() {
 	flag.StringVar(&dirpath, "dir", "", "Path to unpacked wads and other stuff")
 	flag.StringVar(&isopath, "iso", "", "Path to iso file")
 	flag.StringVar(&psarcpath, "psarc", "", "Path to ps3 psarc file")
-	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1 ps2', 2 - 'gow2 ps2'")
+	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1', 2 - 'gow2'")
 	flag.Parse()
 
 	var err error
@@ -51,6 +51,7 @@ func main() {
 	config.SetGOWVersion(config.GOWVersion(gowversion))
 
 	if psarcpath != "" {
+		config.SetPlayStationVersion(3)
 		f := vfs.NewDirectoryDriverFile(psarcpath)
 		if err = f.Open(true); err == nil {
 			rootdir, err = psarc.NewPsarcDriver(f)
