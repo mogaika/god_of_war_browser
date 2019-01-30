@@ -35,23 +35,37 @@ import (
 )
 
 func main() {
-	var addr, tocpath, dirpath, isopath, psarcpath string
+	var addr, tocpath, dirpath, isopath, psarcpath, psversion string
 	var gowversion int
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
 	flag.StringVar(&dirpath, "dir", "", "Path to unpacked wads and other stuff")
 	flag.StringVar(&isopath, "iso", "", "Path to iso file")
 	flag.StringVar(&psarcpath, "psarc", "", "Path to ps3 psarc file")
+	flag.StringVar(&psversion, "ps", "ps2", "Playstation version (ps2, ps3, psvita)")
 	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1', 2 - 'gow2'")
 	flag.Parse()
 
 	var err error
 	var rootdir vfs.Directory
 
+	switch psversion {
+	case "ps2":
+		config.SetPlayStationVersion(config.PS2)
+	case "ps3":
+		config.SetPlayStationVersion(config.PS3)
+	case "psvita":
+		config.SetPlayStationVersion(config.PSVita)
+	default:
+		log.Fatalf("Provide correct 'ps' parameter (ps2, ps3, psvita)")
+	}
+
 	config.SetGOWVersion(config.GOWVersion(gowversion))
 
 	if psarcpath != "" {
-		config.SetPlayStationVersion(3)
+		if config.GetPlayStationVersion() != config.PS3 && config.GetPlayStationVersion() != config.PSVita {
+			log.Fatalf("Cannot use psarcpath when 'ps' is not ps3 or psvita")
+		}
 		f := vfs.NewDirectoryDriverFile(psarcpath)
 		if err = f.Open(true); err == nil {
 			rootdir, err = psarc.NewPsarcDriver(f)

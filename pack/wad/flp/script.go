@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"sync"
+
+	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -40,7 +43,6 @@ func (s *Script) parseOpcodes(buf []byte) {
 
 	originalBufLen := len(buf)
 	for len(buf) != 0 {
-		var stringRepr string
 		off := originalBufLen - len(buf)
 
 		jmpOffsetToStr := func(jmpoff uint16, opoff int16) string {
@@ -63,63 +65,129 @@ func (s *Script) parseOpcodes(buf []byte) {
 			Data:   buf,
 		}
 
+		var stringRepr string = fmt.Sprintf("unknown opcode 0x%x", op.Code)
+
 		if op.Code&0x80 != 0 {
-			opLen := binary.LittleEndian.Uint16(buf[1:])
-			buf = buf[3:]
-			op.Data = buf[:opLen]
+			if config.GetPlayStationVersion() == config.PS2 {
+				if len(buf) < 2 {
+					log.Printf("Error parsing script: op code parameter missed")
+				}
+				opLen := binary.LittleEndian.Uint16(buf[1:])
+				buf = buf[3:]
+				op.Data = buf[:opLen]
 
-			switch op.Code {
-			case 0x81:
-				stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
-			case 0x83:
-				stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or response result",
-					utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):]))
-			case 0x8b:
-				stringRepr = fmt.Sprintf("SetTarget '%s'", utils.BytesToString(buf))
-			case 0x8c:
-				stringRepr = fmt.Sprintf("GotoLabel '%s'", utils.BytesToString(buf))
-			case 0x96:
-				pos := uint16(0)
-				for pos < opLen {
-					stringRepr = "@push"
-					if buf[pos] == 0 {
-						l := uint16(utils.BytesStringLength(buf[pos+1:]))
+				switch op.Code {
+				case 0x81:
+					stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
+				case 0x83:
+					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or response result",
+						utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):]))
+				case 0x8b:
+					stringRepr = fmt.Sprintf("SetTarget '%s'", utils.BytesToString(buf))
+				case 0x8c:
+					stringRepr = fmt.Sprintf("GotoLabel '%s'", utils.BytesToString(buf))
+				case 0x96:
+					pos := uint16(0)
+					for pos < opLen {
+						stringRepr = "@push"
+						if buf[pos] == 0 {
+							l := uint16(utils.BytesStringLength(buf[pos+1:]))
 
-						if l != 0 {
-							reff := ScriptOpcodeStringPushReference{
-								Opcode: op,
-								String: buf[pos+1 : pos+1+l],
+							if l != 0 {
+								reff := ScriptOpcodeStringPushReference{
+									Opcode: op,
+									String: buf[pos+1 : pos+1+l],
+								}
+
+								if reff.String[len(reff.String)-1] == 0 {
+									reff.String = reff.String[:len(reff.String)-1]
+								}
+								scriptPushRefFiller = append(scriptPushRefFiller, reff)
 							}
-
-							if reff.String[len(reff.String)-1] == 0 {
-								reff.String = reff.String[:len(reff.String)-1]
-							}
-							scriptPushRefFiller = append(scriptPushRefFiller, reff)
+							stringRepr += fmt.Sprintf("_string '%s' ", utils.DumpToOneLineString(buf[pos+1:pos+1+l]))
+							pos += uint16(l) + 2
+						} else {
+							stringRepr += fmt.Sprintf("_float %v ", math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:])))
+							pos += 5
 						}
-						stringRepr += fmt.Sprintf("_string '%s' ", utils.DumpToOneLineString(buf[pos+1:pos+1+l]))
-						pos += uint16(l) + 2
-					} else {
-						stringRepr += fmt.Sprintf("_float %v ", math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:])))
-						pos += 5
 					}
+				case 0x99:
+					stringRepr = fmt.Sprintf("jump %s", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5))
+				case 0x9e:
+					stringRepr = "CallFrame @pop_string"
+				case 0x9d:
+					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5))
+				case 0x9f:
+					state := "PLAY"
+					if buf[0] == 0 {
+						state = "STOP"
+					}
+					stringRepr = fmt.Sprintf("GotoExpression @pop_string (%s)", state)
+				default:
+					stringRepr = fmt.Sprintf(" unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
 				}
-			case 0x99:
-				stringRepr = fmt.Sprintf("jump %s", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5))
-			case 0x9e:
-				stringRepr = "CallFrame @pop_string"
-			case 0x9d:
-				stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5))
-			case 0x9f:
-				state := "PLAY"
-				if buf[0] == 0 {
-					state = "STOP"
-				}
-				stringRepr = fmt.Sprintf("GotoExpression @pop_string (%s)", state)
-			default:
-				stringRepr = fmt.Sprintf(" unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
-			}
 
-			buf = buf[opLen:]
+				buf = buf[opLen:]
+			} else if config.GetPlayStationVersion() == config.PSVita {
+				opLen := 0
+				buf = buf[1:]
+				switch op.Code {
+				case 0x81:
+					stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
+					opLen = 2
+				case 0x83:
+					stringRepr = fmt.Sprintf("Fs queue `0x%x` command `0x%x`, or response result",
+						binary.LittleEndian.Uint16(buf), binary.LittleEndian.Uint16(buf[2:]))
+					opLen = 4
+				case 0x8a:
+					stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
+					opLen = 3
+				case 0x8b:
+					stringRepr = fmt.Sprintf("SetTarget `0x%x`", binary.LittleEndian.Uint16(buf))
+					opLen = 2
+				case 0x8c:
+					stringRepr = fmt.Sprintf("GotoLabel `0x%x`", binary.LittleEndian.Uint16(buf))
+					opLen = 2
+				case 0x96:
+					if buf[0] == 1 {
+						opLen = 5
+						stringRepr = fmt.Sprintf("push_float %v ", math.Float32frombits(binary.LittleEndian.Uint32(buf[1:])))
+					} else {
+						if buf[0] != 0 {
+							opLen = 2
+							stringRepr = fmt.Sprintf("push_string `0x%x` ", binary.LittleEndian.Uint16(buf[:]))
+						} else {
+							opLen = 3
+							stringRepr = fmt.Sprintf("push_string `0x%x` ", binary.LittleEndian.Uint16(buf[1:]))
+						}
+					}
+				case 0x99:
+					stringRepr = fmt.Sprintf("jump %s", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3))
+					opLen = 2
+				case 0x9a:
+					stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
+					opLen = 1
+				case 0x9d:
+					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3))
+					opLen = 2
+				case 0x9e:
+					stringRepr = "CallFrame @pop_string"
+					opLen = 0
+				case 0x9f:
+					state := "PLAY"
+					if buf[0] == 0 {
+						state = "STOP"
+					}
+					stringRepr = fmt.Sprintf("GotoExpression @pop_string (%s)", state)
+					opLen = 1
+				default:
+					log.Panicf("Unknown variable-length opcode 0x%x", op.Code)
+				}
+				op.Data = buf[:opLen]
+				buf = buf[opLen:]
+			} else {
+				log.Panicf("Unsupported version of ps")
+			}
 		} else {
 			buf = buf[1:]
 			switch op.Code {
@@ -198,9 +266,11 @@ func (s *Script) Marshal() []byte {
 	for _, op := range s.Opcodes {
 		r.WriteByte(op.Code)
 		if op.Code&0x80 != 0 {
-			var lenBuf [2]byte
-			binary.LittleEndian.PutUint16(lenBuf[:], uint16(len(op.Data)))
-			r.Write(lenBuf[:])
+			if config.GetPlayStationVersion() != config.PSVita {
+				var lenBuf [2]byte
+				binary.LittleEndian.PutUint16(lenBuf[:], uint16(len(op.Data)))
+				r.Write(lenBuf[:])
+			}
 			r.Write(op.Data)
 		}
 	}
@@ -210,6 +280,7 @@ func (s *Script) Marshal() []byte {
 
 func NewScriptFromData(buf []byte) *Script {
 	s := new(Script)
+	log.Printf("buf: %+#v", buf)
 	s.parseOpcodes(buf)
 	s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
 	return s

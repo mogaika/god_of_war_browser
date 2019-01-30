@@ -148,6 +148,7 @@ function packLoadFile(filename) {
         switch (ext) {
             case 'wad':
             case 'ps3':
+            case 'sp2':
                 treeLoadWad(filename, data);
                 break;
             case 'psw':

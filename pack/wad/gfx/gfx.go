@@ -202,10 +202,10 @@ func NewFromData(name string, buf []byte) (*GFX, error) {
 	gfx.Psm = GsPsm[gfx.GetPSM()]
 
 	if gfx.Magic != GFX_MAGIC {
-		return nil, errors.New("Wrong magic.")
+		return nil, errors.New("Wrong magic")
 	}
 
-	if config.GetPlayStationVersion() == 2 {
+	if config.GetPlayStationVersion() == config.PS2 {
 		pos := uint32(24)
 		gfx.DataSize = (((gfx.Width * gfx.RealHeight) * gfx.Bpi) / 8)
 		for iData := range gfx.Data {
