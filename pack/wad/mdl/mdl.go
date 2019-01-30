@@ -58,7 +58,7 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 		if err != nil {
 			// TODO: improve
-			if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == 2 {
+			if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == config.PS2 {
 				return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, name, err)
 			}
 		} else {

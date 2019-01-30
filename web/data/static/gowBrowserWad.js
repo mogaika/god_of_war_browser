@@ -623,13 +623,10 @@ function summaryLoadWadMat(data) {
                         let txrobj = data.Textures[l];
                         let txrblndobj = data.TexturesBlended[l];
                         td.append(' \\ ' + txrobj.Data.GfxName + ' \\ ' + txrobj.Data.PalName).append('<br>');
-                        td.append('Color + Alpha \\ Color only \\ Alpha(green=100%) ').append('<br>');
+                        td.append('Color + Alpha').append('<br>');
                         td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].Image));
-                        td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].ColorOnly));
-                        td.append($('<img>').attr('src', 'data:image/png;base64,' + txrobj.Images[0].AlphaOnly));
-                        td.append('<br>').append(' BLENDED Color + Alpha \\ BLENDED Color only ').append('<br>');
+                        td.append('<br>').append(' BLENDED Color + Alpha').append('<br>');
                         td.append($('<img>').attr('src', 'data:image/png;base64,' + txrblndobj.Images[0].Image));
-                        td.append($('<img>').attr('src', 'data:image/png;base64,' + txrblndobj.Images[0].ColorOnly));
                     }
                     break;
                 case 'ParsedFlags':

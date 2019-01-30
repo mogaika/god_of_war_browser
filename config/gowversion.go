@@ -10,10 +10,18 @@ const (
 	GOW2
 )
 
+const (
+	PS2 = iota
+	PS3
+	PSVita
+)
+
 type GOWVersion int
+type PSVersion int
 
 var godOfWarVersion GOWVersion = GOWunknown
-var playStationVersion int = 2
+
+var playStationVersion PSVersion = PS2
 
 func GetGOWVersion() GOWVersion {
 	return godOfWarVersion
@@ -30,16 +38,10 @@ func SetGOWVersion(v GOWVersion) {
 	godOfWarVersion = v
 }
 
-func GetPlayStationVersion() int {
+func GetPlayStationVersion() PSVersion {
 	return playStationVersion
 }
 
-func SetPlayStationVersion(psVersion int) {
-	switch psVersion {
-	default:
-		log.Panicf("Unknown ps version '%v'", psVersion)
-	case 2:
-	case 3:
-	}
+func SetPlayStationVersion(psVersion PSVersion) {
 	playStationVersion = psVersion
 }
