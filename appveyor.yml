@@ -28,7 +28,6 @@ after_build:
   - 7z a god_of_war_browser.zip font_aliases.ru.cp1251.cfg
   - 7z a god_of_war_browser.zip LOCALIZATION.md
   - 7z a god_of_war_browser.zip README.md
-  - 7z a god_of_war_browser.zip LICENSE
   - mv god_of_war_browser.zip god_of_war_browser.%APPVEYOR_BUILD_VERSION%.zip
 
 test: off
