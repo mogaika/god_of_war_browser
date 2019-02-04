@@ -19,10 +19,11 @@ var scriptPushRefFiller []ScriptOpcodeStringPushReference
 var scriptPushRefLocker sync.Mutex
 
 type Script struct {
-	Opcodes    []*ScriptOpcode `json:"-"`
-	Decompiled string
-	labels     map[int16]string
-	marshaled  []byte
+	Opcodes         []*ScriptOpcode `json:"-"`
+	Decompiled      string
+	labels          map[int16]string
+	marshaled       []byte
+	staticStringRef map[string][]uint16 // string ot offset
 }
 
 type ScriptOpcode struct {
@@ -37,16 +38,20 @@ type ScriptOpcodeStringPushReference struct {
 	String []byte
 }
 
-func (s *Script) parseOpcodes(buf []byte) {
+func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 	s.Opcodes = make([]*ScriptOpcode, 0)
 	s.labels = make(map[int16]string)
 
 	originalBufLen := len(buf)
 	for len(buf) != 0 {
-		off := originalBufLen - len(buf)
+		op := &ScriptOpcode{
+			Code:   buf[0],
+			Offset: int16(originalBufLen - len(buf)),
+			Data:   buf,
+		}
 
 		jmpOffsetToStr := func(jmpoff uint16, opoff int16) string {
-			targetOffset := int16(off + int(int16(jmpoff)+opoff))
+			targetOffset := int16(op.Offset + int16(jmpoff) + opoff)
 
 			var targetLabel string
 			if lbl, ok := s.labels[targetOffset]; !ok {
@@ -59,21 +64,29 @@ func (s *Script) parseOpcodes(buf []byte) {
 			return fmt.Sprintf("$%s(%+x=%.4x)", targetLabel, int16(jmpoff), targetOffset)
 		}
 
-		op := &ScriptOpcode{
-			Code:   buf[0],
-			Offset: int16(off),
-			Data:   buf,
+		strFromOffset := func(dataoff uint16) string {
+			stringSecOff := binary.LittleEndian.Uint16(op.Data[dataoff:])
+
+			str := utils.BytesToString(stringsSector[stringSecOff:])
+			if s.staticStringRef == nil {
+				s.staticStringRef = make(map[string][]uint16)
+			}
+			if _, exists := s.staticStringRef[str]; !exists {
+				s.staticStringRef[str] = make([]uint16, 0)
+			}
+			s.staticStringRef[str] = append(s.staticStringRef[str], uint16(op.Offset)+1+dataoff)
+			return str
 		}
 
 		var stringRepr string = fmt.Sprintf("unknown opcode 0x%x", op.Code)
-
+		buf = buf[1:]
 		if op.Code&0x80 != 0 {
 			if config.GetPlayStationVersion() == config.PS2 {
 				if len(buf) < 2 {
 					log.Printf("Error parsing script: op code parameter missed")
 				}
-				opLen := binary.LittleEndian.Uint16(buf[1:])
-				buf = buf[3:]
+				opLen := binary.LittleEndian.Uint16(buf)
+				buf = buf[2:]
 				op.Data = buf[:opLen]
 
 				switch op.Code {
@@ -126,27 +139,26 @@ func (s *Script) parseOpcodes(buf []byte) {
 				default:
 					stringRepr = fmt.Sprintf(" unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
 				}
-
 				buf = buf[opLen:]
 			} else if config.GetPlayStationVersion() == config.PSVita {
 				opLen := 0
-				buf = buf[1:]
+				op.Data = buf
 				switch op.Code {
 				case 0x81:
 					stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
 					opLen = 2
 				case 0x83:
-					stringRepr = fmt.Sprintf("Fs queue `0x%x` command `0x%x`, or response result",
-						binary.LittleEndian.Uint16(buf), binary.LittleEndian.Uint16(buf[2:]))
+					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s' or response result",
+						strFromOffset(0), strFromOffset(2))
 					opLen = 4
 				case 0x8a:
 					stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
 					opLen = 3
 				case 0x8b:
-					stringRepr = fmt.Sprintf("SetTarget `0x%x`", binary.LittleEndian.Uint16(buf))
+					stringRepr = fmt.Sprintf("SetTarget '%s'", strFromOffset(0))
 					opLen = 2
 				case 0x8c:
-					stringRepr = fmt.Sprintf("GotoLabel `0x%x`", binary.LittleEndian.Uint16(buf))
+					stringRepr = fmt.Sprintf("GotoLabel '%s'", strFromOffset(0))
 					opLen = 2
 				case 0x96:
 					if buf[0] == 1 {
@@ -155,10 +167,10 @@ func (s *Script) parseOpcodes(buf []byte) {
 					} else {
 						if buf[0] != 0 {
 							opLen = 2
-							stringRepr = fmt.Sprintf("push_string `0x%x` ", binary.LittleEndian.Uint16(buf[:]))
+							stringRepr = fmt.Sprintf("push_string '%s'", strFromOffset(0))
 						} else {
 							opLen = 3
-							stringRepr = fmt.Sprintf("push_string `0x%x` ", binary.LittleEndian.Uint16(buf[1:]))
+							stringRepr = fmt.Sprintf("push_string '%s' ", strFromOffset(1))
 						}
 					}
 				case 0x99:
@@ -189,7 +201,6 @@ func (s *Script) parseOpcodes(buf []byte) {
 				log.Panicf("Unsupported version of ps")
 			}
 		} else {
-			buf = buf[1:]
 			switch op.Code {
 			case 0:
 				stringRepr = "end"
@@ -278,10 +289,9 @@ func (s *Script) Marshal() []byte {
 	return s.marshaled
 }
 
-func NewScriptFromData(buf []byte) *Script {
+func NewScriptFromData(buf []byte, stringsSector []byte) *Script {
 	s := new(Script)
-	log.Printf("buf: %+#v", buf)
-	s.parseOpcodes(buf)
+	s.parseOpcodes(buf, stringsSector)
 	s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
 	return s
 }

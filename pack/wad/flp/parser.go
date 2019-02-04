@@ -142,6 +142,13 @@ func (d6 *Data6) Parse(buf []byte, pos int) int {
 	return pos
 }
 
+func (d6 *Data6) SetNameFromStringSector(stringsSector []byte) {
+	d6.Sub1.SetNameFromStringSector(stringsSector)
+	for i := range d6.Sub2s {
+		d6.Sub2s[i].SetNameFromStringSector(stringsSector)
+	}
+}
+
 func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
 	d6s1.TotalFramesCount = binary.LittleEndian.Uint16(buf[0:])
 	d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0x2:]))
@@ -235,6 +242,9 @@ func (d6s1s2 *FrameScriptLabel) SetNameFromStringSector(stringsSector []byte) {
 	if d6s1s2.LabelNameSecOff != -1 {
 		d6s1s2.LabelName = utils.BytesToString(stringsSector[d6s1s2.LabelNameSecOff:])
 	}
+	for i := range d6s1s2.Subs {
+		d6s1s2.Subs[i].SetNameFromStringSector(stringsSector)
+	}
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
@@ -244,8 +254,13 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	d6s1s2s1.Script = NewScriptFromData(buf[pos : pos+int(d6s1s2s1.scriptDataLength)])
+	d6s1s2s1.scriptData = buf[pos : pos+int(d6s1s2s1.scriptDataLength)]
+
 	return pos + int(d6s1s2s1.scriptDataLength)
+}
+
+func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) SetNameFromStringSector(stringsSector []byte) {
+	d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
@@ -257,8 +272,12 @@ func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 
 func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 	pos = posPad4(pos)
-	d6s2.Script = NewScriptFromData(buf[pos : pos+int(d6s2.scriptDataLength)])
+	d6s2.scriptData = buf[pos : pos+int(d6s2.scriptDataLength)]
 	return pos + int(d6s2.scriptDataLength)
+}
+
+func (d6s2 *Data6Subtype2) SetNameFromStringSector(stringsSector []byte) {
+	d6s2.Script = NewScriptFromData(d6s2.scriptData, stringsSector)
 }
 
 func (d9 *Transformation) FromBuf(buf []byte) int {
@@ -383,7 +402,7 @@ func (f *FLP) SetNameFromStringSector(stringsSector []byte) {
 	}
 
 	for i := range f.Datas6 {
-		f.Datas6[i].Sub1.SetNameFromStringSector(stringsSector)
+		f.Datas6[i].SetNameFromStringSector(stringsSector)
 	}
 
 	for i := range f.Datas7 {

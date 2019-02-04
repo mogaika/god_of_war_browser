@@ -9,8 +9,9 @@ import (
 )
 
 type StringPosReplacerReference struct {
-	Position    int
-	SizeInBytes int
+	Position         int
+	SizeInBytes      int
+	AllowEmptyString bool
 }
 
 type StringsIndexBuffer map[string][]StringPosReplacerReference
@@ -40,7 +41,9 @@ func NewFlpMarshaler() *FlpMarshaler {
 
 func (fm *FlpMarshaler) compileStringAndReturnFile() *bytes.Buffer {
 	buf := fm.buf.Bytes()
+
 	var stringSection bytes.Buffer
+	stringSection.WriteByte(0) // empty string at start
 
 	for k, v := range map[string][]StringPosReplacerReference(fm.sbuffer) {
 		var offbuf [4]byte
@@ -55,7 +58,11 @@ func (fm *FlpMarshaler) compileStringAndReturnFile() *bytes.Buffer {
 		binary.LittleEndian.PutUint32(offbuf[:], uint32(off))
 		for _, e := range v {
 			//log.Printf("String ref at %x:%d = %x to %s", e.Position, e.SizeInBytes, off, k)
-			copy(buf[e.Position:e.Position+e.SizeInBytes], offbuf[:e.SizeInBytes])
+			if k == "" && e.AllowEmptyString {
+				copy(buf[e.Position:e.Position+e.SizeInBytes], make([]byte, e.SizeInBytes))
+			} else {
+				copy(buf[e.Position:e.Position+e.SizeInBytes], offbuf[:e.SizeInBytes])
+			}
 		}
 	}
 
@@ -94,6 +101,17 @@ func (fm *FlpMarshaler) pad(align int) {
 
 func (fm *FlpMarshaler) pad4() {
 	fm.pad(4)
+}
+
+func (fm *FlpMarshaler) addScriptStringRefs(script *Script) {
+	if script.staticStringRef != nil {
+		pos := fm.pos()
+		for str := range script.staticStringRef {
+			for _, offset := range script.staticStringRef[str] {
+				fm.sbuffer.Add(str, pos+int(offset), 2).AllowEmptyString = true
+			}
+		}
+	}
 }
 
 func (fm *FlpMarshaler) addStringOffsetPlaceholder(s string, size int) {
@@ -277,6 +295,7 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalStruct(fm *FlpMarshaler) {
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
+	fm.addScriptStringRefs(d6s1s2s1.Script)
 	fm.buf.Write(d6s1s2s1.Script.marshaled)
 }
 
@@ -290,6 +309,7 @@ func (d6s2 *Data6Subtype2) MarshalStruct(fm *FlpMarshaler) {
 
 func (d6s2 *Data6Subtype2) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
+	fm.addScriptStringRefs(d6s2.Script)
 	fm.buf.Write(d6s2.Script.marshaled)
 }
 
