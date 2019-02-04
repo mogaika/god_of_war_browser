@@ -158,6 +158,7 @@ type FrameScriptLabel struct {
 type Data6Subtype1Subtype2Subtype1 struct {
 	Script           *Script
 	scriptDataLength uint32
+	scriptData       []byte
 }
 
 type Data6Subtype2 struct {
@@ -165,6 +166,7 @@ type Data6Subtype2 struct {
 	EventUnkMask     uint16
 	Script           *Script
 	scriptDataLength uint32
+	scriptData       []byte
 }
 
 type Transformation struct {
