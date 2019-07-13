@@ -2,6 +2,7 @@ package mesh
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/pack/wad/mesh/gmdl"
 )
 
 type Packet struct {
@@ -93,6 +95,7 @@ type Mesh struct {
 
 const (
 	MESH_MAGIC = 0x0001000f
+	GMDL_MAGIC = 0x0003000f
 )
 
 func NewFromData(b []byte, exlog *utils.Logger) (*Mesh, error) {
@@ -140,5 +143,11 @@ func init() {
 		//logger := Logger{io.MultiWriter(os.Stdout, f)}
 
 		return NewFromData(wrsrc.Tag.Data, &logger)
+	})
+	wad.SetHandler(config.GOW1, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
+		g, err := gmdl.NewGMDL(bs.SubBuf("gmdl", 4).Expand().SetName(wrsrc.Name()))
+		log.Printf("\n%v", bs.StringTree())
+		return g, err
 	})
 }

@@ -3,6 +3,7 @@ package mdl
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_mat "github.com/mogaika/god_of_war_browser/pack/wad/mat"
 	file_mesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
+	file_gmdl "github.com/mogaika/god_of_war_browser/pack/wad/mesh/gmdl"
 	file_scr "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 )
 
@@ -48,6 +50,7 @@ type Ajax struct {
 	Materials []interface{}
 	Scripts   []interface{}
 	Other     []interface{}
+	GMDL      interface{}
 }
 
 func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
@@ -58,7 +61,7 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 		if err != nil {
 			// TODO: improve
-			if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == config.PS2 {
+			if config.GetGOWVersion() == config.GOW1 {
 				return nil, fmt.Errorf("Error when extracting node %d->%s mdl info: %v", i, name, err)
 			}
 		} else {
@@ -77,8 +80,14 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 					return nil, fmt.Errorf("Error when getting script info %d-'%s': %v", i, name, err)
 				}
 				res.Scripts = append(res.Scripts, scr)
+			case *file_gmdl.GMDL:
+				gmdl, err := sn.(*file_gmdl.GMDL).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id))
+				if err != nil {
+					return nil, fmt.Errorf("Error when getting gmdl %d-'%s': %v", i, name, err)
+				}
+				res.GMDL = gmdl
 			default:
-				res.Other = append(res.Other, "Unknown interface of "+reflect.TypeOf(sn).Name())
+				log.Printf("MDL: Added unknown interface of %s", reflect.TypeOf(sn).Name())
 			}
 		}
 	}
