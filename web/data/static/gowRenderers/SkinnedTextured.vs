@@ -13,6 +13,7 @@ uniform bool uUseJoints;
 uniform bool uUseVertexColor;
 uniform bool uUseModelTransform;
 uniform bool uUseEnvmapSampler;
+uniform bool uUseRootJointScaleOnly;
 
 varying lowp vec4 vVertexColor;
 varying mediump vec2 vVertexUV;
@@ -69,11 +70,20 @@ mat4 transpose(mat4 m) {
 void main(void) {
 	vec4 pos = vec4(aVertexPos, 1.0);
 	if (uUseJoints) {
-		pos = umJoints[int(aVertexJointID)] * pos +  umJoints[int(aVertexJointID2)] * pos;
-		pos *= 0.5;
 		//pos = umJoints[int(aVertexJointID2)] * pos;
+		if (uUseRootJointScaleOnly) {
+			mat4 joint = umJoints[0];
+			mat4 m = mat4(joint[0][0], 0, 0, 0,
+						  0, joint[1][1], 0, 0,
+						  0, 0, joint[2][2], 0,
+						  0, 0, 0, joint[3][3]);
+			pos = vec4((m * pos).xyz, 1.0);
+		} else {
+			pos = umJoints[int(aVertexJointID)] * pos + umJoints[int(aVertexJointID2)] * pos;
+			pos *= 0.5;
+		}
 	}
-	if (uUseModelTransform) {
+	if (uUseModelTransform && !uUseRootJointScaleOnly) {
 		pos = vec4((umModelTransform * pos).xyz, 1.0);
 	} else {
 		pos = vec4(pos.xyz, 1.0);

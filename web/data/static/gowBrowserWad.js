@@ -182,6 +182,9 @@ function treeLoadWadNode(wad, tagid) {
                     case 0x0001000f: // mesh
                         summaryLoadWadMesh(data, wad, tagid);
                         break;
+                    case 0x0003000f: // gmdl
+                        summaryLoadWadGmdl(data, wad, tagid);
+                        break;
                     case 0x0002000f: // mdl
                         summaryLoadWadMdl(data, wad, tagid);
                         break;
@@ -274,8 +277,8 @@ function parseMeshPacket(object, packet) {
         m_vertexes[j + 1] = packet.Trias.Y[i];
         m_vertexes[j + 2] = packet.Trias.Z[i];
         if (!packet.Trias.Skip[i]) {
-            m_indexes.push(i - 1);
             m_indexes.push(i - 2);
+            m_indexes.push(i - 1);
             m_indexes.push(i - 0);
         }
     }
@@ -408,10 +411,170 @@ function summaryLoadWadMesh(data, wad, nodeid) {
     gr_instance.requestRedraw();
 }
 
+function parseGmdlObjectMesh(part, object, originalMeshObject) {
+    let m_indexes = [];
+
+    let streams = part.Streams;
+
+    let streamStart = object.StreamStart;
+    let streamCount = object.StreamCount;
+    let indexStart = object.IndexStart;
+    let indexCount = object.IndexCount;
+
+    let sPos = streams["POS0"].Values.slice(streamStart, streamStart + streamCount);
+    m_indexes = part.Indexes.slice(indexStart, indexStart + indexCount);
+
+    let m_vertexes = [];
+    m_vertexes.length = sPos.length * 3;
+
+    for (let i in sPos) {
+        let j = i * 3;
+        let pos = sPos[i]
+        m_vertexes[j + 0] = pos[0];
+        m_vertexes[j + 1] = pos[1];
+        m_vertexes[j + 2] = pos[2];
+    }
+
+    for (let i in m_indexes) {
+        m_indexes[i] -= streamStart;
+    }
+
+    let mesh = new grMesh(m_vertexes, m_indexes);
+
+    mesh.setMaterialID(object.TextureIndex);
+
+    if ("COL0" in streams) {
+        let sCol = streams["COL0"].Values.slice(streamStart, streamStart + streamCount);
+        let m_colors = [];
+        m_colors.length = sCol.length * 4;
+
+        for (let i in sCol) {
+            let j = i * 4;
+            let col = sCol[i];
+            m_colors[j + 0] = col[0] * 255.0;
+            m_colors[j + 1] = col[1] * 255.0;
+            m_colors[j + 2] = col[2] * 255.0;
+            m_colors[j + 3] = col[3] * 255.0;
+        }
+        mesh.setBlendColors(m_colors);
+    }
+
+    if ("TEX0" in streams) {
+        let sTex = streams["TEX0"].Values.slice(streamStart, streamStart + streamCount);
+        let m_textures = [];
+        m_textures.length = sTex.length * 2;
+
+        for (let i in sTex) {
+            let j = i * 2;
+            let tex = sTex[i];
+            m_textures[j + 0] = tex[0];
+            m_textures[j + 1] = tex[1];
+        }
+        mesh.setUVs(m_textures);
+    }
+
+    if ("BONI" in streams) {
+        let joints1 = [];
+        let joints2 = [];
+        let sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
+        joints1.length = sBoni.length;
+        for (let i in sBoni) {
+            joints1[i] = sBoni[i][0];
+            joints2[i] = sBoni[i][3];
+        }
+
+        mesh.setJointIds(object.JointsMap, joints1);
+    }
+
+    //console.log(originalMeshObject.Type, originalMeshObject);	
+    if (originalMeshObject.Type == 0x1d) {
+        mesh.setps3static(true);
+    }
+
+    return mesh;
+}
+
+function loadGmdlPartFromAjax(model, data, iPart, originalPart, table = undefined) {
+    let part = data.Models[iPart];
+    let totalMeshes = [];
+    for (let iObject in part.Objects) {
+        let object = part.Objects[iObject];
+
+        let objName = "p" + iPart + "_o" + iObject;
+
+        let originalMeshObject;
+        if (originalPart) {
+            if (originalPart.Groups.length > 1) {
+                log.error("Original part group: ", originalPart.Groups, originalPart);
+            }
+            originalMeshObject = originalPart.Groups[0].Objects[iObject];
+        }
+        let mesh = parseGmdlObjectMesh(part, object, originalMeshObject);
+
+
+        totalMeshes.push(mesh);
+        model.addMesh(mesh);
+
+        if (table) {
+            let label = $('<label>');
+            let chbox = $('<input type="checkbox" checked>');
+            let td = $('<td>').append(label);
+            chbox.click(mesh, function(ev) {
+                ev.data.setVisible(this.checked);
+                gr_instance.requestRedraw();
+            });
+            td.mouseenter([model, mesh], function(ev) {
+                ev.data[0].showExclusiveMeshes([ev.data[1]]);
+                gr_instance.requestRedraw();
+            }).mouseleave(model, function(ev, a) {
+                ev.data.showExclusiveMeshes();
+                gr_instance.requestRedraw();
+            });
+            label.append(chbox);
+            label.append("o_" + objName);
+            table.append($('<tr>').append(td));
+        }
+    }
+    return totalMeshes;
+}
+
+function loadGmdlFromAjax(model, data, originalMesh, needTable = false) {
+    // console.log(data);
+
+    let table = needTable ? $('<table>') : undefined;
+    for (let iPart in data.Models) {
+        let originalPart;
+        if (originalMesh) {
+            originalPart = originalMesh.Parts[iPart];
+        }
+        loadGmdlPartFromAjax(model, data, iPart, originalPart, table);
+    }
+    gr_instance.flushScene();
+    return table;
+}
+
+function summaryLoadWadGmdl(data, wad, nodeid) {
+    gr_instance.cleanup();
+    set3dVisible(true);
+
+    let mdl = new grModel();
+
+    let table = loadGmdlFromAjax(mdl, data, undefined, true);
+    dataSummary.append(table);
+
+    gr_instance.models.push(mdl);
+    gr_instance.requestRedraw();
+}
+
 function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
     let table = undefined;
     if (data.Meshes && data.Meshes.length) {
-        table = loadMeshFromAjax(mdl, data.Meshes[0], needTable);
+        let mesh = data.Meshes[0];
+        if (!!data.GMDL) {
+            table = loadGmdlFromAjax(mdl, data.GMDL, mesh, needTable);
+        } else {
+            table = loadMeshFromAjax(mdl, data.Meshes[0], needTable);
+        }
     }
 
     for (let iMaterial in data.Materials) {
@@ -815,6 +978,7 @@ function loadCxtFromAjax(data, parseScripts = true) {
 
         // same as above
         let instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
+        //let instMat = mat4.fromQuat(mat4.create(), rot);
 
         //console.log(inst.Object, instMat);
         //if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {

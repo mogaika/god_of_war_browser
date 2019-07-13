@@ -8,6 +8,7 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.isDepthTested = true;
     this.hasAlpha = false;
     this.isVisible = true;
+    this.ps3static = false;
 
     // construct array of unique indexes
     this.usedIndexes = [];
@@ -95,6 +96,10 @@ grMesh.prototype.setJointIds = function(jointMapping, jointIds, jointIds2) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds2);
         gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds2), gl.STATIC_DRAW);
     }
+}
+
+grMesh.prototype.setps3static = function(yes) {
+    this.ps3static = !!yes;
 }
 
 grMesh.prototype.free = function() {

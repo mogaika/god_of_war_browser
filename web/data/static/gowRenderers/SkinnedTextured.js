@@ -58,6 +58,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
     this.uUseEnvmapSampler = gl.getUniformLocation(this.program, "uUseEnvmapSampler");
     this.uUseVertexColor = gl.getUniformLocation(this.program, "uUseVertexColor");
     this.uUseModelTransform = gl.getUniformLocation(this.program, "uUseModelTransform");
+    this.uUseRootJointScaleOnly = gl.getUniformLocation(this.program, "uUseRootJointScaleOnly");
 
     this.umJoints = [];
     for (let i = 0; i < 12; i += 1) {
@@ -169,10 +170,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
         if (mdl != flash.model) {
             mdl = flash.model;
             if (mdl) {
-                gl.uniform1i(this.uUseModelTransform, 1);
                 gl.uniformMatrix4fv(this.umModelTransform, false, mdl.matrix);
-            } else {
-                gl.uniform1i(this.uUseModelTransform, 0);
             }
         }
 
@@ -197,6 +195,14 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
                     }
                 }
                 hasSkelet = true;
+                if (mesh.ps3static) {
+                    if (mesh.jointMapping.length > 1) {
+                        log.error("type ps3static problem with joint mapping", mesh);
+                    }
+                    gl.uniform1i(this.uUseRootJointScaleOnly, 1);
+                } else {
+                    gl.uniform1i(this.uUseRootJointScaleOnly, 0);
+                }
             }
         }
 
@@ -433,7 +439,7 @@ grRenderChain_SkinnedTextured.prototype.rebuildScene = function(ctrl) {
     this.skyBatchMatrix = undefined;
     this.fillFlashesFromModels(ctrl.models);
     this.fillFlashesFromModels(ctrl.helpers);
-    console.log("flashes rebuilded", this.normalBatch, this.skyBatch);
+    // console.log("flashes rebuilded", this.normalBatch, this.skyBatch);
     needRebuildScene = false;
 }
 
