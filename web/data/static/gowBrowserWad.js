@@ -1795,11 +1795,13 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     if (chrdata.Materials && chrdata.Materials.length !== 0 && chrdata.Materials[0].TextureName) {
                         let txr_name = chrdata.Materials[0].TextureName;
 
-                        if (!matmap.hasOwnProperty(txr_name)) {
-                            let material = new grMaterial();
-                            console.log(txr_name);
+                        if (!matmap.hasOwnProperty(txr_name) &&
+                            flp.Textures.hasOwnProperty(txr_name) &&
+                            flp.Textures[txr_name].Images.length !== 0 &&
+                            flp.Textures[txr_name].Images[0].hasOwnProperty('Image')) {
+                            let img = flp.Textures[txr_name].Images[0].Image;
 
-                            let img = flp.Textures[txr_name].Images[0].Image
+                            let material = new grMaterial();
 
                             let texture = new grTexture('data:image/png;base64,' + img);
                             texture.markAsFontTexture();
