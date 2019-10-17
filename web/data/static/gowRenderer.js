@@ -150,37 +150,59 @@ grModel.prototype.addMaterial = function(material) {
 }
 
 function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
-    let vrtxs = [];
+	let meshes = [];
+	let vrtxs = [];
     let indxs = [];
     let clrs = [];
-
-    vrtxs.length = 3 * sklt.length;
-    clrs.length = 4 * sklt.length;
+	let joints = [];
+	let jointsMap = [];
 
     for (let i in sklt) {
-        let joint = sklt[i];
-        vrtxs[i * 3 + 0] = joint[key][12];
-        vrtxs[i * 3 + 1] = joint[key][13];
-        vrtxs[i * 3 + 2] = joint[key][14];
-        clrs[i * 4 + 0] = (i % 8) * 15;
-        clrs[i * 4 + 1] = ((i / 8) % 8) * 15;
-        clrs[i * 4 + 2] = ((i / 64) % 8) * 15;
-        clrs[i * 4 + 3] = 127;
+		let currentJoint = sklt[i];
+		if (currentJoint.Parent < 0) {
+			continue;
+		}
 
-        if (joint.Parent >= 0) {
-            indxs.push(joint.Parent);
-            indxs.push(i);
-        }
+		for (let joint of [currentJoint, sklt[currentJoint.Parent]]) {
+			indxs.push(indxs.length);
+			vrtxs.push(joint[key][12]);
+	        vrtxs.push(joint[key][13]);
+	        vrtxs.push(joint[key][14]);
+	        clrs.push((i % 8) * 15);
+	        clrs.push(((i / 8) % 8) * 15);
+	        clrs.push(((i / 64) % 8) * 15);
+	        clrs.push(127);
+			let idx = jointsMap.indexOf(joint.Id);
+			if (idx < 0) {
+				joints.push(jointsMap.length);
+				jointsMap.push(joint.Id);
+			} else {
+				joints.push(idx);
+			}
+		}
+		
+		if (jointsMap.length > 10 || (i == sklt.length - 1 && indxs.length > 0)) {
+			let sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
+		    sklMesh.setDepthTest(false);
+		    sklMesh.setBlendColors(clrs);
+			sklMesh.setJointIds(jointsMap, joints, joints);
+			meshes.push(sklMesh);
+			console.log(vrtxs, indxs, joints, jointsMap);
+			vrtxs = [];
+			indxs = [];
+			clrs = [];
+	 		joints = [];
+	 		jointsMap = [];
+		}
     }
-
-    let sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
-    sklMesh.setDepthTest(false);
-    sklMesh.setBlendColors(clrs);
-    return sklMesh;
+	console.log(meshes);
+    return meshes;
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-    //this.addMesh(grModel__mshFromSklt(sklt));
+	for (let m of grModel__mshFromSklt(sklt)) {
+    	this.addMesh(m);
+	}
     this.matrices = [];
 
     for (let i in sklt) {
@@ -319,15 +341,12 @@ function grMaterial() {
     this.layers = [];
     this.anims = [];
 }
-
 grMaterial.prototype.addLayer = function(layer) {
     this.layers.push(layer);
 }
-
 grMaterial.prototype.setColor = function(color) {
     this.color = color;
 }
-
 grMaterial.prototype.claim = function() {
     this.refs++;
 }
@@ -336,7 +355,6 @@ grMaterial.prototype.unclaim = function() {
         this.free();
     }
 }
-
 grMaterial.prototype.free = function() {
     for (let i in this.layers) {
         this.layers[i].free();
@@ -347,10 +365,13 @@ grMaterial.prototype.free = function() {
     gr_instance.flushScene();
 }
 
-function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false) {
+function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false, charSize = 9.0) {
     this.refs = 0;
     this.position = [x, y, z];
+    this.offset = [0.0, 0.0];
+    this.textLength = 0;
     this.is3d = is3d;
+    this.charSize = charSize;
     this.color = [1, 1, 1, 1];
     this.indexesCount = 0;
     this.bufferIndexType = undefined;
@@ -358,24 +379,33 @@ function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false) {
     this.bufferIndex = gl.createBuffer();
     this.bufferUV = gl.createBuffer();
     this.setText(text);
+    this.align = [0.0, 0.0];
 }
 grTextMesh.prototype.set3d = function(is3d) {
     this.is3d = is3d;
 }
-grTextMesh.prototype.setColor = function(r, g, b, a) {
+grTextMesh.prototype.setColor = function(r, g, b, a=1.0) {
     this.color = [r, g, b, a];
+}
+grTextMesh.prototype.setOffset = function(x, y) {
+    this.offset = [x, y];
+}
+grTextMesh.prototype.getGlobalOffset = function(x, y, z) {
+    return [this.offset[0] * this.charSize, this.offset[1] * this.charSize];
 }
 grTextMesh.prototype.setPosition = function(x, y, z) {
     this.position = [x, y, z];
 }
-grTextMesh.prototype.setText = function(text, charBoxSize = 9) {
+grTextMesh.prototype.setText = function(text) {
     if (text == undefined) {
         this.bufferIndexType = undefined;
-
     }
+    
+    this.textLength = text.length;
     let vrtxs = [];
     let uvs = [];
     let indxs = [];
+    let charBoxSize = this.charSize;
     let chsz = 1 / 16; // char size in texture units
     let x = 0;
     let y = 0;
@@ -451,11 +481,9 @@ function grCameraTargeted() {
     this.distance = 100.0;
     this.rotation = [15.0, 45.0 * 3, 0];
 }
-
 grCameraTargeted.prototype.getProjectionMatrix = function() {
     return mat4.perspective(mat4.create(), glMatrix.toRadian(this.fow), gr_instance.rectX / gr_instance.rectY, this.nearPlane, this.farPlane);
 }
-
 grCameraTargeted.prototype.getViewMatrix = function() {
     let viewMatrix = mat4.create();
     mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -this.distance]);
@@ -464,11 +492,9 @@ grCameraTargeted.prototype.getViewMatrix = function() {
     mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[2]), [0, 0, 1]);
     return mat4.translate(viewMatrix, viewMatrix, [-this.target[0], -this.target[1], -this.target[2]]);
 }
-
 grCameraTargeted.prototype.getProjViewMatrix = function() {
     return mat4.mul(mat4.create(), this.getProjectionMatrix(), this.getViewMatrix());
 }
-
 grCameraTargeted.prototype.onMouseWheel = function(delta) {
     let resizeDelta = Math.sqrt(this.distance) * delta * 0.01;
     this.distance -= resizeDelta * 2;
@@ -476,7 +502,6 @@ grCameraTargeted.prototype.onMouseWheel = function(delta) {
         this.distance = 1.0;
     gr_instance.requestRedraw();
 }
-
 grCameraTargeted.prototype.onMouseMove = function(btns, moveDelta) {
     if (btns[0]) {
         this.rotation[1] += moveDelta[0] * 0.2;
@@ -497,13 +522,11 @@ function grCameraInterface() {
 }
 grCameraInterface.prototype = Object.create(grCameraTargeted.prototype);
 grCameraInterface.prototype.constructor = grCameraInterface;
-
 grCameraInterface.prototype.getProjectionMatrix = function() {
     let w = gr_instance.rectX * this.distance * 0.004;
     let h = gr_instance.rectY * this.distance * 0.004;
     return mat4.ortho(mat4.create(), -w, w, h, -h, this.nearPlane, this.farPlane);
 }
-
 grCameraInterface.prototype.onMouseMove = function(btns, moveDelta) {
     this.target[0] += moveDelta[0] * this.distance * 0.01;
     this.target[1] += moveDelta[1] * this.distance * 0.01;
@@ -585,33 +608,18 @@ function grController(viewDomObject) {
     this.setInterfaceCameraMode();
     $(window).resize(this._onResize);
 }
-
-function gwInitRenderer(viewDomObject) {
-    if (gr_instance) {
-        console.warn("grController already created", gr_instance);
-        return;
-    }
-    gr_instance = new grController(viewDomObject);
-    gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
-    gr_instance.onResize();
-    gr_instance.initFrameCallback();
-}
-
 grController.prototype.flushScene = function() {
     this.renderChain.flushScene(this);
 }
-
 grController.prototype.setInterfaceCameraMode = function(is3d) {
     this.camera = (!!is3d) ? this.cameraInterface : this.cameraModels;
 }
-
 grController.prototype.changeRenderChain = function(chainType) {
     if (this.renderChain)
         this.renderChain.free();
     this.renderChain = new chainType(this);
     this.flushScene();
 }
-
 grController.prototype.onResize = function() {
     gl.canvas.width = this.rectX = gl.canvas.clientWidth;
     gl.canvas.height = this.rectY = gl.canvas.clientHeight;
@@ -622,7 +630,6 @@ grController.prototype._onResize = function() {
     gr_instance.onResize();
     gr_instance.requestRedraw();
 }
-
 grController.prototype.render = function() {
     if (this.requireRedraw) {
         let glError = gl.getError();
@@ -638,11 +645,9 @@ grController.prototype.render = function() {
         this.requireRedraw = false;
     }
 }
-
 grController.prototype.requestRedraw = function() {
     this.requireRedraw = true;
 }
-
 grController.prototype.animationFrameCallback = function() {
     if (typeof ga_instance !== "undefined" && ga_instance) {
         ga_instance.update();
@@ -650,13 +655,11 @@ grController.prototype.animationFrameCallback = function() {
     this.render();
     this.initFrameCallback();
 }
-
 grController.prototype.initFrameCallback = function() {
     requestAnimationFrame(function() {
         gr_instance.animationFrameCallback();
     });
 }
-
 grController.prototype.destroyModels = function() {
     for (let i in this.models) {
         this.models[i].free(this);
@@ -664,7 +667,6 @@ grController.prototype.destroyModels = function() {
     this.models.length = 0;
     this.flushScene();
 }
-
 grController.prototype.destroyTexts = function() {
     for (let i in this.texts) {
         this.texts[i].free(this);
@@ -672,12 +674,10 @@ grController.prototype.destroyTexts = function() {
     this.texts.length = 0;
     this.flushScene();
 }
-
 grController.prototype.cleanup = function() {
     this.destroyTexts();
     this.destroyModels();
 }
-
 grController.prototype.downloadFile = function(link, async) {
     let txt;
     $.ajax({
@@ -689,7 +689,6 @@ grController.prototype.downloadFile = function(link, async) {
     });
     return txt;
 }
-
 grController.prototype.createShader = function(text, isFragment) {
     let shader = gl.createShader(isFragment ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER);
     gl.shaderSource(shader, text);
@@ -700,7 +699,6 @@ grController.prototype.createShader = function(text, isFragment) {
     }
     return shader;
 }
-
 grController.prototype.createProgram = function(vertexShader, fragmentShader) {
     let shaderProgram = gl.createProgram();
     gl.attachShader(shaderProgram, vertexShader);
@@ -713,9 +711,19 @@ grController.prototype.createProgram = function(vertexShader, fragmentShader) {
     }
     return shaderProgram;
 }
-
 grController.prototype.downloadShader = function(link, isFragment) {
     let text = this.downloadFile(link, false);
     if (text)
         return this.createShader(text, isFragment);
+}
+
+function gwInitRenderer(viewDomObject) {
+    if (gr_instance) {
+        console.warn("grController already created", gr_instance);
+        return;
+    }
+    gr_instance = new grController(viewDomObject);
+    gr_instance.changeRenderChain(grRenderChain_SkinnedTextured);
+    gr_instance.onResize();
+    gr_instance.initFrameCallback();
 }

@@ -1,5 +1,9 @@
 package anm
 
+import (
+	"math/bits"
+)
+
 type DataBitMap struct {
 	PairedElementsCount uint8    // count of 1 bits in entire words array
 	DataOffset          uint16   // offset to element
@@ -23,6 +27,8 @@ type AnimStateSubstream struct {
 	Samples map[int]interface{}
 }
 
+var defaultDataBitMap = []byte{01, 01, 00, 00, 01, 00, 00, 00}
+
 func NewDataBitMapFromBuf(b []byte) DataBitMap {
 	dbm := DataBitMap{
 		PairedElementsCount: b[1],
@@ -33,6 +39,19 @@ func NewDataBitMapFromBuf(b []byte) DataBitMap {
 		dbm.Bitmap[i] = u16(b, uint32(4+i*2))
 	}
 	return dbm
+}
+
+func (dbm *DataBitMap) Iterate(f func(bitIndex, iteration int)) {
+	iteration := 0
+	for iBitMapWord, bitMapWord := range dbm.Bitmap {
+		for bitmask := bitMapWord; bitmask != 0; {
+			// take lowest bit index, indexation from zero (if zero, then lowest bit was 1 and so)
+			bitIndex := bits.TrailingZeros16(bitmask)
+			bitmask = bitmaskZeroBitsShift(bitmask)
+			f(iBitMapWord*16+bitIndex, iteration)
+			iteration++
+		}
+	}
 }
 
 type AnimSamplesManager struct {
