@@ -10,8 +10,6 @@ type AnimState8Texturepos struct {
 	DataBitMap DataBitMap
 }
 
-var defaultDataBitMap = []byte{01, 01, 00, 00, 01, 00, 00, 00}
-
 func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *AnimState8Texturepos {
 	stateBuf := buf[index*0xc:]
 
