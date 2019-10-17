@@ -189,7 +189,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
                     }
                     let jointId = mesh.jointMapping[i];
                     if (jointId >= mdl.matrices.length) {
-                        //console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.matrices.length);
+                        console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.matrices.length);
                     } else {
                         gl.uniformMatrix4fv(this.umJoints[i], false, mdl.matrices[jointId]);
                     }
@@ -305,13 +305,15 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
             let pos2d = vec3.transformMat4(vec3.create(), pos3d, projViewMat);
             if (pos2d[2] < 1) {
                 let pos = [(pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth, (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight, 0];
-                mat = mat4.translate(mat4.create(), mat, pos);
+                mat = mat4.translate(mat, mat, pos);
             } else {
                 isVisible = false;
             }
         } else {
-            mat = mat4.translate(mat4.create(), mat, text.position);
+            mat = mat4.translate(mat, mat, text.position);
         }
+        let globOffset = text.getGlobalOffset();
+        mat = mat4.translate(mat, mat, [globOffset[0], globOffset[1], 0.0]);
 
         if (isVisible) {
             gl.uniformMatrix4fv(this.umModelTransform, false, mat);
