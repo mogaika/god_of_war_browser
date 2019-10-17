@@ -75,7 +75,6 @@ $(document).ready(function() {
                     gr_instance.models.push(mdl);
                 }
 
-
                 x += glyph.Width;
             }
 

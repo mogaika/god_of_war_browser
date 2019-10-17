@@ -65,7 +65,6 @@ func (gh GlobalHandler) MarshalJSON() ([]byte, error) {
 	return json.Marshal(currentFlpInstance.GlobalHandlersIndexes[gh])
 }
 
-// Mesh instance linkage?
 type GlobalHandlerIndex struct {
 	TypeArrayId       uint16
 	IdInThatTypeArray uint16
@@ -122,11 +121,13 @@ type DynamicLabel struct {
 	Unk01e            uint16
 }
 
+// Screen with input handlers
 type Data6 struct {
 	Sub1  Data6Subtype1
 	Sub2s []Data6Subtype2
 }
 
+// Screen
 type Data6Subtype1 struct {
 	TotalFramesCount  uint16
 	ElementsAnimation []ElementAnimation
@@ -162,6 +163,21 @@ type Data6Subtype1Subtype2Subtype1 struct {
 }
 
 type Data6Subtype2 struct {
+	// 16     5      back (o)
+	// 32     5      'FSCommand:PS2_BonusScroll' command '7'
+	// 64     5      select (x)
+	// 128    5      'FSCommand:PS2_BonusScroll' command '6'o
+	// 4096   5      up OpeningUp
+	// 8192   5      right CostumesRight
+	// 16384  5      down OpeningDown
+	// 16384  5      'FSCommand:PS2_BonusScroll' command '2'
+	// 16384  9      'FSCommand:PS2_BonusScroll' command '3'
+	// 32768  5      left CostumesLeft
+	// 65536  5      up OpeningUp
+	// 131072 5      right CostumesRight
+	// 262144 5      down OpeningDown
+	// 524288 5      left CostumesLeft
+
 	EventKeysMask    uint32
 	EventUnkMask     uint16
 	Script           *Script

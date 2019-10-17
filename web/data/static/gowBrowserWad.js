@@ -1373,13 +1373,59 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             'Static label', 'Dynamic label', 'Data6', 'Data7',
             'Root', 'Transform', 'Color'
         ];
+
         let element_view = function(h) {
+            let get_obj_arr_by_id = function(t) {
+                switch (t) {
+                    case 1:
+                        return flpdata.MeshPartReferences;
+                        break;
+                    case 3:
+                        return flpdata.Fonts;
+                        break;
+                    case 4:
+                        return flpdata.StaticLabels;
+                        break;
+                    case 5:
+                        return flpdata.DynamicLabels;
+                        break;
+                    case 6:
+                        return flpdata.Datas6;
+                        break;
+                    case 7:
+                        return flpdata.Datas7;
+                        break;
+                    case 9:
+                        return flpdata.Transformations;
+                        break;
+                    case 10:
+                        return flpdata.BlendColors;
+                        break;
+                };
+                return undefined;
+            };
+
+            let get_obj_by_handler = function(h) {
+                if (h.TypeArrayId == 8) {
+                    return flpdata.Data8;
+                } else {
+                    let arr = get_obj_arr_by_id(h.TypeArrayId);
+                    if (arr) {
+                        return arr[h.IdInThatTypeArray];
+                    } else {
+                        return undefined;
+                    }
+                }
+            }
+
             $data_element.empty();
             if (h == undefined) {
                 h = flp_obj_view_history[0];
             } else {
                 flp_obj_view_history.unshift(h);
-            } {
+            }
+
+            {
                 $history_element.empty();
                 $history_element.append($("<span>").text("History: ").css('padding', '6px'));
                 let new_history = [h];
@@ -1409,44 +1455,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 }
             }
 
-            let get_obj_by_handler = function(h) {
-                switch (h.TypeArrayId) {
-                    //case 1: return flpdata.GlobalHandlersIndexes[h.IdInThatTypeArray]; break;
-                    case 1:
-                        return flpdata.MeshPartReferences[h.IdInThatTypeArray];
-                        break;
-                    case 2:
-                        console.error("UNKNOWN element");
-                        break;
-                    case 3:
-                        return flpdata.Fonts[h.IdInThatTypeArray];
-                        break;
-                    case 4:
-                        return flpdata.StaticLabels[h.IdInThatTypeArray];
-                        break;
-                    case 5:
-                        return flpdata.DynamicLabels[h.IdInThatTypeArray];
-                        break;
-                    case 6:
-                        return flpdata.Datas6[h.IdInThatTypeArray];
-                        break;
-                    case 7:
-                        return flpdata.Datas7[h.IdInThatTypeArray];
-                        break;
-                    case 8:
-                        return flpdata.Data8;
-                        break;
-                    case 9:
-                        return flpdata.Transformations[h.IdInThatTypeArray];
-                        break;
-                    case 10:
-                        return flpdata.BlendColors[h.IdInThatTypeArray];
-                        break;
-                    default:
-                        return undefined;
-                        break;
-                }
-            }
             let obj = get_obj_by_handler(h);
 
             let _row = function() {
@@ -1512,10 +1520,21 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             }
 
             let print_data6 = function() {
-                let $data6_table = print_data6_subtype1(obj.Sub1);
-                let $events_table = $("<table>");
+                print_data6_subtype1(obj.Sub1);
+                let $events = $("<div>");
 
-                $data_table.append(_row(_column($data6_table)), _row(_column($events_table)));
+                let $events_table = $("<table>");
+                for (let i in obj.Sub2s) {
+                    let ev = obj.Sub2s[i]
+                    let $event_table = $("<table>");
+                    $event_table.append(
+                        _row(_column("Mask"), _column(ev.EventKeysMask)),
+                        _row(_column("Mask2"), _column(ev.EventUnkMask)),
+                        _row(_column("Script"), _column(print_script(ev.Script))),
+                    );
+                    $events_table.append(_row(_column("event" + i), _column($event_table)));
+                }
+                $data_table.append(_row(_column("events"), _column($events_table)));
             }
 
             let print_data6_subtype1 = function(obj) {
@@ -1644,6 +1663,9 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
             let get_parents = function(child_h) {
                 let parents = [];
+                if (child_h.TypeArrayId == 8) {
+                    return parents;
+                }
                 let check_parenting = function(parent, h) {
                     if (h.IdInThatTypeArray == child_h.IdInThatTypeArray && h.TypeArrayId == child_h.TypeArrayId) {
                         let already = false;
@@ -1657,34 +1679,31 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                         }
                     }
                 }
-                for (let i in flpdata.GlobalHandlersIndexes) {
-                    let h = flpdata.GlobalHandlersIndexes[i];
-                    let o = get_obj_by_handler(h);
-
-                    let parse_parenting_data6_sub1 = function(o) {
-                        for (let i in o.ElementsAnimation) {
-                            let anim = o.ElementsAnimation[i];
-                            for (let j in anim.KeyFrames) {
-                                let frame = anim.KeyFrames[j];
-                                check_parenting(h, frame.ElementHandler);
-                                check_parenting(h, {
-                                    TypeArrayId: 9,
-                                    IdInThatTypeArray: frame.TransformationId
-                                });
-                                check_parenting(h, {
-                                    TypeArrayId: 10,
-                                    IdInThatTypeArray: frame.ColorId
-                                });
-                            }
+                let parse_parenting_data6_sub1 = function(h, o) {
+                    for (let anim of o.ElementsAnimation) {
+                        for (let frame of anim.KeyFrames) {
+                            check_parenting(h, frame.ElementHandler);
+                            check_parenting(h, {
+                                TypeArrayId: 9,
+                                IdInThatTypeArray: frame.TransformationId
+                            });
+                            check_parenting(h, {
+                                TypeArrayId: 10,
+                                IdInThatTypeArray: frame.ColorId
+                            });
                         }
                     }
+                }
+                for (let h of flpdata.GlobalHandlersIndexes) {
+                    let o = get_obj_by_handler(h);
+
                     switch (h.TypeArrayId) {
                         case 4:
-                            for (let j in o.RenderCommandsList) {
-                                if (o.RenderCommandsList[j].Flags & 8 != 0) {
+                            for (let rc of o.RenderCommandsList) {
+                                if (rc.Flags & 8 != 0) {
                                     check_parenting(h, {
                                         TypeArrayId: 3,
-                                        IdInThatTypeArray: o.RenderCommandsList[j].FontHandler
+                                        IdInThatTypeArray: rc.FontHandler
                                     });
                                 }
                             }
@@ -1693,25 +1712,25 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                             check_parenting(h, o.FontHandler);
                             break;
                         case 6:
-                            check_parenting(h, {
-                                TypeArrayId: 3,
-                                IdInThatTypeArray: o.FontHandler
-                            });
+                            parse_parenting_data6_sub1(h, o.Sub1);
                             break;
                         case 7:
-                            parse_parenting_data6_sub1(o);
+                            parse_parenting_data6_sub1(h, o);
                             break;
                         case 8:
-                            parse_parenting_data6_sub1(o);
+                            parse_parenting_data6_sub1(h, o);
                             break;
                     }
                 }
+                parse_parenting_data6_sub1({
+                    TypeArrayId: 8,
+                    IdInThatTypeArray: 0
+                }, flpdata.Data8);
                 return parents;
             }
 
             console.log(obj);
             let $table = $("<table>");
-
 
             let $header = $("<span>").text(" Viewing object " + objNamesArray[h.TypeArrayId] + "[" + h.IdInThatTypeArray + "]");
 
@@ -1737,10 +1756,32 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             } else {
                 $table.append(_row(_column("parents"), _column("no parents found")));
             }
+
+            if (h.TypeArrayId != 8) {
+                let $nav_row = _row();
+                let arr = get_obj_arr_by_id(h.TypeArrayId);
+                if (h.IdInThatTypeArray > 0 || h.IdInThatTypeArray + 1 < arr.length) {
+                    if (h.IdInThatTypeArray > 0) {
+                        $nav_row.append(_column("Prev:"));
+                        $nav_row.append(_column(print_ref_handler({
+                            TypeArrayId: h.TypeArrayId,
+                            IdInThatTypeArray: h.IdInThatTypeArray - 1,
+                        })));
+                    }
+                    if (h.IdInThatTypeArray + 1 < arr.length) {
+                        $nav_row.append(_column("Next:"));
+                        $nav_row.append(_column(print_ref_handler({
+                            TypeArrayId: h.TypeArrayId,
+                            IdInThatTypeArray: h.IdInThatTypeArray + 1,
+                        })));
+                    }
+                    $table.append(_row(_column("nav"), _column($("<table>").append($nav_row))));
+                }
+            }
+
             $table.append(_row(_column($data_table).attr('colspan', colums_cnt + 1)));
             $data_element.append($table);
-            console.log($('#view-item-container'));
-            $('#view-item-container').animate({
+            $('#view-summary .view-item-container').animate({
                 scrollTop: 0
             }, 200);
         }
