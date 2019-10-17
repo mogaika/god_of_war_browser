@@ -77,8 +77,10 @@ function treeLoadWadAsNodes(wadName, data) {
             $("#view-tree ol li").each(function(i, node) {
                 gw_cxt_group_loading = true;
                 let $node = $(node);
-                if ($node.attr("nodename").startsWith("CXT_")) {
-                    treeLoadWadNode(wadName, $node.attr("nodeid"));
+                if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("PS")) {
+                    treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
+                } else if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("CXT_")) {
+	                treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
                 }
             });
         }
@@ -126,7 +128,7 @@ function treeLoadWadAsTags(wadName, data) {
     });
 }
 
-function treeLoadWadNode(wad, tagid) {
+function treeLoadWadNode(wad, tagid, filterServerId=undefined) {
     dataSummary.empty();
     dataSummarySelectors.empty();
     set3dVisible(false);
@@ -150,6 +152,11 @@ function treeLoadWadNode(wad, tagid) {
             }
 
             if (tag.Tag == 0x1e || tag.Tag == 1) {
+            	if (filterServerId) {
+					if (resp.ServerId != filterServerId) {
+						return;
+					}
+				}
                 switch (resp.ServerId) {
                     case 0x00000021: // flp
                         summaryLoadWadFlp(data, wad, tagid);
@@ -158,6 +165,20 @@ function treeLoadWadNode(wad, tagid) {
                     case 0x00040018: // sbk vag
                         summaryLoadWadSbk(data, wad, tagid);
                         needMarshalDump = true;
+                        break;
+                    case 0x00000006: // light
+                        if (gw_cxt_group_loading) {
+							let pos = data.Position;
+							let color = data.Color;
+
+							let lightName = new grTextMesh("\x0f" + tag.Name, pos[0], pos[1], pos[2], true);
+							lightName.setColor(color[0], color[1], color[2]);
+							lightName.setOffset(-0.5, -0.5);
+			                gr_instance.texts.push(lightName);
+						} else {
+							needMarshalDump = true;
+                        	needHexDump = true;
+						}
                         break;
                     case 0x00000007: // txr
                         summaryLoadWadTxr(data, wad, tagid);
@@ -841,7 +862,8 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
                 let pos = mat4.getTranslation(vec3.create(), mat);
 
                 let radius = entity.Matrix[0];
-                let text3d = new grTextMesh(entity.Name, pos[0], pos[1], pos[2], true);
+                let text3d = new grTextMesh("\x05" + entity.Name, pos[0], pos[1], pos[2], true);
+                text3d.setOffset(-0.5, -0.5);
 
                 //let mdl = new grModel();
                 //mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));

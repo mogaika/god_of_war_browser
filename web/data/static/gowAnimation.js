@@ -191,8 +191,12 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
             let inverseBindMat = obj.Matrixes3[joint.InvId];
             result = mat4.mul(mat4.create(), global, inverseBindMat);
         }
-
-        mdl.setJointMatrix(i, result);
+		if ((joint.Flags & 0x8) != 0) {
+        	//mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
+			console.warn("joint flags 0x8: ", joint.Name, joint);
+			result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
+		}
+		mdl.setJointMatrix(i, result);
     }
 }
 
@@ -235,7 +239,7 @@ function animationReturnStreamData(manager, globalManager, animNextTime, frameTi
     }
 }
 
-function animationHandleRotationStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots) {
+function animationHandleRotationStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l=false) {
     const eps = 1.0 / (1024.0 * 16.0);
     // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
@@ -251,7 +255,6 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
     //console.info(newSamplePos, stream.Samples.hasOwnProperty(-100));
     if (stream.Samples.hasOwnProperty(-100)) {
         // additive change
-        let multiplyerArray = stream.Samples[-100];
         let newValueMultiplyer = newSampleOffset; // by default add as much as we shoul
 
         let prevValueMultiplyer, prevSampleIndex;
@@ -280,35 +283,24 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
             changed = true;
             let jointId = parseInt(iStream / 4);
             let coord = parseInt(iStream) % 4;
-            let shiftAmount = multiplyerArray[iStream];
-            if (shiftAmount > 9 || shiftAmount < -9) {
-                console.error("Innormal shift amount values ", shiftAmount, "from array", multiplyerArray, "global", globalManager == stream.Manager,
-                    "jointId", jointId, "coord", coord);
-            }
-            let shiftMultiplyer = (shiftAmount <= 0) ? (1 << (-shiftAmount)) : (1.0 / (1 << shiftAmount));
 
             let value = jointLocalRots[jointId][coord];
             let prevSampleValue;
 
             if (prevValueMultiplyer !== undefined) {
                 prevSampleValue = stream.Samples[iStream][prevSampleIndex];
-                value += prevSampleValue * prevValueMultiplyer * shiftMultiplyer;
+                value += prevSampleValue * prevValueMultiplyer;
             }
 
             // TODO: add cycle that will add missed samples values (fast forward case)
             let newSampleValue = stream.Samples[iStream][newSampleIndex];
-            value += newSampleValue * newValueMultiplyer * shiftMultiplyer;
+            value += newSampleValue * newValueMultiplyer;
 
             let prevVal = jointLocalRots[jointId][coord];
-            //if (jointId == 8) {
-            //console.log(jointId, coord,
-            //		"psp", prevSamplePos, "nsp", newSamplePos,
-            //		"psv", prevSampleValue, "nsv", newSampleValue,
-            //		"pv", prevVal, "nv", value,
-            //		"sa", shiftAmount, "sm", shiftMultiplyer, "ma", multiplyerArray);		
-            //}
-
-            jointLocalRots[jointId][coord] = value;
+			jointLocalRots[jointId][coord] = value;
+			
+            //if (!l) jointLocalRots[jointId][coord] = value;
+			//if (l) console.log("add", prevVal, coord, value);
         }
     } else {
         // exact change
@@ -328,6 +320,7 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
             }
             let prevVal = jointLocalRots[jointId][coord];
             jointLocalRots[jointId][coord] = value;
+			//if (l) { console.log("raw", prevVal, coord); }
             //console.log(jointId, coord,
             //		"pv", prevVal, "nv", value, "rnv", jointLocalRots[jointId][coord]);	
         }
@@ -382,26 +375,22 @@ gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
 
             if (globalPositionStream.Manager.Count) {
                 let stream = globalPositionStream;
-                let samplePos = animationReturnStreamData(stream.Manager, stream.Manager, newTime, stateDesc.FrameTime);
-                if (samplePos == undefined) {
-                    continue;
+                if (animationHandleRotationStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                    changed = true;
+                }
+            } else {
+                for (let iAdditiveSample in data.PositionSubStreamsAdd) {
+                    let stream = data.PositionSubStreamsAdd[iAdditiveSample];
+                    if (animationHandleRotationStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                        changed = true;
+                    }
                 }
 
-                let sampleNextIndex = Math.ceil(samplePos);
-                let samplePrevIndex = Math.floor(samplePos);
-                let sampleBlendCoof = samplePos - samplePrevIndex;
-
-                for (let iStream in stream.Samples) {
-                    changed = true;
-
-                    let jointId = parseInt(iStream / 4);
-                    let coord = parseInt(iStream) % 4;
-
-                    let prevVal = stream.Samples[iStream][samplePrevIndex];
-                    let nextVal = stream.Samples[iStream][sampleNextIndex];
-
-                    this.jointLocalPos[jointId][coord] = (nextVal - prevVal) * sampleBlendCoof + prevVal;
-                    statAnimPosRaw++;
+                for (let iRoughSample in data.PositionSubStreamsRough) {
+                    let stream = data.PositionSubStreamsRough[iRoughSample];
+                    if (animationHandleRotationStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                        changed = true;
+                    }
                 }
             }
         }
