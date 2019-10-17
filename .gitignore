@@ -8,3 +8,6 @@
 
 /god_of_war_browser
 /logs
+/vendor
+/*.log
+
