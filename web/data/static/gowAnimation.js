@@ -191,12 +191,12 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
             let inverseBindMat = obj.Matrixes3[joint.InvId];
             result = mat4.mul(mat4.create(), global, inverseBindMat);
         }
-		if ((joint.Flags & 0x8) != 0) {
-        	//mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
-			console.warn("joint flags 0x8: ", joint.Name, joint);
-			result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
-		}
-		mdl.setJointMatrix(i, result);
+        if ((joint.Flags & 0x8) != 0) {
+            //mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
+            console.warn("joint flags 0x8: ", joint.Name, joint);
+            result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
+        }
+        mdl.setJointMatrix(i, result);
     }
 }
 
@@ -239,7 +239,7 @@ function animationReturnStreamData(manager, globalManager, animNextTime, frameTi
     }
 }
 
-function animationHandleRotationStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l=false) {
+function animationHandleRotationStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l = false) {
     const eps = 1.0 / (1024.0 * 16.0);
     // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
@@ -297,10 +297,10 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
             value += newSampleValue * newValueMultiplyer;
 
             let prevVal = jointLocalRots[jointId][coord];
-			jointLocalRots[jointId][coord] = value;
-			
+            jointLocalRots[jointId][coord] = value;
+
             //if (!l) jointLocalRots[jointId][coord] = value;
-			//if (l) console.log("add", prevVal, coord, value);
+            //if (l) console.log("add", prevVal, coord, value);
         }
     } else {
         // exact change
@@ -320,7 +320,7 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
             }
             let prevVal = jointLocalRots[jointId][coord];
             jointLocalRots[jointId][coord] = value;
-			//if (l) { console.log("raw", prevVal, coord); }
+            //if (l) { console.log("raw", prevVal, coord); }
             //console.log(jointId, coord,
             //		"pv", prevVal, "nv", value, "rnv", jointLocalRots[jointId][coord]);	
         }
