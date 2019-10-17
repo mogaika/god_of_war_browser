@@ -80,7 +80,7 @@ function treeLoadWadAsNodes(wadName, data) {
                 if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("PS")) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
                 } else if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("CXT_")) {
-	                treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
+                    treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
                 }
             });
         }
@@ -128,7 +128,7 @@ function treeLoadWadAsTags(wadName, data) {
     });
 }
 
-function treeLoadWadNode(wad, tagid, filterServerId=undefined) {
+function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
     dataSummary.empty();
     dataSummarySelectors.empty();
     set3dVisible(false);
@@ -152,11 +152,11 @@ function treeLoadWadNode(wad, tagid, filterServerId=undefined) {
             }
 
             if (tag.Tag == 0x1e || tag.Tag == 1) {
-            	if (filterServerId) {
-					if (resp.ServerId != filterServerId) {
-						return;
-					}
-				}
+                if (filterServerId) {
+                    if (resp.ServerId != filterServerId) {
+                        return;
+                    }
+                }
                 switch (resp.ServerId) {
                     case 0x00000021: // flp
                         summaryLoadWadFlp(data, wad, tagid);
@@ -168,17 +168,17 @@ function treeLoadWadNode(wad, tagid, filterServerId=undefined) {
                         break;
                     case 0x00000006: // light
                         if (gw_cxt_group_loading) {
-							let pos = data.Position;
-							let color = data.Color;
+                            let pos = data.Position;
+                            let color = data.Color;
 
-							let lightName = new grTextMesh("\x0f" + tag.Name, pos[0], pos[1], pos[2], true);
-							lightName.setColor(color[0], color[1], color[2]);
-							lightName.setOffset(-0.5, -0.5);
-			                gr_instance.texts.push(lightName);
-						} else {
-							needMarshalDump = true;
-                        	needHexDump = true;
-						}
+                            let lightName = new grTextMesh("\x0f" + tag.Name, pos[0], pos[1], pos[2], true);
+                            lightName.setColor(color[0], color[1], color[2]);
+                            lightName.setOffset(-0.5, -0.5);
+                            gr_instance.texts.push(lightName);
+                        } else {
+                            needMarshalDump = true;
+                            needHexDump = true;
+                        }
                         break;
                     case 0x00000007: // txr
                         summaryLoadWadTxr(data, wad, tagid);

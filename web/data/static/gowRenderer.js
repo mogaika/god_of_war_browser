@@ -150,59 +150,59 @@ grModel.prototype.addMaterial = function(material) {
 }
 
 function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
-	let meshes = [];
-	let vrtxs = [];
+    let meshes = [];
+    let vrtxs = [];
     let indxs = [];
     let clrs = [];
-	let joints = [];
-	let jointsMap = [];
+    let joints = [];
+    let jointsMap = [];
 
     for (let i in sklt) {
-		let currentJoint = sklt[i];
-		if (currentJoint.Parent < 0) {
-			continue;
-		}
+        let currentJoint = sklt[i];
+        if (currentJoint.Parent < 0) {
+            continue;
+        }
 
-		for (let joint of [currentJoint, sklt[currentJoint.Parent]]) {
-			indxs.push(indxs.length);
-			vrtxs.push(joint[key][12]);
-	        vrtxs.push(joint[key][13]);
-	        vrtxs.push(joint[key][14]);
-	        clrs.push((i % 8) * 15);
-	        clrs.push(((i / 8) % 8) * 15);
-	        clrs.push(((i / 64) % 8) * 15);
-	        clrs.push(127);
-			let idx = jointsMap.indexOf(joint.Id);
-			if (idx < 0) {
-				joints.push(jointsMap.length);
-				jointsMap.push(joint.Id);
-			} else {
-				joints.push(idx);
-			}
-		}
-		
-		if (jointsMap.length > 10 || (i == sklt.length - 1 && indxs.length > 0)) {
-			let sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
-		    sklMesh.setDepthTest(false);
-		    sklMesh.setBlendColors(clrs);
-			sklMesh.setJointIds(jointsMap, joints, joints);
-			meshes.push(sklMesh);
-			console.log(vrtxs, indxs, joints, jointsMap);
-			vrtxs = [];
-			indxs = [];
-			clrs = [];
-	 		joints = [];
-	 		jointsMap = [];
-		}
+        for (let joint of [currentJoint, sklt[currentJoint.Parent]]) {
+            indxs.push(indxs.length);
+            vrtxs.push(joint[key][12]);
+            vrtxs.push(joint[key][13]);
+            vrtxs.push(joint[key][14]);
+            clrs.push((i % 8) * 15);
+            clrs.push(((i / 8) % 8) * 15);
+            clrs.push(((i / 64) % 8) * 15);
+            clrs.push(127);
+            let idx = jointsMap.indexOf(joint.Id);
+            if (idx < 0) {
+                joints.push(jointsMap.length);
+                jointsMap.push(joint.Id);
+            } else {
+                joints.push(idx);
+            }
+        }
+
+        if (jointsMap.length > 10 || (i == sklt.length - 1 && indxs.length > 0)) {
+            let sklMesh = new grMesh(vrtxs, indxs, gl.LINES);
+            sklMesh.setDepthTest(false);
+            sklMesh.setBlendColors(clrs);
+            sklMesh.setJointIds(jointsMap, joints, joints);
+            meshes.push(sklMesh);
+            console.log(vrtxs, indxs, joints, jointsMap);
+            vrtxs = [];
+            indxs = [];
+            clrs = [];
+            joints = [];
+            jointsMap = [];
+        }
     }
-	console.log(meshes);
+    console.log(meshes);
     return meshes;
 }
 
 grModel.prototype.loadSkeleton = function(sklt) {
-	for (let m of grModel__mshFromSklt(sklt)) {
-    	this.addMesh(m);
-	}
+    for (let m of grModel__mshFromSklt(sklt)) {
+        this.addMesh(m);
+    }
     this.matrices = [];
 
     for (let i in sklt) {
@@ -384,7 +384,7 @@ function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false, charSiz
 grTextMesh.prototype.set3d = function(is3d) {
     this.is3d = is3d;
 }
-grTextMesh.prototype.setColor = function(r, g, b, a=1.0) {
+grTextMesh.prototype.setColor = function(r, g, b, a = 1.0) {
     this.color = [r, g, b, a];
 }
 grTextMesh.prototype.setOffset = function(x, y) {
@@ -400,7 +400,7 @@ grTextMesh.prototype.setText = function(text) {
     if (text == undefined) {
         this.bufferIndexType = undefined;
     }
-    
+
     this.textLength = text.length;
     let vrtxs = [];
     let uvs = [];
