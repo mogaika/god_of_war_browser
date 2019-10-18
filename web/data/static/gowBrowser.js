@@ -241,6 +241,17 @@ function treeLoadWad(wadName, data) {
     }
 }
 
+function inputAsRenderMask(selector, bitIndex) {
+    let $input = $(selector);
+    let bit = 1 << bitIndex;
+
+    $input[0].checked = (localStorage.getItem(selector) == "true");
+    $input.change(function() {
+        gr_instance.setFilterMask((gr_instance.filterMask & (~bit)) | (this.checked ? bit : 0));
+        localStorage.setItem(selector, this.checked);
+    })
+}
+
 $(document).ready(function() {
     viewPack = $('#view-pack');
     viewTree = $('#view-tree');
@@ -258,6 +269,12 @@ $(document).ready(function() {
     var itemFilter = localStorage.getItem('item-filter');
     $('#view-pack-filter').on('input', treePackInputFilterHandler).val(packFilter ? packFilter : '.wad');
     $('#view-item-filter').on('input', treeItemInputFilterHandler).val(itemFilter ? itemFilter : '');
+
+    inputAsRenderMask("#view-3d-config input#show-skeleton-ids", 1);
+    inputAsRenderMask("#view-3d-config input#show-skeleton", 2);
+    inputAsRenderMask("#view-3d-config input#show-entity", 3);
+    inputAsRenderMask("#view-3d-config input#show-collision", 4);
+    inputAsRenderMask("#view-3d-config input#show-light", 5);
 
     var urlParts = decodeURI(window.location.hash).split("/");
     if (urlParts.length > 1) {

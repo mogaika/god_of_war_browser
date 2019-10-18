@@ -119,6 +119,11 @@ func (p *Part) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Logg
 	b := allb[pos:]
 	p.Offset = pos
 	p.Unk00 = binary.LittleEndian.Uint16(b[:])
+	if p.Unk00 != 1 {
+		// usually 1, but can vary [0x1:0x10] PAND01A.WAD => WoodPlanks04GP1
+		// return fmt.Errorf("Unknown Unk00: 0x%x", p.Unk00)
+	}
+
 	p.Groups = make([]Group, binary.LittleEndian.Uint16(b[2:]))
 	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+PART_GOW1_HEADER_SIZE:])
 	exlog.Printf("    | unk00: 0x%.4x jointid: %d groups count: %v", p.Unk00, p.JointId, len(p.Groups))
