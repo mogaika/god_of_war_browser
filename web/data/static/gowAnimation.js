@@ -187,16 +187,18 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
         this.jointGlobalMatrices[i] = global;
 
         let result = global;
-        if (joint.IsSkinned) {
-            let inverseBindMat = obj.Matrixes3[joint.InvId];
-            result = mat4.mul(mat4.create(), global, inverseBindMat);
-        }
         if ((joint.Flags & 0x8) != 0) {
             //mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
             console.warn("joint flags 0x8: ", joint.Name, joint);
             result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
         }
-        mdl.setJointMatrix(i, result);
+
+        let resultInverted = result;
+        if (joint.IsSkinned) {
+            let inverseBindMat = obj.Matrixes3[joint.InvId];
+            resultInverted = mat4.mul(mat4.create(), resultInverted, inverseBindMat);
+        }
+        mdl.setJointMatrix(i, result, resultInverted);
     }
 }
 

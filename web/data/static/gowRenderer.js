@@ -9,6 +9,7 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.hasAlpha = false;
     this.isVisible = true;
     this.ps3static = false;
+    this.useBindToJoin = false;
 
     // construct array of unique indexes
     this.usedIndexes = [];
@@ -102,6 +103,10 @@ grMesh.prototype.setps3static = function(yes) {
     this.ps3static = !!yes;
 }
 
+grMesh.prototype.setUseBindToJoin = function(yes) {
+    this.useBindToJoin = yes;
+}
+
 grMesh.prototype.free = function() {
     if (this.bufferVertex) gl.deleteBuffer(this.bufferVertex);
     if (this.bufferIndex) gl.deleteBuffer(this.bufferIndex);
@@ -123,11 +128,13 @@ function grModel() {
     this.visible = true;
     this.meshes = [];
     this.materials = [];
-    this.matrices = undefined;
+    this.matrices = undefined; // non multiplied by bind pose matrix
+    this.matricesInverted = undefined; // multiplied by bind pose matrix
     this.matrix = mat4.create();
     this.type = undefined;
     this.animation = undefined;
     this.exclusiveMeshes = undefined;
+    this.attachedTexts = [];
 }
 
 grModel.prototype.showExclusiveMeshes = function(meshes) {
@@ -144,12 +151,35 @@ grModel.prototype.addMesh = function(mesh) {
     this.meshes.push(mesh);
 }
 
+grModel.prototype.addText = function(textMesh, jointId) {
+    if (!textMesh.is3d) {
+        console.error("Can't use 2d text mesh", textMesh, jointId, this);
+        return;
+    }
+    textMesh.ownerModel = this;
+    textMesh.jointId = jointId;
+    textMesh.claim();
+    this.attachedTexts.push(textMesh);
+}
+
 grModel.prototype.addMaterial = function(material) {
     material.claim();
     this.materials.push(material);
 }
 
-function grModel__mshFromSklt(sklt, key = "BindToJointMat") {
+grModel.prototype._labelsFromSklt = function(sklt) {
+    for (let i in sklt) {
+        let currentJoint = sklt[i];
+        let jointText = new grTextMesh(i, 0, 0, 0, true, 10);
+        this.addText(jointText, parseInt(i));
+        jointText.setOffset(-0.5, -0.5);
+        jointText.setColor(1.0, 1.0, 1.0, 0.3);
+        this.addText(jointText, parseInt(i));
+        gr_instance.texts.push(jointText);
+    }
+}
+
+function grModel__mshFromSklt(sklt, useLabels = true) {
     let meshes = [];
     let vrtxs = [];
     let indxs = [];
@@ -164,12 +194,10 @@ function grModel__mshFromSklt(sklt, key = "BindToJointMat") {
         }
 
         for (let joint of [currentJoint, sklt[currentJoint.Parent]]) {
-        	let jmat = joint[key];
-			jmat = mat4.invert(mat4.create(), jmat);
             indxs.push(indxs.length);
-            vrtxs.push(jmat[12]);
-            vrtxs.push(jmat[13]);
-            vrtxs.push(jmat[14]);
+            vrtxs.push(0);
+            vrtxs.push(0);
+            vrtxs.push(0);
             clrs.push((i % 8) * 15);
             clrs.push(((i / 8) % 8) * 15);
             clrs.push(((i / 64) % 8) * 15);
@@ -189,7 +217,6 @@ function grModel__mshFromSklt(sklt, key = "BindToJointMat") {
             sklMesh.setBlendColors(clrs);
             sklMesh.setJointIds(jointsMap, joints, joints);
             meshes.push(sklMesh);
-            console.log(vrtxs, indxs, joints, jointsMap);
             vrtxs = [];
             indxs = [];
             clrs = [];
@@ -197,7 +224,7 @@ function grModel__mshFromSklt(sklt, key = "BindToJointMat") {
             jointsMap = [];
         }
     }
-    console.log(meshes);
+
     return meshes;
 }
 
@@ -206,17 +233,24 @@ grModel.prototype.loadSkeleton = function(sklt) {
         this.addMesh(m);
     }
     this.matrices = [];
-
+    this.matricesInverted = [];
     for (let i in sklt) {
-        this.matrices.push(new Float32Array(sklt[i].RenderMat));
+        this.matrices.push(new Float32Array(sklt[i].OurJointToIdleMat));
+        this.matricesInverted.push(new Float32Array(sklt[i].RenderMat));
     }
+    this._labelsFromSklt(sklt);
 }
 
-grModel.prototype.setJointMatrix = function(nodeid, matrix) {
+grModel.prototype.setJointMatrix = function(nodeid, matrix, matrixInverted) {
     this.matrices[nodeid] = matrix;
+    this.matricesInverted[nodeid] = matrixInverted;
 }
 
 grModel.prototype.free = function() {
+    for (let i in this.attachedTexts) {
+        this.attachedTexts[i].unclaim();
+
+    }
     for (let i in this.meshes) {
         this.meshes[i].unclaim();
     }
@@ -382,6 +416,8 @@ function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false, charSiz
     this.bufferUV = gl.createBuffer();
     this.setText(text);
     this.align = [0.0, 0.0];
+    this.ownerModel = undefined;
+    this.jointId = undefined;
 }
 grTextMesh.prototype.set3d = function(is3d) {
     this.is3d = is3d;
