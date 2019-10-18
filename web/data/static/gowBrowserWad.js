@@ -174,6 +174,7 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                             let lightName = new grTextMesh("\x0f" + tag.Name, pos[0], pos[1], pos[2], true);
                             lightName.setColor(color[0], color[1], color[2]);
                             lightName.setOffset(-0.5, -0.5);
+                            lightName.setMaskBit(5);
                             gr_instance.texts.push(lightName);
                         } else {
                             needMarshalDump = true;
@@ -836,7 +837,9 @@ function summaryLoadWadMat(data) {
 function loadCollisionFromAjax(mdl, data) {
     if (data.ShapeName == "BallHull") {
         let vec = data.Shape.Vector;
-        mdl.addMesh(grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3] * 2, 7, 7));
+        let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3] * 2, 7, 7);
+        mdl.addMesh(mesh);
+        mesh.setMaskBit(4);
     }
 }
 
@@ -865,6 +868,7 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
                 let radius = entity.Matrix[0];
                 let text3d = new grTextMesh("\x05" + entity.Name, pos[0], pos[1], pos[2], true);
                 text3d.setOffset(-0.5, -0.5);
+                text3d.setMaskBit(3);
 
                 //let mdl = new grModel();
                 //mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));

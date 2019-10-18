@@ -160,6 +160,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
     let layer = -1;
     let envmaplayer = -1;
     let texture = -1;
+    let mask = ~ctrl.filterMask;
 
     for (let iFlash in flashesBatch) {
         let flash = flashesBatch[iFlash];
@@ -174,8 +175,17 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             }
         }
 
+        if (mdl.mask & mask) {
+            continue;
+        }
+
         if (mesh != flash.mesh) {
             mesh = flash.mesh;
+
+            if (mesh.mask & mask) {
+                continue;
+            }
+
             if (mesh.isDepthTested) {
                 gl.enable(gl.DEPTH_TEST);
             } else {
@@ -287,10 +297,16 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
     gl.uniform4f(this.uLayerColor, 1.0, 1.0, 1.0, 1.0);
     gl.uniform2f(this.uLayerOffset, 0.0, 0.0);
 
+    let mask = ~ctrl.filterMask;
+
     let projViewMat = ctrl.camera.getProjViewMatrix();
 
     for (let i = 0; i < ctrl.texts.length; i++) {
         let text = ctrl.texts[i];
+
+        if (text.mask & mask) {
+            continue;
+        }
 
         gl.enableVertexAttribArray(this.aVertexPos);
         gl.bindBuffer(gl.ARRAY_BUFFER, text.bufferVertex);

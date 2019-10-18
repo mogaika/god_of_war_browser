@@ -2,6 +2,7 @@ package mesh
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -126,12 +127,12 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 func init() {
 	wad.SetHandler(config.GOW1, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 
-		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+		/*fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
 		defer f.Close()
-		logger := utils.Logger{f}
-		//logger := Logger{os.Stdout}
+		logger := utils.Logger{f}*/
+		logger := utils.Logger{ioutil.Discard}
 
 		return NewFromData(wrsrc.Tag.Data, &logger)
 	})

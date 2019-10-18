@@ -10,6 +10,7 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.isVisible = true;
     this.ps3static = false;
     this.useBindToJoin = false;
+    this.mask = 0;
 
     // construct array of unique indexes
     this.usedIndexes = [];
@@ -107,6 +108,10 @@ grMesh.prototype.setUseBindToJoin = function(yes) {
     this.useBindToJoin = yes;
 }
 
+grMesh.prototype.setMaskBit = function(bitIndex) {
+    this.mask |= 1 << bitIndex;
+}
+
 grMesh.prototype.free = function() {
     if (this.bufferVertex) gl.deleteBuffer(this.bufferVertex);
     if (this.bufferIndex) gl.deleteBuffer(this.bufferIndex);
@@ -131,6 +136,7 @@ function grModel() {
     this.matrices = undefined; // non multiplied by bind pose matrix
     this.matricesInverted = undefined; // multiplied by bind pose matrix
     this.matrix = mat4.create();
+    this.mask = 0;
     this.type = undefined;
     this.animation = undefined;
     this.exclusiveMeshes = undefined;
@@ -167,6 +173,10 @@ grModel.prototype.addMaterial = function(material) {
     this.materials.push(material);
 }
 
+grModel.prototype.setMaskBit = function(bitIndex) {
+    this.mask |= 1 << bitIndex;
+}
+
 grModel.prototype._labelsFromSklt = function(sklt) {
     for (let i in sklt) {
         let currentJoint = sklt[i];
@@ -174,6 +184,7 @@ grModel.prototype._labelsFromSklt = function(sklt) {
         this.addText(jointText, parseInt(i));
         jointText.setOffset(-0.5, -0.5);
         jointText.setColor(1.0, 1.0, 1.0, 0.3);
+        jointText.setMaskBit(1);
         this.addText(jointText, parseInt(i));
         gr_instance.texts.push(jointText);
     }
@@ -216,6 +227,7 @@ function grModel__mshFromSklt(sklt, useLabels = true) {
             sklMesh.setDepthTest(false);
             sklMesh.setBlendColors(clrs);
             sklMesh.setJointIds(jointsMap, joints, joints);
+            sklMesh.setMaskBit(2);
             meshes.push(sklMesh);
             vrtxs = [];
             indxs = [];
@@ -418,6 +430,7 @@ function grTextMesh(text = undefined, x = 0, y = 0, z = 0, is3d = false, charSiz
     this.align = [0.0, 0.0];
     this.ownerModel = undefined;
     this.jointId = undefined;
+    this.mask = 0;
 }
 grTextMesh.prototype.set3d = function(is3d) {
     this.is3d = is3d;
@@ -494,8 +507,12 @@ grTextMesh.prototype.setText = function(text) {
     this.indexesCount = indxs.length;
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufferIndex);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, (this.bufferIndexType === gl.UNSIGNED_SHORT) ? (new Uint16Array(indxs)) : (new Uint8Array(indxs)), gl.STATIC_DRAW);
-
 }
+
+grTextMesh.prototype.setMaskBit = function(bitIndex) {
+    this.mask |= 1 << bitIndex;
+}
+
 grTextMesh.prototype.claim = function() {
     this.refs++;
 }
@@ -602,6 +619,7 @@ function grController(viewDomObject) {
     this.emptyTexture = new grTexture("/static/emptytexture.png", true);
     this.fontTexture = new grTexture("/static/font2.png", true);
     this.fontTexture.markAsFontTexture();
+    this.filterMask = 0;
 
     canvas.mousewheel(function(event) {
         gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);
@@ -645,6 +663,13 @@ function grController(viewDomObject) {
 
     this.setInterfaceCameraMode();
     $(window).resize(this._onResize);
+}
+grController.prototype.setFilterMask = function(mask) {
+    if (this.filterMask == mask) {
+        return;
+    }
+    this.filterMask = mask;
+    this.requestRedraw();
 }
 grController.prototype.flushScene = function() {
     this.renderChain.flushScene(this);

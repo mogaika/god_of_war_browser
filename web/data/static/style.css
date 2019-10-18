@@ -155,6 +155,22 @@ a {
     background-color: #333333;
 }
 
+#view-3d #view-3d-config {
+    padding: 4px;
+    text-align: left;
+    font-weight: bold;
+    flex-grow: 0;
+}
+
+#view-3d #view-3d-config input {
+	margin-left: 16px;
+}
+
+#view-3d #view-3d-config label {
+	padding: 0;
+	margin-left: -8px;
+	cursor: pointer;
+}
 
 #view-3d canvas {
     width: 100%;
