@@ -193,6 +193,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 
 		vertnum := 0
 		for i := 0; i < blocks; i++ {
+			block := state.VertexMeta[i*16 : i*16+16]
+
 			// block[0] = affected vertex count
 			// block[1] = 0x80 if last block, else 0
 			// block[2:4] = 0x00
@@ -201,21 +203,56 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 			//        4:8 - 1 if 12:16 == 7 or 12:16 == 3, elsewhere 0
 			//       8:12 - 0
 			//      12:16 - depends on block id. either {4,0...} either {7,6,0...}. or if in middle then {0...,3,2,0...}
-			//      16:20 - 0xe if have texture, else 0x6
-			//      20:24 - 0x2
+			//      16:20 - 0xe - have texture (have rgb?), 0x6 - no texture, 0x2 - no texture (have rgb?), shadow layer (no rgb?)
+			//      20:24 - 0x2 || 0x4;
 			//      24:28 - 0x0
 			//      28:32 - count of matbit flags
-			// block[8:12] = 4bit flags, stacked in particular order
+			// block[8:12] = 4bit matflags, stacked in particular order
 			//        0x2 - if have texture
-			//        0xf - if npc (do not depend on animations availability)// accept lighting? lit?
+			//        0xf - if npc (do not depend on animations availability) / accept lighting? / lit?
 			//        0x1 - if not gui
 			//        0x5 - always (end of flags mark?)
 			// block[12] = jointid1 * 4
 			// block[13] = jointid2
 			// block[14] = 0
-			// block[15] = 0x80 if joinids == 0, but not limited???
+			// block[15] = 0x80 if joinids == 0, but not limited??? / flags ?
+			if true { //verification
+				for iBlock, v := range block {
+					ok := true
+					lo := v & 0xf
+					hi := v >> 4
+					switch iBlock {
+					case 1:
+						ok = v == 0 || v == 0x80
+					case 2:
+						ok = v == 0
+					case 3:
+						ok = v == 0
+					case 4:
+						ok = (lo != 0 && lo <= 4) &&
+							(hi == 0 || hi == 1 || hi == 3 || hi == 7)
+					case 5:
+						ok = (lo == 0) &&
+							(hi == 0 || hi == 2 || hi == 3 || hi == 4 || hi == 6 || hi == 7)
+					case 6:
+						ok = (lo == 0x2 || lo == 0x6 || lo == 0xe) &&
+							(hi == 0x2 || hi == 0x4)
+					case 7:
+						ok = lo == 0
+					case 12:
+						ok = v%4 == 0
+					case 14:
+						ok = v == 0
+					case 15:
+						ok = v == 0 || v == 0x80
+					}
+					if ok == false {
+						return nil, fmt.Errorf("Incorrect block[%d]: 0x%x", iBlock, block[iBlock])
+					}
+				}
 
-			block := state.VertexMeta[i*16 : i*16+16]
+			}
+
 			if i == 0 && block[4] == 4 {
 				packet.Joints2 = make([]uint16, vertexes)
 			}

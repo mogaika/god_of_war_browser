@@ -49,7 +49,7 @@ func NewFromData(f io.ReaderAt, wrtr io.Writer) (c *Collision, err error) {
 	case "BallHull":
 		c.Shape, err = NewBallHull(f, wrtr)
 	default:
-		panic("Unknown enz shape type " + c.ShapeName)
+		return nil, fmt.Errorf("Unknown enz shape type %s", c.ShapeName)
 	}
 
 	return

@@ -149,7 +149,7 @@ grModel.prototype.addMaterial = function(material) {
     this.materials.push(material);
 }
 
-function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
+function grModel__mshFromSklt(sklt, key = "BindToJointMat") {
     let meshes = [];
     let vrtxs = [];
     let indxs = [];
@@ -164,10 +164,12 @@ function grModel__mshFromSklt(sklt, key = "OurJointToIdleMat") {
         }
 
         for (let joint of [currentJoint, sklt[currentJoint.Parent]]) {
+        	let jmat = joint[key];
+			jmat = mat4.invert(mat4.create(), jmat);
             indxs.push(indxs.length);
-            vrtxs.push(joint[key][12]);
-            vrtxs.push(joint[key][13]);
-            vrtxs.push(joint[key][14]);
+            vrtxs.push(jmat[12]);
+            vrtxs.push(jmat[13]);
+            vrtxs.push(jmat[14]);
             clrs.push((i % 8) * 15);
             clrs.push(((i / 8) % 8) * 15);
             clrs.push(((i / 64) % 8) * 15);

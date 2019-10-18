@@ -369,7 +369,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
             //let iSkin = 0;
             for (let iSkin in object.Packets) {
                 let skin = object.Packets[iSkin];
-                let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin;
+                let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin + " : " + object.MaterialId;
 
                 let meshes = [];
                 for (let iPacket in skin) {

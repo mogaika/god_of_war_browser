@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -103,7 +102,7 @@ func NewRibSheet(f io.ReaderAt, wrtw io.Writer) (*ShapeRibSheet, error) {
 				return nil, err
 			}
 		}
-		log.Printf("%d points loaded", len(rib.Some9Points))
+		//log.Printf("%d points loaded", len(rib.Some9Points))
 	}
 
 	{
