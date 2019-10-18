@@ -22,6 +22,11 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.RawDmaAndJointsData = b[OBJECT_GOW1_HEADER_SIZE:size]
 
 	o.Type = binary.LittleEndian.Uint16(b[0:])
+	if o.Type != 0xe && o.Type != 0x1d {
+		// 0xe - dynamic
+		// 0x1d - static (ignores 0 joint?)
+		return fmt.Errorf("Unknown type %x", o.Type)
+	}
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
 	o.PacketsPerFilter = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
@@ -30,6 +35,7 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	}
 	o.Unk0c = binary.LittleEndian.Uint32(b[0xc:])
 	o.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
+	o.UseInvertedMatrix = o.Unk10&0x40 != 0
 	o.Unk14 = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]
 	o.Unk19 = b[0x19]

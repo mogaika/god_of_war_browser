@@ -183,15 +183,16 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             }
 
             if (mesh.jointMapping && useSkelet && mdl && mdl.matrices) {
+                let matrices = mesh.useBindToJoin ? mdl.matricesInverted : mdl.matrices;
                 for (let i in mesh.jointMapping) {
                     if (i >= 12) {
                         console.warn("jointMap array in shader is overflowed", mesh.jointMapping);
                     }
                     let jointId = mesh.jointMapping[i];
-                    if (jointId >= mdl.matrices.length) {
-                        console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + mdl.matrices.length);
+                    if (jointId >= matrices.length) {
+                        console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + matrices.length);
                     } else {
-                        gl.uniformMatrix4fv(this.umJoints[i], false, mdl.matrices[jointId]);
+                        gl.uniformMatrix4fv(this.umJoints[i], false, matrices[jointId]);
                     }
                 }
                 hasSkelet = true;
@@ -287,6 +288,7 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
     gl.uniform2f(this.uLayerOffset, 0.0, 0.0);
 
     let projViewMat = ctrl.camera.getProjViewMatrix();
+
     for (let i = 0; i < ctrl.texts.length; i++) {
         let text = ctrl.texts[i];
 
@@ -302,6 +304,9 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
         let mat = mat4.identity(mat4.create());
         if (text.is3d) {
             let pos3d = vec3.fromValues(text.position[0], text.position[1], text.position[2]);
+            if (text.ownerModel !== undefined) {
+                pos3d = vec3.transformMat4(vec3.create(), pos3d, text.ownerModel.matrices[text.jointId]);
+            }
             let pos2d = vec3.transformMat4(vec3.create(), pos3d, projViewMat);
             if (pos2d[2] < 1) {
                 let pos = [(pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth, (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight, 0];

@@ -305,6 +305,7 @@ function parseMeshPacket(object, packet) {
     }
 
     let mesh = new grMesh(m_vertexes, m_indexes);
+    mesh.setUseBindToJoin(object.UseInvertedMatrix);
 
     if (packet.Blend.R && packet.Blend.R.length) {
         let m_colors = [];

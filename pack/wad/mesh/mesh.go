@@ -54,6 +54,7 @@ type Object struct {
 
 	Packets             [][]Packet
 	RawDmaAndJointsData []byte
+	UseInvertedMatrix   bool
 }
 
 type Group struct {
