@@ -3,7 +3,6 @@ package anm
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -114,8 +113,6 @@ func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *util
 			_l.Printf("      - halfs %d: %+v", iRawSubDm, subStream.Manager)
 			parseFramesRotationRaw(stateBuf, subStream, &a.RotationDataBitMap, &a.RotationDescr, true)
 		}
-
-		_ = utils.LogDump
 	} else {
 		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, stateData)
 		a.RotationStream.Samples = make(map[int]interface{})
@@ -159,7 +156,7 @@ func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *util
 			subStream.Samples = make(map[int]interface{})
 			shifts := a.GetShiftsArray(&a.PositionDescr, bitMapOffset)
 			parseFramesPositionAdd(stateBuf, subStream, &a.PositionDataBitMap, &a.PositionDescr, true, shifts)
-			utils.LogDump(subStream)
+			//utils.LogDump(subStream)
 		}
 
 		a.PositionSubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
@@ -168,7 +165,7 @@ func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *util
 			subStream.Manager.FromBuf(stateDataArrayBuf[iRawSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
 			parseFramesPositionRaw(stateBuf, subStream, &a.PositionDataBitMap, &a.PositionDescr, true)
-			utils.LogDump(subStream)
+			//utils.LogDump(subStream)
 		}
 
 	} else {
@@ -253,7 +250,7 @@ func parseFramesPositionAdd(buf []byte, subStream *AnimStateSubstream, bitMap *D
 		for iFrame := range frames {
 			offset := frameStep*iFrame + int(bitMap.DataOffset) + iteration*elementSize + additionalOffset
 			frames[iFrame] = float32(int16(binary.LittleEndian.Uint16(buf[offset:]))) * shiftToCoeff(shifts[iteration]) / 256.0
-			log.Println(shifts[iteration], shiftToCoeff(shifts[iteration]), frames[iFrame], int16(binary.LittleEndian.Uint16(buf[offset:])))
+			//log.Println(shifts[iteration], shiftToCoeff(shifts[iteration]), frames[iFrame], int16(binary.LittleEndian.Uint16(buf[offset:])))
 		}
 		subStream.Samples[int(descr.BaseTargetDataIndex)+bitIndex] = frames
 	})

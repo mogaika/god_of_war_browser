@@ -2,7 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"log"
+	"os"
+	"time"
 
 	"github.com/mogaika/god_of_war_browser/status"
 
@@ -38,6 +42,7 @@ import (
 func main() {
 	var addr, tocpath, dirpath, isopath, psarcpath, psversion string
 	var gowversion int
+	var parsecheck bool
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
 	flag.StringVar(&dirpath, "dir", "", "Path to unpacked wads and other stuff")
@@ -45,6 +50,7 @@ func main() {
 	flag.StringVar(&psarcpath, "psarc", "", "Path to ps3 psarc file")
 	flag.StringVar(&psversion, "ps", "ps2", "Playstation version (ps2, ps3, psvita)")
 	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1', 2 - 'gow2'")
+	flag.BoolVar(&parsecheck, "parsecheck", false, "Check every file for parse errors (for devs)")
 	flag.Parse()
 
 	var err error
@@ -95,10 +101,30 @@ func main() {
 		log.Fatalf("Cannot start god of war browser: %v", err)
 	}
 
-	status.Info("Starting web server on address '%s'", addr)
-
-	if err := web.StartServer(addr, rootdir, "web"); err != nil {
-		log.Fatalf("Cannot start web server: %v", err)
+	if f, err := setLogging(); err != nil {
+		log.Printf("Wasn't able to setup logs dup: %v", err)
+	} else {
+		defer f.Close()
 	}
 
+	if parsecheck {
+		parseCheck(rootdir)
+	} else {
+		status.Info("Starting web server on address '%s'", addr)
+
+		if err := web.StartServer(addr, rootdir, "web"); err != nil {
+			log.Fatalf("Cannot start web server: %v", err)
+		}
+	}
+}
+
+func setLogging() (io.Closer, error) {
+	os.MkdirAll("applogs", 0777)
+	f, err := os.Create(fmt.Sprintf("applogs/%s.log", time.Now().Format("2006.Jan.2_15.04.05")))
+	if err != nil {
+		return nil, err
+	}
+
+	log.SetOutput(io.MultiWriter(os.Stdout, f))
+	return f, nil
 }

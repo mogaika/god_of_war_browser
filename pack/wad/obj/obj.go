@@ -248,7 +248,7 @@ func NewFromData(buf []byte) (*Object, error) {
 
 	//log.Printf("%s\n%s", s, obj.StringTree())
 
-	utils.LogDump(obj.Matrixes2)
+	//utils.LogDump(obj.Matrixes2)
 
 	return obj, nil
 }
