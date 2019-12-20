@@ -284,7 +284,7 @@ function displayResourceHexDump(wad, tagid) {
     });
 }
 
-function parseMeshPacket(object, packet) {
+function parseMeshPacket(object, packet, instanceIndex) {
     let m_vertexes = [];
     let m_indexes = [];
     let m_colors;
@@ -350,11 +350,14 @@ function parseMeshPacket(object, packet) {
         mesh.setNormals(m_normals);
     }
 
-    if (packet.Joints && packet.Joints.length && object.JointMapper && object.JointMapper.length) {
-        //console.log(packet.Joints, packet.Joints2, object.JointMapper);
-        let joints1 = packet.Joints;
-        let joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
-        mesh.setJointIds(object.JointMapper, joints1, joints2);
+    if (packet.Joints && packet.Joints.length && object.JointMappers && object.JointMappers.length) {
+        let jm = object.JointMappers[instanceIndex];
+        if (jm && jm.length) {
+            //console.log(packet.Joints, packet.Joints2, object.JointMappers);
+            let joints1 = packet.Joints;
+            let joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
+            mesh.setJointIds(jm, joints1, joints2);
+        }
     }
 
     return mesh;
@@ -369,39 +372,55 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
             let object = group.Objects[iObject];
 
             //let iSkin = 0;
-            for (let iSkin in object.Packets) {
-                let skin = object.Packets[iSkin];
-                let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "_s" + iSkin + " : " + object.MaterialId;
+            for (let iInstance = 0; iInstance < object.InstancesCount; iInstance++) {
+                for (let iLayer = 0; iLayer < object.TextureLayersCount; iLayer++) {
+                    // there is no situation when TextureLayersCount > 1 && InstancesCount > 1
+                    // so we can multiply on any of them
 
-                let meshes = [];
-                for (let iPacket in skin) {
-                    let packet = skin[iPacket];
-                    let mesh = parseMeshPacket(object, packet);
-                    meshes.push(mesh);
-                    totalMeshes.push(mesh);
-                    model.addMesh(mesh);
-                }
+                    let iDmaPacket = iInstance * object.TextureLayersCount + iLayer;
+                    let dmaPackets = object.Packets[iDmaPacket];
+                    let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject;
+                    if (object.InstancesCount > 1) {
+                        objName += "_i" + iInstance
+                    } else if (object.TextureLayersCount > 1) {
+                        objName += "_l" + iLayer;
+                    }
+                    objName += ":" + object.MaterialId;
 
-                if (table) {
-                    let label = $('<label>');
-                    let chbox = $('<input type="checkbox" checked>');
-                    let td = $('<td>').append(label);
-                    chbox.click(meshes, function(ev) {
-                        for (let i in ev.data) {
-                            ev.data[i].setVisible(this.checked);
+                    let meshes = [];
+                    for (let iPacket in dmaPackets) {
+                        let dmaPacket = dmaPackets[iPacket];
+                        let mesh = parseMeshPacket(object, dmaPacket, iInstance);
+                        if (object.TextureLayersCount != 1) {
+                            mesh.setLayer(iLayer);
                         }
-                        gr_instance.requestRedraw();
-                    });
-                    td.mouseenter([model, meshes], function(ev) {
-                        ev.data[0].showExclusiveMeshes(ev.data[1]);
-                        gr_instance.requestRedraw();
-                    }).mouseleave(model, function(ev, a) {
-                        ev.data.showExclusiveMeshes();
-                        gr_instance.requestRedraw();
-                    });
-                    label.append(chbox);
-                    label.append("o_" + objName);
-                    table.append($('<tr>').append(td));
+
+                        meshes.push(mesh);
+                        totalMeshes.push(mesh);
+                        model.addMesh(mesh);
+                    }
+
+                    if (table) {
+                        let label = $('<label>');
+                        let chbox = $('<input type="checkbox" checked>');
+                        let td = $('<td>').append(label);
+                        chbox.click(meshes, function(ev) {
+                            for (let i in ev.data) {
+                                ev.data[i].setVisible(this.checked);
+                            }
+                            gr_instance.requestRedraw();
+                        });
+                        td.mouseenter([model, meshes], function(ev) {
+                            ev.data[0].showExclusiveMeshes(ev.data[1]);
+                            gr_instance.requestRedraw();
+                        }).mouseleave(model, function(ev, a) {
+                            ev.data.showExclusiveMeshes();
+                            gr_instance.requestRedraw();
+                        });
+                        label.append(chbox);
+                        label.append("o_" + objName);
+                        table.append($('<tr>').append(td));
+                    }
                 }
             }
         }
@@ -624,6 +643,7 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
             if (rawLayer.ParsedFlags.RenderingStrangeBlended === true) {
                 layer.setMethodUnknown();
             }
+            // console.log("layer parsing: ", layer, rawLayer);
 
             if (textures && textures[iLayer] && textures[iLayer].Images) {
                 let imgs = textures[iLayer].Images;
@@ -1002,7 +1022,6 @@ function loadCxtFromAjax(data, parseScripts = true) {
 
         //let instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
         //instMat = mat4.mul(mat4.create(), instMat, mat4.fromQuat(mat4.create(), rot));
-
         // same as above
         let instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
         //let instMat = mat4.fromQuat(mat4.create(), rot);
@@ -1013,6 +1032,20 @@ function loadCxtFromAjax(data, parseScripts = true) {
         if (obj && (obj.Model || obj.Collision)) {
             let mdl = new grModel();
             loadObjFromAjax(mdl, obj, instMat, parseScripts);
+
+            for (let iScript in inst.Scripts) {
+                let scr = inst.Scripts[iScript];
+                switch (scr.TargetName) {
+                    case "SCR_Sky":
+                        // case "SCR_AresSky":
+                        mdl.setType("sky");
+                        break;
+                    default:
+                        console.warn("Unknown SCR target: " + scr.TargetName, data, inst, scr);
+                        break;
+                }
+            }
+
             gr_instance.models.push(mdl);
         }
     }

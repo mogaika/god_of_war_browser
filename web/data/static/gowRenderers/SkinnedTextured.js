@@ -1,6 +1,7 @@
 function grRenderChain_SkinnedTexturedFlash(model, mesh) {
     this.model = model;
     this.mesh = mesh;
+    this.meshInstanceId = 0;
     this.material = undefined;
     this.diffuselayer = undefined;
     this.envmaplayer = undefined;
@@ -81,7 +82,6 @@ function grRenderChain_SkinnedTextured(ctrl) {
     gl.disable(gl.BLEND);
     gl.depthMask(true);
     gl.enable(gl.DEPTH_TEST);
-    gl.disable(gl.CULL_FACE);
 }
 
 grRenderChain_SkinnedTextured.prototype.free = function(ctrl) {
@@ -261,7 +261,6 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesBatch = function(ctrl, flas
     gl.depthMask(true);
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
-    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
 
     let cnt = this.renderFlashesArray(ctrl, flashesBatch.normalFlashes, useSkelet);
 
@@ -356,6 +355,12 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
 
     let cnt = 0;
 
+    if (ctrl.cull) {
+        gl.enable(gl.CULL_FACE);
+    } else {
+        gl.disable(gl.CULL_FACE);
+    }
+
     gl.uniformMatrix4fv(this.umProjection, false, ctrl.camera.getProjectionMatrix());
     // render sky
     if (this.skyBatchMatrix) {
@@ -379,6 +384,7 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
         "additive", this.skyBatch.additiveFlashes.length + this.normalBatch.additiveFlashes.length,
         "was rebuilded", wasRebuilded);
 	*/
+    gl.disable(gl.CULL_FACE);
     this.renderText(ctrl);
 }
 
@@ -407,7 +413,7 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
 
             let flash = this.createFlash(mdl, mesh);
 
-            for (let iLayer in mat.layers) {
+            let parseLayer = function(iLayer) {
                 let layer = mat.layers[iLayer];
                 switch (layer.method) {
                     case 0:
@@ -425,9 +431,20 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
                 }
             }
 
-            if (additiveLayer != undefined) {
+            if (mesh.layer !== undefined) {
+                parseLayer(mesh.layer);
+                // console.log("layer overrided", mesh.layer);
+            } else {
+                // console.log("layer detection");
+                for (let iLayer in mat.layers) {
+                    parseLayer(iLayer);
+                }
+            }
+
+            if (additiveLayer !== undefined) {
                 flash.diffuselayer = additiveLayer;
                 flashesBatch.addFlash(flash, 1);
+                // console.log("added additive");
             } else {
                 if (strangeBlendedLayer != undefined) {
                     flash.diffuselayer = strangeBlendedLayer;

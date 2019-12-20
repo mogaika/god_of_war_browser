@@ -13,18 +13,12 @@ func (o *Object) Marshal() *bytes.Buffer {
 
 	binary.LittleEndian.PutUint16(buf[0:], o.Type)
 	binary.LittleEndian.PutUint16(buf[2:], o.Unk02)
-	binary.LittleEndian.PutUint32(buf[4:], o.PacketsPerFilter)
+	binary.LittleEndian.PutUint32(buf[4:], o.DmaTagsCountPerPacket)
 	binary.LittleEndian.PutUint16(buf[8:], o.MaterialId)
-
-	if o.JointMapper == nil {
-		binary.LittleEndian.PutUint16(buf[0xa:], 0)
-	} else {
-		binary.LittleEndian.PutUint16(buf[0xa:], uint16(len(o.JointMapper)))
-	}
-
-	binary.LittleEndian.PutUint32(buf[0xc:], o.Unk0c)
-	binary.LittleEndian.PutUint32(buf[0x10:], o.Unk10)
-	binary.LittleEndian.PutUint32(buf[0x14:], o.Unk14)
+	binary.LittleEndian.PutUint16(buf[0xa:], o.JointMapElementsCount)
+	binary.LittleEndian.PutUint32(buf[0xc:], o.InstancesCount)
+	binary.LittleEndian.PutUint32(buf[0x10:], o.Flags)
+	binary.LittleEndian.PutUint32(buf[0x14:], o.FlagsMask)
 	buf[0x18] = o.TextureLayersCount
 	buf[0x19] = o.Unk19
 	binary.LittleEndian.PutUint16(buf[0x1a:], o.NextFreeVUBufferId)
@@ -33,10 +27,11 @@ func (o *Object) Marshal() *bytes.Buffer {
 
 	dmaAndJointsData := make([]byte, len(o.RawDmaAndJointsData))
 	copy(dmaAndJointsData, o.RawDmaAndJointsData)
-	if o.JointMapper != nil {
-		jointMapOffset := o.Unk0c * uint32(o.TextureLayersCount) * 0x10 * o.PacketsPerFilter
-		for i := range o.JointMapper {
-			binary.LittleEndian.PutUint32(dmaAndJointsData[jointMapOffset+uint32(i)*4:], o.JointMapper[i])
+	jointMapsOffset := o.InstancesCount * uint32(o.TextureLayersCount) * 0x10 * o.DmaTagsCountPerPacket
+	for iJm, jm := range o.JointMappers {
+		jointMapOffset := jointMapsOffset + uint32(iJm)*uint32(o.JointMapElementsCount)*4
+		for i := range jm {
+			binary.LittleEndian.PutUint32(dmaAndJointsData[jointMapOffset+uint32(i)*4:], jm[i])
 		}
 	}
 
@@ -48,9 +43,9 @@ func (o *Object) Marshal() *bytes.Buffer {
 
 func (g *Group) Marshal(off uint32) *bytes.Buffer {
 	var buf [GROUP_GOW1_HEADER_SIZE]byte
-	binary.LittleEndian.PutUint32(buf[0:], g.Unk00)
+	binary.LittleEndian.PutUint32(buf[0:], math.Float32bits(g.HideDistance))
 	binary.LittleEndian.PutUint32(buf[4:], uint32(len(g.Objects)))
-	binary.LittleEndian.PutUint32(buf[8:], g.Unk08)
+	binary.LittleEndian.PutUint32(buf[8:], g.HasBbox)
 
 	objectsOffset := uint32(len(g.Objects) * 4)
 
@@ -137,7 +132,7 @@ func (m *Mesh) MarshalBuffer() *bytes.Buffer {
 	binary.LittleEndian.PutUint32(buf[0x28:], m.Unk28)
 	binary.LittleEndian.PutUint32(buf[0x2c:], m.Unk2c)
 	binary.LittleEndian.PutUint32(buf[0x30:], m.Unk30)
-	binary.LittleEndian.PutUint32(buf[0x34:], m.Unk34)
+	binary.LittleEndian.PutUint32(buf[0x34:], m.BaseBoneIndex)
 	copy(buf[0x38:0x50], utils.StringToBytesBuffer(m.NameOfRootJoint, 0x50-0x38, true))
 
 	var result bytes.Buffer

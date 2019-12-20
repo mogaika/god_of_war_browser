@@ -1,5 +1,7 @@
 package mesh
 
+/*
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -7,6 +9,8 @@ import (
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
+
+*/
 
 const (
 	MESH_GOW2_HEADER_SIZE   = 0x18
@@ -16,6 +20,7 @@ const (
 	MESH_GOW2_VECTOR_SIZE   = 0x14
 )
 
+/*
 func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Logger) error {
 	b := allb[pos:]
 	o.Offset = pos
@@ -23,7 +28,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 
 	o.Type = binary.LittleEndian.Uint16(b[0:])
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
-	o.PacketsPerFilter = binary.LittleEndian.Uint32(b[4:])
+	o.DmaTagsCountPerPacket = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
 	if jmLen := binary.LittleEndian.Uint16(b[0xa:]); jmLen != 0 {
 		o.JointMapper = make([]uint32, binary.LittleEndian.Uint16(b[0xa:]))
@@ -38,7 +43,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.SourceVerticesCount = binary.LittleEndian.Uint16(b[0x1e:])
 
 	exlog.Printf("        | type: 0x%.4x  unk02: 0x%.4x packets per filter?: %d materialId: %d joints: %d",
-		o.Type, o.Unk02, o.PacketsPerFilter, o.MaterialId, len(o.JointMapper))
+		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, len(o.JointMapper))
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
 		o.Unk0c, o.Unk10, o.Unk14, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
 	exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
@@ -46,8 +51,8 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	dmaCalls := o.Unk0c * uint32(o.TextureLayersCount)
 	o.Packets = make([][]Packet, dmaCalls)
 	for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
-		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.PacketsPerFilter*0x10
-		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.PacketsPerFilter)
+		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.DmaTagsCountPerPacket*0x10
+		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.DmaTagsCountPerPacket)
 
 		ds := NewMeshParserStream(allb, o, packetOffset, exlog)
 		if err := ds.ParsePackets(); err != nil {
@@ -76,7 +81,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	}
 	if o.JointMapper != nil {
 		// right after dma calls
-		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.PacketsPerFilter
+		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.DmaTagsCountPerPacket
 		for i := range o.JointMapper {
 			o.JointMapper[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
 		}
@@ -162,3 +167,4 @@ func (m *Mesh) parseGow2(b []byte, exlog *utils.Logger) error {
 
 	return nil
 }
+*/

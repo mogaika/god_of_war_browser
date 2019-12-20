@@ -50,10 +50,10 @@ const JOINT_CHILD_NONE = -1
 type Object struct {
 	Joints []Joint
 
-	File0x20 uint32 // only if jointsCount != 0
+	File0x20 uint32 // index of root joint ?
 	File0x24 uint32 /*
 		more flags
-		0bit - need creation of array(joints count) of words
+		0bit - need creation of array(joints count) of words? if dynamic model?
 	*/
 
 	dataOffset  uint32
@@ -129,8 +129,6 @@ func NewFromData(buf []byte) (*Object, error) {
 	obj.File0x20 = binary.LittleEndian.Uint32(buf[0x20:])
 	obj.File0x24 = binary.LittleEndian.Uint32(buf[0x24:])
 
-	//log.Println(obj.File0x20, obj.File0x24)
-
 	matdata := buf[obj.dataOffset : obj.dataOffset+DATA_HEADER_SIZE]
 
 	obj.Mat1count = binary.LittleEndian.Uint32(matdata[0:4])
@@ -189,6 +187,11 @@ func NewFromData(buf []byte) (*Object, error) {
 	}
 	if invid != int16(obj.Mat3count) {
 		return nil, fmt.Errorf("Invalid inv mat id calculation %v != %v", invid, obj.Mat3count)
+	}
+
+	// log.Println(obj.File0x20, obj.File0x24, obj.jointsCount)
+	if obj.File0x20 != 0 {
+		return nil, fmt.Errorf("Invalid File0x20 == 0x%x", obj.File0x20)
 	}
 
 	obj.Matrixes1 = make([]mgl32.Mat4, obj.Mat1count)

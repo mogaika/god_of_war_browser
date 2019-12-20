@@ -20,7 +20,7 @@ func NewFromData(buf []byte) (*Chunk, error) {
 }
 
 type Ajax struct {
-	Instances []*inst.Instance
+	Instances []*inst.Ajax
 	Objects   map[string]interface{}
 }
 
@@ -31,9 +31,15 @@ func (cxt *Chunk) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		instance, _, err := wrsrc.Wad.GetInstanceFromNode(iSubNode)
 		if err != nil {
 			continue
-			//return nil, fmt.Errorf("Error getting instance: %v", err)
+			// return nil, fmt.Errorf("Error getting instance: %v", err)
 		}
-		ajax.Instances = append(ajax.Instances, instance.(*inst.Instance))
+
+		instanceAjax, err := instance.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(iSubNode))
+		if err != nil {
+			return nil, fmt.Errorf("Error marshaling instance: %v", err)
+		}
+
+		ajax.Instances = append(ajax.Instances, instanceAjax.(*inst.Ajax))
 	}
 
 	ajax.Objects = make(map[string]interface{}, int(len(ajax.Instances)))

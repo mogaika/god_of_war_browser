@@ -24,24 +24,28 @@ Some functional broken on *Jp version*.
 
 ## What if I want to mod game?
 You can! But it is hard at this time :(
-- Remember! First time you upload larger file, it takes a while (~1-5min, depends on hard drive) to rearrange resources in pack file to create free space (Check console log for some progress).
-- Also remember that the tool is not ideal, and you better to make backups of the original iso and of your progress.
-- You can download resources, changing them in hex editors and reupload back using browser.
-- Also you can reupload textures right in browser! Open TXR_ resource and use upload form (png,jpg,gif support).
-- Legacy flow of file replacing:
+- Remember! First time you upload larger file, it takes a while (~1-5min, depends on hard drive) to rearrange resources in pack file to create free space (Check console log for progress).
+- Also remember that the tool is not ideal, and I ask to make backups of the original iso and of your progress.
+- You can download resources, change them in hex editor and upload back using browser.
+- You can reupload textures right in browser! Open TXR_ resource and use upload form (png,jpg,gif support).
+- You can change UI labels inside FLP_ resources. And even create new fonts (FLP related stuff may be broken buld to build)
+- Legacy flow of modifications:
   - Download required wads using god_of_war_browser web interface
   - Use [wadunpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadunpack) to unpack wad where you want to make change
   - Add/remove/modify game files, do not forget to modify *wad_meta.txt*. Some info about file formats you can find in [sources](https://github.com/mogaika/god_of_war_browser/tree/master/pack/wad) of god_of_war_browser.
   - Archive files to wad using [wadpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadpack)
   - Pack wad files in part1.pak using [packer](https://github.com/mogaika/god_of_war_browser/tree/master/tools/packer)
   - For test replace original part1.pak and godofwar.toc in your iso using [isoreplacer](https://github.com/mogaika/god_of_war_browser/tree/master/tools/isoreplacer)
-- Test game with emulator [pcsx2](https://github.com/PCSX2/pcsx2). Do not forget to shutdown god_of_war_browser before run game in emulator (only of using same iso file)
+- Test game with emulator [pcsx2](https://github.com/PCSX2/pcsx2). Do not forget to shutdown god_of_war_browser before run game in emulator (only if using same iso file)
 
 ## What about animations?
 Just open any obj file. Supported parsing of:
 - Joint rotation
+- Joint position
 - Texture UV
 - Texture flipbook
+
+![R_SKC](https://user-images.githubusercontent.com/3680954/71230603-bd897e00-2303-11ea-8f5e-ef84d81dfef0.gif)
 
 ## Screenshots
 ![Athens](https://user-images.githubusercontent.com/3680954/28489832-6ec6697c-6edd-11e7-8ead-ed37e3870b15.png)

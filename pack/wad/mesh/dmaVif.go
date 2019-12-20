@@ -62,7 +62,7 @@ func (ms *MeshParserStream) flushState() error {
 }
 
 func (ms *MeshParserStream) ParsePackets() error {
-	for i := uint32(0); i < ms.Object.PacketsPerFilter; i++ {
+	for i := uint32(0); i < ms.Object.DmaTagsCountPerPacket; i++ {
 		dmaPackPos := ms.Offset + i*0x10
 		dmaPack := dma.NewTag(binary.LittleEndian.Uint64(ms.Data[dmaPackPos:]))
 
@@ -81,13 +81,13 @@ func (ms *MeshParserStream) ParsePackets() error {
 			if dmaPack.QWC() != 0 {
 				return fmt.Errorf("Not support dma_tag_ret with qwc != 0 (%d)", dmaPack.QWC())
 			}
-			if i != ms.Object.PacketsPerFilter-1 {
-				return fmt.Errorf("dma_tag_ret not in end of stream (%d != %d)", i, ms.Object.PacketsPerFilter-1)
+			if i != ms.Object.DmaTagsCountPerPacket-1 {
+				return fmt.Errorf("dma_tag_ret not in end of stream (%d != %d)", i, ms.Object.DmaTagsCountPerPacket-1)
 			} else {
 				ms.Log.Printf("             << dma_tag_ret at 0x%.8x >>", dmaPackPos)
 			}
 		default:
-			return fmt.Errorf("Unknown dma packet %v in mesh stream at 0x%.8x i = 0x%.2x < 0x%.2x", dmaPack, dmaPackPos, i, ms.Object.PacketsPerFilter)
+			return fmt.Errorf("Unknown dma packet %v in mesh stream at 0x%.8x i = 0x%.2x < 0x%.2x", dmaPack, dmaPackPos, i, ms.Object.DmaTagsCountPerPacket)
 		}
 	}
 	ms.flushState()
@@ -205,7 +205,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 			//      12:16 - depends on block id. either {4,0...} either {7,6,0...}. or if in middle then {0...,3,2,0...}
 			//      16:20 - 0xe - have texture (have rgb?), 0x6 - no texture, 0x2 - no texture (have rgb?), shadow layer (no rgb?)
 			//      20:24 - 0x2 || 0x4;
-			//      24:28 - 0x0
+			//      24:28 - 1 if 12:16 == 3 || 12:16 == 7, elsewhere 0
 			//      28:32 - count of matbit flags
 			// block[8:12] = 4bit matflags, stacked in particular order
 			//        0x2 - if have texture
@@ -268,7 +268,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 
 			vertnum += block_verts
 
-			if block[1]&0x80 != 0 {
+			if block[1] != 0 {
 				if i != blocks-1 {
 					return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
 				}
@@ -387,7 +387,6 @@ func (ms *MeshParserStream) ParseVif() error {
 							if ms.state.VertexMeta != nil {
 								detectingErr = errorAlreadyPresent("Vertex Meta")
 							}
-
 							ms.state.VertexMeta = vifBlock
 							handledBy = "vmta"
 						default:
@@ -401,7 +400,6 @@ func (ms *MeshParserStream) ParseVif() error {
 						handledBy = " uv4"
 						if ms.state.UV == nil {
 							ms.state.UV = vifBlock
-							handledBy = " uv2"
 							ms.state.UVWidth = 4
 						} else {
 							detectingErr = errorAlreadyPresent("UV")
@@ -470,6 +468,7 @@ func (ms *MeshParserStream) ParseVif() error {
 			ms.Log.Printf("# vif %v", vifCode)
 			switch vifCode.Cmd() {
 			case vif.VIF_CMD_NOP:
+			case vif.VIF_CMD_STCYCL:
 			case vif.VIF_CMD_MSCAL:
 				if err := ms.flushState(); err != nil {
 					return err
