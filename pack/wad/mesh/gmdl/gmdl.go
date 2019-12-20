@@ -9,7 +9,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 
-	"github.com/h2so5/half"
+	"github.com/mogaika/god_of_war_browser/3rdparty/half"
 )
 
 const (
