@@ -146,7 +146,7 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 		DmaTagsCountPerPacket: 2,
 		MaterialId:            420, // I think noone cares about this one
 		JointMapElementsCount: 1,
-		JointMappers:          [][]uint32{[]uint32{uint32(meshPartIndex + 2)}},
+		JointMappers:          [][]uint32{{uint32(meshPartIndex + 2)}},
 		InstancesCount:        1,
 		Flags:                 0,
 		FlagsMask:             0xffffff35,

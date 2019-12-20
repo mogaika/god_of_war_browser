@@ -1679,7 +1679,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                         Matrix: JSON.parse($table.find("#matrix").val()),
                     };
                     $.post({
-                        url: getActionLinkForWadNode(wad, tagid, 'transofrm'),
+                        url: getActionLinkForWadNode(wad, tagid, 'transform'),
                         data: {
                             'id': h.IdInThatTypeArray,
                             'data': JSON.stringify(newTransform),
