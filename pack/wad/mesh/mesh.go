@@ -2,7 +2,6 @@ package mesh
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -39,31 +38,32 @@ type Packet struct {
 type Object struct {
 	Offset uint32
 
-	Type                uint16
-	Unk02               uint16
-	PacketsPerFilter    uint32
-	MaterialId          uint16
-	JointMapper         []uint32
-	Unk0c               uint32
-	Unk10               uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
-	Unk14               uint32
-	TextureLayersCount  uint8
-	Unk19               uint8
-	NextFreeVUBufferId  uint16
-	Unk1c               uint16
-	SourceVerticesCount uint16
+	Type                  uint16
+	Unk02                 uint16
+	DmaTagsCountPerPacket uint32
+	MaterialId            uint16
+	JointMapElementsCount uint16
+	InstancesCount        uint32 // instances count? new dma program per each instance. uses same buffers except rgba lighting
+	Flags                 uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
+	FlagsMask             uint32
+	TextureLayersCount    uint8
+	Unk19                 uint8
+	NextFreeVUBufferId    uint16
+	Unk1c                 uint16
+	SourceVerticesCount   uint16
 
 	Packets             [][]Packet
 	RawDmaAndJointsData []byte
 	UseInvertedMatrix   bool
+	JointMappers        [][]uint32
 }
 
 type Group struct {
 	Offset uint32
 
-	Unk00   uint32
-	Objects []Object
-	Unk08   uint32
+	HideDistance float32
+	Objects      []Object
+	HasBbox      uint32
 }
 
 type Part struct {
@@ -92,7 +92,7 @@ type Mesh struct {
 	Unk28           uint32
 	Unk2c           uint32
 	Unk30           uint32
-	Unk34           uint32
+	BaseBoneIndex   uint32
 }
 
 const (
@@ -109,12 +109,14 @@ func NewFromData(b []byte, exlog *utils.Logger) (*Mesh, error) {
 		} else {
 			return m, nil
 		}
-	case config.GOW2:
-		if err := m.parseGow2(b, exlog); err != nil {
-			return nil, err
-		} else {
-			return m, nil
-		}
+		/*
+			case config.GOW2:
+				if err := m.parseGow2(b, exlog); err != nil {
+					return nil, err
+				} else {
+					return m, nil
+				}
+		*/
 	default:
 		panic("err")
 	}
@@ -127,12 +129,13 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 func init() {
 	wad.SetHandler(config.GOW1, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 
-		/*fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
 		defer f.Close()
-		logger := utils.Logger{f}*/
-		logger := utils.Logger{ioutil.Discard}
+		logger := utils.Logger{f}
+
+		//logger := utils.Logger{ioutil.Discard}
 
 		return NewFromData(wrsrc.Tag.Data, &logger)
 	})

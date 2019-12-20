@@ -36,6 +36,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/obj"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/sbk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/shg"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/txr"
 )
 
@@ -107,6 +108,7 @@ func main() {
 		defer f.Close()
 	}
 
+	//parsecheck = true
 	if parsecheck {
 		parseCheck(rootdir)
 	} else {

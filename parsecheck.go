@@ -15,7 +15,9 @@ func parseCheck(rootfs vfs.Directory) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sort.Strings(packList)
+
+	sort.Sort(sort.Reverse(sort.StringSlice(packList)))
+
 	for _, fname := range packList {
 		data, _ := pack.GetInstanceHandler(rootfs, fname)
 		if data == nil {
@@ -30,7 +32,7 @@ func parseCheck(rootfs vfs.Directory) {
 					errStr := err.Error()
 					if !strings.Contains(errStr, "Cannot find handler for tag ") &&
 						!strings.Contains(errStr, "Handler return error: Unknown enz shape type mCDbgHdr") {
-						log.Printf("E %.16s %.5d %.15s: %v", fname, node.Id, node.Tag.Name, err)
+						log.Printf("E %.16s %.5d %.15s: %v", fname, node.Tag.Id, node.Tag.Name, err)
 					}
 				}
 			}

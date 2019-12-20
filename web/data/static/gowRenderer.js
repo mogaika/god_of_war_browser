@@ -10,6 +10,7 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.isVisible = true;
     this.ps3static = false;
     this.useBindToJoin = false;
+    this.layer = undefined;
     this.mask = 0;
 
     // construct array of unique indexes
@@ -106,6 +107,10 @@ grMesh.prototype.setps3static = function(yes) {
 
 grMesh.prototype.setUseBindToJoin = function(yes) {
     this.useBindToJoin = yes;
+}
+
+grMesh.prototype.setLayer = function(layer) {
+    this.layer = layer;
 }
 
 grMesh.prototype.setMaskBit = function(bitIndex) {
@@ -593,7 +598,9 @@ function grController(viewDomObject) {
     let contextNames = ["webgl", "experimental-webgl", "webkit-3d", "moz-webgl"];
     for (let i in contextNames) {
         try {
-            gl = canvas[0].getContext(contextNames[i]);
+            gl = canvas[0].getContext(contextNames[i], {
+                antialias: false
+            });
         } catch (e) {};
         if (gl) break;
     }
@@ -620,6 +627,7 @@ function grController(viewDomObject) {
     this.fontTexture = new grTexture("/static/font2.png", true);
     this.fontTexture.markAsFontTexture();
     this.filterMask = 0;
+    this.cull = false;
 
     canvas.mousewheel(function(event) {
         gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);

@@ -45,13 +45,18 @@ func NewFromData(buf []byte) (*Texture, error) {
 		return nil, errors.New("Wrong magic.")
 	}
 
-	// 0 - any; 8000 - alpha channel
+	// flags
+	// 0x010000 - 3d usual/additive/alpha
+	// 0x018000 - 3d usual/alpha
+	// 0x510000 - 3d additive? billboard?
+	// 0x510000 - 2d nontransparent (except for fonts)
+	// 0x5d0000 - 2d transparent
+
 	flags1 := tex.Flags & 0xffff
 	if flags1 != 0 && flags1 != 0x8000 {
 		return nil, fmt.Errorf("Unknown unkFlags 0x%.4x != 0", flags1)
 	}
 
-	// 1 - no alpha; 5d - alpha channel; 51 - font
 	flags2 := tex.Flags >> 16
 	if flags2 != 1 && flags2 != 0x41 && flags2 != 0x5d && flags2 != 0x51 && flags2 != 0x11 {
 		return nil, fmt.Errorf("Unknown unkFlags2 0x%.4x (0x1,0x41,0x5d,0x51,0x11)", flags2)
@@ -104,9 +109,12 @@ type AjaxImage struct {
 }
 
 type Ajax struct {
-	Data         *Texture
-	Images       []AjaxImage
-	FilterLinear bool
+	Data                  *Texture
+	Images                []AjaxImage
+	FilterReducedNearest  bool
+	FilterExpandedNearest bool
+	ClampVertical         bool
+	ClampHorisontal       bool
 }
 
 func blendImg(img *image.RGBA, clrBlend []float32) {
@@ -138,8 +146,11 @@ func blendImg(img *image.RGBA, clrBlend []float32) {
 
 func (txr *Texture) MarshalBlend(clrBlend []float32, wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	res := &Ajax{
-		Data:         txr,
-		FilterLinear: txr.Flags&1 == 0,
+		Data:                  txr,
+		FilterReducedNearest:  (txr.Flags>>15)&1 != 0,
+		FilterExpandedNearest: (txr.Flags>>16)&1 != 0,
+		ClampHorisontal:       (txr.Flags>>20)&3 == 1,
+		ClampVertical:         (txr.Flags>>22)&3 == 1,
 	}
 
 	defer func() {

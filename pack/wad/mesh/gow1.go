@@ -28,15 +28,21 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		return fmt.Errorf("Unknown type %x", o.Type)
 	}
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
-	o.PacketsPerFilter = binary.LittleEndian.Uint32(b[4:])
+	o.DmaTagsCountPerPacket = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
-	if jmLen := binary.LittleEndian.Uint16(b[0xa:]); jmLen != 0 {
-		o.JointMapper = make([]uint32, jmLen)
+	o.InstancesCount = binary.LittleEndian.Uint32(b[0xc:])
+	o.JointMapElementsCount = binary.LittleEndian.Uint16(b[0xa:])
+
+	o.JointMappers = make([][]uint32, o.InstancesCount)
+	if o.JointMapElementsCount != 0 {
+		for iJm := range o.JointMappers {
+			o.JointMappers[iJm] = make([]uint32, o.JointMapElementsCount)
+		}
 	}
-	o.Unk0c = binary.LittleEndian.Uint32(b[0xc:])
-	o.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
-	o.UseInvertedMatrix = o.Unk10&0x40 != 0
-	o.Unk14 = binary.LittleEndian.Uint32(b[0x14:])
+
+	o.Flags = binary.LittleEndian.Uint32(b[0x10:])
+	o.UseInvertedMatrix = o.Flags&0x40 != 0
+	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]
 	o.Unk19 = b[0x19]
 	o.NextFreeVUBufferId = binary.LittleEndian.Uint16(b[0x1a:])
@@ -44,16 +50,16 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.SourceVerticesCount = binary.LittleEndian.Uint16(b[0x1e:])
 
 	exlog.Printf("        | type: 0x%.4x  unk02: 0x%.4x packets per filter?: %d materialId: %d joints: %d",
-		o.Type, o.Unk02, o.PacketsPerFilter, o.MaterialId, len(o.JointMapper))
+		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, o.JointMapElementsCount)
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
-		o.Unk0c, o.Unk10, o.Unk14, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
+		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
 	exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
 
-	dmaCalls := o.Unk0c * uint32(o.TextureLayersCount)
+	dmaCalls := o.InstancesCount * uint32(o.TextureLayersCount)
 	o.Packets = make([][]Packet, dmaCalls)
 	for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
-		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.PacketsPerFilter*0x10
-		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.PacketsPerFilter)
+		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.DmaTagsCountPerPacket*0x10
+		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.DmaTagsCountPerPacket)
 
 		ds := NewMeshParserStream(allb, o, packetOffset, exlog)
 		if err := ds.ParsePackets(); err != nil {
@@ -76,14 +82,20 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		o.Packets[iDmaChain] = ds.Packets
 	}
 	//exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
-	if o.JointMapper != nil {
+	if o.JointMappers != nil {
 		// right after dma calls
-		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.PacketsPerFilter
-		for i := range o.JointMapper {
-			jid := binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
-			o.JointMapper[i] = jid
+		jointMapsOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.DmaTagsCountPerPacket
+		for iJm, jm := range o.JointMappers {
+			jointMapOffset := jointMapsOffset + uint32(iJm)*uint32(o.JointMapElementsCount)*4
+			for i := range jm {
+				jm[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
+			}
 		}
-		exlog.Printf("              - joint map: %+#v", o.JointMapper)
+		exlog.Printf("              - joint map: %+#v", o.JointMappers)
+	}
+
+	if o.TextureLayersCount != 1 && o.InstancesCount != 1 {
+		return fmt.Errorf("can instance and layer in same time %x : %x", o.InstancesCount, o.TextureLayersCount)
 	}
 
 	return nil
@@ -93,12 +105,27 @@ func (g *Group) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Log
 	b := allb[pos:]
 	g.Offset = pos
 
-	g.Unk00 = binary.LittleEndian.Uint32(b[0:])
+	g.HideDistance = math.Float32frombits(binary.LittleEndian.Uint32(b[0:]))
 	g.Objects = make([]Object, binary.LittleEndian.Uint32(b[4:]))
-	g.Unk08 = binary.LittleEndian.Uint32(b[8:])
-	exlog.Printf("      | unk00: 0x%.8x unk08: 0x%.8x objects count: %v", g.Unk00, g.Unk08, len(g.Objects))
+	g.HasBbox = binary.LittleEndian.Uint32(b[8:])
+	exlog.Printf("      | hidedist: %f hasbbox: 0x%.8x objects count: %v", g.HideDistance, g.HasBbox, len(g.Objects))
+
+	if g.HasBbox != 0 && g.HasBbox != 1 {
+		return fmt.Errorf("Incorrect HasBbox: 0x%x", g.HasBbox)
+	}
+
+	voff := uint32(len(g.Objects))*4 + OBJECT_GOW1_HEADER_SIZE
 
 	for i := range g.Objects {
+		if g.HasBbox != 0 {
+			exlog.Printf("bbox [%f %f %f] %f",
+				math.Float32frombits(binary.LittleEndian.Uint32(b[voff:])),
+				math.Float32frombits(binary.LittleEndian.Uint32(b[voff+4:])),
+				math.Float32frombits(binary.LittleEndian.Uint32(b[voff+8:])),
+				math.Float32frombits(binary.LittleEndian.Uint32(b[voff+0xc:])))
+			voff += 0x10
+		}
+
 		objectOffset := binary.LittleEndian.Uint32(b[GROUP_GOW1_HEADER_SIZE+i*4:])
 		exlog.Printf(" - - - object %d offset 0x%.8x", i, pos+objectOffset)
 
@@ -174,12 +201,12 @@ func (m *Mesh) parseGow1(b []byte, exlog *utils.Logger) error {
 	m.Unk28 = binary.LittleEndian.Uint32(b[0x28:])
 	m.Unk2c = binary.LittleEndian.Uint32(b[0x2c:])
 	m.Unk30 = binary.LittleEndian.Uint32(b[0x30:])
-	m.Unk34 = binary.LittleEndian.Uint32(b[0x34:])
+	m.BaseBoneIndex = binary.LittleEndian.Uint32(b[0x34:])
 	m.NameOfRootJoint = utils.BytesToString(b[0x38:0x50])
 
 	exlog.Printf("unk0c 0x%.8x  unk10 0x%.8x  unk14 0x%.8x", m.Unk0c, m.Unk10, m.Unk14)
 	exlog.Printf("root joint '%s' flags 0x%.8x", m.NameOfRootJoint, m.Flags0x20)
-	exlog.Printf("unk28 0x%.8x  unk2c 0x%.8x  unk30 0x%.8x  unk34 0x%.8x", m.Unk28, m.Unk2c, m.Unk30, m.Unk34)
+	exlog.Printf("unk28 0x%.8x  unk2c 0x%.8x  unk30 0x%.8x  BaseBoneIndex 0x%.8x", m.Unk28, m.Unk2c, m.Unk30, m.BaseBoneIndex)
 
 	vectorsStart := len(m.Parts)*4 + MESH_GOW1_HEADER_SIZE
 	exlog.Printf(" - strange vectors starting at 0x%.8x count %d", vectorsStart, len(m.Vectors))

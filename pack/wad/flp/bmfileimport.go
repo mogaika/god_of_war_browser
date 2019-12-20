@@ -135,25 +135,26 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 	part.Unk00 = 1
 	part.JointId = uint16(meshPartIndex + 2)
 	part.Groups = []file_mesh.Group{{
-		Unk00: 0xd1000000,
-		Unk08: 0,
+		HideDistance: -34359738368.000000,
+		HasBbox:      0,
 	}}
 
 	group := &part.Groups[0]
 	group.Objects = []file_mesh.Object{{
-		Type:                0xe,
-		Unk02:               0,
-		PacketsPerFilter:    2,
-		MaterialId:          420, // I think noone cares about this one
-		JointMapper:         []uint32{uint32(meshPartIndex + 2)},
-		Unk0c:               1,
-		Unk10:               0,
-		Unk14:               0xffffff35,
-		TextureLayersCount:  1,
-		Unk19:               1,
-		NextFreeVUBufferId:  1,
-		Unk1c:               1,
-		SourceVerticesCount: 4,
+		Type:                  0xe,
+		Unk02:                 0,
+		DmaTagsCountPerPacket: 2,
+		MaterialId:            420, // I think noone cares about this one
+		JointMapElementsCount: 1,
+		JointMappers:          [][]uint32{[]uint32{uint32(meshPartIndex + 2)}},
+		InstancesCount:        1,
+		Flags:                 0,
+		FlagsMask:             0xffffff35,
+		TextureLayersCount:    1,
+		Unk19:                 1,
+		NextFreeVUBufferId:    1,
+		Unk1c:                 1,
+		SourceVerticesCount:   4,
 		RawDmaAndJointsData: generateMeshDmaPacketData(
 			[2]float32{
 				float32(char.Xoffset) * scale,

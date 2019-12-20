@@ -27,7 +27,7 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 	wi := func(format string, args ...interface{}) {
 		facesBuff.WriteString(fmt.Sprintf(format+"\n", args...))
 	}
-	lastb := uint32(0)
+	// lastb := uint32(0)
 
 	minimalTextureV := 0.0
 	for _, part := range m.Parts {
@@ -65,17 +65,18 @@ func (m *Mesh) ExportObj(_w io.Writer, bones []mgl32.Mat4, materials []string) e
 						for iVertex := range packet.Trias.X {
 							vertex := mgl32.Vec3{packet.Trias.X[iVertex], packet.Trias.Y[iVertex], packet.Trias.Z[iVertex]}
 
-							if bones != nil && packet.Joints != nil && object.JointMapper != nil {
-								jointId := int(packet.Joints[iVertex])
-								bone := bones[object.JointMapper[jointId]]
-								if lastb != object.JointMapper[jointId] {
-									log.Println(jointId, object.JointMapper[jointId], part.JointId)
-									log.Println(bone)
-									lastb = object.JointMapper[jointId]
+							/*
+								if bones != nil && packet.Joints != nil && object.JointMapper != nil {
+									jointId := int(packet.Joints[iVertex])
+									bone := bones[object.JointMapper[jointId]]
+									if lastb != object.JointMapper[jointId] {
+										log.Println(jointId, object.JointMapper[jointId], part.JointId)
+										log.Println(bone)
+										lastb = object.JointMapper[jointId]
+									}
+									vertex = mgl32.TransformCoordinate(vertex, bone)
 								}
-								vertex = mgl32.TransformCoordinate(vertex, bone)
-							}
-
+							*/
 							w("v %f %f %f", vertex[0], vertex[1], vertex[2])
 							iV++
 							if haveUV {

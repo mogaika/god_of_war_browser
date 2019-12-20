@@ -3,12 +3,14 @@ package inst
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/go-gl/mathgl/mgl32"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	file_scr "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -44,8 +46,37 @@ func NewFromData(buf []byte) (*Instance, error) {
 	return inst, nil
 }
 
+type Ajax struct {
+	Instance
+	Scripts []interface{}
+}
+
 func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
-	return inst, nil
+	scripts := make([]interface{}, 0)
+
+	for _, i := range wrsrc.Node.SubGroupNodes {
+		n := wrsrc.Wad.GetNodeById(i)
+		name := n.Tag.Name
+		sn, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
+		if err != nil {
+			continue
+			// return nil, fmt.Errorf("Error when extracting node %d->%s game obj info: %v", i, name, err)
+		} else {
+			switch sn.(type) {
+			case *file_scr.ScriptParams:
+				scr, err := sn.(*file_scr.ScriptParams).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id))
+				if err != nil {
+					return nil, fmt.Errorf("Error when getting script info %d-'%s': %v", i, name, err)
+				}
+				scripts = append(scripts, scr)
+			}
+		}
+	}
+
+	return &Ajax{
+		Instance: *inst,
+		Scripts:  scripts,
+	}, nil
 }
 
 func init() {

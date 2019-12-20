@@ -160,16 +160,19 @@ a {
     text-align: left;
     font-weight: bold;
     flex-grow: 0;
+    user-select: none;
 }
 
 #view-3d #view-3d-config input {
 	margin-left: 16px;
+	user-select: none;
 }
 
 #view-3d #view-3d-config label {
 	padding: 0;
 	margin-left: -8px;
 	cursor: pointer;
+	user-select: none;
 }
 
 #view-3d canvas {

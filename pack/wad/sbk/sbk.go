@@ -24,10 +24,52 @@ type Sound struct {
 	StreamId uint32 // file offset for vag
 }
 
-type BankDesc struct {
-	F0  uint32
-	F47 [4]uint8
-	F8  uint32
+type Command struct {
+	Cmd uint8 // volume????
+	B1  uint8
+	B2  uint8
+	B3  uint8
+	U4  uint32
+}
+
+func (c *Command) Parse(b []byte) {
+	c.Cmd = b[0]
+	c.B1 = b[1]
+	c.B2 = b[2]
+	c.B3 = b[3]
+	c.U4 = binary.LittleEndian.Uint32(b[4:])
+}
+
+type BankSound struct {
+	Name          string
+	Commands      []Command
+	CommandOffset uint32
+
+	B0 uint8
+	B1 uint8 // == 1 if streamed from vpk?
+	B5 uint8
+	B6 uint8
+}
+
+func (d *BankSound) Parse(b []byte) {
+	d.B0 = b[0]
+	d.B1 = b[1]
+
+	d.B5 = b[5]
+	d.B6 = b[6]
+
+	d.Commands = make([]Command, b[4])
+	d.CommandOffset = binary.LittleEndian.Uint32(b[8:])
+}
+
+func (d *BankSound) ParseCommands(c []byte) {
+	// if streamed from vpk file then only one cmd with:
+	// Cmd = 68/88/a8/0/20/
+	// B1 = 0/7/6 B2 = 0 B3 = 7 U4 = 1/0
+
+	for i := range d.Commands {
+		d.Commands[i].Parse(c[d.CommandOffset+uint32(i)*8:])
+	}
 }
 
 type Bank struct {
@@ -40,11 +82,11 @@ type Bank struct {
 
 	PseudoName  string
 	SoundsCount uint16
-	SomeInt1    uint32
+	AdpcmSize   uint32
 	SomeInt2    uint32
 
-	StartOfDecsSection uint32
-	Descs              []BankDesc
+	CommandsStart uint32
+	BankSounds    []BankSound
 
 	SmpdStart uint32
 }
@@ -59,18 +101,16 @@ func (b *Bank) parseHeader(h []byte) error {
 
 	b.PseudoName = utils.ReverseString(utils.BytesToString(h[0xc:0x10]))
 	b.SoundsCount = u16(0x16)
-	b.StartOfDecsSection = u32(0x20)
-	b.SomeInt1 = u32(0x28)
+	commandsStart := u32(0x20)
+	b.AdpcmSize = u32(0x28)
 	b.SomeInt2 = u32(0x2c)
 	b.SmpdStart = u32(0x34)
 
-	b.Descs = make([]BankDesc, b.SoundsCount)
-	for i := range b.Descs {
-		d := &b.Descs[i]
+	b.BankSounds = make([]BankSound, b.SoundsCount)
+	for i := range b.BankSounds {
 		doff := uint32(0x40 + i*12)
-		d.F0 = u32(doff)
-		copy(d.F47[:], h[doff+4:doff+8])
-		d.F8 = u32(doff + 8)
+		b.BankSounds[i].Parse(h[doff:])
+		b.BankSounds[i].ParseCommands(h[commandsStart:])
 	}
 
 	return nil
@@ -136,6 +176,9 @@ func NewFromData(f io.ReaderAt, isSblk bool, size uint32) (*SBK, error) {
 		bankLen := int64(8 + len(sbk.Sounds)*28)
 		if err := sbk.loadBank(io.NewSectionReader(f, bankLen, int64(size)-bankLen)); err != nil {
 			return sbk, err
+		}
+		for i := range sbk.Sounds {
+			sbk.Bank.BankSounds[sbk.Sounds[i].StreamId].Name = sbk.Sounds[i].Name
 		}
 	}
 

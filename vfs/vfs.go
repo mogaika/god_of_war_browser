@@ -34,3 +34,6 @@ type Directory interface {
 type Syncer interface {
 	Sync() error
 }
+
+type ReadSeekerAt interface {
+}
