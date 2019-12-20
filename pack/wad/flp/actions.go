@@ -81,7 +81,7 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 		}); err != nil {
 			webutils.WriteError(w, err)
 		}
-	case "transofrm":
+	case "transform":
 		if strings.ToUpper(r.Method) == "POST" {
 			if err := r.ParseForm(); err != nil {
 				webutils.WriteError(w, err)
