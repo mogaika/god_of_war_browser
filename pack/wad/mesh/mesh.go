@@ -109,14 +109,12 @@ func NewFromData(b []byte, exlog *utils.Logger) (*Mesh, error) {
 		} else {
 			return m, nil
 		}
-		/*
-			case config.GOW2:
-				if err := m.parseGow2(b, exlog); err != nil {
-					return nil, err
-				} else {
-					return m, nil
-				}
-		*/
+	case config.GOW2:
+		if err := m.parseGow2(b, exlog); err != nil {
+			return nil, err
+		} else {
+			return m, nil
+		}
 	default:
 		panic("err")
 	}

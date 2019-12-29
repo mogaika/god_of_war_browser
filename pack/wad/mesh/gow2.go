@@ -1,16 +1,13 @@
 package mesh
 
-/*
-
 import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
-
-*/
 
 const (
 	MESH_GOW2_HEADER_SIZE   = 0x18
@@ -20,7 +17,6 @@ const (
 	MESH_GOW2_VECTOR_SIZE   = 0x14
 )
 
-/*
 func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Logger) error {
 	b := allb[pos:]
 	o.Offset = pos
@@ -30,12 +26,13 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
 	o.DmaTagsCountPerPacket = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
+	o.JointMappers = make([][]uint32, 1)
 	if jmLen := binary.LittleEndian.Uint16(b[0xa:]); jmLen != 0 {
-		o.JointMapper = make([]uint32, binary.LittleEndian.Uint16(b[0xa:]))
+		o.JointMappers[0] = make([]uint32, binary.LittleEndian.Uint16(b[0xa:]))
 	}
-	o.Unk0c = binary.LittleEndian.Uint32(b[0xc:])
-	o.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
-	o.Unk14 = binary.LittleEndian.Uint32(b[0x14:])
+	o.InstancesCount = binary.LittleEndian.Uint32(b[0xc:])
+	o.Flags = binary.LittleEndian.Uint32(b[0x10:])
+	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]
 	o.Unk19 = b[0x19]
 	o.NextFreeVUBufferId = binary.LittleEndian.Uint16(b[0x1a:])
@@ -43,12 +40,12 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.SourceVerticesCount = binary.LittleEndian.Uint16(b[0x1e:])
 
 	exlog.Printf("        | type: 0x%.4x  unk02: 0x%.4x packets per filter?: %d materialId: %d joints: %d",
-		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, len(o.JointMapper))
+		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, len(o.JointMappers[0]))
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
-		o.Unk0c, o.Unk10, o.Unk14, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
+		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
 	exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
 
-	dmaCalls := o.Unk0c * uint32(o.TextureLayersCount)
+	dmaCalls := o.InstancesCount * uint32(o.TextureLayersCount)
 	o.Packets = make([][]Packet, dmaCalls)
 	for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
 		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.DmaTagsCountPerPacket*0x10
@@ -79,13 +76,13 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	} else {
 		exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
 	}
-	if o.JointMapper != nil {
+	if o.JointMappers[0] != nil {
 		// right after dma calls
 		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.DmaTagsCountPerPacket
-		for i := range o.JointMapper {
-			o.JointMapper[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
+		for i := range o.JointMappers[0] {
+			o.JointMappers[0][i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
 		}
-		exlog.Printf("              - joint map: %+#v", o.JointMapper)
+		exlog.Printf("              - joint map: %+#v", o.JointMappers[0])
 	}
 
 	return nil
@@ -95,10 +92,10 @@ func (g *Group) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Log
 	b := allb[pos:]
 	g.Offset = pos
 
-	g.Unk00 = binary.LittleEndian.Uint32(b[0:])
+	g.HideDistance = math.Float32frombits(binary.LittleEndian.Uint32(b[0:]))
 	g.Objects = make([]Object, binary.LittleEndian.Uint16(b[4:]))
-	g.Unk08 = binary.LittleEndian.Uint32(b[8:])
-	exlog.Printf("      | unk00: 0x%.8x unk08: 0x%.8x objects count: %v", g.Unk00, g.Unk08, len(g.Objects))
+	g.HasBbox = binary.LittleEndian.Uint32(b[8:])
+	exlog.Printf("      | unk00: 0x%.8x unk08: 0x%.8x objects count: %v", g.HideDistance, g.HasBbox, len(g.Objects))
 
 	for i := range g.Objects {
 		objectOffset := binary.LittleEndian.Uint32(b[GROUP_GOW2_HEADER_SIZE+i*4:])
@@ -167,4 +164,3 @@ func (m *Mesh) parseGow2(b []byte, exlog *utils.Logger) error {
 
 	return nil
 }
-*/

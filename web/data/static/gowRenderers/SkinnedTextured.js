@@ -415,6 +415,10 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
 
             let parseLayer = function(iLayer) {
                 let layer = mat.layers[iLayer];
+                if (layer == undefined) {
+                    usualLayer = layer;
+                    return;
+                }
                 switch (layer.method) {
                     case 0:
                         usualLayer = layer;
