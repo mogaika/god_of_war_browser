@@ -3,43 +3,43 @@
 
 ![gow_browser_logo](https://user-images.githubusercontent.com/3680954/28489831-6ec1c660-6edd-11e7-9b08-7c79b20196d8.png)
 
-Tool that helps to investigate files formats of the game.
-Some functional broken on *Jp version*.
+A tool that allows browsing and investigating file formats of the game.
+Some functions are broken on the *Japanese version of the game (NTSC-J)*.
 
-### [Download lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
+### [Download latest build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 
-## Instruction
-- Download and unzip [lastet build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
-- Open console and launch binary with parameters:
+## Instructions
+- Download and unzip [latest build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
+- Open a console window and launch the binary with chosen parameters:
   - Archive source
-    - ```-iso "Path_to_game_ISO_file"``` if you have iso file. Detection of second layer implemented (it is not supported by almost every virtual drive software)
-    - ```-toc "Path_to_directory_with_GODOFWAR.TOC_and_PART?.pak_files"``` if you have pak and toc files
-    - ```-dir "Path_to_directory_with_WAD_files"``` if you have wad files
-    - ```-psarc "Path_to_psarc_file"``` if you have psarc archive
-  - Playstation version using one of the
+    - ```-iso "Path_to_ISO_file"``` if you have an .iso file. Detection of second layer implemented (it is not supported by almost every virtual drive software)
+    - ```-toc "Path_to_directory_with_GODOFWAR.TOC_and_PART?.PAK_files"``` if you have .PAK and .TOC files
+    - ```-dir "Path_to_directory_with_WAD_files"``` if you have .WAD files
+    - ```-psarc "Path_to_psarc_file"``` if you have a psarc archive
+  - Chosen playstation version
     ```-ps ps2``` ```-ps ps3``` ```-ps psvita```
   - Target game
     ```-gowversion 1``` for GoW I or ```-gowversion 2``` for GoW II
 - Open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)
 
-## What if I want to mod game?
+## What if I want to mod the game?
 You can! But it is hard at this time :(
-- Remember! First time you upload larger file, it takes a while (~1-5min, depends on hard drive) to rearrange resources in pack file to create free space (Check console log for progress).
-- Also remember that the tool is not ideal, and I ask to make backups of the original iso and of your progress.
-- You can download resources, change them in hex editor and upload back using browser.
-- You can reupload textures right in browser! Open TXR_ resource and use upload form (png,jpg,gif support).
-- You can change UI labels inside FLP_ resources. And even create new fonts (FLP related stuff may be broken buld to build)
+- Remember: First time you upload a larger file, it takes a while (~1-5min, depending on your hard drive) to rearrange resources in pack file to create free space (You can check the console log for progress).
+- Also remember that the tool is not perfect, and you should make backups of the original .iso and of your progress.
+- You can download resources, change them in a hex editor and upload them back using the browser UI.
+- You can reupload textures right in the browser window! Open any TXR_ resource and use the upload form (png,jpg,gif support).
+- You can change UI labels inside FLP_ resources, and even create new fonts! (FLP related stuff may be broken from build to build)
 - Legacy flow of modifications:
-  - Download required wads using god_of_war_browser web interface
-  - Use [wadunpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadunpack) to unpack wad where you want to make change
-  - Add/remove/modify game files, do not forget to modify *wad_meta.txt*. Some info about file formats you can find in [sources](https://github.com/mogaika/god_of_war_browser/tree/master/pack/wad) of god_of_war_browser.
-  - Archive files to wad using [wadpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadpack)
+  - Download required .WADs using the god_of_war_browser web interface
+  - Use [wadunpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadunpack) to unpack the .WAD file where you want to make changes
+  - Add/remove/modify the game files, but do not forget to modify *wad_meta.txt*. Some info about the file formats can be found in the [sources](https://github.com/mogaika/god_of_war_browser/tree/master/pack/wad) of god_of_war_browser.
+  - Archive the files back into .WAD using [wadpack](https://github.com/mogaika/god_of_war_browser/tree/master/tools/wadpack)
   - Pack wad files in part1.pak using [packer](https://github.com/mogaika/god_of_war_browser/tree/master/tools/packer)
-  - For test replace original part1.pak and godofwar.toc in your iso using [isoreplacer](https://github.com/mogaika/god_of_war_browser/tree/master/tools/isoreplacer)
-- Test game with emulator [pcsx2](https://github.com/PCSX2/pcsx2). Do not forget to shutdown god_of_war_browser before run game in emulator (only if using same iso file)
+  - For testing replace the original PART1.PAK and GODOFWAR.TOC in your .iso using [isoreplacer](https://github.com/mogaika/god_of_war_browser/tree/master/tools/isoreplacer)
+- Test the game using an emulator ([pcsx2](https://github.com/PCSX2/pcsx2)). Do not forget to close and exit god_of_war_browser before running the game in the emulator! (This applies only if you will be using the same .iso file)
 
 ## What about animations?
-Just open any obj file. Supported parsing of:
+Just open any obj file! Supported parsing of:
 - Joint rotation
 - Joint position
 - Texture UV
