@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	_ "image/gif"
 	_ "image/jpeg"
@@ -15,7 +16,7 @@ import (
 	file_gfx "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 )
 
-func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) error {
+func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, createNewPal bool) error {
 	img, _, err := image.Decode(fNewImage)
 	if err != nil {
 		return err
@@ -77,10 +78,40 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) e
 	if err != nil {
 		return fmt.Errorf("palc.MarshalToBinary(): %v", err)
 	}
-	return wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+
+	if err := wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
 		gfxcn.Tag.Id: gfxBinRaw,
-		palcn.Tag.Id: palBinRaw,
-	})
+	}); err != nil {
+		return fmt.Errorf("Update gfx tag error: %v", err)
+	}
+
+	if createNewPal {
+		newPalName := wrsrc.Wad.GenerateName(txr.PalName)
+
+		txr.PalName = newPalName
+
+		log.Printf("Creating new palette '%s'", newPalName)
+
+		if err := wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+			wrsrc.Tag.Id: txr.MarshalToBinary(),
+		}); err != nil {
+			return fmt.Errorf("Update txr tag error: %v", err)
+		}
+
+		if err := wrsrc.Wad.InsertNewTags(palcn.Tag.Id, []wad.Tag{
+			{Tag: wad.GetServerInstanceTag(), Flags: palcn.Tag.Flags, Name: newPalName, Data: palBinRaw},
+		}); err != nil {
+			return fmt.Errorf("Insert pal tag error: %v", err)
+		}
+	} else {
+		if err := wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+			palcn.Tag.Id: palBinRaw,
+		}); err != nil {
+			return fmt.Errorf("Update pal tag error: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func gfxSecondPaletteToGrayscale(palc *file_gfx.GFX) error {
@@ -108,13 +139,16 @@ func gfxSecondPaletteToGrayscale(palc *file_gfx.GFX) error {
 func (txr *Texture) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
 	switch action {
 	case "upload":
+		q := r.URL.Query()
+		createNewPal := strings.ToLower(q.Get("create_new_pal")) == "true"
+
 		fImg, _, err := r.FormFile("img")
 		if err != nil {
 			fmt.Fprintln(w, err)
 			return
 		}
 		defer fImg.Close()
-		if err := txr.ChangeTexture(wrsrc, fImg); err != nil {
+		if err := txr.ChangeTexture(wrsrc, fImg, createNewPal); err != nil {
 			log.Printf("[txr] Error changing texture: %v", err)
 			fmt.Fprintln(w, "change texture error:", err)
 		}
