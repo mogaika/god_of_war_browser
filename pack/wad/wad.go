@@ -267,6 +267,24 @@ func (w *Wad) GetTagByName(name string, searchStart TagId, searchForward bool) *
 	return nil
 }
 
+func (w *Wad) GenerateName(prefix string) string {
+	// generates name by first free hex suffix
+	// l - hex suffix byes count
+	for l := 1; ; l += 1 {
+		lenlimit := 24 - l*2
+		if lenlimit < len(prefix) {
+			prefix = prefix[:24-l*2] // get space for hex number
+		}
+
+		for i := 0; i < 0x100*l; i++ {
+			name := fmt.Sprintf("%s%x", prefix, i)
+			if w.GetTagByName(name, 0, true) == nil {
+				return name
+			}
+		}
+	}
+}
+
 func (w *Wad) GetNodeById(nodeId NodeId) *Node {
 	if nodeId == NODE_INVALID {
 		return nil

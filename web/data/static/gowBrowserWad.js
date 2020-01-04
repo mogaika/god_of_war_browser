@@ -768,7 +768,7 @@ function summaryLoadWadTxr(data, wad, nodeid) {
     replaceBtn.click(function() {
         let form = $(this).parent();
         $.ajax({
-            url: form.attr('action'),
+            url: form.attr('action') + "create_new_pal=" + form.find("#create_new_pal")[0].checked,
             type: 'post',
             data: new FormData(form[0]),
             processData: false,
@@ -784,6 +784,8 @@ function summaryLoadWadTxr(data, wad, nodeid) {
         });
     });
     form.append(replaceBtn);
+    form.append($('</br></br><b>WARNING: Use checkbox below only if you know what you are doing</b></br><input type="checkbox" id="create_new_pal" name="create_new_pal" value="true">'));
+    form.append($('<label>Create new palette for replaced texture. Handy if palette used by multiply textures.</label>'));
 
     dataSummary.append(form);
 }

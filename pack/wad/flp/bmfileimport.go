@@ -110,7 +110,7 @@ func (f *FLP) actionImportBmFont(wrsrc *wad.WadNodeRsrc, zr *zip.Reader, scale f
 				return fmt.Errorf("Error when reuploading txr '%s': %v", texture_name, err)
 			}
 			txr := txrInst.(*file_txr.Texture)
-			txr.ChangeTexture(wrsrc.Wad.GetNodeResourceByTagId(txrTag.Id), f)
+			txr.ChangeTexture(wrsrc.Wad.GetNodeResourceByTagId(txrTag.Id), f, false)
 		} else {
 			img, _, err := image.Decode(f)
 			if err != nil {
