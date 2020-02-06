@@ -443,8 +443,11 @@ function summaryLoadWadMesh(data, wad, nodeid) {
 
     let mdl = new grModel();
 
-    let dumplink = getActionLinkForWadNode(wad, nodeid, 'obj');
-    dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .obj (xyz+norm+uv)'));
+    let dumplinkobj = getActionLinkForWadNode(wad, nodeid, 'obj');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkobj).append('Download .obj (xyz+norm+uv)'));
+    
+    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx	).append('Download .fbx (7.x ASCII)'));
 
     let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
@@ -723,6 +726,9 @@ function summaryLoadWadMdl(data, wad, nodeid) {
 
     let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
+    
+    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
 
     let mdlTable = loadMdlFromAjax(mdl, data, false, true);
     dataSummary.append(mdlTable);
@@ -924,6 +930,9 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
     let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
+    
+    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
 
     let jointsTable = $('<table>');
 
