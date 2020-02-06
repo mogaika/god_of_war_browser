@@ -151,9 +151,9 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 		packet.Norms.Z = make([]float32, normcnt)
 		for i := range packet.Norms.X {
 			bp := i * 3
-			packet.Norms.X[i] = float32(int8(state.Norm[bp])) / 100.0
-			packet.Norms.Y[i] = float32(int8(state.Norm[bp+1])) / 100.0
-			packet.Norms.Z[i] = float32(int8(state.Norm[bp+2])) / 100.0
+			packet.Norms.X[i] = float32(int8(state.Norm[bp])) / 127.0
+			packet.Norms.Y[i] = float32(int8(state.Norm[bp+1])) / 127.0
+			packet.Norms.Z[i] = float32(int8(state.Norm[bp+2])) / 127.0
 		}
 	}
 
@@ -205,7 +205,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 			//      12:16 - depends on block id. either {4,0...} either {7,6,0...}. or if in middle then {0...,3,2,0...}
 			//      16:20 - 0xe - have texture (have rgb?), 0x6 - no texture, 0x2 - no texture (have rgb?), shadow layer (no rgb?)
 			//      20:24 - 0x2 || 0x4;
-			//      24:28 - 1 if 12:16 == 3 || 12:16 == 7, elsewhere 0
+			//      24:28 - 0
 			//      28:32 - count of matbit flags
 			// block[8:12] = 4bit matflags, stacked in particular order
 			//        0x2 - if have texture
@@ -230,7 +230,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 						ok = v == 0
 					case 4:
 						ok = (lo != 0 && lo <= 4) &&
-							(hi == 0 || hi == 1 || hi == 3 || hi == 7)
+							(hi == 0 || hi == 1)
 					case 5:
 						ok = (lo == 0) &&
 							(hi == 0 || hi == 2 || hi == 3 || hi == 4 || hi == 6 || hi == 7)
@@ -238,7 +238,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 						ok = (lo == 0x2 || lo == 0x6 || lo == 0xe) &&
 							(hi == 0x2 || hi == 0x4)
 					case 7:
-						ok = lo == 0
+						ok = (lo == 0) &&
+							(hi == block[4]&0xf)
 					case 12:
 						ok = v%4 == 0
 					case 14:

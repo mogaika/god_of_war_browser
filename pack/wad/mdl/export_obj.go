@@ -1,12 +1,8 @@
 package mdl
 
 import (
-	"archive/zip"
-	"bytes"
 	"fmt"
 	"io"
-	"log"
-	"net/http"
 	"path/filepath"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -15,7 +11,6 @@ import (
 	fmat "github.com/mogaika/god_of_war_browser/pack/wad/mat"
 	fmesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
 	ftxr "github.com/mogaika/god_of_war_browser/pack/wad/txr"
-	"github.com/mogaika/god_of_war_browser/webutils"
 )
 
 func (mdl *Model) ExportObj(wrsrc *wad.WadNodeRsrc, bones []mgl32.Mat4, matlibRelativePath string, w io.Writer, wMatlib io.Writer) (map[string][]byte, error) {
@@ -79,44 +74,4 @@ func (mdl *Model) ExportObj(wrsrc *wad.WadNodeRsrc, bones []mgl32.Mat4, matlibRe
 	}
 
 	return textures, nil
-}
-
-func (mdl *Model) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
-	switch action {
-	case "zip":
-		var buf, objBuf, mtlBuf bytes.Buffer
-
-		z := zip.NewWriter(&buf)
-
-		textures, err := mdl.ExportObj(wrsrc, nil, wrsrc.Name()+".mtl", &objBuf, &mtlBuf)
-		if err != nil {
-			log.Println("exporterr", err)
-		}
-
-		wObj, err := z.Create(wrsrc.Name() + ".obj")
-		if err != nil {
-			log.Println("objerr", err)
-		}
-		wObj.Write(objBuf.Bytes())
-
-		wMtl, err := z.Create(wrsrc.Name() + ".mtl")
-		if err != nil {
-			log.Println("mtlerr", err)
-		}
-		wMtl.Write(mtlBuf.Bytes())
-
-		for tname, t := range textures {
-			wTxr, err := z.Create(tname + ".png")
-			if err != nil {
-				log.Println("txrerr", tname, err)
-			}
-			wTxr.Write(t)
-		}
-
-		if err := z.Close(); err != nil {
-			log.Println("zcloseerr", err)
-		}
-
-		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Name()+".zip")
-	}
 }
