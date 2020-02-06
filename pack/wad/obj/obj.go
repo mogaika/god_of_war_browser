@@ -242,7 +242,7 @@ func NewFromData(buf []byte) (*Object, error) {
 
 	//utils.LogDump(obj)
 
-	obj.FeelJoints()
+	obj.FillJoints()
 
 	s := ""
 	for i, m := range obj.Matrixes3 {
@@ -251,12 +251,14 @@ func NewFromData(buf []byte) (*Object, error) {
 
 	//log.Printf("%s\n%s", s, obj.StringTree())
 
-	//utils.LogDump(obj.Matrixes2)
+	utils.LogDump("MATRICES1", obj.Matrixes1)
+	utils.LogDump("MATRICES2", obj.Matrixes2)
+	utils.LogDump("MATRICES3", obj.Matrixes3)
 
 	return obj, nil
 }
 
-func (obj *Object) FeelJoints() {
+func (obj *Object) FillJoints() {
 	for i := range obj.Joints {
 		j := &obj.Joints[i]
 		j.ParentToJoint = obj.Matrixes1[i]
@@ -267,9 +269,10 @@ func (obj *Object) FeelJoints() {
 			j.BindToJointMat = mgl32.Ident4()
 		}
 
-		j.OurJointToIdleMat = j.ParentToJoint
 		if j.Parent != JOINT_CHILD_NONE {
 			j.OurJointToIdleMat = obj.Joints[j.Parent].OurJointToIdleMat.Mul4(j.ParentToJoint)
+		} else {
+			j.OurJointToIdleMat = j.ParentToJoint
 		}
 
 		if j.IsSkinned {

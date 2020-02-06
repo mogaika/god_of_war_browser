@@ -1,6 +1,9 @@
 package obj
 
 import (
+	"fmt"
+
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/mogaika/god_of_war_browser/fbx"
 	"github.com/mogaika/god_of_war_browser/fbx/cache"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -9,17 +12,17 @@ import (
 )
 
 type FbxExporter struct {
-	ModelId uint64
+	FbxModelId uint64
 }
 
 func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
 	fe := &FbxExporter{
-		ModelId: f.GenerateId(),
+		FbxModelId: f.GenerateId(),
 	}
 	defer cache.Add(wrsrc.Tag.Id, fe)
 
 	model := &fbx.Model{
-		Id:      fe.ModelId,
+		Id:      fe.FbxModelId,
 		Name:    "Model::" + wrsrc.Tag.Name,
 		Element: "Null",
 		Version: 232,
@@ -40,9 +43,28 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cach
 				} else {
 					exMdl = exMdlI.(*file_mdl.FbxExporter)
 				}
-				f.Connections.C = append(f.Connections.C, fbx.Connection{
-					Type: "OO", Parent: model.Id, Child: exMdl.ModelId,
-				})
+
+				for _, submodel := range exMdl.Models {
+					for _, part := range submodel.Parts {
+						partModel := part.FbxModel
+
+						joint := o.Joints[part.RawPart.JointId]
+
+						_ = mgl32.Abs
+						partModel.Properties70.P = append(partModel.Properties70.P,
+							&fbx.Propertie70{
+								Name: "Lcl Translation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: o.Vectors4[joint.Id]},
+							//&fbx.Propertie70{
+							//		Name: "Lcl Rotation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: o.Vectors5[joint.Id]},
+							&fbx.Propertie70{
+								Name: "Lcl Scaling", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: o.Vectors6[joint.Id]})
+
+						partModel.Name += fmt.Sprintf("_JOINT%d", joint.Id)
+						f.Connections.C = append(f.Connections.C, fbx.Connection{
+							Type: "OO", Parent: model.Id, Child: partModel.Id,
+						})
+					}
+				}
 			}
 		}
 	}
@@ -59,7 +81,7 @@ func (o *Object) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
 	fe := o.ExportFbx(wrsrc, f, cache.NewCache())
 
 	f.Connections.C = append(f.Connections.C, fbx.Connection{
-		Type: "OO", Parent: 0, Child: fe.ModelId,
+		Type: "OO", Parent: 0, Child: fe.FbxModelId,
 	})
 
 	f.CountDefinitions()

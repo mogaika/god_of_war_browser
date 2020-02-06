@@ -20,11 +20,12 @@ type FbxExportObject struct {
 }
 
 type FbxExportPart struct {
-	FbxModelId uint64
+	FbxModel   *fbx.Model
 	SkeletUsed bool
 	Objects    []*FbxExportObject
 
-	Part int
+	Part    int
+	RawPart *Part
 }
 
 type FbxExporter struct {
@@ -190,8 +191,8 @@ func (fe *FbxExporter) exportObject(f *fbx.FBX, feo *FbxExportObject, fep *FbxEx
 
 func (fe *FbxExporter) exportPart(f *fbx.FBX, fep *FbxExportPart) {
 	part := &fe.m.Parts[fep.Part]
-	fep.FbxModelId = f.GenerateId()
 	fep.Objects = make([]*FbxExportObject, 0)
+	fep.RawPart = part
 
 	for iGroup := range part.Groups {
 		group := &part.Groups[iGroup]
@@ -212,13 +213,15 @@ func (fe *FbxExporter) exportPart(f *fbx.FBX, fep *FbxExportPart) {
 
 	name := fmt.Sprintf("part%d", fep.Part)
 	model := &fbx.Model{
-		Id:      fep.FbxModelId,
+		Id:      f.GenerateId(),
 		Name:    "Model::" + name,
 		Element: "Null",
 		Version: 232,
 		Shading: true,
 		Culling: "CullingOff",
 	}
+
+	fep.FbxModel = model
 	f.Objects.Model = append(f.Objects.Model, model)
 
 	for _, object := range fep.Objects {
@@ -259,7 +262,7 @@ func (m *Mesh) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
 
 	for _, part := range fe.Parts {
 		f.Connections.C = append(f.Connections.C, fbx.Connection{
-			Type: "OO", Parent: 0, Child: part.FbxModelId,
+			Type: "OO", Parent: 0, Child: part.FbxModel.Id,
 		})
 	}
 
