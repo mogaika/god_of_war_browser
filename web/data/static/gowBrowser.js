@@ -241,22 +241,18 @@ function treeLoadWad(wadName, data) {
     }
 }
 
-function inputAsRenderMask(selector, bitIndex) {
-    let $input = $(selector);
-    let bit = 1 << bitIndex;
-
-    $input[0].checked = (localStorage.getItem(selector) == "true");
-    $input.change(function() {
-        gr_instance.setFilterMask((gr_instance.filterMask & (~bit)) | (this.checked ? bit : 0));
-        localStorage.setItem(selector, this.checked);
-        gr_instance.requestRedraw();
-    })
+function inputAsRenderMask(selector, bitIndex, init) {
+	inputAsSwitch(selector, function (checked) {
+		let bit = 1 << bitIndex;
+		gr_instance.setFilterMask((gr_instance.filterMask & (~bit)) | (checked ? bit : 0));
+	}, init);
 }
 
-function inputAsSwitch(selector, updatefunc) {
+function inputAsSwitch(selector, updatefunc, init) {
     let $input = $(selector);
 
-    $input[0].checked = (localStorage.getItem(selector) == "true");
+	let storageItem = localStorage.getItem(selector);
+    $input[0].checked = (storageItem != null) ? (storageItem == "true") : init;
     updatefunc($input[0].checked);
     $input.change(function() {
         updatefunc(this.checked);
@@ -311,14 +307,14 @@ $(document).ready(function() {
 
     gwInitRenderer(data3d);
 
-    inputAsRenderMask("#view-3d-config input#show-skeleton-ids", 1);
-    inputAsRenderMask("#view-3d-config input#show-skeleton", 2);
-    inputAsRenderMask("#view-3d-config input#show-entity", 3);
-    inputAsRenderMask("#view-3d-config input#show-collision", 4);
-    inputAsRenderMask("#view-3d-config input#show-light", 5);
+    inputAsRenderMask("#view-3d-config input#show-skeleton-ids", 1, true);
+    inputAsRenderMask("#view-3d-config input#show-skeleton", 2, true);
+    inputAsRenderMask("#view-3d-config input#show-entity", 3, true);
+    inputAsRenderMask("#view-3d-config input#show-collision", 4, true);
+    inputAsRenderMask("#view-3d-config input#show-light", 5, true);
     inputAsSwitch("#view-3d-config input#enable-backface-culling", function(enable) {
         gr_instance.cull = enable;
-    });
+    }, false);
 
     gaInit();
 });
