@@ -187,7 +187,15 @@ type Texture struct {
 
 type AnimationStack struct{}
 type AnimationLayer struct{}
-type NodeAttribute struct{}
+
+type NodeAttribute struct {
+	Id      uint64 `fbx:"p"`
+	Name    string `fbx:"p"`
+	Element string `fbx:"p"`
+
+	TypeFlags string
+}
+
 type Video struct {
 	Id      uint64 `fbx:"p"`
 	Name    string `fbx:"p"`
@@ -200,6 +208,7 @@ type Video struct {
 	Filename         string
 	RelativeFilename string
 }
+
 type AnimationCurveNode struct{}
 type AnimationCurve struct{}
 type Pose struct{}

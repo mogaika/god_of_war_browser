@@ -9,23 +9,14 @@ import (
 )
 
 type FbxExporter struct {
-	ModelId uint64
+	Models []*file_mesh.FbxExporter
 }
 
 func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
 	fe := &FbxExporter{
-		ModelId: f.GenerateId(),
+		Models: make([]*file_mesh.FbxExporter, 0),
 	}
 	defer cache.Add(wrsrc.Tag.Id, fe)
-
-	model := &fbx.Model{
-		Id:      fe.ModelId,
-		Name:    "Model::" + wrsrc.Tag.Name,
-		Element: "Null",
-		Version: 232,
-		Shading: true,
-		Culling: "CullingOff",
-	}
 
 	materials := make([]uint64, 0)
 
@@ -52,11 +43,9 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache
 					fbxMesh = fbxMeshI.(*file_mesh.FbxExporter)
 				}
 
-				for _, part := range fbxMesh.Parts {
-					f.Connections.C = append(f.Connections.C, fbx.Connection{
-						Type: "OO", Child: part.FbxModelId, Parent: model.Id,
-					})
+				fe.Models = append(fe.Models, fbxMesh)
 
+				for _, part := range fbxMesh.Parts {
 					for _, object := range part.Objects {
 						f.Connections.C = append(f.Connections.C, fbx.Connection{
 							Type: "OO", Child: materials[object.MaterialId], Parent: object.FbxModelId,
@@ -67,8 +56,6 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache
 		}
 	}
 
-	f.Objects.Model = append(f.Objects.Model, model)
-
 	return fe
 }
 
@@ -77,9 +64,14 @@ func (m *Model) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
 	f.Objects.Model = make([]*fbx.Model, 0)
 
 	fe := m.ExportFbx(wrsrc, f, cache.NewCache())
-	f.Connections.C = append(f.Connections.C, fbx.Connection{
-		Type: "OO", Parent: 0, Child: fe.ModelId,
-	})
+
+	for _, model := range fe.Models {
+		for _, part := range model.Parts {
+			f.Connections.C = append(f.Connections.C, fbx.Connection{
+				Type: "OO", Parent: 0, Child: part.FbxModel.Id,
+			})
+		}
+	}
 
 	f.CountDefinitions()
 
