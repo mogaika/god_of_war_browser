@@ -40,6 +40,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/txr"
 )
 
+// -iso "E:\Downloads\God of War  NTSC(USA)  PS2DVD-9\MY.ISO"  -gowversion 1 -ps ps2
 func main() {
 	var addr, tocpath, dirpath, isopath, psarcpath, psversion string
 	var gowversion int

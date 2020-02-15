@@ -289,8 +289,13 @@ func (s *Script) Marshal() []byte {
 	return s.marshaled
 }
 
-func NewScriptFromData(buf []byte, stringsSector []byte) *Script {
-	s := new(Script)
+func NewScriptFromData(buf []byte, stringsSector []byte) (s *Script) {
+	s = new(Script)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Error parsing script: %v", r)
+		}
+	}()
 	s.parseOpcodes(buf, stringsSector)
 	s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
 	return s

@@ -74,8 +74,10 @@ function treeLoadWadAsNodes(wadName, data) {
             setLocation(wadName + " => " + node_element.attr('nodename'), '#/' + wadName + '/' + 0);
             dataSummary.empty();
             gr_instance.cleanup();
+            
+			gw_cxt_group_loading = true;
+            
             $("#view-tree ol li").each(function(i, node) {
-                gw_cxt_group_loading = true;
                 let $node = $(node);
                 if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("PS")) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
@@ -356,6 +358,15 @@ function parseMeshPacket(object, packet, instanceIndex) {
             //console.log(packet.Joints, packet.Joints2, object.JointMappers);
             let joints1 = packet.Joints;
             let joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
+
+            /*
+            for (let i in joints1) {
+            	joints1[i] = jm[joints1[i]];
+				if (joints2) {
+					joints2[i] = jm[joints2[i]];
+				}
+            }
+            */
             mesh.setJointIds(jm, joints1, joints2);
         }
     }
@@ -366,11 +377,15 @@ function parseMeshPacket(object, packet, instanceIndex) {
 function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
     let part = data.Parts[iPart];
     let totalMeshes = [];
+    
+    console.warn("part usage", iPart, part.JointsUsage);
+    
     for (let iGroup in part.Groups) {
         let group = part.Groups[iGroup];
         for (let iObject in group.Objects) {
             let object = group.Objects[iObject];
 
+			console.warn("object", iPart, iObject, "map", object.JointMappers[0], "usage", object.JointsUsage);
             //let iSkin = 0;
             for (let iInstance = 0; iInstance < object.InstancesCount; iInstance++) {
                 for (let iLayer = 0; iLayer < object.TextureLayersCount; iLayer++) {
@@ -522,18 +537,24 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
         let joints1 = [];
         let joints2 = [];
         let sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
+        console.warn("start", streamStart, "count", streamCount, "end", streamStart+streamCount, "cap", streams["BONI"].Values.length);
+        console.log("sBoni", sBoni);
         joints1.length = sBoni.length;
+        joints2.length = sBoni.length;
         for (let i in sBoni) {
+            //joints1[i] = object.JointsMap[sBoni[i][0]];
+            //joints2[i] = object.JointsMap[sBoni[i][1]];
             joints1[i] = sBoni[i][0];
-            joints2[i] = sBoni[i][3];
+            joints2[i] = sBoni[i][1];
         }
-
-        mesh.setJointIds(object.JointsMap, joints1);
+        mesh.setJointIds(object.JointsMap, joints1, joints2);
     }
 
     //console.log(originalMeshObject.Type, originalMeshObject);	
-    if (originalMeshObject.Type == 0x1d) {
-        mesh.setps3static(true);
+    if (originalMeshObject) {
+	    if (originalMeshObject.Type == 0x1d) {
+	        mesh.setps3static(true);
+	    }
     }
 
     return mesh;
@@ -542,8 +563,12 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
 function loadGmdlPartFromAjax(model, data, iPart, originalPart, table = undefined) {
     let part = data.Models[iPart];
     let totalMeshes = [];
+    
+    console.warn("part usage", iPart, part.JointsUsage);
+    
     for (let iObject in part.Objects) {
         let object = part.Objects[iObject];
+		console.warn("object", iPart, iObject, "map", object.JointsMap, "usage", object.JointsUsage);
 
         let objName = "p" + iPart + "_o" + iObject;
 
@@ -594,6 +619,7 @@ function loadGmdlFromAjax(model, data, originalMesh, needTable = false) {
         }
         loadGmdlPartFromAjax(model, data, iPart, originalPart, table);
     }
+
     gr_instance.flushScene();
     return table;
 }
@@ -618,7 +644,7 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
         if (!!data.GMDL) {
             table = loadGmdlFromAjax(mdl, data.GMDL, mesh, needTable);
         } else {
-            table = loadMeshFromAjax(mdl, data.Meshes[0], needTable);
+            table = loadMeshFromAjax(mdl, mesh, needTable);
         }
     }
 
@@ -1065,6 +1091,13 @@ function loadCxtFromAjax(data, parseScripts = true) {
 function summaryLoadWadCxt(data, wad, nodeid) {
     if (!gw_cxt_group_loading) {
         gr_instance.cleanup();
+        
+	    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
+	    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+    } else {
+    	dataSummary.empty();
+    	let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
+	    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
     }
 
     if ((data.Instances !== null && data.Instances.length) || gw_cxt_group_loading) {

@@ -81,6 +81,7 @@ void main(void) {
 		} else {
 			pos = umJoints[int(aVertexJointID)] * pos + umJoints[int(aVertexJointID2)] * pos;
 			pos *= 0.5;
+			//pos = umJoints[int(aVertexJointID)] * pos;
 		}
 	}
 	if (uUseModelTransform && !uUseRootJointScaleOnly) {
@@ -91,10 +92,11 @@ void main(void) {
 
 	if (uUseVertexColor) {
 		vVertexColor = aVertexColor * (256.0 / 128.0);
+		//vVertexColor = vec4(0, aVertexJointID / 110.0, aVertexJointID2 / 110.0, 1.0);
 	} else {
 		vVertexColor = vec4(1.0);
 	}
-	gl_Position = umProjection * umView * pos;	
+	gl_Position = umProjection * umView * pos;
 	vVertexUV = aVertexUV + uLayerOffset;
 	
 	if (uUseEnvmapSampler) {

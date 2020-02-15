@@ -168,6 +168,9 @@ func (p *Part) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Logg
 			return fmt.Errorf("Error when parsing group %d: %v", i, err)
 		}
 	}
+
+	p.calcJointUsages()
+
 	return nil
 }
 

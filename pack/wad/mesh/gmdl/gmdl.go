@@ -37,6 +37,8 @@ type Object struct {
 	IndexStart   uint32
 	IndexCount   uint32
 	JointsMap    []uint32
+
+	JointsUsage [4]map[uint32]int64
 }
 
 type Model struct {
@@ -47,6 +49,8 @@ type Model struct {
 	Indexes           []uint32
 	UsedTexturesCount uint32
 	Objects           []Object
+
+	JointsUsage [4]map[uint32]int64
 }
 
 type GMDL struct {
@@ -90,9 +94,9 @@ func (s *Stream) parseData(bs *utils.BufStack) error {
 		s.Values = make([][4]float32, bs.Size()/16)
 	case 4: // BONI
 		s.Values = make([][4]byte, bs.Size()/4)
-	case 5: // TEX0 uint16 / 15360.0
+	case 5: // TEX0 float16
 		s.Values = make([][2]uint16, bs.Size()/4)
-	case 6: // CLR0 uint16 / 15360.0
+	case 6: // CLR0 float16
 		s.Values = make([][4]uint16, bs.Size()/8)
 	case 9: // NRM0
 		s.Values = make([][4]uint8, bs.Size()/4)
@@ -144,6 +148,37 @@ func (s *Stream) fromBuf(bs *utils.BufStack) error {
 	return s.parseData(bsData)
 }
 
+func (m *Model) calcJointUsages() {
+	boniStream, ex := m.Streams["BONI"]
+	if !ex {
+		return
+	}
+	boni := boniStream.Values.([][4]byte)
+
+	for i := range m.JointsUsage {
+		m.JointsUsage[i] = make(map[uint32]int64)
+
+		for iObject := range m.Objects {
+			object := &m.Objects[iObject]
+			object.JointsUsage[i] = make(map[uint32]int64)
+			for pos := object.StreamStart; pos < object.StreamStart+object.StreamCount; pos++ {
+				jointId := object.JointsMap[boni[pos][i]]
+				if oldVal, ex := object.JointsUsage[i][jointId]; ex {
+					object.JointsUsage[i][jointId] = oldVal + 1
+				} else {
+					object.JointsUsage[i][jointId] = 1
+				}
+
+				if oldVal, ex := m.JointsUsage[i][jointId]; ex {
+					m.JointsUsage[i][jointId] = oldVal + 1
+				} else {
+					m.JointsUsage[i][jointId] = 1
+				}
+			}
+		}
+	}
+}
+
 func (m *Model) fromBuf(bs *utils.BufStack) error {
 	bsHeader := bs.SubBuf("mdlHeader", 0)
 
@@ -160,8 +195,8 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 
 	bsData := bsHeader.SubBufFollowing("data").Expand()
 
-	streamsCount := int(bsData.BU32(0))
-
+	bsStreamsCount := bsData.SubBuf("streamsCount", 0).SetSize(4)
+	streamsCount := int(bsStreamsCount.ReadBU32())
 	bsStreams := bsData.SubBuf("streams", 4).SetSize(streamsCount * STREAM_SIZE)
 
 	m.Streams = make(map[string]Stream)
@@ -183,11 +218,14 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 	bsIndexes.SetSize(bsIndexes.Pos()).VerifySize(len(m.Indexes)*4 + 4)
 
 	bsObjects := bsIndexes.SubBufFollowing("objects")
-	m.UsedTexturesCount = bsObjects.ReadBU32()
-	objectsCount := bsObjects.ReadBU32()
 	bsObjects.Expand()
-	m.Objects = make([]Object, objectsCount)
 
+	bsObjectsMeta := bsObjects.SubBuf("meta", 0)
+	m.UsedTexturesCount = bsObjectsMeta.ReadBU32()
+	objectsCount := bsObjectsMeta.ReadBU32()
+	bsObjectsMeta.SetSize(bsObjectsMeta.Pos()).VerifySize(8)
+
+	m.Objects = make([]Object, objectsCount)
 	var currentObject *utils.BufStack
 	if len(m.Objects) != 0 {
 		currentObject = bsObjects.SubBuf("object", 8)
@@ -198,6 +236,8 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 			}
 		}
 	}
+
+	m.calcJointUsages()
 
 	return nil
 }
@@ -238,9 +278,10 @@ func (g *GMDL) fromBuf(bs *utils.BufStack) error {
 		// return fmt.Errorf("Unk14 == %v", g.Unk14)
 	}
 
+	bsModelOffsets := bsHeader.SubBufFollowing("modelOffsets").SetSize(len(g.Models) * 4)
 	modelOffsets := make([]int, len(g.Models))
 	for i := range g.Models {
-		modelOffsets[i] = int(bsHeader.ReadBU32())
+		modelOffsets[i] = int(bsModelOffsets.ReadBU32())
 	}
 
 	for i := range g.Models {

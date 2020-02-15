@@ -2,6 +2,7 @@ package obj
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/mogaika/god_of_war_browser/fbx"
@@ -13,6 +14,29 @@ import (
 
 type FbxExporter struct {
 	FbxModelId uint64
+}
+
+func quatToEuler(q mgl32.Quat) (e mgl32.Vec3) {
+	sinr_cosp := float64(2 * (q.W*q.X() + q.Y()*q.Z()))
+	cosr_cosp := float64(1 - 2*(q.X()*q.X()+q.Y()*q.Y()))
+
+	e[0] = float32(math.Atan2(sinr_cosp, cosr_cosp))
+
+	sinp := float64(2 * (q.W*q.Y() - q.Z()*q.X()))
+	if math.Abs(sinp) >= 1 {
+		e[1] = math.Pi / 2
+		if sinp < 0 {
+			e[1] *= -1
+		}
+	} else {
+		e[1] = float32(math.Asin(sinp))
+	}
+
+	siny_cosp := float64(2 * (q.W*q.Z() + q.X()*q.Y()))
+	cosy_cosp := float64(1 - 2*(q.Y()*q.Y()+q.Z()*q.Z()))
+	e[2] = float32(math.Atan2(siny_cosp, cosy_cosp))
+
+	return e
 }
 
 func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
@@ -50,16 +74,20 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cach
 
 						joint := o.Joints[part.RawPart.JointId]
 
-						_ = mgl32.Abs
+						q := mgl32.Mat4ToQuat(joint.RenderMat)
+						euler := quatToEuler(q)
+						pos := joint.RenderMat.Col(3).Vec3()
+						scale := joint.RenderMat.Diag().Vec3().Mul(joint.RenderMat.Diag().W())
+
 						partModel.Properties70.P = append(partModel.Properties70.P,
 							&fbx.Propertie70{
-								Name: "Lcl Translation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: o.Vectors4[joint.Id]},
-							//&fbx.Propertie70{
-							//		Name: "Lcl Rotation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: o.Vectors5[joint.Id]},
+								Name: "Lcl Translation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: pos},
 							&fbx.Propertie70{
-								Name: "Lcl Scaling", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: o.Vectors6[joint.Id]})
+								Name: "Lcl Rotation", Type: "Lcl Rotation", Purpose: "", Idk: "A+", Value: euler.Mul(180.0 / math.Pi)},
+							&fbx.Propertie70{
+								Name: "Lcl Scaling", Type: "Lcl Scaling", Purpose: "", Idk: "A+", Value: scale})
 
-						partModel.Name += fmt.Sprintf("_JOINT%d", joint.Id)
+						partModel.Name = fmt.Sprintf("Model::%s_part%d", joint.Name, part.Part)
 						f.Connections.C = append(f.Connections.C, fbx.Connection{
 							Type: "OO", Parent: model.Id, Child: partModel.Id,
 						})
