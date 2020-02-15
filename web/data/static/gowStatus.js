@@ -20,11 +20,11 @@ function gowWsStatusConnect() {
     if (window["WebSocket"]) {
         wsStatusSocket = new WebSocket("ws://" + document.location.host + "/ws/status");
         wsStatusSocket.onclose = function(evt) {
-            console.info("SOCKET CLOSED", evt);
+            console.info("SOCKET CLOSED", evt, this);
             gowWsStatusTimer();
         };
         wsStatusSocket.onerror = function(evt) {
-            console.error("SOCKET ERROR", evt);
+            console.error("SOCKET ERROR", evt, this);
             gowWsStatusTimer();
         }
         wsStatusSocket.onmessage = function(evt) {

@@ -17,8 +17,9 @@ void main(void) {
 	}
 	if (uUseEnvmapSampler) {
 		//clr = vec4(clr.rgb, 1.0);
-		clr = vec4(clr.rgb*(1.0-clr.a) + texture2D(uLayerEnvmapSampler, vEnvmapUV).xyz*(clr.a), 1.0);
+		//clr = vec4(clr.rgb*(1.0-clr.a) + texture2D(uLayerEnvmapSampler, vEnvmapUV).xyz*(clr.a), 1.0);
 		//clr = vec4(1.0, 0.0, 1.0, 1.0);
 	}
 	gl_FragColor = clr * vVertexColor * uMaterialColor * uLayerColor;
+	//gl_FragColor = vVertexColor;
 }

@@ -128,16 +128,13 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 
     if (mesh.bufferJointIds && hasJoints) {
         gl.uniform1i(this.uUseJoints, 1);
+
         gl.enableVertexAttribArray(this.aVertexJointID);
         gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds);
         gl.vertexAttribPointer(this.aVertexJointID, 1, gl.BYTE, false, 0, 0);
 
         gl.enableVertexAttribArray(this.aVertexJointID2);
-        if (mesh.bufferJointIds2) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds2);
-        } else {
-            gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds);
-        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds2 ? mesh.bufferJointIds2 : mesh.bufferJointIds);
         gl.vertexAttribPointer(this.aVertexJointID2, 1, gl.BYTE, false, 0, 0);
     } else {
         // TODO : restore warn

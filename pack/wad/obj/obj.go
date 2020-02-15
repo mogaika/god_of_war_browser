@@ -251,10 +251,6 @@ func NewFromData(buf []byte) (*Object, error) {
 
 	//log.Printf("%s\n%s", s, obj.StringTree())
 
-	utils.LogDump("MATRICES1", obj.Matrixes1)
-	utils.LogDump("MATRICES2", obj.Matrixes2)
-	utils.LogDump("MATRICES3", obj.Matrixes3)
-
 	return obj, nil
 }
 

@@ -3,7 +3,10 @@ package flp
 import (
 	"bytes"
 	"encoding/binary"
+	"log"
 	"math"
+
+	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -353,6 +356,10 @@ func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 }
 
 func (f *FLP) marshalBufferWithHeader() *bytes.Buffer {
+	if config.GetPlayStationVersion() == config.PS3 {
+		log.Panicf("Unsupported playstation version")
+	}
+
 	fm := NewFlpMarshaler()
 
 	f.marshalBufferHeader(fm)

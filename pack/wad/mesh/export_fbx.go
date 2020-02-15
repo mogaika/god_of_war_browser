@@ -256,8 +256,6 @@ func (m *Mesh) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache)
 
 func (m *Mesh) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
 	f := fbx.NewFbx()
-	f.Objects.Model = make([]*fbx.Model, 0)
-
 	fe := m.ExportFbx(wrsrc, f, cache.NewCache())
 
 	for _, part := range fe.Parts {

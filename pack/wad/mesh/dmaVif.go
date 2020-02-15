@@ -213,9 +213,9 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 			//        0x1 - if not gui
 			//        0x5 - always (end of flags mark?)
 			// block[12] = jointid1 * 4
-			// block[13] = jointid2
+			// block[13] = jointid2 * 16
 			// block[14] = 0
-			// block[15] = 0x80 if joinids == 0, but not limited??? / flags ?
+			// block[15] = 0x80 if jointids == 0, but not limited??? / flags ?
 			if true { //verification
 				for iBlock, v := range block {
 					ok := true
@@ -254,17 +254,13 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 
 			}
 
-			if i == 0 && block[4] == 4 {
-				packet.Joints2 = make([]uint16, vertexes)
-			}
+			packet.Joints2 = make([]uint16, vertexes)
 
 			block_verts := int(block[0])
 
 			for j := 0; j < block_verts; j++ {
-				packet.Joints[vertnum+j] = uint16(block[13] >> 4)
-				if packet.Joints2 != nil {
-					packet.Joints2[vertnum+j] = uint16(block[12] >> 2)
-				}
+				packet.Joints[vertnum+j] = uint16(block[12] >> 2)
+				packet.Joints2[vertnum+j] = uint16(block[13] >> 4)
 			}
 
 			vertnum += block_verts
@@ -295,8 +291,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 			return math.Float32frombits(u32(barr, id))
 		}
 		return fmt.Sprintf(" %.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %.4x   |  %.8x %.8x %.8x %.8x |  %f  %f  %f  %f",
-			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3),
-			u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
+			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3), u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
 			u32(a, 0), u32(a, 1), u32(a, 2), u32(a, 3),
 			f32(a, 0), f32(a, 1), f32(a, 2), f32(a, 3),
 		)
