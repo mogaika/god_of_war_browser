@@ -14,6 +14,7 @@ uniform bool uUseVertexColor;
 uniform bool uUseModelTransform;
 uniform bool uUseEnvmapSampler;
 uniform bool uUseRootJointScaleOnly;
+uniform highp float uBlendWeight;
 
 varying lowp vec4 vVertexColor;
 varying mediump vec2 vVertexUV;
@@ -79,9 +80,15 @@ void main(void) {
 						  0, 0, 0, joint[3][3]);
 			pos = vec4((m * pos).xyz, 1.0);
 		} else {
-			pos = umJoints[int(aVertexJointID)] * pos + umJoints[int(aVertexJointID2)] * pos;
-			pos *= 0.5;
+			//pos = (umJoints[int(aVertexJointID)] * pos + umJoints[int(aVertexJointID2)] * pos) * 0.5;
 			//pos = umJoints[int(aVertexJointID)] * pos;
+
+			//pos = ((umJoints[int(aVertexJointID)] * pos) * (1.0 - uBlendWeight)) + 
+			//      ((umJoints[int(aVertexJointID2)] * pos) * (uBlendWeight));
+
+			mat4 boneTransform = umJoints[int(aVertexJointID)] * (1.0 - uBlendWeight);
+			boneTransform += umJoints[int(aVertexJointID2)] * (uBlendWeight);
+			pos = boneTransform * pos;
 		}
 	}
 	if (uUseModelTransform && !uUseRootJointScaleOnly) {

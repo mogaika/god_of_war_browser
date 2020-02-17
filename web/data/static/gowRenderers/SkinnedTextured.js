@@ -1,3 +1,5 @@
+var gowBlend = 0.5;
+
 function grRenderChain_SkinnedTexturedFlash(model, mesh) {
     this.model = model;
     this.mesh = mesh;
@@ -60,6 +62,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
     this.uUseVertexColor = gl.getUniformLocation(this.program, "uUseVertexColor");
     this.uUseModelTransform = gl.getUniformLocation(this.program, "uUseModelTransform");
     this.uUseRootJointScaleOnly = gl.getUniformLocation(this.program, "uUseRootJointScaleOnly");
+    this.uBlendWeight = gl.getUniformLocation(this.program, "uBlendWeight");
 
     this.umJoints = [];
     for (let i = 0; i < 12; i += 1) {
@@ -75,6 +78,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
     gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
     gl.uniform1i(this.uUseEnvmapSampler, 0);
     gl.uniform1i(this.uUseJoints, 0);
+    gl.uniform1f(this.uBlendWeight, 0.5);
 
     gl.clearColor(0.25, 0.25, 0.25, 1.0);
     gl.clearDepth(1.0);
@@ -151,6 +155,8 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 }
 
 grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flashesBatch, useSkelet) {
+	gl.uniform1f(this.uBlendWeight, gowBlend);
+	
     let mdl = -1;
     let material = -1;
     let mesh = -1;
