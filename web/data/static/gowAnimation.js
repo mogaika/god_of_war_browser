@@ -189,7 +189,7 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
         let result = global;
         if ((joint.Flags & 0x8) != 0) {
             //mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
-            console.warn("joint flags 0x8: ", joint.Name, joint);
+            // console.warn("joint flags 0x8: ", joint.Name, joint);
             result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
         }
 

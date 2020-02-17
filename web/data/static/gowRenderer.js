@@ -364,7 +364,10 @@ grMaterialLayer.prototype.setTextures = function(txtrs) {
 }
 
 grMaterialLayer.prototype.setTextureIndex = function(index) {
-    this.textureIndex = index;
+    this.textureIndex = index %  this.textures.length;
+    if (index > this.textures.length) {
+    	console.warn("trying to set texture index > textures count");
+    }
 }
 
 grMaterialLayer.prototype.setMethodNormal = function() {
