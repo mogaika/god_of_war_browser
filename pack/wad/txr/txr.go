@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"math"
 
@@ -77,11 +78,11 @@ func (txr *Texture) MarshalToBinary() []byte {
 	return buf[:]
 }
 
-func (txr *Texture) image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.RGBA, error) {
+func (txr *Texture) image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.NRGBA, error) {
 	width := int(gfx.Width)
 	height := int(gfx.RealHeight)
 
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	img := image.NewNRGBA(image.Rect(0, 0, width, height))
 	palette, err := pal.AsPalette(ipal, true)
 
 	if err != nil {
@@ -99,7 +100,7 @@ func (txr *Texture) image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal i
 	return img, nil
 }
 
-func (txr *Texture) Image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.RGBA, error) {
+func (txr *Texture) Image(gfx *file_gfx.GFX, pal *file_gfx.GFX, igfx int, ipal int) (*image.NRGBA, error) {
 	return txr.image(gfx, pal, igfx, ipal)
 }
 
@@ -117,7 +118,7 @@ type Ajax struct {
 	ClampHorisontal       bool
 }
 
-func blendImg(img *image.RGBA, clrBlend []float32) {
+func blendImg(img *image.NRGBA, clrBlend []float32) {
 	if clrBlend != nil {
 		bounds := img.Bounds()
 		width, height := bounds.Max.X, bounds.Max.Y
@@ -170,39 +171,65 @@ func (txr *Texture) MarshalBlend(clrBlend []float32, wrsrc *wad.WadNodeRsrc) (in
 			return nil, fmt.Errorf("Cannot find pal: %s", txr.PalName)
 		}
 
-		gfxc, _, err := wrsrc.Wad.GetInstanceFromNode(gfxn.Id)
-		if err != nil {
-			return nil, fmt.Errorf("Error getting gfx %s: %v", txr.GfxName, err)
-		}
+		if config.GetPlayStationVersion() == config.PS3 {
+			ps3tn := wrsrc.Wad.GetNodeByName(txr.SubTxrName, wrsrc.Node.Id, false)
+			if ps3tn == nil {
+				return nil, fmt.Errorf("Cannot find ps3texture: %s", txr.SubTxrName)
+			}
 
-		palc, _, err := wrsrc.Wad.GetInstanceFromNode(paln.Id)
-		if err != nil {
-			return nil, fmt.Errorf("Error getting pal %s: %v", txr.PalName, err)
-		}
+			ps3tc, _, err := wrsrc.Wad.GetInstanceFromNode(ps3tn.Id)
+			if err != nil {
+				return nil, fmt.Errorf("Error getting ps3texture %s: %v", txr.SubTxrName, err)
+			}
 
-		gfx := gfxc.(*file_gfx.GFX)
-		pal := palc.(*file_gfx.GFX)
+			ps3t := ps3tc.(*Ps3Texture)
 
-		res.Images = make([]AjaxImage, len(gfx.Data)*len(pal.Data))
+			sImg := ps3t.images[0]
 
-		i := 0
-		for iGfx := range gfx.Data {
-			for iPal := range pal.Data {
-				img, err := txr.Image(gfx, pal, iGfx, iPal)
-				if err != nil {
-					return nil, err
+			b := sImg.Bounds()
+			newImg := image.NewNRGBA(b)
+			draw.Draw(newImg, b, sImg, b.Min, draw.Src)
+
+			blendImg(newImg, clrBlend)
+			var bufImage bytes.Buffer
+			png.Encode(&bufImage, newImg)
+
+			res.Images = []AjaxImage{AjaxImage{Gfx: 0, Pal: 0, Image: bufImage.Bytes()}}
+		} else {
+			gfxc, _, err := wrsrc.Wad.GetInstanceFromNode(gfxn.Id)
+			if err != nil {
+				return nil, fmt.Errorf("Error getting gfx %s: %v", txr.GfxName, err)
+			}
+
+			palc, _, err := wrsrc.Wad.GetInstanceFromNode(paln.Id)
+			if err != nil {
+				return nil, fmt.Errorf("Error getting pal %s: %v", txr.PalName, err)
+			}
+
+			gfx := gfxc.(*file_gfx.GFX)
+			pal := palc.(*file_gfx.GFX)
+
+			res.Images = make([]AjaxImage, len(gfx.Data)*len(pal.Data))
+
+			i := 0
+			for iGfx := range gfx.Data {
+				for iPal := range pal.Data {
+					img, err := txr.Image(gfx, pal, iGfx, iPal)
+					if err != nil {
+						return nil, err
+					}
+
+					blendImg(img, clrBlend)
+
+					var bufImage bytes.Buffer
+					png.Encode(&bufImage, img)
+
+					res.Images[i].Gfx = iGfx
+					res.Images[i].Pal = iPal
+					res.Images[i].Image = bufImage.Bytes()
+
+					i++
 				}
-
-				blendImg(img, clrBlend)
-
-				var bufImage bytes.Buffer
-				png.Encode(&bufImage, img)
-
-				res.Images[i].Gfx = iGfx
-				res.Images[i].Pal = iPal
-				res.Images[i].Image = bufImage.Bytes()
-
-				i++
 			}
 		}
 	}

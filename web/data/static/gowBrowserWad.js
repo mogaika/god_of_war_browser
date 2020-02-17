@@ -186,6 +186,9 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                     case 0x00000007: // txr
                         summaryLoadWadTxr(data, wad, tagid);
                         break;
+                    case 0x00070007: // ps3 txr
+                        summaryLoadWadTxrPs3(data, wad, tagid);
+                        break;
                     case 0x00000008: // material
                         summaryLoadWadMat(data);
                         break;
@@ -500,6 +503,7 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
     }
 
     let mesh = new grMesh(m_vertexes, m_indexes);
+    mesh.setUseBindToJoin(originalMeshObject.UseInvertedMatrix);
 
     mesh.setMaterialID(object.TextureIndex);
 
@@ -820,6 +824,27 @@ function summaryLoadWadTxr(data, wad, nodeid) {
     form.append($('<label>Create new palette for replaced texture. Handy if palette used by multiply textures.</label>'));
 
     dataSummary.append(form);
+}
+
+function summaryLoadWadTxrPs3(data, wad, nodeid) {
+	set3dVisible(false);
+
+    let table = $('<table>');
+    $.each(data, function(k, val) {
+        if (k != 'Images') {
+        table.append($('<tr>')
+            .append($('<td>').append(k))
+            .append($('<td>').append(val)));
+        }
+    });
+
+    dataSummary.append(table);
+    for (let i in data.Images) {
+        dataSummary.append($('<img>')
+            .addClass('no-interpolate')
+            .attr('src', 'data:image/png;base64,' + data.Images[i])
+            .attr('alt', 'mipmap: ' + i));
+    }
 }
 
 function summaryLoadWadMat(data) {
