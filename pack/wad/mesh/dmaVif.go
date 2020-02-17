@@ -189,11 +189,19 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 		packet.VertexMeta = state.VertexMeta
 		vertexes := len(packet.Trias.X)
 
-		packet.Joints = make([]uint16, vertexes)
-
 		vertnum := 0
 		for i := 0; i < blocks; i++ {
 			block := state.VertexMeta[i*16 : i*16+16]
+
+			block_verts := int(block[0])
+
+			debugColor := func(r, g, b uint16) {
+				for j := 0; j < block_verts; j++ {
+					packet.Blend.R[vertnum+j] = r
+					packet.Blend.G[vertnum+j] = g
+					packet.Blend.B[vertnum+j] = b
+				}
+			}
 
 			// block[0] = affected vertex count
 			// block[1] = 0x80 if last block, else 0
@@ -234,6 +242,19 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 					case 5:
 						ok = (lo == 0) &&
 							(hi == 0 || hi == 2 || hi == 3 || hi == 4 || hi == 6 || hi == 7)
+						r := uint16(0)
+						g := r
+						b := r
+						if hi&1 == 1 {
+							r = 0xff
+						}
+						if hi&2 == 2 {
+							g = 0xff
+						}
+						if hi&4 == 4 {
+							b = 0xff
+						}
+						debugColor(r, g, b)
 					case 6:
 						ok = (lo == 0x2 || lo == 0x6 || lo == 0xe) &&
 							(hi == 0x2 || hi == 0x4)
@@ -254,9 +275,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 
 			}
 
+			packet.Joints = make([]uint16, vertexes)
 			packet.Joints2 = make([]uint16, vertexes)
-
-			block_verts := int(block[0])
 
 			for j := 0; j < block_verts; j++ {
 				packet.Joints[vertnum+j] = uint16(block[12] >> 2)

@@ -503,7 +503,9 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
     }
 
     let mesh = new grMesh(m_vertexes, m_indexes);
-    mesh.setUseBindToJoin(originalMeshObject.UseInvertedMatrix);
+    if (originalMeshObject) {
+    	mesh.setUseBindToJoin(originalMeshObject.UseInvertedMatrix);
+    }
 
     mesh.setMaterialID(object.TextureIndex);
 
@@ -541,7 +543,6 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
         let joints1 = [];
         let joints2 = [];
         let sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
-        console.warn("start", streamStart, "count", streamCount, "end", streamStart+streamCount, "cap", streams["BONI"].Values.length);
         console.log("sBoni", sBoni);
         joints1.length = sBoni.length;
         joints2.length = sBoni.length;

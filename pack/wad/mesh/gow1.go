@@ -53,7 +53,7 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, o.JointMapElementsCount)
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
 		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
-	exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
+	// exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
 
 	dmaCalls := o.InstancesCount * uint32(o.TextureLayersCount)
 	o.Packets = make([][]Packet, dmaCalls)
