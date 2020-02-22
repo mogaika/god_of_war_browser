@@ -1,20 +1,23 @@
 attribute highp vec3 aVertexPos;
 attribute lowp vec4 aVertexColor;
 attribute mediump vec2 aVertexUV;
-attribute mediump float aVertexJointID;
-attribute mediump float aVertexJointID2; // Probably for normal
+attribute mediump float aVertexJointID1;
+attribute mediump float aVertexJointID2;
+attribute highp float aVertexWeight;
 
 uniform highp mat4 umModelTransform;
 uniform highp mat4 umProjection;
 uniform highp mat4 umView;
 uniform mediump vec2 uLayerOffset;
 uniform mediump mat4 umJoints[12];
+uniform highp float uBlendWeight;
+
 uniform bool uUseJoints;
 uniform bool uUseVertexColor;
 uniform bool uUseModelTransform;
 uniform bool uUseEnvmapSampler;
 uniform bool uUseRootJointScaleOnly;
-uniform highp float uBlendWeight;
+uniform bool uUseBlendAttribute;
 
 varying lowp vec4 vVertexColor;
 varying mediump vec2 vVertexUV;
@@ -70,6 +73,7 @@ mat4 transpose(mat4 m) {
 
 void main(void) {
 	vec4 pos = vec4(aVertexPos, 1.0);
+	float weight = 0.5;
 	if (uUseJoints) {
 		//pos = umJoints[int(aVertexJointID2)] * pos;
 		if (uUseRootJointScaleOnly) {
@@ -80,14 +84,10 @@ void main(void) {
 						  0, 0, 0, joint[3][3]);
 			pos = vec4((m * pos).xyz, 1.0);
 		} else {
-			//pos = (umJoints[int(aVertexJointID)] * pos + umJoints[int(aVertexJointID2)] * pos) * 0.5;
-			//pos = umJoints[int(aVertexJointID)] * pos;
+			weight = uUseBlendAttribute ? uBlendWeight : aVertexWeight;
 
-			//pos = ((umJoints[int(aVertexJointID)] * pos) * (1.0 - uBlendWeight)) + 
-			//      ((umJoints[int(aVertexJointID2)] * pos) * (uBlendWeight));
-
-			mat4 boneTransform = umJoints[int(aVertexJointID)] * (1.0 - uBlendWeight);
-			boneTransform += umJoints[int(aVertexJointID2)] * (uBlendWeight);
+			mat4 boneTransform = umJoints[int(aVertexJointID1)] * (weight)
+			                   + umJoints[int(aVertexJointID2)] * (1.0 - weight);
 			pos = boneTransform * pos;
 		}
 	}
@@ -99,10 +99,10 @@ void main(void) {
 
 	if (uUseVertexColor) {
 		vVertexColor = aVertexColor * (256.0 / 128.0);
-		//vVertexColor = vec4(0, aVertexJointID / 110.0, aVertexJointID2 / 110.0, 1.0);
 	} else {
 		vVertexColor = vec4(1.0);
 	}
+
 	gl_Position = umProjection * umView * pos;
 	vVertexUV = aVertexUV + uLayerOffset;
 	

@@ -46,8 +46,9 @@ function grRenderChain_SkinnedTextured(ctrl) {
     this.aVertexPos = gl.getAttribLocation(this.program, "aVertexPos");
     this.aVertexColor = gl.getAttribLocation(this.program, "aVertexColor");
     this.aVertexUV = gl.getAttribLocation(this.program, "aVertexUV");
-    this.aVertexJointID = gl.getAttribLocation(this.program, "aVertexJointID");
+    this.aVertexJointID1 = gl.getAttribLocation(this.program, "aVertexJointID1");
     this.aVertexJointID2 = gl.getAttribLocation(this.program, "aVertexJointID2");
+    this.aVertexWeight = gl.getAttribLocation(this.program, "aVertexWeight");
 
     this.umProjection = gl.getUniformLocation(this.program, "umProjection");
     this.umView = gl.getUniformLocation(this.program, "umView");
@@ -57,12 +58,13 @@ function grRenderChain_SkinnedTextured(ctrl) {
     this.uLayerOffset = gl.getUniformLocation(this.program, "uLayerOffset");
     this.uLayerDiffuseSampler = gl.getUniformLocation(this.program, "uLayerDiffuseSampler");
     this.uLayerEnvmapSampler = gl.getUniformLocation(this.program, "uLayerEnvmapSampler");
+    this.uBlendWeight = gl.getUniformLocation(this.program, "uBlendWeight");
     this.uUseLayerDiffuseSampler = gl.getUniformLocation(this.program, "uUseLayerDiffuseSampler");
     this.uUseEnvmapSampler = gl.getUniformLocation(this.program, "uUseEnvmapSampler");
     this.uUseVertexColor = gl.getUniformLocation(this.program, "uUseVertexColor");
     this.uUseModelTransform = gl.getUniformLocation(this.program, "uUseModelTransform");
     this.uUseRootJointScaleOnly = gl.getUniformLocation(this.program, "uUseRootJointScaleOnly");
-    this.uBlendWeight = gl.getUniformLocation(this.program, "uBlendWeight");
+    this.uUseBlendAttribute = gl.getUniformLocation(this.program, "uUseBlendAttribute");
 
     this.umJoints = [];
     for (let i = 0; i < 12; i += 1) {
@@ -78,6 +80,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
     gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
     gl.uniform1i(this.uUseEnvmapSampler, 0);
     gl.uniform1i(this.uUseJoints, 0);
+    gl.uniform1i(this.uUseBlendAttribute, 0);
     gl.uniform1f(this.uBlendWeight, 0.5);
 
     gl.clearColor(0.25, 0.25, 0.25, 1.0);
@@ -93,8 +96,9 @@ grRenderChain_SkinnedTextured.prototype.free = function(ctrl) {
     gl.disableVertexAttribArray(this.aVertexPos);
     gl.disableVertexAttribArray(this.aVertexColor);
     gl.disableVertexAttribArray(this.aVertexUV);
-    gl.disableVertexAttribArray(this.aVertexJointID);
+    gl.disableVertexAttribArray(this.aVertexJointID1);
     gl.disableVertexAttribArray(this.aVertexJointID2);
+    gl.disableVertexAttribArray(this.aVertexWeight);
     gl.deleteProgram(this.program);
     gl.deleteShader(this.vertexShader);
     gl.deleteShader(this.fragmentShader);
@@ -115,30 +119,35 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
         gl.disableVertexAttribArray(this.aVertexColor);
     }
 
-    if (mesh.bufferUV && hasTexture) {
-        gl.uniform1i(this.uUseLayerDiffuseSampler, 1);
+	if (hasTexture) {
+		gl.uniform1i(this.uUseLayerDiffuseSampler, 1);
+	} else {
+		gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
+	}
+
+    if (mesh.bufferUV) {
         gl.enableVertexAttribArray(this.aVertexUV);
         gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferUV);
         gl.vertexAttribPointer(this.aVertexUV, 2, gl.FLOAT, false, 0, 0);
     } else {
-        gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
         gl.disableVertexAttribArray(this.aVertexUV);
     }
+
     if (hasEnvMap) {
         gl.uniform1i(this.uUseEnvmapSampler, 1);
     } else {
         gl.uniform1i(this.uUseEnvmapSampler, 0);
     }
 
-    if (mesh.bufferJointIds && hasJoints) {
+    if (mesh.bufferJointIds1 && hasJoints) {
         gl.uniform1i(this.uUseJoints, 1);
 
-        gl.enableVertexAttribArray(this.aVertexJointID);
-        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds);
-        gl.vertexAttribPointer(this.aVertexJointID, 1, gl.BYTE, false, 0, 0);
+        gl.enableVertexAttribArray(this.aVertexJointID1);
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds1);
+        gl.vertexAttribPointer(this.aVertexJointID1, 1, gl.BYTE, false, 0, 0);
 
         gl.enableVertexAttribArray(this.aVertexJointID2);
-        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds2 ? mesh.bufferJointIds2 : mesh.bufferJointIds);
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds2 ? mesh.bufferJointIds2 : mesh.bufferJointIds1);
         gl.vertexAttribPointer(this.aVertexJointID2, 1, gl.BYTE, false, 0, 0);
     } else {
         // TODO : restore warn
@@ -146,17 +155,28 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
         //    console.warn("has joints but without jointIdsBuffer", mesh);
         //}
         gl.uniform1i(this.uUseJoints, 0);
-        gl.disableVertexAttribArray(this.aVertexJointID);
+        gl.disableVertexAttribArray(this.aVertexJointID1);
         gl.disableVertexAttribArray(this.aVertexJointID2);
     }
+    
+    if (mesh.bufferWeights) {
+    	gl.uniform1i(this.uUseBlendAttribute, 0);
+		
+		gl.enableVertexAttribArray(this.aVertexWeight);
+		gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferWeights);
+		gl.vertexAttribPointer(this.aVertexWeight, 1, gl.FLOAT, false, 0, 0);
+    } else {
+		gl.uniform1i(this.uUseBlendAttribute, 1);
+		gl.disableVertexAttribArray(this.aVertexWeight);
+	}
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.bufferIndex);
     gl.drawElements(mesh.primitive, mesh.indexesCount, mesh.bufferIndexType, 0);
 }
 
 grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flashesBatch, useSkelet) {
-	gl.uniform1f(this.uBlendWeight, gowBlend);
-	
+    gl.uniform1f(this.uBlendWeight, gowBlend);
+
     let mdl = -1;
     let material = -1;
     let mesh = -1;
@@ -284,8 +304,9 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
     gl.disable(gl.DEPTH_TEST);
 
     gl.disableVertexAttribArray(this.aVertexColor);
-    gl.disableVertexAttribArray(this.aVertexJointID);
+    gl.disableVertexAttribArray(this.aVertexJointID1);
     gl.disableVertexAttribArray(this.aVertexJointID2);
+    gl.disableVertexAttribArray(this.aVertexWeight);
 
     gl.uniformMatrix4fv(this.umView, false, mat4.create());
     gl.uniformMatrix4fv(this.umProjection, false, ctrl.orthoMatrix);

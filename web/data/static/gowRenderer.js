@@ -33,8 +33,9 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.bufferBlendColor = undefined;
     this.bufferUV = undefined;
     this.bufferNormals = undefined;
-    this.bufferJointIds = undefined;
+    this.bufferJointIds1 = undefined;
     this.bufferJointIds2 = undefined;
+    this.bufferWeights = undefined;
     this.jointMapping = undefined;
     this.materialIndex = undefined;
 }
@@ -84,20 +85,28 @@ grMesh.prototype.setNormals = function(data) {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
 }
 
-grMesh.prototype.setJointIds = function(jointMapping, jointIds, jointIds2) {
+grMesh.prototype.setJointIds = function(jointMapping, jointIds1, jointIds2, weights) {
     this.jointMapping = jointMapping;
-    if (!this.bufferJointIds) {
-        this.bufferJointIds = gl.createBuffer();
+    if (!this.bufferJointIds1) {
+        this.bufferJointIds1 = gl.createBuffer();
     }
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds);
-    gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds1);
+    gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds1), gl.STATIC_DRAW);
 
-    if (jointIds2 != undefined) {
+    if (jointIds2 !== undefined) {
         if (!this.bufferJointIds2) {
             this.bufferJointIds2 = gl.createBuffer();
         }
         gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds2);
         gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds2), gl.STATIC_DRAW);
+    }
+    
+    if (weights !== undefined) {
+    	if (!this.bufferWeights) {
+            this.bufferWeights = gl.createBuffer();
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferWeights);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(weights), gl.STATIC_DRAW);
     }
 }
 
@@ -123,7 +132,9 @@ grMesh.prototype.free = function() {
     if (this.bufferBlendColor) gl.deleteBuffer(this.bufferBlendColor);
     if (this.bufferUV) gl.deleteBuffer(this.bufferUV);
     if (this.bufferNormals) gl.deleteBuffer(this.bufferNormals);
-    if (this.bufferJointIds) gl.deleteBuffer(this.bufferJointIds);
+    if (this.bufferJointIds1) gl.deleteBuffer(this.bufferJointIds1);
+    if (this.bufferJointIds2) gl.deleteBuffer(this.bufferJointIds2);
+    if (this.bufferWeights) gl.deleteBuffer(this.bufferWeights);
     gr_instance.flushScene();
 }
 
@@ -364,9 +375,9 @@ grMaterialLayer.prototype.setTextures = function(txtrs) {
 }
 
 grMaterialLayer.prototype.setTextureIndex = function(index) {
-    this.textureIndex = index %  this.textures.length;
+    this.textureIndex = index % this.textures.length;
     if (index > this.textures.length) {
-    	console.warn("trying to set texture index > textures count");
+        console.warn("trying to set texture index > textures count");
     }
 }
 

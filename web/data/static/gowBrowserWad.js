@@ -74,9 +74,9 @@ function treeLoadWadAsNodes(wadName, data) {
             setLocation(wadName + " => " + node_element.attr('nodename'), '#/' + wadName + '/' + 0);
             dataSummary.empty();
             gr_instance.cleanup();
-            
-			gw_cxt_group_loading = true;
-            
+
+            gw_cxt_group_loading = true;
+
             $("#view-tree ol li").each(function(i, node) {
                 let $node = $(node);
                 if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("PS")) {
@@ -362,15 +362,7 @@ function parseMeshPacket(object, packet, instanceIndex) {
             let joints1 = packet.Joints;
             let joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
 
-            /*
-            for (let i in joints1) {
-            	joints1[i] = jm[joints1[i]];
-				if (joints2) {
-					joints2[i] = jm[joints2[i]];
-				}
-            }
-            */
-            mesh.setJointIds(jm, joints1, joints2);
+            mesh.setJointIds(jm, joints1, joints2, packet.Trias.Weight);
         }
     }
 
@@ -380,15 +372,12 @@ function parseMeshPacket(object, packet, instanceIndex) {
 function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
     let part = data.Parts[iPart];
     let totalMeshes = [];
-    
-    console.warn("part usage", iPart, part.JointsUsage);
-    
+
     for (let iGroup in part.Groups) {
         let group = part.Groups[iGroup];
         for (let iObject in group.Objects) {
             let object = group.Objects[iObject];
 
-			console.warn("object", iPart, iObject, "map", object.JointMappers[0], "usage", object.JointsUsage);
             //let iSkin = 0;
             for (let iInstance = 0; iInstance < object.InstancesCount; iInstance++) {
                 for (let iLayer = 0; iLayer < object.TextureLayersCount; iLayer++) {
@@ -463,9 +452,9 @@ function summaryLoadWadMesh(data, wad, nodeid) {
 
     let dumplinkobj = getActionLinkForWadNode(wad, nodeid, 'obj');
     dataSummary.append($('<a class="center">').attr('href', dumplinkobj).append('Download .obj (xyz+norm+uv)'));
-    
+
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx	).append('Download .fbx (7.x ASCII)'));
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx (7.x ASCII)'));
 
     let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
@@ -489,6 +478,8 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
 
     let m_vertexes = [];
     m_vertexes.length = sPos.length * 3;
+    let m_weights = [];
+    m_weights.length = sPos.length;
 
     for (let i in sPos) {
         let j = i * 3;
@@ -496,6 +487,7 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
         m_vertexes[j + 0] = pos[0];
         m_vertexes[j + 1] = pos[1];
         m_vertexes[j + 2] = pos[2];
+        m_weights[i] = pos[3];
     }
 
     for (let i in m_indexes) {
@@ -504,7 +496,7 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
 
     let mesh = new grMesh(m_vertexes, m_indexes);
     if (originalMeshObject) {
-    	mesh.setUseBindToJoin(originalMeshObject.UseInvertedMatrix);
+        mesh.setUseBindToJoin(originalMeshObject.UseInvertedMatrix);
     }
 
     mesh.setMaterialID(object.TextureIndex);
@@ -543,23 +535,20 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
         let joints1 = [];
         let joints2 = [];
         let sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
-        console.log("sBoni", sBoni);
         joints1.length = sBoni.length;
         joints2.length = sBoni.length;
         for (let i in sBoni) {
-            //joints1[i] = object.JointsMap[sBoni[i][0]];
-            //joints2[i] = object.JointsMap[sBoni[i][1]];
             joints1[i] = sBoni[i][0];
             joints2[i] = sBoni[i][1];
         }
-        mesh.setJointIds(object.JointsMap, joints1, joints2);
+        mesh.setJointIds(object.JointsMap, joints1, joints2, m_weights);
     }
 
     //console.log(originalMeshObject.Type, originalMeshObject);	
     if (originalMeshObject) {
-	    if (originalMeshObject.Type == 0x1d) {
-	        mesh.setps3static(true);
-	    }
+        if (originalMeshObject.Type == 0x1d) {
+            mesh.setps3static(true);
+        }
     }
 
     return mesh;
@@ -568,12 +557,9 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
 function loadGmdlPartFromAjax(model, data, iPart, originalPart, table = undefined) {
     let part = data.Models[iPart];
     let totalMeshes = [];
-    
-    console.warn("part usage", iPart, part.JointsUsage);
-    
+
     for (let iObject in part.Objects) {
         let object = part.Objects[iObject];
-		console.warn("object", iPart, iObject, "map", object.JointsMap, "usage", object.JointsUsage);
 
         let objName = "p" + iPart + "_o" + iObject;
 
@@ -757,7 +743,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
 
     let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
-    
+
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
     dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
 
@@ -828,14 +814,14 @@ function summaryLoadWadTxr(data, wad, nodeid) {
 }
 
 function summaryLoadWadTxrPs3(data, wad, nodeid) {
-	set3dVisible(false);
+    set3dVisible(false);
 
     let table = $('<table>');
     $.each(data, function(k, val) {
         if (k != 'Images') {
-        table.append($('<tr>')
-            .append($('<td>').append(k))
-            .append($('<td>').append(val)));
+            table.append($('<tr>')
+                .append($('<td>').append(k))
+                .append($('<td>').append(val)));
         }
     });
 
@@ -925,7 +911,8 @@ function loadCollisionFromAjax(mdl, data) {
 
 function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
     if (data.Model) {
-        loadMdlFromAjax(mdl, data.Model, parseScripts);
+    	let mdlTable = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
+    	dataSummary.append(mdlTable);
     } else if (data.Collision) {
         loadCollisionFromAjax(mdl, data.Collision);
     }
@@ -980,9 +967,18 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
 function summaryLoadWadObj(data, wad, nodeid) {
     gr_instance.cleanup();
 
+	let r = $("<input autocomplete=\"off\" type='range' min='0' max='100' value='50'>");
+	let blendInd = $("<span>");
+	r.on("change mousemove", function(ev, dat) {
+		gowBlend = $(this).val() * 0.01;
+		gr_instance.requestRedraw();
+		blendInd.text("blend:" + gowBlend);
+	});
+	dataSummary.append($("<div class='center'>").append(r, $("<br>"), blendInd));
+
     let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
-    
+
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
     dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
 
@@ -1117,13 +1113,13 @@ function loadCxtFromAjax(data, parseScripts = true) {
 function summaryLoadWadCxt(data, wad, nodeid) {
     if (!gw_cxt_group_loading) {
         gr_instance.cleanup();
-        
-	    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-	    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+
+        let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
+        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
     } else {
-    	dataSummary.empty();
-    	let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
-	    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+        dataSummary.empty();
+        let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
+        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
     }
 
     if ((data.Instances !== null && data.Instances.length) || gw_cxt_group_loading) {

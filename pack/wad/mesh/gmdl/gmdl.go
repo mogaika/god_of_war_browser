@@ -37,8 +37,6 @@ type Object struct {
 	IndexStart   uint32
 	IndexCount   uint32
 	JointsMap    []uint32
-
-	JointsUsage [4]map[uint32]int64
 }
 
 type Model struct {
@@ -49,8 +47,6 @@ type Model struct {
 	Indexes           []uint32
 	UsedTexturesCount uint32
 	Objects           []Object
-
-	JointsUsage [4]map[uint32]int64
 }
 
 type GMDL struct {
@@ -148,37 +144,6 @@ func (s *Stream) fromBuf(bs *utils.BufStack) error {
 	return s.parseData(bsData)
 }
 
-func (m *Model) calcJointUsages() {
-	boniStream, ex := m.Streams["BONI"]
-	if !ex {
-		return
-	}
-	boni := boniStream.Values.([][4]byte)
-
-	for i := range m.JointsUsage {
-		m.JointsUsage[i] = make(map[uint32]int64)
-
-		for iObject := range m.Objects {
-			object := &m.Objects[iObject]
-			object.JointsUsage[i] = make(map[uint32]int64)
-			for pos := object.StreamStart; pos < object.StreamStart+object.StreamCount; pos++ {
-				jointId := object.JointsMap[boni[pos][i]]
-				if oldVal, ex := object.JointsUsage[i][jointId]; ex {
-					object.JointsUsage[i][jointId] = oldVal + 1
-				} else {
-					object.JointsUsage[i][jointId] = 1
-				}
-
-				if oldVal, ex := m.JointsUsage[i][jointId]; ex {
-					m.JointsUsage[i][jointId] = oldVal + 1
-				} else {
-					m.JointsUsage[i][jointId] = 1
-				}
-			}
-		}
-	}
-}
-
 func (m *Model) fromBuf(bs *utils.BufStack) error {
 	bsHeader := bs.SubBuf("mdlHeader", 0)
 
@@ -236,8 +201,6 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 			}
 		}
 	}
-
-	m.calcJointUsages()
 
 	return nil
 }
