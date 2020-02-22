@@ -20,6 +20,7 @@ type Packet struct {
 	Trias struct {
 		X, Y, Z []float32
 		Skip    []bool
+		Weight  []float32
 	}
 	Norms struct {
 		X, Y, Z []float32
@@ -43,21 +44,22 @@ type Object struct {
 	DmaTagsCountPerPacket uint32
 	MaterialId            uint16
 	JointMapElementsCount uint16
-	InstancesCount        uint32 // instances count? new dma program per each instance. uses same buffers except rgba lighting
-	Flags                 uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
-	FlagsMask             uint32
-	TextureLayersCount    uint8
-	Unk19                 uint8
-	NextFreeVUBufferId    uint16
-	Unk1c                 uint16
-	SourceVerticesCount   uint16
+	// new dma program per each instance.
+	// uses same buffers except rgba lighting
+	// have own jointmappers
+	InstancesCount      uint32
+	Flags               uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
+	FlagsMask           uint32
+	TextureLayersCount  uint8
+	Unk19               uint8 // total dma programs count ?
+	NextFreeVUBufferId  uint16
+	Unk1c               uint16 // source faces count
+	SourceVerticesCount uint16 // unique vertices count ?
 
 	Packets             [][]Packet
 	RawDmaAndJointsData []byte
 	UseInvertedMatrix   bool
 	JointMappers        [][]uint32
-
-	JointsUsage [2]map[uint32]int64
 }
 
 type Group struct {
@@ -74,8 +76,6 @@ type Part struct {
 	Unk00   uint16
 	Groups  []Group
 	JointId uint16 // parent joint
-
-	JointsUsage [2]map[uint32]int64
 }
 
 type Vector struct {
@@ -103,45 +103,6 @@ const (
 	MESH_MAGIC = 0x0001000f
 	GMDL_MAGIC = 0x0003000f
 )
-
-func (p *Part) calcJointUsages() {
-	for i := 0; i < 2; i++ {
-		p.JointsUsage[i] = make(map[uint32]int64)
-
-		for iGroup := range p.Groups {
-			group := &p.Groups[iGroup]
-			for iObject := range group.Objects {
-				object := &group.Objects[iObject]
-				object.JointsUsage[i] = make(map[uint32]int64)
-				for iPacket := range object.Packets[0] {
-					packet := object.Packets[0][iPacket]
-					joints := packet.Joints
-					if i == 1 {
-						joints = packet.Joints2
-					}
-					if joints == nil {
-						continue
-					}
-
-					for _, rawJointIdInMap := range joints {
-						jointId := object.JointMappers[0][rawJointIdInMap]
-						if oldVal, ex := object.JointsUsage[i][jointId]; ex {
-							object.JointsUsage[i][jointId] = oldVal + 1
-						} else {
-							object.JointsUsage[i][jointId] = 1
-						}
-
-						if oldVal, ex := p.JointsUsage[i][jointId]; ex {
-							p.JointsUsage[i][jointId] = oldVal + 1
-						} else {
-							p.JointsUsage[i][jointId] = 1
-						}
-					}
-				}
-			}
-		}
-	}
-}
 
 func NewFromData(b []byte, exlog *utils.Logger) (*Mesh, error) {
 	m := &Mesh{}

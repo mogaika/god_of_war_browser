@@ -49,7 +49,7 @@ func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, exlog
 
 func (ms *MeshParserStream) flushState() error {
 	if ms.state != nil {
-		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart)
+		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart, ms.Object)
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (ms *MeshParserStream) flushState() error {
 			ms.Packets = append(ms.Packets, *packet)
 		}
 	}
-	ms.state = &MeshParserState{}
+	ms.state = nil
 	return nil
 }
 
@@ -71,16 +71,28 @@ func (ms *MeshParserStream) ParsePackets() error {
 		ms.Log.Printf("          | %v", dmaPack)
 		switch dmaPack.ID() {
 		case dma.DMA_TAG_REF:
-			ms.lastPacketDataStart = dmaPack.Addr() + ms.Object.Offset
-			ms.lastPacketDataEnd = ms.lastPacketDataStart + dmaPack.QWC()*0x10
-			ms.Log.Printf("            -vif pack start: 0x%.6x + 0x%.6x = 0x%.6x => 0x%.6x", ms.Offset, dmaPack.Addr(), ms.lastPacketDataStart, ms.lastPacketDataEnd)
-			if err := ms.ParseVif(); err != nil {
+			if err := ms.ParseVif(dmaPackPos+0x8, dmaPackPos+0x10); err != nil {
+				return fmt.Errorf("Error when parsing vif stream triggered by injected dma_tag_ref: %v", err)
+			}
+
+			packetDataStart := dmaPack.Addr() + ms.Object.Offset
+			packetDataEnd := packetDataStart + dmaPack.QWC()*0x10
+
+			ms.Log.Printf("            -vif pack start: 0x%.6x + 0x%.6x = 0x%.6x => 0x%.6x",
+				ms.Offset, dmaPack.Addr(), packetDataStart, packetDataEnd)
+
+			if err := ms.ParseVif(packetDataStart, packetDataEnd); err != nil {
 				return fmt.Errorf("Error when parsing vif stream triggered by dma_tag_ref: %v", err)
 			}
 		case dma.DMA_TAG_RET:
 			if dmaPack.QWC() != 0 {
 				return fmt.Errorf("Not support dma_tag_ret with qwc != 0 (%d)", dmaPack.QWC())
 			}
+
+			if err := ms.ParseVif(dmaPackPos+0x8, dmaPackPos+0x10); err != nil {
+				return fmt.Errorf("Error when parsing vif stream triggered by injected dma_tag_ref: %v", err)
+			}
+
 			if i != ms.Object.DmaTagsCountPerPacket-1 {
 				return fmt.Errorf("dma_tag_ret not in end of stream (%d != %d)", i, ms.Object.DmaTagsCountPerPacket-1)
 			} else {
@@ -90,11 +102,13 @@ func (ms *MeshParserStream) ParsePackets() error {
 			return fmt.Errorf("Unknown dma packet %v in mesh stream at 0x%.8x i = 0x%.2x < 0x%.2x", dmaPack, dmaPackPos, i, ms.Object.DmaTagsCountPerPacket)
 		}
 	}
-	ms.flushState()
+	if ms.state != nil {
+		return fmt.Errorf("Missed state end")
+	}
 	return nil
 }
 
-func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*Packet, error) {
+func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo *Object) (*Packet, error) {
 	if state.XYZW == nil {
 		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
 			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: 0x%x. State: %+#v", debugPos, state)
@@ -110,15 +124,19 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 	packet.Trias.Y = make([]float32, countTrias)
 	packet.Trias.Z = make([]float32, countTrias)
 	packet.Trias.Skip = make([]bool, countTrias)
+	packet.Trias.Weight = make([]float32, countTrias)
 	for i := range packet.Trias.X {
 		bp := i * 8
 		packet.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixedPoint8
 		packet.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixedPoint8
 		packet.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixedPoint8
-		packet.Trias.Skip[i] = state.XYZW[bp+7]&0x80 != 0
-		//exlog.Printf(" %.5d == %f %f %f %t (%.4x)",
-		//	i, packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i], packet.Trias.Skip[i],
-		//	binary.LittleEndian.Uint16(state.XYZW[bp+6:]))
+
+		flags := binary.LittleEndian.Uint16(state.XYZW[bp+6 : bp+8])
+		packet.Trias.Skip[i] = flags&0x8000 != 0
+		packet.Trias.Weight[i] = float32(int(flags&0x7fff)) / GSFixedPoint24
+		if packet.Trias.Weight[i] > 1.0 || packet.Trias.Weight[i] < 0.0 {
+			return nil, fmt.Errorf("Invalid trias wieght: %v (0x%x)", packet.Trias.Weight[i], flags)
+		}
 	}
 
 	if state.UV != nil {
@@ -189,10 +207,12 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 		packet.VertexMeta = state.VertexMeta
 		vertexes := len(packet.Trias.X)
 
+		packet.Joints = make([]uint16, vertexes)
+		packet.Joints2 = make([]uint16, vertexes)
+
 		vertnum := 0
 		for i := 0; i < blocks; i++ {
 			block := state.VertexMeta[i*16 : i*16+16]
-
 			block_verts := int(block[0])
 
 			debugColor := func(r, g, b uint16) {
@@ -202,6 +222,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 					packet.Blend.B[vertnum+j] = b
 				}
 			}
+			_ = debugColor
 
 			// block[0] = affected vertex count
 			// block[1] = 0x80 if last block, else 0
@@ -242,20 +263,29 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 					case 5:
 						ok = (lo == 0) &&
 							(hi == 0 || hi == 2 || hi == 3 || hi == 4 || hi == 6 || hi == 7)
-						r := uint16(0)
-						g := r
-						b := r
-						if hi&1 == 1 {
-							r = 0xff
-						}
-						if hi&2 == 2 {
-							g = 0xff
-						}
-						if hi&4 == 4 {
-							b = 0xff
-						}
-						debugColor(r, g, b)
+						/*
+							r := uint16(0)
+							g := r
+							b := r
+							if hi&1 == 1 {
+								r = 0xff
+							}
+							if hi&2 == 2 {
+								g = 0xff
+							}
+							if hi&4 == 4 {
+								b = 0xff
+							}
+							debugColor(r, g, b)
+						*/
 					case 6:
+						/*
+							if hi == 0x2 {
+								debugColor(0xff, 0, 0)
+							} else {
+								debugColor(0, 0xff, 0)
+							}
+						*/
 						ok = (lo == 0x2 || lo == 0x6 || lo == 0xe) &&
 							(hi == 0x2 || hi == 0x4)
 					case 7:
@@ -272,19 +302,29 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 						return nil, fmt.Errorf("Incorrect block[%d]: 0x%x", iBlock, block[iBlock])
 					}
 				}
-
 			}
 
-			packet.Joints = make([]uint16, vertexes)
-			packet.Joints2 = make([]uint16, vertexes)
+			/*
+				switch ooo.NextFreeVUBufferId {
+				case 0:
+					debugColor(0xff, 0, 0)
+				case 1:
+					debugColor(0, 0xff, 0)
+				case 2:
+					debugColor(0, 0, 0xff)
+				default:
+					debugColor(0xff, 0xff, 0xff)
+				}
+			*/
 
 			for j := 0; j < block_verts; j++ {
-				packet.Joints[vertnum+j] = uint16(block[12] >> 2)
-				packet.Joints2[vertnum+j] = uint16(block[13] >> 4)
+				packet.Joints[vertnum+j] = uint16(block[13] >> 4)
+				if packet.Joints2 != nil {
+					packet.Joints2[vertnum+j] = uint16(block[12] >> 2)
+				}
 			}
 
 			vertnum += block_verts
-
 			if block[1] != 0 {
 				if i != blocks-1 {
 					return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
@@ -331,8 +371,11 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32) (*P
 	return packet, nil
 }
 
-func (ms *MeshParserStream) ParseVif() error {
-	data := ms.Data[ms.lastPacketDataStart:ms.lastPacketDataEnd]
+func (ms *MeshParserStream) ParseVif(packetDataStart, packetDataEnd uint32) error {
+	ms.lastPacketDataStart = packetDataStart
+	ms.lastPacketDataEnd = packetDataEnd
+
+	data := ms.Data[packetDataStart:packetDataEnd]
 	pos := uint32(0)
 	for {
 		pos = ((pos + 3) / 4) * 4
@@ -341,9 +384,6 @@ func (ms *MeshParserStream) ParseVif() error {
 		}
 		tagPos := pos
 		rawVifCode := binary.LittleEndian.Uint32(data[pos:])
-		//if rawVifCode == 0xffffffff {
-		//ms.Log.Printf("rawVifCode == %.8x, aborting %v", rawVifCode, data[pos:])
-		//}
 		vifCode := vif.NewCode(rawVifCode)
 
 		pos += 4
@@ -368,10 +408,7 @@ func (ms *MeshParserStream) ParseVif() error {
 			if ms.state == nil {
 				ms.state = &MeshParserState{Buffer: vifBufferBase}
 			} else if vifBufferBase != ms.state.Buffer {
-				if err := ms.flushState(); err != nil {
-					return err
-				}
-				ms.state.Buffer = vifBufferBase
+				return fmt.Errorf("Unflushed prev state")
 			}
 			handledBy := ""
 
@@ -458,16 +495,19 @@ func (ms *MeshParserStream) ParseVif() error {
 						ms.state.RGBA = vifBlock
 						handledBy = "rgba"
 					} else {
-						ms.state.RGBA = vifBlock
-						handledBy = "rgbA"
+						// game developers bug, for multi-layer models they include rgba twice
 						ms.Log.Printf("- - - - - - - duplicate of rgba data")
-						//detectingErr = errorAlreadyPresent("RGBA")
+						handledBy = "rgbA"
 					}
+					ms.state.RGBA = vifBlock
 				}
 			}
 
 			ms.Log.Printf("[%.4s] + unpack: 0x%.2x cmd: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
 				handledBy, ms.lastPacketDataStart+tagPos, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
+
+			ms.Log.Printf("   __RAW: %s", utils.SDump(vifBlock))
+
 			if detectingErr != nil || handledBy == "" {
 				ms.Log.Printf("ERROR: %v", detectingErr)
 				ms.Log.Printf("RAW: %s", utils.SDump(vifBlock))

@@ -242,16 +242,16 @@ function treeLoadWad(wadName, data) {
 }
 
 function inputAsRenderMask(selector, bitIndex, init) {
-	inputAsSwitch(selector, function (checked) {
-		let bit = 1 << bitIndex;
-		gr_instance.setFilterMask((gr_instance.filterMask & (~bit)) | (checked ? bit : 0));
-	}, init);
+    inputAsSwitch(selector, function(checked) {
+        let bit = 1 << bitIndex;
+        gr_instance.setFilterMask((gr_instance.filterMask & (~bit)) | (checked ? bit : 0));
+    }, init);
 }
 
 function inputAsSwitch(selector, updatefunc, init) {
     let $input = $(selector);
 
-	let storageItem = localStorage.getItem(selector);
+    let storageItem = localStorage.getItem(selector);
     $input[0].checked = (storageItem != null) ? (storageItem == "true") : init;
     updatefunc($input[0].checked);
     $input.change(function() {
