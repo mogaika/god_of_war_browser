@@ -100,9 +100,9 @@ grMesh.prototype.setJointIds = function(jointMapping, jointIds1, jointIds2, weig
         gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds2);
         gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds2), gl.STATIC_DRAW);
     }
-    
+
     if (weights !== undefined) {
-    	if (!this.bufferWeights) {
+        if (!this.bufferWeights) {
             this.bufferWeights = gl.createBuffer();
         }
         gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferWeights);

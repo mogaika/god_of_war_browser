@@ -24,19 +24,35 @@ type Sound struct {
 	StreamId uint32 // file offset for vag
 }
 
-type Command struct {
-	Cmd uint8 // volume????
+type SmpdStream struct {
+	B0  uint8
 	B1  uint8
 	B2  uint8
 	B3  uint8
 	U4  uint32
+	B8  uint8
+	B9  uint8
+	B10 uint8
+	B11 uint8
+	B12 uint8
+	B13 uint8
+	B14 uint8
+
+	AdpcmOffset uint32
+	AdpcmSize   uint32
+}
+
+type Command struct {
+	W0  uint16
+	B2  uint8
+	Cmd uint8
+	U4  uint32
 }
 
 func (c *Command) Parse(b []byte) {
-	c.Cmd = b[0]
-	c.B1 = b[1]
+	c.W0 = binary.LittleEndian.Uint16(b[0:])
 	c.B2 = b[2]
-	c.B3 = b[3]
+	c.Cmd = b[3]
 	c.U4 = binary.LittleEndian.Uint32(b[4:])
 }
 
@@ -58,14 +74,27 @@ func (d *BankSound) Parse(b []byte) {
 	d.B5 = b[5]
 	d.B6 = b[6]
 
+	// if streamed from vpk file, then
+	// B0 = 125
+	// B1 = 7 / 6 / 2 - channels count or quality
+	// B5 = 0
+	// B6 = 0
+	// singlecommand
+	// B0 = 120
+	// B1 = 0
+	// B5 = 0
+	// B6 = 0
+	// multicommand
+	// B0 = 110
+	// B1 = 4
+	// B5 = 1
+	// B6 = 8
+
 	d.Commands = make([]Command, b[4])
 	d.CommandOffset = binary.LittleEndian.Uint32(b[8:])
 }
 
 func (d *BankSound) ParseCommands(c []byte) {
-	// if streamed from vpk file then only one cmd with:
-	// Cmd = 68/88/a8/0/20/
-	// B1 = 0/7/6 B2 = 0 B3 = 7 U4 = 1/0
 
 	for i := range d.Commands {
 		d.Commands[i].Parse(c[d.CommandOffset+uint32(i)*8:])
@@ -108,7 +137,7 @@ func (b *Bank) parseHeader(h []byte) error {
 
 	b.BankSounds = make([]BankSound, b.SoundsCount)
 	for i := range b.BankSounds {
-		doff := uint32(0x40 + i*12)
+		doff := uint32(0x40 + i*0xc)
 		b.BankSounds[i].Parse(h[doff:])
 		b.BankSounds[i].ParseCommands(h[commandsStart:])
 	}

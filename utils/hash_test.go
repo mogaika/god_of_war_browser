@@ -21,7 +21,19 @@ func TestStringHashNodes(t *testing.T) {
 	for _, test := range hashTests {
 		result := GameStringHashNodes(test.in_str, test.in_init)
 		if uint32(result) != test.out_nodes {
-			t.Errorf("GameStringHashNodes(%q,%d)=%d; expected %d ", test.in_str, test.in_init, result, test.out_nodes)
+			t.Errorf("GameStringHashNodes(%q,%d)=%d; expected %d", test.in_str, test.in_init, result, test.out_nodes)
+		}
+	}
+}
+
+func TestStringUnhashNodes(t *testing.T) {
+	for _, test := range hashTests {
+		if test.in_init != 0 {
+			continue
+		}
+		result := GameStringUnhashNodes(test.out_nodes)
+		if result != test.in_str {
+			t.Errorf("GameStringUnhashNodes(%d)=%q; expected %q", test.out_nodes, result, test.in_str)
 		}
 	}
 }

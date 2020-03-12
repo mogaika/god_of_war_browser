@@ -220,6 +220,24 @@ func (bs *BufStack) ReadStringBuffer(size int) string {
 	return BytesToString(bs.Read(size))
 }
 
+func (bs *BufStack) ReadZString(limit int) string {
+	l := 0
+	for i := 0; ; i++ {
+		if i == limit {
+			l = i
+			break
+		}
+		if bs.buf[bs.pos+i] == 0 {
+			l = i + 1
+			break
+		}
+	}
+
+	s := BytesToString(bs.buf[bs.pos : bs.pos+l])
+	bs.pos += l
+	return s
+}
+
 func (bs *BufStack) VerifySize(pos int) {
 	if pos != bs.size {
 		panic(fmt.Sprintf("Mismatch sizes: %v != %v", pos, bs.size))

@@ -1,10 +1,11 @@
 package collision
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
+
+	"github.com/mogaika/god_of_war_browser/utils"
 
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -12,98 +13,121 @@ import (
 const RIBSHEET_HEADER_SIZE = 0x90
 
 type ShapeRibSheet struct {
+	CountOfSomethingUnk38 uint16
+	CountOfSomethingUnk3a uint16
+	CountOfSomethingUnk3c uint16
+	CountOfSomethingUnk3e uint16
+
+	CountOfSomethingUnk40 uint16
+	CountOfSomethingUnk42 uint16
+	CountOfSomethingUnk44 uint16
+	CountOfSomethingUnk46 uint16
+	CountOfSomethingUnk48 uint16
+	CountOfSomethingUnk4a uint16
+	CountOfSomethingUnk4c uint16
+	CountOfSomethingUnk4e uint16
+
 	CountOfSomethingUnk50 uint16
 	CountOfSomethingUnk52 uint16
 	CountOfSomethingUnk54 uint16
+	CountOfSomethingUnk56 uint16
 	CountOfSomethingUnk5a uint16
 	CountOfSomethingUnk5c uint16
 
-	OffsetToSome1  uint32
-	OffsetToSome2  uint32
-	OffsetToSome3  uint32 // offset_to ctxNames   array of char[0x18]
-	OffsetToSome4  uint32
-	OffsetToSome5  uint32
-	OffsetToSome6  uint32
-	OffsetToSome7  uint32 // ?? triangle indexes
-	OffsetToSome8  uint32 // ?? quads indexes ??
-	OffsetToSome9  uint32 // ?? floats array
-	OffsetToSome10 uint32
+	OffsetToSome64 uint32
+	OffsetToSome68 uint32
+	OffsetToSome6c uint32 // offset_to ctxNames   array of char[0x18]
+	OffsetToSome70 uint32
+	OffsetToSome74 uint32
+	OffsetToSome78 uint32
+	OffsetToSome7c uint32 // ?? triangle indexes
+	OffsetToSome80 uint32 // ?? quads indexes ??
+	OffsetToSome84 uint32 // ?? floats array
+	OffsetToSome88 uint32
+	OffsetToSome8c uint32
 
 	Some7TrianglesIndex [][3]uint16
 	Some8QuadsIndex     [][4]uint16
 	Some9Points         []mgl32.Vec3
 }
 
-func NewRibSheet(f io.ReaderAt, wrtw io.Writer) (*ShapeRibSheet, error) {
-	buf := make([]byte, RIBSHEET_HEADER_SIZE)
-	if _, err := f.ReadAt(buf, 0); err != nil {
-		return nil, err
-	}
+func NewRibSheet(bs *utils.BufStack, wrtw io.Writer) (*ShapeRibSheet, error) {
+	headerbs := bs.SubBuf("header", 0).SetSize(RIBSHEET_HEADER_SIZE)
 
 	rib := &ShapeRibSheet{
-		CountOfSomethingUnk50: binary.LittleEndian.Uint16(buf[0x50:0x52]),
-		CountOfSomethingUnk52: binary.LittleEndian.Uint16(buf[0x52:0x54]),
-		CountOfSomethingUnk54: binary.LittleEndian.Uint16(buf[0x54:0x56]),
-		CountOfSomethingUnk5a: binary.LittleEndian.Uint16(buf[0x5a:0x5c]),
-		CountOfSomethingUnk5c: binary.LittleEndian.Uint16(buf[0x5c:0x5e]),
+		CountOfSomethingUnk38: headerbs.LU16(0x38),
+		CountOfSomethingUnk3a: headerbs.LU16(0x3a),
+		CountOfSomethingUnk3c: headerbs.LU16(0x3c),
+		CountOfSomethingUnk3e: headerbs.LU16(0x3e),
 
-		OffsetToSome1:  binary.LittleEndian.Uint32(buf[0x64:0x68]),
-		OffsetToSome2:  binary.LittleEndian.Uint32(buf[0x68:0x6c]),
-		OffsetToSome3:  binary.LittleEndian.Uint32(buf[0x6c:0x70]),
-		OffsetToSome4:  binary.LittleEndian.Uint32(buf[0x70:0x74]),
-		OffsetToSome5:  binary.LittleEndian.Uint32(buf[0x74:0x78]),
-		OffsetToSome6:  binary.LittleEndian.Uint32(buf[0x78:0x7c]),
-		OffsetToSome7:  binary.LittleEndian.Uint32(buf[0x7c:0x80]),
-		OffsetToSome8:  binary.LittleEndian.Uint32(buf[0x80:0x84]),
-		OffsetToSome9:  binary.LittleEndian.Uint32(buf[0x84:0x8c]),
-		OffsetToSome10: binary.LittleEndian.Uint32(buf[0x8c:0x90]),
+		CountOfSomethingUnk40: headerbs.LU16(0x40),
+		CountOfSomethingUnk42: headerbs.LU16(0x42),
+		CountOfSomethingUnk44: headerbs.LU16(0x44),
+		CountOfSomethingUnk46: headerbs.LU16(0x46),
+		CountOfSomethingUnk48: headerbs.LU16(0x48),
+		CountOfSomethingUnk4a: headerbs.LU16(0x4a),
+		CountOfSomethingUnk4c: headerbs.LU16(0x4c),
+		CountOfSomethingUnk4e: headerbs.LU16(0x4e),
+
+		CountOfSomethingUnk50: headerbs.LU16(0x50),
+		CountOfSomethingUnk52: headerbs.LU16(0x52),
+		CountOfSomethingUnk54: headerbs.LU16(0x54),
+		CountOfSomethingUnk56: headerbs.LU16(0x56),
+		CountOfSomethingUnk5a: headerbs.LU16(0x5a),
+		CountOfSomethingUnk5c: headerbs.LU16(0x5c),
+
+		OffsetToSome64: headerbs.LU32(0x64),
+		OffsetToSome68: headerbs.LU32(0x68),
+		OffsetToSome6c: headerbs.LU32(0x6c),
+		OffsetToSome70: headerbs.LU32(0x70),
+		OffsetToSome74: headerbs.LU32(0x74),
+		OffsetToSome78: headerbs.LU32(0x78),
+		OffsetToSome7c: headerbs.LU32(0x7c),
+		OffsetToSome80: headerbs.LU32(0x80),
+		OffsetToSome84: headerbs.LU32(0x84),
+		OffsetToSome88: headerbs.LU32(0x88),
+		OffsetToSome8c: headerbs.LU32(0x8c),
 	}
 
 	{
-		indexBuf := make([]byte, rib.OffsetToSome8-rib.OffsetToSome7)
-		if _, err := f.ReadAt(indexBuf, int64(rib.OffsetToSome7)); err != nil {
-			return nil, err
-		}
+		triaIndexBs := bs.SubBuf("triaIndexBuffer", int(rib.OffsetToSome7c)).SetSize(int(rib.OffsetToSome80 - rib.OffsetToSome7c))
 
-		rib.Some7TrianglesIndex = make([][3]uint16, len(indexBuf)/10)
+		rib.Some7TrianglesIndex = make([][3]uint16, triaIndexBs.Size()/10)
 		for i := range rib.Some7TrianglesIndex {
-			triaBuf := indexBuf[i*10 : (i+1)*10]
-			rib.Some7TrianglesIndex[i][0] = binary.LittleEndian.Uint16(triaBuf[4:6])
-			rib.Some7TrianglesIndex[i][1] = binary.LittleEndian.Uint16(triaBuf[6:8])
-			rib.Some7TrianglesIndex[i][2] = binary.LittleEndian.Uint16(triaBuf[8:10])
+			off := i * 10
+			rib.Some7TrianglesIndex[i][0] = triaIndexBs.LU16(off + 4)
+			rib.Some7TrianglesIndex[i][1] = triaIndexBs.LU16(off + 6)
+			rib.Some7TrianglesIndex[i][2] = triaIndexBs.LU16(off + 8)
 		}
 	}
 
 	{
-		quadIndexBuf := make([]byte, rib.OffsetToSome9-rib.OffsetToSome8)
-		if _, err := f.ReadAt(quadIndexBuf, int64(rib.OffsetToSome8)); err != nil {
-			return nil, err
-		}
+		quadIndexBs := bs.SubBuf("quadIndexBuffer", int(rib.OffsetToSome80)).SetSize(int(rib.OffsetToSome84 - rib.OffsetToSome80))
 
-		rib.Some8QuadsIndex = make([][4]uint16, len(quadIndexBuf)/12)
+		rib.Some8QuadsIndex = make([][4]uint16, quadIndexBs.Size()/12)
 		for i := range rib.Some8QuadsIndex {
-			quadBuf := quadIndexBuf[i*12 : (i+1)*12]
-			rib.Some8QuadsIndex[i][0] = binary.LittleEndian.Uint16(quadBuf[4:6])
-			rib.Some8QuadsIndex[i][1] = binary.LittleEndian.Uint16(quadBuf[6:8])
-			rib.Some8QuadsIndex[i][2] = binary.LittleEndian.Uint16(quadBuf[8:10])
-			rib.Some8QuadsIndex[i][3] = binary.LittleEndian.Uint16(quadBuf[10:12])
+			off := i * 12
+			rib.Some8QuadsIndex[i][0] = quadIndexBs.LU16(off + 4)
+			rib.Some8QuadsIndex[i][1] = quadIndexBs.LU16(off + 6)
+			rib.Some8QuadsIndex[i][2] = quadIndexBs.LU16(off + 8)
+			rib.Some8QuadsIndex[i][3] = quadIndexBs.LU16(off + 10)
 		}
 	}
 
 	{
-		floatsBuf := make([]byte, rib.OffsetToSome10-rib.OffsetToSome9)
-		if _, err := f.ReadAt(floatsBuf, int64(rib.OffsetToSome9)); err != nil {
-			return nil, err
-		}
+		floatsBs := bs.SubBuf("floatsBuffer", int(rib.OffsetToSome84)).SetSize(int(rib.OffsetToSome88 - rib.OffsetToSome84))
 
-		rib.Some9Points = make([]mgl32.Vec3, len(floatsBuf)/0xc)
+		rib.Some9Points = make([]mgl32.Vec3, floatsBs.Size()/0xc)
 		for i := range rib.Some9Points {
-			if err := binary.Read(bytes.NewReader(floatsBuf[i*0xc:(i+1)*0xc]), binary.LittleEndian, &rib.Some9Points[i]); err != nil {
-				return nil, err
-			}
+			off := i * 12
+			rib.Some9Points[i][0] = floatsBs.LF(off + 0)
+			rib.Some9Points[i][1] = floatsBs.LF(off + 4)
+			rib.Some9Points[i][2] = floatsBs.LF(off + 8)
 		}
-		//log.Printf("%d points loaded", len(rib.Some9Points))
+		// log.Printf("%d points loaded", len(rib.Some9Points))
 	}
+
+	log.Printf("TREEEEEEEEEE\n%s", bs.StringTree())
 
 	{
 		fmt.Fprintf(wrtw, "o ribsheet\n")

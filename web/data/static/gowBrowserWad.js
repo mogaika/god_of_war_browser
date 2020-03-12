@@ -906,13 +906,15 @@ function loadCollisionFromAjax(mdl, data) {
         let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3] * 2, 7, 7);
         mdl.addMesh(mesh);
         mesh.setMaskBit(4);
+    } else if (data.ShapeName == "") {
+
     }
 }
 
 function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
     if (data.Model) {
-    	let mdlTable = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
-    	dataSummary.append(mdlTable);
+        let mdlTable = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
+        dataSummary.append(mdlTable);
     } else if (data.Collision) {
         loadCollisionFromAjax(mdl, data.Collision);
     }
@@ -967,14 +969,14 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
 function summaryLoadWadObj(data, wad, nodeid) {
     gr_instance.cleanup();
 
-	let r = $("<input autocomplete=\"off\" type='range' min='0' max='100' value='50'>");
-	let blendInd = $("<span>");
-	r.on("change mousemove", function(ev, dat) {
-		gowBlend = $(this).val() * 0.01;
-		gr_instance.requestRedraw();
-		blendInd.text("blend:" + gowBlend);
-	});
-	dataSummary.append($("<div class='center'>").append(r, $("<br>"), blendInd));
+    let r = $("<input autocomplete=\"off\" type='range' min='0' max='100' value='50'>");
+    let blendInd = $("<span>");
+    r.on("change mousemove", function(ev, dat) {
+        gowBlend = $(this).val() * 0.01;
+        gr_instance.requestRedraw();
+        blendInd.text("blend:" + gowBlend);
+    });
+    dataSummary.append($("<div class='center'>").append(r, $("<br>"), blendInd));
 
     let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
     dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));

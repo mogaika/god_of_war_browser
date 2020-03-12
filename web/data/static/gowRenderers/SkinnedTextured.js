@@ -119,11 +119,11 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
         gl.disableVertexAttribArray(this.aVertexColor);
     }
 
-	if (hasTexture) {
-		gl.uniform1i(this.uUseLayerDiffuseSampler, 1);
-	} else {
-		gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
-	}
+    if (hasTexture) {
+        gl.uniform1i(this.uUseLayerDiffuseSampler, 1);
+    } else {
+        gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
+    }
 
     if (mesh.bufferUV) {
         gl.enableVertexAttribArray(this.aVertexUV);
@@ -158,17 +158,17 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
         gl.disableVertexAttribArray(this.aVertexJointID1);
         gl.disableVertexAttribArray(this.aVertexJointID2);
     }
-    
+
     if (mesh.bufferWeights) {
-    	gl.uniform1i(this.uUseBlendAttribute, 0);
-		
-		gl.enableVertexAttribArray(this.aVertexWeight);
-		gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferWeights);
-		gl.vertexAttribPointer(this.aVertexWeight, 1, gl.FLOAT, false, 0, 0);
+        gl.uniform1i(this.uUseBlendAttribute, 0);
+
+        gl.enableVertexAttribArray(this.aVertexWeight);
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferWeights);
+        gl.vertexAttribPointer(this.aVertexWeight, 1, gl.FLOAT, false, 0, 0);
     } else {
-		gl.uniform1i(this.uUseBlendAttribute, 1);
-		gl.disableVertexAttribArray(this.aVertexWeight);
-	}
+        gl.uniform1i(this.uUseBlendAttribute, 1);
+        gl.disableVertexAttribArray(this.aVertexWeight);
+    }
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.bufferIndex);
     gl.drawElements(mesh.primitive, mesh.indexesCount, mesh.bufferIndexType, 0);
