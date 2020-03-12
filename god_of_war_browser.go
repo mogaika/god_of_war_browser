@@ -37,6 +37,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/sbk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/shg"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/twk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/txr"
 )
 

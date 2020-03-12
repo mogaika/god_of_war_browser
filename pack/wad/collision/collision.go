@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/config"
 
@@ -22,7 +24,7 @@ type Collision struct {
 	Shape     interface{}
 }
 
-func NewFromData(f io.ReaderAt, wrtr io.Writer) (c *Collision, err error) {
+func NewFromData(f *bytes.Reader, wrtr io.Writer) (c *Collision, err error) {
 	var buf [16]byte
 	if _, err := f.ReadAt(buf[:], 0); err != nil {
 		return nil, err
@@ -44,7 +46,11 @@ func NewFromData(f io.ReaderAt, wrtr io.Writer) (c *Collision, err error) {
 
 	switch c.ShapeName {
 	case "SheetHdr":
-		c.Shape, err = NewRibSheet(f, wrtr)
+		if data, err := ioutil.ReadAll(f); err != nil {
+			return nil, fmt.Errorf("Error reading sheethdr: %v", err)
+		} else {
+			c.Shape, err = NewRibSheet(utils.NewBufStack("sheethdr", data), wrtr)
+		}
 	case "BallHull":
 		c.Shape, err = NewBallHull(f, wrtr)
 	default:
@@ -60,12 +66,13 @@ func (c *Collision) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(config.GOW1, COLLISION_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		/*
-			fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.enz.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
-			os.MkdirAll(filepath.Dir(fpath), 0777)
-			f, _ := os.Create(fpath)
-			defer f.Close()
-		*/
-		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), ioutil.Discard)
+		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.enz.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
+		os.MkdirAll(filepath.Dir(fpath), 0777)
+		f, _ := os.Create(fpath)
+		defer f.Close()
+
+		// f := ioutil.Discard
+
+		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), f)
 	})
 }
