@@ -28,11 +28,11 @@ func TestStringHashNodes(t *testing.T) {
 
 func TestStringUnhashNodes(t *testing.T) {
 	for _, test := range hashTests {
-		if test.in_init != 0 {
+		if test.in_init != 0 || len(test.in_str) > 4 {
 			continue
 		}
 		result := GameStringUnhashNodes(test.out_nodes)
-		if result != test.in_str {
+		if result != "%gene% "+test.in_str {
 			t.Errorf("GameStringUnhashNodes(%d)=%q; expected %q", test.out_nodes, result, test.in_str)
 		}
 	}
