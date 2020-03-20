@@ -31,7 +31,7 @@ func (iso *IsoDriver) List() ([]string, error) {
 		if layer != nil {
 			files := layer.ReadDir(nil)
 			for i := range files {
-				result[i] = files[i].Name()
+				result = append(result, files[i].Name())
 			}
 		}
 	}

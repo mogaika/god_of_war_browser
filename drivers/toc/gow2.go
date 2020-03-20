@@ -2,6 +2,8 @@ package toc
 
 import (
 	"encoding/binary"
+	"log"
+	"sort"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -23,7 +25,7 @@ func (rte *RawTocEntryGOW2) Unmarshal(buffer []byte) {
 	rte.EntriesStart = binary.LittleEndian.Uint32(buffer[32:36])
 }
 
-func (rte *RawTocEntryGOW2) Marshal(buffer []byte) []byte {
+func (rte *RawTocEntryGOW2) Marshal() []byte {
 	buf := make([]byte, GOW2_ENTRY_SIZE)
 	copy(buf[:24], utils.StringToBytesBuffer(rte.Name, 24, false))
 	binary.LittleEndian.PutUint32(buf[24:28], uint32(rte.Size))
@@ -66,27 +68,66 @@ func (toc *TableOfContent) unmarshalGOW2(b []byte) error {
 	}
 	if isHaveSectorsBiggerThenSpliline {
 		// official dvd-9-dl disks
-		for _, f := range files {
-			for i := range f.encounters {
-				off := f.encounters[i].Offset
-				f.encounters[i].Pak = PakIndex(off / GOW2_DVDDL_SPLITLINE)
-				f.encounters[i].Offset = (off % GOW2_DVDDL_SPLITLINE) * utils.SECTOR_SIZE
-			}
-		}
 		toc.packsArrayIndexing = PACK_ADDR_INDEX
 	} else {
 		// custom dvd-5 rip
-		for _, f := range files {
-			for i := range f.encounters {
-				f.encounters[i].Offset = f.encounters[i].Offset * utils.SECTOR_SIZE
-			}
-		}
 		toc.packsArrayIndexing = PACK_ADDR_ABSOLUTE
 	}
+
+	for _, f := range files {
+		for i := range f.encounters {
+			off := f.encounters[i].Offset
+			f.encounters[i].Pak = PakIndex(off / GOW2_DVDDL_SPLITLINE)
+			f.encounters[i].Offset = (off % GOW2_DVDDL_SPLITLINE) * utils.SECTOR_SIZE
+		}
+	}
+
 	toc.files = files
 	return nil
 }
 
 func (toc *TableOfContent) marshalGOW2() []byte {
-	panic("Not implemented")
+	rawFiles := make([]RawTocEntryGOW2, 0, len(toc.files))
+
+	totalEncounters := 0
+
+	for _, file := range toc.files {
+		rawFiles = append(rawFiles, RawTocEntryGOW2{
+			Name:         file.name,
+			Size:         file.size,
+			EntriesCount: uint32(len(file.encounters)),
+		})
+		totalEncounters += len(file.encounters)
+	}
+
+	sort.Slice(rawFiles, func(i int, j int) bool {
+		return rawFiles[i].Name < rawFiles[j].Name
+	})
+
+	buffer := make([]byte, 4+len(rawFiles)*GOW2_ENTRY_SIZE+totalEncounters*4)
+	binary.LittleEndian.PutUint32(buffer, uint32(len(rawFiles)))
+
+	entriesBuf := buffer[4 : 4+len(rawFiles)*GOW2_ENTRY_SIZE]
+	encountersBuf := buffer[4+len(rawFiles)*GOW2_ENTRY_SIZE:]
+
+	currentEncounter := 0
+	for iEntry, entry := range rawFiles {
+		entry.EntriesStart = uint32(currentEncounter)
+		log.Println(entry.Name)
+
+		file := toc.files[entry.Name]
+		for _, encounter := range file.encounters {
+			off := encounter.Offset / utils.SECTOR_SIZE
+
+			if toc.packsArrayIndexing == PACK_ADDR_INDEX {
+				off += int64(encounter.Pak) * GOW2_DVDDL_SPLITLINE
+			}
+
+			binary.LittleEndian.PutUint32(encountersBuf[currentEncounter*4:], uint32(off))
+			currentEncounter++
+		}
+		copy(entriesBuf[iEntry*GOW2_ENTRY_SIZE:], entry.Marshal())
+	}
+
+	return buffer
 }

@@ -12,11 +12,12 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_gfx "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 )
 
-func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, createNewPal bool) error {
+func (txr *Texture) changeTexturePS2(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, createNewPal bool) error {
 	img, _, err := image.Decode(fNewImage)
 	if err != nil {
 		return err
@@ -112,6 +113,18 @@ func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, c
 	}
 
 	return nil
+}
+
+func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, createNewPal bool) error {
+	switch config.GetPlayStationVersion() {
+	case config.PS2:
+		return txr.changeTexturePS2(wrsrc, fNewImage, createNewPal)
+	case config.PS3:
+		return txr.changeTexturePS3(wrsrc, fNewImage)
+	default:
+		return fmt.Errorf("Unsupported playstation version")
+	}
+
 }
 
 func gfxSecondPaletteToGrayscale(palc *file_gfx.GFX) error {
