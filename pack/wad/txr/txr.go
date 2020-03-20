@@ -172,17 +172,10 @@ func (txr *Texture) MarshalBlend(clrBlend []float32, wrsrc *wad.WadNodeRsrc) (in
 		}
 
 		if config.GetPlayStationVersion() == config.PS3 {
-			ps3tn := wrsrc.Wad.GetNodeByName(txr.SubTxrName, wrsrc.Node.Id, false)
-			if ps3tn == nil {
-				return nil, fmt.Errorf("Cannot find ps3texture: %s", txr.SubTxrName)
-			}
-
-			ps3tc, _, err := wrsrc.Wad.GetInstanceFromNode(ps3tn.Id)
+			_, ps3t, err := txr.findPS3Texture(wrsrc)
 			if err != nil {
-				return nil, fmt.Errorf("Error getting ps3texture %s: %v", txr.SubTxrName, err)
+				return nil, err
 			}
-
-			ps3t := ps3tc.(*Ps3Texture)
 
 			sImg := ps3t.images[0]
 
