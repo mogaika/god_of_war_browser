@@ -6,7 +6,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"io"
 	"log"
 	"math/bits"
 
@@ -216,6 +215,20 @@ func NewPs3TextureFromData(bs *utils.BufStack) (*Ps3Texture, error) {
 	return t, nil
 }
 
+func (txr *Texture) findPS3Texture(wrsrc *wad.WadNodeRsrc) (*wad.Node, *Ps3Texture, error) {
+	ps3tn := wrsrc.Wad.GetNodeByName(txr.SubTxrName, wrsrc.Node.Id, false)
+	if ps3tn == nil {
+		return nil, nil, fmt.Errorf("Cannot find ps3texture: %s", txr.SubTxrName)
+	}
+
+	ps3tc, _, err := wrsrc.Wad.GetInstanceFromNode(ps3tn.Id)
+	if err != nil {
+		return ps3tn, nil, fmt.Errorf("Error getting ps3texture %s: %v", txr.SubTxrName, err)
+	}
+
+	return ps3tn, ps3tc.(*Ps3Texture), nil
+}
+
 func init() {
 	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		if config.GetPlayStationVersion() == config.PS3 {
@@ -229,6 +242,11 @@ func init() {
 	wad.SetHandler(config.GOW2, PS3_TEXTURE_MAGIC, h)
 }
 
-func (txr *Texture) changeTexturePS3(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) error {
+func (txr *Texture) changeTexturePS3(wrsrc *wad.WadNodeRsrc, img image.Image) error {
+	_, _, err := txr.findPS3Texture(wrsrc)
+	if err != nil {
+		return err
+	}
+
 	return fmt.Errorf("Not implemented")
 }

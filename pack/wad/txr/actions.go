@@ -17,12 +17,7 @@ import (
 	file_gfx "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 )
 
-func (txr *Texture) changeTexturePS2(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, createNewPal bool) error {
-	img, _, err := image.Decode(fNewImage)
-	if err != nil {
-		return err
-	}
-
+func (txr *Texture) changeTexturePS2(wrsrc *wad.WadNodeRsrc, img image.Image, createNewPal bool) error {
 	if txr.GfxName == "" || txr.PalName == "" {
 		return fmt.Errorf("Do not support texture with lod levels")
 	}
@@ -116,11 +111,16 @@ func (txr *Texture) changeTexturePS2(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader
 }
 
 func (txr *Texture) ChangeTexture(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader, createNewPal bool) error {
+	img, _, err := image.Decode(fNewImage)
+	if err != nil {
+		return err
+	}
+
 	switch config.GetPlayStationVersion() {
 	case config.PS2:
-		return txr.changeTexturePS2(wrsrc, fNewImage, createNewPal)
+		return txr.changeTexturePS2(wrsrc, img, createNewPal)
 	case config.PS3:
-		return txr.changeTexturePS3(wrsrc, fNewImage)
+		return txr.changeTexturePS3(wrsrc, img)
 	default:
 		return fmt.Errorf("Unsupported playstation version")
 	}
