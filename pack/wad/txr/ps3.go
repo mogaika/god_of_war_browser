@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"log"
 	"math/bits"
 
@@ -226,4 +227,8 @@ func init() {
 	wad.SetHandler(config.GOW1, PS3_TEXTURE_MAGIC, h)
 	// TODO: not sure about this (gow2 ps3): check
 	wad.SetHandler(config.GOW2, PS3_TEXTURE_MAGIC, h)
+}
+
+func (txr *Texture) changeTexturePS3(wrsrc *wad.WadNodeRsrc, fNewImage io.Reader) error {
+	return fmt.Errorf("Not implemented")
 }
