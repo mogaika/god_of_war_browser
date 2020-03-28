@@ -36,7 +36,11 @@ func HandlerAjaxPack(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandlerAjaxFs(w http.ResponseWriter, r *http.Request) {
-	handleVfsDirList(w, r, DriverDirectory)
+	if DriverDirectory == nil {
+		w.WriteHeader(405)
+	} else {
+		handleVfsDirList(w, r, DriverDirectory)
+	}
 }
 
 func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +101,11 @@ func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandlerDumpFsFile(w http.ResponseWriter, r *http.Request) {
-	handlerDumpFileVfs(w, r, DriverDirectory)
+	if DriverDirectory == nil {
+		w.WriteHeader(405)
+	} else {
+		handlerDumpFileVfs(w, r, DriverDirectory)
+	}
 }
 
 func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {

@@ -72,7 +72,8 @@ func (iso *IsoDriver) OpenStreams() error {
 	} else {
 		// minus 16 boot sectors, because they do not replicated over layers (volumes)
 		volumeSize := int64(binary.LittleEndian.Uint32(volSizeBuf[:])-16) * utils.SECTOR_SIZE
-		if volumeSize+32*utils.SECTOR_SIZE < iso.f.Size() {
+
+		if volumeSize+256*utils.SECTOR_SIZE < iso.f.Size() {
 			iso.layers[1] = udf.NewUdfFromReader(io.NewSectionReader(iso.f, volumeSize, iso.f.Size()-volumeSize))
 			log.Printf("[vfs] [iso] Detected second layer of disk. Start: 0x%x (0x%x)", volumeSize+16*utils.SECTOR_SIZE, volumeSize)
 			iso.secondLayerStart = volumeSize
