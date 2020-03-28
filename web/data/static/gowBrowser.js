@@ -1,7 +1,7 @@
 'use strict';
 
-var viewPack, viewTree, viewSummary, view3d;
-var dataPack, dataTree, dataSummary, data3d;
+var viewFs, viewPack, viewTree, viewSummary, view3d;
+var dataFs, dataPack, dataTree, dataSummary, data3d;
 var defferedLoadingWad;
 var defferedLoadingWadNode;
 var dataSelectors, dataSummarySelectors;
@@ -102,6 +102,25 @@ function packLoad() {
         $('#view-pack-filter').trigger('input');
 
         console.log('pack loaded');
+    })
+}
+
+function driverFsLoad() {
+    dataFs.empty();
+    $.getJSON('/json/fs', function(files) {
+        var list = $('<ol>');
+        for (var i in files) {
+            var fileName = files[i];
+            list.append($('<li>')
+                .attr('filename', fileName)
+                .append($('<label>').append(fileName))
+                .append($('<a download>')
+                    .addClass('button-dump')
+                    .attr('title', 'Download file')
+                    .attr('href', '/dump/fs/' + fileName)));
+        }
+        dataFs.append(list);
+        console.log('fs loaded');
     })
 }
 
@@ -274,17 +293,35 @@ function goFullscreen(element) {
 }
 
 $(document).ready(function() {
+    viewFs = $('#view-fs');
     viewPack = $('#view-pack');
     viewTree = $('#view-tree');
     viewSummary = $('#view-summary');
     view3d = $('#view-3d');
 
+    dataFs = viewFs.children('.view-item-container');
     dataPack = viewPack.children('.view-item-container');
     dataTree = viewTree.children('.view-item-container');
     dataSelectors = viewTree.children('.view-item-selectors');
     dataSummary = viewSummary.children('.view-item-container');
     dataSummarySelectors = viewSummary.children('.view-item-selectors');
     data3d = view3d.children('.view-item-container');
+
+    $('div.collapse-button').each(function(index, el) {
+        $(el).click(function(ev) {
+            let $this = $(this);
+            let $parent = $this.parent();
+
+            console.log($parent, $this.text());
+            if (!$parent.hasClass('collapsed')) {
+                $parent.addClass('collapsed');
+                $this.text('>> S');
+            } else {
+                $parent.removeClass('collapsed');
+                $this.text('<< HIDE');
+            }
+        });
+    });
 
     var packFilter = localStorage.getItem('tree-filter');
     var itemFilter = localStorage.getItem('item-filter');
@@ -304,6 +341,7 @@ $(document).ready(function() {
     }
 
     packLoad();
+    driverFsLoad();
 
     gwInitRenderer(data3d);
 

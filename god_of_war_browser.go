@@ -56,7 +56,8 @@ func main() {
 	flag.Parse()
 
 	var err error
-	var rootdir vfs.Directory
+	var gameDir vfs.Directory
+	var driverDir vfs.Directory
 
 	switch psversion {
 	case "ps2":
@@ -77,20 +78,19 @@ func main() {
 		}
 		f := vfs.NewDirectoryDriverFile(psarcpath)
 		if err = f.Open(true); err == nil {
-			rootdir, err = psarc.NewPsarcDriver(f)
+			gameDir, err = psarc.NewPsarcDriver(f)
 		}
 	} else if isopath != "" {
 		f := vfs.NewDirectoryDriverFile(isopath)
 		if err = f.Open(false); err == nil {
-			var isoDriver *iso.IsoDriver
-			if isoDriver, err = iso.NewIsoDriver(f); err == nil {
-				rootdir, err = toc.NewTableOfContent(isoDriver)
+			if driverDir, err = iso.NewIsoDriver(f); err == nil {
+				gameDir, err = toc.NewTableOfContent(driverDir)
 			}
 		}
 	} else if tocpath != "" {
-		rootdir, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
+		gameDir, err = toc.NewTableOfContent(vfs.NewDirectoryDriver(tocpath))
 	} else if dirpath != "" {
-		rootdir = vfs.NewDirectoryDriver(dirpath)
+		gameDir = vfs.NewDirectoryDriver(dirpath)
 		if gowversion == 0 {
 			log.Fatalf("You must provide 'gowversion' argument if you use directory driver")
 		}
@@ -111,11 +111,11 @@ func main() {
 
 	// parsecheck = true
 	if parsecheck {
-		parseCheck(rootdir)
+		parseCheck(gameDir)
 	} else {
 		status.Info("Starting web server on address '%s'", addr)
 
-		if err := web.StartServer(addr, rootdir, "web"); err != nil {
+		if err := web.StartServer(addr, gameDir, driverDir, "web"); err != nil {
 			log.Fatalf("Cannot start web server: %v", err)
 		}
 	}

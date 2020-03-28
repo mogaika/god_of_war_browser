@@ -121,13 +121,14 @@ type DynamicLabel struct {
 	Unk01e            uint16
 }
 
-// Screen with input handlers
+// Screen, but with input handlers
 type Data6 struct {
 	Sub1  Data6Subtype1
 	Sub2s []Data6Subtype2
 }
 
-// Screen
+// Screen, usually have names like
+// Loading, SquareButtonGreek
 type Data6Subtype1 struct {
 	TotalFramesCount  uint16
 	ElementsAnimation []ElementAnimation
@@ -162,6 +163,7 @@ type Data6Subtype1Subtype2Subtype1 struct {
 	scriptData       []byte
 }
 
+// input events
 type Data6Subtype2 struct {
 	// 16     5      back (o)
 	// 32     5      'FSCommand:PS2_BonusScroll' command '7'

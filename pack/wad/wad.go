@@ -143,12 +143,6 @@ func (w *Wad) GetNodeResourceByTagId(id TagId) *WadNodeRsrc {
 }
 
 func (w *Wad) loadTags(r io.ReadSeeker) error {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("Wad parsing error: %v", err)
-		}
-	}()
-
 	w.Tags = make([]Tag, 0)
 	w.HeapSizes = make(map[string]uint32)
 	var buf [WAD_ITEM_SIZE]byte
