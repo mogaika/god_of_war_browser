@@ -22,13 +22,21 @@ import (
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
 
-func HandlerAjaxPack(w http.ResponseWriter, r *http.Request) {
-	if files, err := ServerDirectory.List(); err != nil {
+func handleVfsDirList(w http.ResponseWriter, r *http.Request, d vfs.Directory) {
+	if files, err := d.List(); err != nil {
 		webutils.WriteError(w, err)
 	} else {
 		sort.Strings(files)
 		webutils.WriteJson(w, files)
 	}
+}
+
+func HandlerAjaxPack(w http.ResponseWriter, r *http.Request) {
+	handleVfsDirList(w, r, ServerDirectory)
+}
+
+func HandlerAjaxFs(w http.ResponseWriter, r *http.Request) {
+	handleVfsDirList(w, r, DriverDirectory)
 }
 
 func HandlerAjaxPackFile(w http.ResponseWriter, r *http.Request) {
@@ -69,9 +77,9 @@ func HandlerAjaxPackFileParam(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
+func handlerDumpFileVfs(w http.ResponseWriter, r *http.Request, d vfs.Directory) {
 	file := mux.Vars(r)["file"]
-	f, err := vfs.DirectoryGetFile(ServerDirectory, file)
+	f, err := vfs.DirectoryGetFile(d, file)
 	if err != nil {
 		webutils.WriteError(w, err)
 	}
@@ -82,6 +90,14 @@ func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Fprintf(w, "Error getting file reader: %v", err)
 	}
+}
+
+func HandlerDumpPackFile(w http.ResponseWriter, r *http.Request) {
+	handlerDumpFileVfs(w, r, ServerDirectory)
+}
+
+func HandlerDumpFsFile(w http.ResponseWriter, r *http.Request) {
+	handlerDumpFileVfs(w, r, DriverDirectory)
 }
 
 func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
@@ -186,6 +202,7 @@ func HandlerUploadPackFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
 func HandlerUploadPackFileParam(w http.ResponseWriter, r *http.Request) {
 	targetFile := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]

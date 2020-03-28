@@ -39,6 +39,12 @@ a {
     box-shadow: inset 4px 0px 4px -4px #111;
 }
 
+
+#view .view-item.view-item-closed {
+	min-width: 3em;
+	max-width: 3em;
+}
+
 #view .view-item .view-item-container {
     overflow-y: auto;
     flex-grow: 1;
@@ -52,23 +58,45 @@ a {
     flex-grow: 0;
 }
 
+.collapse-button {
+    display: block;
+    cursor: pointer;
+    color: white;
+    text-align: center;
+}
+
+.collapsed {
+	max-width: 2em !important; 
+	width: 2em !important;
+	min-width: 2em !important;
+}
+
+.collapsed .collapse-button {
+	background-color: #6f3859;
+}
+
+#view-fs {
+    background-color: #2f2019;
+    min-width: 10em;
+}
+
 #view-pack {
     background-color: #332b3e;
     min-width: 10em;
 }
 
-#view-pack ol {
+.items-list ol {
     list-style-type: none;
     margin: 0.5em;
     padding: 0;
 }
 
-#view-pack ol li {
+.items-list ol li {
     position: relative;
     cursor: pointer;
 }
 
-#view-pack ol li label:hover {
+.items-list ol li label:hover {
     text-decoration: underline;
 }
 

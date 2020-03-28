@@ -156,6 +156,7 @@ func (t *TableOfContent) readTocFile() error {
 	if f, err := t.findTocFile(); err != nil {
 		return err
 	} else {
+		log.Printf("[toc] Used to file %q", f.Name())
 		if r, err := vfs.OpenFileAndGetReader(f, true); err != nil {
 			return fmt.Errorf("[toc] Cannot open '%s': %v", f.Name(), err)
 		} else {
@@ -201,8 +202,13 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 		return nil, err
 	}
 
-	if err := t.openPakStreams(true); err != nil {
-		return nil, err
+	for _, policy := range defaultTocNamePair {
+		if policy.TocName == t.namingPolicy.TocName {
+			t.namingPolicy = &policy
+			if err := t.openPakStreams(true); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// printFreeSpace(t)
