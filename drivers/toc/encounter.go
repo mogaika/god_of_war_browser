@@ -19,7 +19,7 @@ type EncounterReaderWriter struct {
 }
 
 func (per *EncounterReaderWriter) ReadAt(p []byte, off int64) (n int, err error) {
-	if off > per.e.Size {
+	if off >= per.e.Size {
 		return 0, io.EOF
 	}
 	switch per.pa.addrType {

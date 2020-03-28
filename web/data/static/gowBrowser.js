@@ -107,21 +107,32 @@ function packLoad() {
 
 function driverFsLoad() {
     dataFs.empty();
-    $.getJSON('/json/fs', function(files) {
-        var list = $('<ol>');
-        for (var i in files) {
-            var fileName = files[i];
-            list.append($('<li>')
-                .attr('filename', fileName)
-                .append($('<label>').append(fileName))
-                .append($('<a download>')
-                    .addClass('button-dump')
-                    .attr('title', 'Download file')
-                    .attr('href', '/dump/fs/' + fileName)));
+    $.ajax({
+        dataType: "json",
+        url: '/json/fs',
+        success: function(files) {
+            var list = $('<ol>');
+            for (var i in files) {
+                var fileName = files[i];
+                list.append($('<li>')
+                    .attr('filename', fileName)
+                    .append($('<label>').append(fileName))
+                    .append($('<a download>')
+                        .addClass('button-dump')
+                        .attr('title', 'Download file')
+                        .attr('href', '/dump/fs/' + fileName)));
+            }
+            dataFs.append(list);
+            dataFs.append($('<p>').text('This window for downloading purposes only'));
+            console.log('fs loaded');
+        },
+        error: function(err) {
+            if (err.status == 405) {
+                console.warn("Fs is not available for this driver. Hiding window.");
+                viewFs.hide();
+            }
         }
-        dataFs.append(list);
-        console.log('fs loaded');
-    })
+    });
 }
 
 function uploadAjaxHandler() {

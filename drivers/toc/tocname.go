@@ -2,7 +2,6 @@ package toc
 
 import (
 	"fmt"
-	"log"
 )
 
 type TocNamingPolicy struct {
@@ -13,7 +12,6 @@ type TocNamingPolicy struct {
 }
 
 func (tnp *TocNamingPolicy) GetPakName(pi PakIndex) string {
-	log.Printf("Checking file %+#v with index", tnp, pi)
 	if tnp.UseIndexing {
 		return fmt.Sprintf("%s%d%s", tnp.PakPrefix, int(pi)+1, tnp.PakSuffix)
 	} else {
@@ -26,4 +24,5 @@ var defaultTocNamePair = []TocNamingPolicy{
 	// TODO: I'm not sure about this. Need to find related discussion
 	{"GODOFWAR.BIN", true, "DATA", ".BIN"},
 	{"GODOFWAR.BIN", false, "GOW", ".DAT"},
+	{"GODOFWAR.BIN", false, "GOW2", ".DAT"},
 }

@@ -78,11 +78,11 @@ a {
 #view-fs {
     background-color: #2f2019;
     min-width: 10em;
+    max-width: 10em;
 }
 
 #view-pack {
     background-color: #332b3e;
-    min-width: 10em;
 }
 
 .items-list ol {

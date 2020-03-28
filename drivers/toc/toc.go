@@ -109,14 +109,32 @@ func (t *TableOfContent) closePakStreams() error {
 	}
 }
 
-func (t *TableOfContent) getMaximumPossiblePak() PakIndex {
+func (t *TableOfContent) getMaximumPossiblePakIndex() PakIndex {
 	max := PakIndex(0)
-	for _, f := range t.files {
-		for _, e := range f.encounters {
-			if e.Pak > max {
-				max = e.Pak
+
+	if !t.namingPolicy.UseIndexing {
+		return 0
+	}
+
+	switch t.packsArrayIndexing {
+	case PACK_ADDR_INDEX:
+		for _, f := range t.files {
+			for _, e := range f.encounters {
+				if e.Pak > max {
+					max = e.Pak
+				}
 			}
 		}
+	case PACK_ADDR_ABSOLUTE:
+		for i := PakIndex(0); ; i++ {
+			if _, err := t.dir.GetElement(t.namingPolicy.GetPakName(i)); err != nil {
+				break
+			} else {
+				max = i
+			}
+		}
+	default:
+		log.Panicf("Unknown pack array indexing: %v", t.packsArrayIndexing)
 	}
 	return max
 }
@@ -128,7 +146,7 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 
 	log.Printf("[toc] Opening streams (readonly: %v)", readonly)
 
-	maxPaks := t.getMaximumPossiblePak()
+	maxPaks := t.getMaximumPossiblePakIndex()
 	t.paks = make([]vfs.File, maxPaks+1)
 	for i := range t.paks {
 		name := t.namingPolicy.GetPakName(PakIndex(i))
@@ -136,11 +154,16 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 		f, err := vfs.DirectoryGetFile(t.dir, name)
 		if err != nil {
 			log.Printf("[toc] [WARNING] Cannot get pak '%s': %v", name, err)
+			if i == 0 {
+				return fmt.Errorf("Wasn't able to get first pak %q: %v", name, err)
+			}
 			break
 		} else {
 			if err := f.Open(readonly); err != nil {
 				log.Printf("[toc] [WARNING] Cannot open pak '%s': %v", name, err)
-				break
+				if i == 0 {
+					return fmt.Errorf("Wasn't able to open first pak %q: %v", name, err)
+				}
 			}
 			t.paks[i] = f
 			log.Printf("[toc] Opened pak '%s'", name)
@@ -202,13 +225,18 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 		return nil, err
 	}
 
+	var err error
 	for _, policy := range defaultTocNamePair {
 		if policy.TocName == t.namingPolicy.TocName {
 			t.namingPolicy = &policy
-			if err := t.openPakStreams(true); err != nil {
-				return nil, err
+			err = t.openPakStreams(true)
+			if err == nil {
+				break
 			}
 		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Wasn't able to open streams: %v", err)
 	}
 
 	// printFreeSpace(t)

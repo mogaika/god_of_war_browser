@@ -147,6 +147,7 @@ func (w *Wad) loadTags(r io.ReadSeeker) error {
 	w.HeapSizes = make(map[string]uint32)
 	var buf [WAD_ITEM_SIZE]byte
 	pos := int64(0)
+
 	for id := TagId(0); ; id++ {
 		_, err := r.Read(buf[:])
 		if err != nil {
@@ -235,6 +236,10 @@ func (w *Wad) parseTags() error {
 		}
 	default:
 		panic("not implemented")
+	}
+
+	if len(w.Tags) == 0 {
+		return fmt.Errorf("Empty wad file")
 	}
 
 	return nil

@@ -2,7 +2,6 @@ package toc
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/god_of_war_browser/vfs"
@@ -35,13 +34,15 @@ func (pa *PaksArray) WeadAt(p []byte, off int64) (n int, err error) {
 	return pa.absoluteReadWriteAt(p, off, false)
 }
 
-func (pa *PaksArray) absoluteReadWriteAt(p []byte, off int64, doRead bool) (n int, err error) {
+func (pa *PaksArray) absoluteReadWriteAt(p []byte, off int64, doRead bool) (int, error) {
 	estimatedBytes := int64(len(p))
 	bufOff := int64(0)
+	var err error
+	insidePakOff := off
 	for _, pak := range pa.paks {
 		pakSize := pak.Size()
-		if off < pakSize {
-			leftToPocess := pakSize - off
+		if insidePakOff < pakSize {
+			leftToPocess := pakSize - insidePakOff
 			processAmount := estimatedBytes
 			if processAmount > leftToPocess {
 				processAmount = leftToPocess
@@ -49,24 +50,24 @@ func (pa *PaksArray) absoluteReadWriteAt(p []byte, off int64, doRead bool) (n in
 
 			processedN := 0
 			if doRead {
-				processedN, err = pak.ReadAt(p[bufOff:bufOff+processAmount], off)
+				processedN, err = pak.ReadAt(p[bufOff:bufOff+processAmount], insidePakOff+bufOff)
 			} else {
-				processedN, err = pak.WriteAt(p[bufOff:bufOff+processAmount], off)
+				processedN, err = pak.WriteAt(p[bufOff:bufOff+processAmount], insidePakOff+bufOff)
 			}
 			if err != nil {
-				return n, fmt.Errorf("[pak] Absolute readwrite error: %v", err)
+				return int(bufOff), fmt.Errorf("[pak] Absolute readwrite error: %v", err)
 			}
 			if int64(processedN) != processAmount {
-				return n, fmt.Errorf("[pak] Absolute readwrite N calculation error: %v", err)
+				return int(bufOff), fmt.Errorf("[pak] Absolute readwrite N calculation error: %v", err)
 			}
-			off += processAmount
+			bufOff += processAmount
 		}
-		if estimatedBytes == 0 {
-			return n, nil
+		if bufOff == estimatedBytes {
+			return int(bufOff), nil
 		}
-		off -= pakSize
+		insidePakOff -= pakSize
 	}
-	return n, io.EOF
+	return int(bufOff), fmt.Errorf("Wasn't able to find encounter<=>pak association for packs %v readpos 0x%x", pa.paks, off)
 }
 
 func (pa *PaksArray) NewReaderWriter(e Encounter) *EncounterReaderWriter {
