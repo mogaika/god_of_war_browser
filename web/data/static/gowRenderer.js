@@ -12,6 +12,7 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.useBindToJoin = false;
     this.layer = undefined;
     this.mask = 0;
+    this.meta = {};
 
     // construct array of unique indexes
     this.usedIndexes = [];
