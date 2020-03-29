@@ -122,21 +122,32 @@ gowFlp.prototype.renderData2 = function(o, handler, frameIndex, transform, color
     // console.log("MESH PART INDEX", o.MeshPartIndex);
     meshes = loadMeshPartFromAjax(model, this.root.Model.Meshes[0], o.MeshPartIndex);
 
+	for (let iMesh in meshes) {
+        let mesh = meshes[iMesh];
+        if (mesh.meta.hasOwnProperty('object')) {
+        	meshes[iMesh].setMaterialID(mesh.meta.object);
+        } else {
+        	meshes[iMesh].setMaterialID(0);
+        }
+    }
+
     if (o.Materials && o.Materials.length !== 0) {
-        for (let iMesh in meshes) {
-            // console.info(meshes[iMesh].materialIndex);
-            meshes[iMesh].setMaterialID(0);
+    	for (let iMaterial in o.Materials) {
+			let flpMaterial = o.Materials[iMaterial];
+	        let material = new grMaterial();
+	        let layer = new grMaterialLayer();
+	        if (flpMaterial.TextureName) {
+	            layer.setTextures([this.cacheTexture(flpMaterial.TextureName)]);
+	        }
+	        layer.setHasAlphaAttribute();
+	        let newColor = [];
+	        for (let i = 0; i < 4; i++) {
+	        	newColor[i] = color[i] * (((flpMaterial.Color >> (8 * i)) & 0xff) / 257);
+	        }
+	        layer.setColor(newColor);
+	        material.addLayer(layer);
+	        model.addMaterial(material);
         }
-        let material = new grMaterial();
-        let layer = new grMaterialLayer();
-        if (o.Materials[0].TextureName) {
-            layer.setTextures([this.cacheTexture(o.Materials[0].TextureName)]);
-        }
-        layer.setHasAlphaAttribute();
-        layer.setColor(color);
-        // console.info(color);
-        material.addLayer(layer);
-        model.addMaterial(material);
     }
 
     // console.log("rendered data2 ", o, handler, transform.pos, transform.Matrix, color);
@@ -149,8 +160,9 @@ gowFlp.prototype.renderData2 = function(o, handler, frameIndex, transform, color
 
 gowFlp.prototype.renderData4 = function(o, handler, frameIndex, transform, color) {
     let elementTransform = this.getTransformFromObject(o.Transformation);
-    let font, fontscale, x = 0,
-        y = 0;
+    let font, fontscale;
+    let x = 0;
+	let        y = 0;
     let models = [];
     let baseColor = color;
     let commands = o.RenderCommandsList;
@@ -273,8 +285,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
     let flpdata = flp.FLP;
 
     let object_renderer_handler = {
-        TypeArrayId: 7,
-        IdInThatTypeArray: 24
+        TypeArrayId: 1,
+        IdInThatTypeArray: 2
     };
     let object_renderer_frame = 0;
 

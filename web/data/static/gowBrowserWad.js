@@ -403,6 +403,9 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         }
 
                         meshes.push(mesh);
+                        mesh.meta['part'] = iPart;
+                        mesh.meta['group'] = iGroup;
+                        mesh.meta['object'] = iObject;
                         totalMeshes.push(mesh);
                         model.addMesh(mesh);
                     }
