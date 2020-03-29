@@ -310,6 +310,7 @@ function grTexture(src, wait = false) {
     this.loaded = wait;
     this.txr = undefined;
     this.isFontTexture = false;
+    this.refs = 0;
 
     if (wait) {
         this.txr = gl.createTexture();
@@ -349,6 +350,14 @@ grTexture.prototype.markAsFontTexture = function() {
 grTexture.prototype.free = function() {
     if (this.txr) gl.deleteTexture(this.txr);
 }
+grTexture.prototype.claim = function() {
+    this.refs++;
+}
+grTexture.prototype.unclaim = function() {
+    if (--this.refs == 0) {
+        this.free();
+    }
+}
 grTexture.prototype.get = function() {
     return this.loaded ? this.txr : gr_instance.emptyTexture.get();
 }
@@ -365,22 +374,25 @@ function grMaterialLayer() {
 grMaterialLayer.prototype.setColor = function(color) {
     this.color = color;
 }
-
 grMaterialLayer.prototype.setHasAlphaAttribute = function(alpha = true) {
     this.hasAlpha = alpha;
 }
-
 grMaterialLayer.prototype.setTextures = function(txtrs) {
+    for (iTexture in txtrs) {
+        txtrs[iTexture].claim();
+    }
+    for (iTexture in this.textures) {
+        this.textures[iTexture].unclaim();
+    }
     this.textures = txtrs;
-}
 
+}
 grMaterialLayer.prototype.setTextureIndex = function(index) {
     this.textureIndex = index % this.textures.length;
     if (index > this.textures.length) {
         console.warn("trying to set texture index > textures count");
     }
 }
-
 grMaterialLayer.prototype.setMethodNormal = function() {
     this.method = 0;
 }
@@ -393,11 +405,18 @@ grMaterialLayer.prototype.setMethodSubstract = function() {
 grMaterialLayer.prototype.setMethodUnknown = function() {
     this.method = 3;
 }
-
+grMaterialLayer.prototype.claim = function() {
+    this.refs++;
+}
+grMaterialLayer.prototype.unclaim = function() {
+    if (--this.refs == 0) {
+        this.free();
+    }
+}
 grMaterialLayer.prototype.free = function() {
     if (this.textures) {
-        for (let i in this.textures) {
-            this.textures[i].free();
+        for (iTexture in this.textures) {
+            this.textures[iTexture].unclaim();
         }
     }
 }
@@ -410,6 +429,7 @@ function grMaterial() {
 }
 grMaterial.prototype.addLayer = function(layer) {
     this.layers.push(layer);
+    layer.claim();
 }
 grMaterial.prototype.setColor = function(color) {
     this.color = color;
@@ -424,7 +444,7 @@ grMaterial.prototype.unclaim = function() {
 }
 grMaterial.prototype.free = function() {
     for (let i in this.layers) {
-        this.layers[i].free();
+        this.layers[i].unclaim();
     }
     for (let i in this.anims) {
         ga_instance.freeAnimation(this.anims[i]);
@@ -624,6 +644,7 @@ function grController(viewDomObject) {
         return;
     }
 
+    this.frameChecker = 0;
     this.requireRedraw = false;
     this.renderChain = undefined;
     this.models = [];
@@ -684,7 +705,7 @@ function grController(viewDomObject) {
     });
 
     this.setInterfaceCameraMode();
-    $(window).resize(this._onResize);
+    canvas.resize(this._onResize);
 }
 grController.prototype.setFilterMask = function(mask) {
     if (this.filterMask == mask) {
@@ -716,6 +737,9 @@ grController.prototype._onResize = function() {
     gr_instance.requestRedraw();
 }
 grController.prototype.render = function() {
+    if (gl.canvas.clientWidth !== this.rectX || gl.canvas.clientHeight !== this.rectY) {
+        this.onResize();
+    }
     if (this.requireRedraw) {
         let glError = gl.getError();
         if (glError !== gl.NONE) {
@@ -734,6 +758,7 @@ grController.prototype.requestRedraw = function() {
     this.requireRedraw = true;
 }
 grController.prototype.animationFrameCallback = function() {
+    this.frameChecker = 0;
     if (typeof ga_instance !== "undefined" && ga_instance) {
         ga_instance.update();
     }

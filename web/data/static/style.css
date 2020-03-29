@@ -203,6 +203,10 @@ a {
 	user-select: none;
 }
 
+#view-3d.collapsed #view-3d-config {
+	display: none;
+}
+
 #view-3d canvas {
     width: 100%;
     height: 100%;
@@ -317,4 +321,8 @@ div.flpcolorpreview {
 .flpobjref {
 	color: yellow;
 	cursor: pointer;
+}
+
+.flexgrow {
+	flex-grow: 1;
 }

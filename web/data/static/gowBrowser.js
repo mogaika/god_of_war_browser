@@ -323,13 +323,17 @@ $(document).ready(function() {
             let $this = $(this);
             let $parent = $this.parent();
 
-            console.log($parent, $this.text());
             if (!$parent.hasClass('collapsed')) {
                 $parent.addClass('collapsed');
                 $this.text('>> S');
             } else {
                 $parent.removeClass('collapsed');
                 $this.text('<< HIDE');
+            }
+            if (view3d.hasClass('collapsed')) {
+                viewSummary.addClass('flexgrow');
+            } else {
+                viewSummary.removeClass('flexgrow');
             }
         });
     });
