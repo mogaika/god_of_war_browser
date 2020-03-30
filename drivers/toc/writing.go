@@ -18,6 +18,13 @@ func (toc *TableOfContent) Sync() error {
 			}
 		}
 	}
+
+	if toc.dirty {
+		if err := toc.updateToc(); err != nil {
+			result = fmt.Errorf("[toc] Error updating toc %v", err)
+		}
+	}
+
 	return result
 }
 
@@ -69,8 +76,9 @@ func (toc *TableOfContent) UpdateFile(name string, b []byte) error {
 	if _, err := toc.pa.NewReaderWriter(e).WriteAt(b, 0); err != nil {
 		return fmt.Errorf("[toc] size > oldsize, UpdateFile=>WriteAt: %v", err)
 	}
-	if err := toc.updateToc(); err != nil {
-		return fmt.Errorf("[toc] size > oldsize, UpdateFile=>updateToc: %v", err)
+	toc.dirty = true
+	if err := toc.Sync(); err != nil {
+		return fmt.Errorf("[toc] Sync error: %v", err)
 	}
 	return nil
 }
@@ -137,15 +145,15 @@ func (t *TableOfContent) Shrink() error {
 			}
 		}
 	}
-	if err := t.updateToc(); err != nil {
-		return err
+	t.dirty = true
+	if err := t.Sync(); err != nil {
+		return fmt.Errorf("[toc] Sync error: %v", err)
 	}
-	deferError = false
 	return nil
 }
 
 func (t *TableOfContent) updateToc() error {
-	tocFile, err := t.findTocFile()
+	tocFile, err := t.openTocFile()
 	if err != nil {
 		return fmt.Errorf("[toc] updateToc: Cannot get dir element: %v", err)
 	}

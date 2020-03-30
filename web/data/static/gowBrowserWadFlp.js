@@ -122,31 +122,31 @@ gowFlp.prototype.renderData2 = function(o, handler, frameIndex, transform, color
     // console.log("MESH PART INDEX", o.MeshPartIndex);
     meshes = loadMeshPartFromAjax(model, this.root.Model.Meshes[0], o.MeshPartIndex);
 
-	for (let iMesh in meshes) {
+    for (let iMesh in meshes) {
         let mesh = meshes[iMesh];
         if (mesh.meta.hasOwnProperty('object')) {
-        	meshes[iMesh].setMaterialID(mesh.meta.object);
+            meshes[iMesh].setMaterialID(mesh.meta.object);
         } else {
-        	meshes[iMesh].setMaterialID(0);
+            meshes[iMesh].setMaterialID(0);
         }
     }
 
     if (o.Materials && o.Materials.length !== 0) {
-    	for (let iMaterial in o.Materials) {
-			let flpMaterial = o.Materials[iMaterial];
-	        let material = new grMaterial();
-	        let layer = new grMaterialLayer();
-	        if (flpMaterial.TextureName) {
-	            layer.setTextures([this.cacheTexture(flpMaterial.TextureName)]);
-	        }
-	        layer.setHasAlphaAttribute();
-	        let newColor = [];
-	        for (let i = 0; i < 4; i++) {
-	        	newColor[i] = color[i] * (((flpMaterial.Color >> (8 * i)) & 0xff) / 257);
-	        }
-	        layer.setColor(newColor);
-	        material.addLayer(layer);
-	        model.addMaterial(material);
+        for (let iMaterial in o.Materials) {
+            let flpMaterial = o.Materials[iMaterial];
+            let material = new grMaterial();
+            let layer = new grMaterialLayer();
+            if (flpMaterial.TextureName) {
+                layer.setTextures([this.cacheTexture(flpMaterial.TextureName)]);
+            }
+            layer.setHasAlphaAttribute();
+            let newColor = [];
+            for (let i = 0; i < 4; i++) {
+                newColor[i] = color[i] * (((flpMaterial.Color >> (8 * i)) & 0xff) / 257);
+            }
+            layer.setColor(newColor);
+            material.addLayer(layer);
+            model.addMaterial(material);
         }
     }
 
@@ -162,7 +162,7 @@ gowFlp.prototype.renderData4 = function(o, handler, frameIndex, transform, color
     let elementTransform = this.getTransformFromObject(o.Transformation);
     let font, fontscale;
     let x = 0;
-	let        y = 0;
+    let y = 0;
     let models = [];
     let baseColor = color;
     let commands = o.RenderCommandsList;

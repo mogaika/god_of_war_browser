@@ -33,6 +33,7 @@ func StartServer(addr string, packsDir vfs.Directory, driver vfs.Directory, webP
 	r.HandleFunc("/dump/pack/{file}/{param}", HandlerDumpPackParamFile)
 	r.HandleFunc("/dump/pack/{file}", HandlerDumpPackFile)
 	r.HandleFunc("/dump/fs/{file}", HandlerDumpFsFile)
+	r.HandleFunc("/delete/pack/{file}", HandlerDeletePackFile)
 	r.HandleFunc("/upload/pack/{file}", HandlerUploadPackFile)
 	r.HandleFunc("/upload/pack/{file}/{param}", HandlerUploadPackFileParam)
 	r.HandleFunc("/ws/status", HandlerWebsocketStatus)
