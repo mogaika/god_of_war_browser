@@ -1,11 +1,11 @@
 'use strict';
 
-var viewFs, viewPack, viewTree, viewSummary, view3d;
-var dataFs, dataPack, dataTree, dataSummary, data3d;
-var defferedLoadingWad;
-var defferedLoadingWadNode;
-var dataSelectors, dataSummarySelectors;
-var wad_last_load_view_type = 'nodes';
+let viewFs, viewPack, viewTree, viewSummary, view3d;
+let dataFs, dataPack, dataTree, dataSummary, data3d;
+let defferedLoadingWad;
+let defferedLoadingWadNode;
+let dataSelectors, dataSummarySelectors;
+let wad_last_load_view_type = 'nodes';
 
 String.prototype.replaceAll = function(search, replace) {
     if (replace === undefined) {
@@ -19,12 +19,12 @@ function getActionLinkForWadNode(wad, nodeid, action, params = '') {
 }
 
 function treeInputFilterHandler($el, localStorageKey) {
-    var filterText = $el.val().toLowerCase();
+    let filterText = $el.val().toLowerCase();
     if (localStorageKey) {
         localStorage.setItem(localStorageKey, filterText);
     }
     $el.parent().find("div li label").each(function(a1, a2, a3) {
-        var p = $(this).parent();
+        let p = $(this).parent();
         if ($(this).text().toLowerCase().includes(filterText)) {
             while (p.is("li")) {
                 p.show();
@@ -57,7 +57,9 @@ function set3dVisible(show) {
 }
 
 function setTitle(view, title) {
-    $(view).children(".view-item-title").text(title);
+    let $title = $(view).children(".view-item-title");
+    $title.empty();
+    $title.append(title);
 }
 
 function setLocation(title, hash) {
@@ -73,9 +75,9 @@ function packLoad() {
     dataPack.empty();
     dataSelectors.empty();
     $.getJSON('/json/pack', function(files) {
-        var list = $('<ol>');
-        for (var i in files) {
-            var fileName = files[i];
+        let list = $('<ol>');
+        for (let i in files) {
+            let fileName = files[i];
             list.append($('<li>')
                 .attr('filename', fileName)
                 .append($('<label>').append(fileName))
@@ -111,9 +113,9 @@ function driverFsLoad() {
         dataType: "json",
         url: '/json/fs',
         success: function(files) {
-            var list = $('<ol>');
-            for (var i in files) {
-                var fileName = files[i];
+            let list = $('<ol>');
+            for (let i in files) {
+                let fileName = files[i];
                 list.append($('<li>')
                     .attr('filename', fileName)
                     .append($('<label>').append(fileName))
@@ -135,10 +137,36 @@ function driverFsLoad() {
     });
 }
 
+function deleteAjaxHandler() {
+    let filename = $(this).attr("filename");
+    let ask1 = confirm(
+        "You want to delete file\n" + filename +
+        "\nDo not forget to backup before deletion!\n" +
+        "Are you sure you want to delete file?");
+    if (ask1 !== true) {
+        return;
+    }
+    console.warn("Deleting toc file " + filename);
+
+    $.ajax({
+        url: $(this).attr("href"),
+        processData: false,
+        contentType: false,
+        success: function(a1) {
+            if (a1 !== "") {
+                alert('Error deleting: ' + a1);
+            } else {
+                alert('Success!');
+                window.location.reload();
+            }
+        }
+    });
+}
+
 function uploadAjaxHandler() {
-    var link = $(this).attr("href");
-    var form = $('<form action="' + link + '" method="post" enctype="multipart/form-data">');
-    var fileInput = $('<input type="file" name="data">');
+    let link = $(this).attr("href");
+    let form = $('<form action="' + link + '" method="post" enctype="multipart/form-data">');
+    let fileInput = $('<input type="file" name="data">');
     form.append(fileInput);
 
     fileInput.trigger("click");
@@ -173,47 +201,75 @@ function packLoadFile(filename) {
         TypeArrayId: 8,
         IdInThatTypeArray: 0
     }];
-    $.getJSON('/json/pack/' + filename, function(data) {
-        var ext = filename.slice(-3).toLowerCase();
-        switch (ext) {
-            case 'wad':
-            case 'ps3':
-            case 'sp2':
-                treeLoadWad(filename, data);
-                break;
-            case 'psw':
-            case 'pss':
-                treeLoadPswPss(filename, data);
-                break;
-            case 'vag':
-            case 'va1':
-            case 'va2':
-            case 'va3':
-            case 'va4':
-            case 'va5':
-            case 'vpk':
-            case 'vp1':
-            case 'vp2':
-            case 'vp3':
-            case 'vp4':
-                treeLoadVagVpk(filename, data);
-                break;
-            case 'txt':
-                treeLoadTxt(filename, data);
-                break;
-            default:
-                dataTree.append(JSON.stringify(data, undefined, 2).replaceAll('\n', '<br>'));
-                break;
+
+
+    let $title = $("<span>" + filename + "&#x20;</span>");
+
+    $title.append(
+        $('<button>(DEL)</button>')
+        .addClass('button-delete')
+        .attr('title', 'Delete file')
+        .attr('filename', filename)
+        .attr("href", '/delete/pack/' + filename)
+        .click(deleteAjaxHandler));
+    setTitle(viewTree, $title);
+
+    dataTree.append($("<div>loading file..." + filename + "</div>"));
+
+    let onerror = function(error) {
+        dataTree.append($("<div>failed to load:<b>" + error + "</b></div>"));
+    }
+
+    $.ajax({
+        dataType: "json",
+        url: '/json/pack/' + filename,
+        error: onerror,
+        success: function(data, a1, a2, a3) {
+            if (data.hasOwnProperty('error')) {
+                onerror(data['error']);
+                return;
+            }
+            dataTree.empty();
+            let ext = filename.slice(-3).toLowerCase();
+            switch (ext) {
+                case 'wad':
+                case 'ps3':
+                case 'sp2':
+                    treeLoadWad(filename, data);
+                    break;
+                case 'psw':
+                case 'pss':
+                    treeLoadPswPss(filename, data);
+                    break;
+                case 'vag':
+                case 'va1':
+                case 'va2':
+                case 'va3':
+                case 'va4':
+                case 'va5':
+                case 'vpk':
+                case 'vp1':
+                case 'vp2':
+                case 'vp3':
+                case 'vp4':
+                    treeLoadVagVpk(filename, data);
+                    break;
+                case 'txt':
+                    treeLoadTxt(filename, data);
+                    break;
+                default:
+                    dataTree.append(JSON.stringify(data, undefined, 2).replaceAll('\n', '<br>'));
+                    break;
+            }
+            console.log('pack file ' + filename + ' loaded');
         }
-        console.log('pack file ' + filename + ' loaded');
     });
 }
 
 function treeLoadVagVpk(filename, data) {
     set3dVisible(false);
-    setTitle(viewTree, filename);
-    var list = $("<ul>");
-    var wavPath = '/dump/pack/' + filename + '/wav';
+    let list = $("<ul>");
+    let wavPath = '/dump/pack/' + filename + '/wav';
 
     list.append($("<li>").append("SampleRate: " + data.SampleRate));
     list.append($("<li>").append("Channels: " + data.Channels));
@@ -227,17 +283,15 @@ function treeLoadVagVpk(filename, data) {
 
 function treeLoadTxt(filename, data) {
     set3dVisible(false);
-    setTitle(viewTree, filename);
     dataSummary.append($("<p>").append(data));
     setLocation(filename, '#/' + filename);
 }
 
 function treeLoadPswPss(filename, data) {
     set3dVisible(false);
-    setTitle(viewTree, filename);
-    var videoPath = '/dump/pack/' + filename;
+    let videoPath = '/dump/pack/' + filename;
 
-    var vlc = $('<EMBED pluginspage="http://www.videolan.org"\
+    let vlc = $('<EMBED pluginspage="http://www.videolan.org"\
 	    type="application/x-vlc-plugin"\
 	    version="VideoLAN.VLCPlugin.2"\
 	    width="640"\
@@ -252,7 +306,6 @@ function treeLoadPswPss(filename, data) {
 }
 
 function treeLoadWad(wadName, data) {
-    setTitle(viewTree, wadName);
     if (!defferedLoadingWadNode) {
         setLocation(wadName, '#/' + wadName);
     }
@@ -338,12 +391,12 @@ $(document).ready(function() {
         });
     });
 
-    var packFilter = localStorage.getItem('tree-filter');
-    var itemFilter = localStorage.getItem('item-filter');
+    let packFilter = localStorage.getItem('tree-filter');
+    let itemFilter = localStorage.getItem('item-filter');
     $('#view-pack-filter').on('input', treePackInputFilterHandler).val(packFilter ? packFilter : '.wad');
     $('#view-item-filter').on('input', treeItemInputFilterHandler).val(itemFilter ? itemFilter : '');
 
-    var urlParts = decodeURI(window.location.hash).split("/");
+    let urlParts = decodeURI(window.location.hash).split("/");
     if (urlParts.length > 1) {
         if (urlParts[1].length > 0) {
             defferedLoadingWad = urlParts[1];
@@ -373,23 +426,23 @@ $(document).ready(function() {
 });
 
 function hexdump(buffer, blockSize) {
-    var table = $('<table>');
+    let table = $('<table>');
     blockSize = blockSize || 16;
-    var lines = [];
-    var hex = "0123456789ABCDEF";
-    var blocks = Math.ceil(buffer.length / blockSize);
-    for (var iBlock = 0; iBlock < blocks; iBlock += 1) {
-        var blockPos = iBlock * blockSize;
+    let lines = [];
+    let hex = "0123456789ABCDEF";
+    let blocks = Math.ceil(buffer.length / blockSize);
+    for (let iBlock = 0; iBlock < blocks; iBlock += 1) {
+        let blockPos = iBlock * blockSize;
 
-        var line = '';
-        var chars = '';
-        for (var j = 0; j < Math.min(blockSize, buffer.length - blockPos); j += 1) {
-            var code = buffer[blockPos + j];
+        let line = '';
+        let chars = '';
+        for (let j = 0; j < Math.min(blockSize, buffer.length - blockPos); j += 1) {
+            let code = buffer[blockPos + j];
             line += ' ' + hex[(0xF0 & code) >> 4] + hex[0x0F & code];
             chars += (code > 0x20 && code < 0x80) ? String.fromCharCode(code) : '.';
         }
 
-        var tr = $('<tr>');
+        let tr = $('<tr>');
         tr.append($('<td>').append(("000000" + blockPos.toString(16)).slice(-6)));
         tr.append($('<td>').append(line));
         tr.append($('<td>').text(chars));

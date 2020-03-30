@@ -19,6 +19,7 @@ type TableOfContent struct {
 	pa                 *PaksArray
 	namingPolicy       *TocNamingPolicy
 	packsArrayIndexing int // only for gow2
+	dirty              bool
 }
 
 // interface vfs.Element
@@ -42,8 +43,18 @@ func (t *TableOfContent) GetElement(name string) (vfs.Element, error) {
 		return f, nil
 	}
 }
-func (t *TableOfContent) Add(e vfs.Element) error  { panic("Not implemented") }
-func (t *TableOfContent) Remove(name string) error { panic("Not impelemented") }
+func (t *TableOfContent) Add(e vfs.Element) error { panic("Not implemented") }
+func (t *TableOfContent) Remove(name string) error {
+	if _, ok := t.files[name]; !ok {
+		return fmt.Errorf("[toc] Cannot find file '%s' in toc", name)
+	}
+	t.dirty = true
+	delete(t.files, name)
+	if err := t.Sync(); err != nil {
+		return fmt.Errorf("Sync error: %v", err)
+	}
+	return nil
+}
 
 func (toc *TableOfContent) Unmarshal(b []byte) error {
 	if config.GetGOWVersion() == config.GOWunknown {
@@ -77,17 +88,33 @@ func (toc *TableOfContent) Marshal() []byte {
 	}
 }
 
-func (t *TableOfContent) findTocFile() (vfs.File, error) {
-	for _, np := range defaultTocNamePair {
-		f, err := vfs.DirectoryGetFile(t.dir, np.TocName)
-		if err == nil {
-			t.namingPolicy = &np
-			return f, nil
+func (t *TableOfContent) detectNamingPolicyTocOnly() (err error) {
+	for _, policy := range defaultTocNamePair {
+		t.namingPolicy = &policy
+		if _, err = t.openTocFile(); err == nil {
+			log.Printf("[toc] Detected toc file %q", policy.TocName)
+			return nil
 		} else {
-			log.Printf("[toc] Cannot open possible toc file '%s': %v", np.TocName, err)
+			log.Printf("[toc] WARNING: Error opening possible toc file %q: %v", policy.TocName, err)
 		}
 	}
-	return nil, fmt.Errorf("[toc] Cannot find any of toc file")
+	return fmt.Errorf("[toc] Wasn't able to detect pak naming policy")
+}
+
+func (t *TableOfContent) detectNamingPolicyPakOnly() (err error) {
+	for _, policy := range defaultTocNamePair {
+		t.namingPolicy = &policy
+		if err := t.openPakStreams(true); err == nil {
+			log.Printf("[toc] Detected pack naming policy %+v", policy)
+			return nil
+		}
+		log.Printf("[toc] WARNING: Error opening possible pak stream: %v", err)
+	}
+	return fmt.Errorf("[toc] Wasn't able to detect pak naming policy")
+}
+
+func (t *TableOfContent) openTocFile() (vfs.File, error) {
+	return vfs.DirectoryGetFile(t.dir, t.namingPolicy.TocName)
 }
 
 func (t *TableOfContent) closePakStreams() error {
@@ -144,7 +171,7 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 		return err
 	}
 
-	log.Printf("[toc] Opening streams (readonly: %v)", readonly)
+	log.Printf("[toc] Opening streams (readonly: %v). Naming policy %+v", readonly, t.namingPolicy)
 
 	maxPaks := t.getMaximumPossiblePakIndex()
 	t.paks = make([]vfs.File, maxPaks+1)
@@ -166,7 +193,7 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 				}
 			}
 			t.paks[i] = f
-			log.Printf("[toc] Opened pak '%s'", name)
+			log.Printf("[toc] Opened pak '%s' (readonly: %v)", name, readonly)
 		}
 	}
 	t.pa = NewPaksArray(t.paks, t.packsArrayIndexing)
@@ -176,10 +203,10 @@ func (t *TableOfContent) openPakStreams(readonly bool) error {
 func (t *TableOfContent) readTocFile() error {
 	t.files = make(map[string]*File)
 
-	if f, err := t.findTocFile(); err != nil {
+	if f, err := t.openTocFile(); err != nil {
 		return err
 	} else {
-		log.Printf("[toc] Used to file %q", f.Name())
+		log.Printf("[toc] Used toc file %q", f.Name())
 		if r, err := vfs.OpenFileAndGetReader(f, true); err != nil {
 			return fmt.Errorf("[toc] Cannot open '%s': %v", f.Name(), err)
 		} else {
@@ -197,13 +224,19 @@ func (t *TableOfContent) readTocFile() error {
 }
 
 func printFreeSpace(t *TableOfContent) {
-	log.Printf("Free space: ")
+	log.Printf(" xXxXx Free space of files packed in toc/pak:")
+	var totalFree int64
+
 	for _, fs := range constructFreeSpaceArray(t.files, t.paks) {
-		log.Printf("[%d] 0x%.9x <=> 0x%.9x  0x%.7x  %dkB", fs.Pak, fs.Start, fs.End, fs.End-fs.Start, (fs.End-fs.Start)/1024)
+		freeSpaceSize := fs.End - fs.Start
+		log.Printf("[%d] 0x%.9x <=> 0x%.9x  0x%.7x  %dkB", fs.Pak, fs.Start, fs.End, freeSpaceSize, freeSpaceSize>>10)
+		totalFree += freeSpaceSize
+
+		// sanity check of files
 		for _, f := range t.files {
 			for _, e := range f.encounters {
 				if e.Size != f.size {
-					log.Printf("size  0x%.7x != 0x%.7x file '%v' offset %x:", e.Size, f.size, f.name, e)
+					log.Printf("[WARNING] size  0x%.7x != 0x%.7x file '%v' offset %x:", e.Size, f.size, f.name, e)
 				}
 				if e.Pak == fs.Pak {
 					if e.Offset+e.Size > fs.Start && e.Offset < fs.End {
@@ -213,6 +246,10 @@ func printFreeSpace(t *TableOfContent) {
 			}
 		}
 	}
+	if totalFree == 0 {
+		log.Printf("       no free space found")
+	}
+	log.Printf(" xXxXx Total free space: 0x%x  %dkB  %dMb", totalFree, totalFree>>10, totalFree>>20)
 }
 
 func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
@@ -221,25 +258,23 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 		dir:   dir,
 	}
 
+	if err := t.detectNamingPolicyTocOnly(); err != nil {
+		return nil, err
+	}
+
 	if err := t.readTocFile(); err != nil {
 		return nil, err
 	}
 
-	var err error
-	for _, policy := range defaultTocNamePair {
-		if policy.TocName == t.namingPolicy.TocName {
-			t.namingPolicy = &policy
-			err = t.openPakStreams(true)
-			if err == nil {
-				break
-			}
-		}
+	if err := t.detectNamingPolicyPakOnly(); err != nil {
+		return nil, err
 	}
-	if err != nil {
+
+	if err := t.openPakStreams(true); err != nil {
 		return nil, fmt.Errorf("Wasn't able to open streams: %v", err)
 	}
 
-	// printFreeSpace(t)
+	printFreeSpace(t)
 
 	return t, nil
 }

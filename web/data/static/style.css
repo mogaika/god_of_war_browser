@@ -246,7 +246,7 @@ a.button-dump {
     display: inline-block;
     position: absolute;
     top: 1px;
-    right: -3px;
+    right: -7px;
     width: 16px;
     height: 16px;
     background-image: url('dump-16.png');
@@ -257,7 +257,7 @@ div.button-upload {
     display: inline-block;
     position: absolute;
     top: 1px;
-    right: 14px;
+    right: 10px;
     width: 16px;
     height: 16px;
     background-image: url('upload-16.png');

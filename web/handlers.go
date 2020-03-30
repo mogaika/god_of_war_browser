@@ -108,6 +108,14 @@ func HandlerDumpFsFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func HandlerDeletePackFile(w http.ResponseWriter, r *http.Request) {
+	file := mux.Vars(r)["file"]
+	err := ServerDirectory.Remove(file)
+	if err != nil {
+		webutils.WriteError(w, err)
+	}
+}
+
 func HandlerDumpPackParamFile(w http.ResponseWriter, r *http.Request) {
 	file := mux.Vars(r)["file"]
 	param := mux.Vars(r)["param"]
