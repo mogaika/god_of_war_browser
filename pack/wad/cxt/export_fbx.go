@@ -3,36 +3,43 @@ package cxt
 import (
 	"log"
 	"math"
+	"path/filepath"
 
-	"github.com/mogaika/god_of_war_browser/fbx"
-	"github.com/mogaika/god_of_war_browser/fbx/cache"
+	"github.com/mogaika/fbx/builders/bfbx73"
+
+	"github.com/mogaika/fbx"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_inst "github.com/mogaika/god_of_war_browser/pack/wad/inst"
 	file_obj "github.com/mogaika/god_of_war_browser/pack/wad/obj"
+	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
 )
 
 type FbxExporter struct {
-	FbxModelId uint64
+	FbxModelId int64
 
-	Instances []*fbx.Model
+	Instances []*fbx.Node
 }
 
-func (cxt *Chunk) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
+func (cxt *Chunk) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *FbxExporter {
 	fe := &FbxExporter{
-		Instances:  make([]*fbx.Model, 0),
+		Instances:  make([]*fbx.Node, 0),
 		FbxModelId: f.GenerateId(),
 	}
-	defer cache.Add(wrsrc.Tag.Id, fe)
+	defer f.AddCache(wrsrc.Tag.Id, fe)
 
-	cxtModel := &fbx.Model{
-		Id:      fe.FbxModelId,
-		Name:    "Model::CXT_" + wrsrc.Tag.Name,
-		Element: "Null",
-		Version: 232,
-		Shading: true,
-		Culling: "CullingOff",
-	}
-	f.Objects.Model = append(f.Objects.Model, cxtModel)
+	cxtModel := bfbx73.Model(fe.FbxModelId, wrsrc.Tag.Name+"\x00\x01Model", "Null").AddNodes(
+		bfbx73.Version(232),
+		bfbx73.Shading(true),
+		bfbx73.Culling("CullingOff"),
+	)
+	/*
+		nodeAttribute := bfbx73.NodeAttribute(f.GenerateId(), wrsrc.Tag.Name+"\x00\x01NodeAttribute", "Null").AddNodes(
+			bfbx73.TypeFlags("Null"),
+		)
+		f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fe.FbxModelId))
+	*/
+	f.AddObjects(cxtModel) // , nodeAttribute)
 
 	for _, iSubNode := range wrsrc.Node.SubGroupNodes {
 		instance, _, err := wrsrc.Wad.GetInstanceFromNode(iSubNode)
@@ -43,22 +50,29 @@ func (cxt *Chunk) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cac
 
 		gameInstance := instance.(*file_inst.Instance)
 
-		instModel := &fbx.Model{
-			Id:      f.GenerateId(),
-			Name:    "Model::" + wrsrc.Wad.Nodes[iSubNode].Tag.Name,
-			Element: "Null",
-			Version: 232,
-			Shading: true,
-			Culling: "CullingOff",
-		}
-		f.Objects.Model = append(f.Objects.Model, instModel)
+		pos := gameInstance.Position1.Vec3()
+		rotation := gameInstance.Rotation.Vec3().Mul(180.0 / math.Pi)
 
-		instModel.Properties70.P = append(instModel.Properties70.P,
-			&fbx.Propertie70{
-				Name: "Lcl Translation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: gameInstance.Position1.Vec3()},
-			&fbx.Propertie70{
-				Name: "Lcl Rotation", Type: "Lcl Rotation", Purpose: "", Idk: "A+", Value: gameInstance.Rotation.Vec3().Mul(180.0 / math.Pi)},
+		instModelId := f.GenerateId()
+		instModel := bfbx73.Model(instModelId, wrsrc.Wad.Nodes[iSubNode].Tag.Name+"\x00\x01Model", "Null").AddNodes(
+			bfbx73.Version(232),
+			bfbx73.Shading(true),
+			bfbx73.Culling("CullingOff"),
+			bfbx73.Properties70().AddNodes(
+				bfbx73.P("Lcl Translation", "Lcl Translation", "", "A+",
+					float64(pos[0]), float64(pos[1]), float64(pos[2])),
+				bfbx73.P("Lcl Rotation", "Lcl Rotation", "", "A+",
+					float64(rotation[0]), float64(rotation[1]), float64(rotation[2])),
+			),
 		)
+
+		nodeAttribute := bfbx73.NodeAttribute(
+			f.GenerateId(), wrsrc.Wad.Nodes[iSubNode].Tag.Name+"\x00\x01NodeAttribute", "Null").AddNodes(
+			bfbx73.TypeFlags("Null"),
+		)
+
+		f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), instModelId))
+		f.AddObjects(instModel, nodeAttribute)
 
 		// try to find object now
 		objectNode := wrsrc.Wad.GetNodeByName(gameInstance.Object, wrsrc.Node.Id, false)
@@ -73,33 +87,27 @@ func (cxt *Chunk) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cac
 		object := objectI.(*file_obj.Object)
 
 		var fbxObject *file_obj.FbxExporter
-		if fbxObjectI := cache.Get(objectNode.Tag.Id); fbxObjectI == nil {
-			fbxObject = object.ExportFbx(wrsrc.Wad.GetNodeResourceByNodeId(objectNode.Id), f, cache)
+		if fbxObjectI := f.GetCached(objectNode.Tag.Id); fbxObjectI == nil {
+			fbxObject = object.ExportFbx(wrsrc.Wad.GetNodeResourceByNodeId(objectNode.Id), f)
 		} else {
 			fbxObject = fbxObjectI.(*file_obj.FbxExporter)
 		}
 
-		f.Connections.C = append(f.Connections.C, fbx.Connection{
-			Type: "OO", Parent: instModel.Id, Child: fbxObject.FbxModelId,
-		})
-		f.Connections.C = append(f.Connections.C, fbx.Connection{
-			Type: "OO", Parent: cxtModel.Id, Child: instModel.Id,
-		})
+		f.AddConnections(
+			bfbx73.C("OO", fbxObject.FbxModelId, instModelId),
+			bfbx73.C("OO", instModelId, fe.FbxModelId),
+		)
 	}
 
 	return fe
 }
 
-func (cxt *Chunk) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
-	f := fbx.NewFbx()
+func (cxt *Chunk) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbxbuilder.FBXBuilder {
+	f := fbxbuilder.NewFBXBuilder(filepath.Join(wrsrc.Wad.Name(), wrsrc.Name()))
 
-	fe := cxt.ExportFbx(wrsrc, f, cache.NewCache())
+	fe := cxt.ExportFbx(wrsrc, f)
 
-	f.Connections.C = append(f.Connections.C, fbx.Connection{
-		Type: "OO", Parent: 0, Child: fe.FbxModelId,
-	})
-
-	f.CountDefinitions()
+	f.AddConnections(bfbx73.C("OO", fe.FbxModelId, 0))
 
 	return f
 }

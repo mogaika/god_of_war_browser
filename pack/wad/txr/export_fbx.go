@@ -4,22 +4,22 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/mogaika/god_of_war_browser/fbx"
-	"github.com/mogaika/god_of_war_browser/fbx/cache"
+	"github.com/mogaika/fbx/builders/bfbx73"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
 )
 
 type FbxExporter struct {
-	TextureId uint64
-	VideoId   uint64
+	TextureId int64
+	VideoId   int64
 }
 
-func (t *Texture) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
+func (t *Texture) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *FbxExporter {
 	fe := &FbxExporter{
 		TextureId: f.GenerateId(),
 		VideoId:   f.GenerateId(),
 	}
-	defer cache.Add(wrsrc.Tag.Id, fe)
+	defer f.AddCache(wrsrc.Tag.Id, fe)
 
 	ajaxI, err := t.Marshal(wrsrc)
 	if err != nil {
@@ -34,46 +34,35 @@ func (t *Texture) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cac
 
 	f.AddExportFile(fileName, png)
 
-	video := &fbx.Video{
-		Id:               fe.VideoId,
-		Name:             "Video::",
-		Element:          "Clip",
-		Type:             "Clip",
-		UseMipMap:        0,
-		Filename:         fileName,
-		RelativeFilename: fileName,
-		// 		Content:          base64.StdEncoding.EncodeToString(png),
-		Properties70: fbx.Properties70{
-			P: []*fbx.Propertie70{
-				&fbx.Propertie70{Name: "Path", Type: "KString", Purpose: "XRefUrl", Value: fileName},
-			},
-		},
-	}
-	texture := &fbx.Texture{
-		Id:                   fe.TextureId,
-		Name:                 "Texture::",
-		Type:                 "TextureVideoClip",
-		Version:              202,
-		TextureName:          "Texture::",
-		FileName:             video.Filename,
-		RelativeFilename:     video.RelativeFilename,
-		Texture_Alpha_Source: "None",
-		ModelUVTranslation:   []int{0, 0},
-		ModelUVScaling:       []int{1, 1},
-		Cropping:             []int{0, 0, 0, 0},
-		Properties70: fbx.Properties70{
-			P: []*fbx.Propertie70{
-				&fbx.Propertie70{Name: "UseMaterial", Type: "bool", Value: 1},
-				&fbx.Propertie70{Name: "CurrentTextureBlendMode", Type: "enum", Value: 0},
-			},
-		},
-	}
+	video := bfbx73.Video(fe.VideoId, "\x00\x01Video", "Clip").AddNodes(
+		bfbx73.Type("Clip"),
+		bfbx73.Properties70().AddNodes(
+			bfbx73.P("Path", "KString", "XRefUrl", "", fileName),
+		),
+		bfbx73.UseMipMap(0),
+		bfbx73.Filename(fileName),
+		bfbx73.RelativeFilename(fileName),
+		bfbx73.Content(png),
+	)
 
-	f.Objects.Texture = append(f.Objects.Texture, texture)
-	f.Objects.Video = append(f.Objects.Video, video)
-	f.Connections.C = append(f.Connections.C, fbx.Connection{
-		Type: "OO", Child: video.Id, Parent: texture.Id,
-	})
+	texture := bfbx73.Texture(fe.TextureId, "\x00\x01Texture", "TextureVideoClip").AddNodes(
+		bfbx73.Type("TextureVideoClip"),
+		bfbx73.Version(202),
+		bfbx73.Properties70().AddNodes(
+			bfbx73.P("CurrentTextureBlendMode", "enum", "", "", int32(0)),
+			bfbx73.P("UseMaterial", "bool", "", "", int32(1)),
+		),
+		bfbx73.Media(""),
+		bfbx73.Filename(fileName),
+		bfbx73.RelativeFilename(fileName),
+		bfbx73.ModelUVTranslation(0, 0),
+		bfbx73.ModelUVScaling(1, 1),
+		bfbx73.Texture_Alpha_Source("None"), // TODO: alpha source not none?
+		bfbx73.Cropping(0, 0, 0, 0),         // TODO: check that we do not need cropping on non-rectangle textures?
+	)
+
+	f.AddObjects(texture, video)
+	f.AddConnections(bfbx73.C("OO", fe.VideoId, fe.TextureId))
 
 	return fe
 }

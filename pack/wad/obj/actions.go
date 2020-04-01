@@ -15,7 +15,7 @@ func (obj *Object) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *
 	case "fbx":
 		var buf bytes.Buffer
 		//log.Printf("Error when exporting obj: %v", obj.ExportFbxDefault(wrsrc).ExportZip(&buf, wrsrc.Tag.Name+".fbx"))
-		log.Printf("Error when exporting obj: %v", obj.ExportFbxDefault(wrsrc).Export(&buf))
+		log.Printf("Error when exporting obj: %v", obj.ExportFbxDefault(wrsrc).Write(&buf))
 		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".fbx")
 	case "zip":
 		var buf, objBuf, mtlBuf bytes.Buffer

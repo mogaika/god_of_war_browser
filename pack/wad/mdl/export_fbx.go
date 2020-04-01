@@ -1,24 +1,26 @@
 package mdl
 
 import (
-	"github.com/mogaika/god_of_war_browser/fbx"
-	"github.com/mogaika/god_of_war_browser/fbx/cache"
+	"path/filepath"
+
+	"github.com/mogaika/fbx/builders/bfbx73"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_mat "github.com/mogaika/god_of_war_browser/pack/wad/mat"
 	file_mesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
+	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
 )
 
 type FbxExporter struct {
 	Models []*file_mesh.FbxExporter
 }
 
-func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
+func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *FbxExporter {
 	fe := &FbxExporter{
 		Models: make([]*file_mesh.FbxExporter, 0),
 	}
-	defer cache.Add(wrsrc.Tag.Id, fe)
+	defer f.AddCache(wrsrc.Tag.Id, fe)
 
-	materials := make([]uint64, 0)
+	materials := make([]int64, 0)
 
 	for _, id := range wrsrc.Node.SubGroupNodes {
 		node := wrsrc.Wad.GetNodeById(id)
@@ -28,8 +30,8 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache
 			case *file_mat.Material:
 				mat := inst.(*file_mat.Material)
 				var fbxMat *file_mat.FbxExporter
-				if fbxMatI := cache.Get(node.Tag.Id); fbxMatI == nil {
-					fbxMat = mat.ExportFbx(nodeResource, f, cache)
+				if fbxMatI := f.GetCached(node.Tag.Id); fbxMatI == nil {
+					fbxMat = mat.ExportFbx(nodeResource, f)
 				} else {
 					fbxMat = fbxMatI.(*file_mat.FbxExporter)
 				}
@@ -37,8 +39,8 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache
 			case *file_mesh.Mesh:
 				mesh := inst.(*file_mesh.Mesh)
 				var fbxMesh *file_mesh.FbxExporter
-				if fbxMeshI := cache.Get(node.Tag.Id); fbxMeshI == nil {
-					fbxMesh = mesh.ExportFbx(nodeResource, f, cache)
+				if fbxMeshI := f.GetCached(node.Tag.Id); fbxMeshI == nil {
+					fbxMesh = mesh.ExportFbx(nodeResource, f)
 				} else {
 					fbxMesh = fbxMeshI.(*file_mesh.FbxExporter)
 				}
@@ -47,9 +49,7 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache
 
 				for _, part := range fbxMesh.Parts {
 					for _, object := range part.Objects {
-						f.Connections.C = append(f.Connections.C, fbx.Connection{
-							Type: "OO", Child: materials[object.MaterialId], Parent: object.FbxModelId,
-						})
+						f.AddConnections(bfbx73.C("OO", materials[object.MaterialId], object.FbxModelId))
 					}
 				}
 			}
@@ -59,21 +59,16 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache
 	return fe
 }
 
-func (m *Model) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
-	f := fbx.NewFbx()
-	f.Objects.Model = make([]*fbx.Model, 0)
+func (m *Model) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbxbuilder.FBXBuilder {
+	f := fbxbuilder.NewFBXBuilder(filepath.Join(wrsrc.Wad.Name(), wrsrc.Name()))
 
-	fe := m.ExportFbx(wrsrc, f, cache.NewCache())
+	fe := m.ExportFbx(wrsrc, f)
 
 	for _, model := range fe.Models {
 		for _, part := range model.Parts {
-			f.Connections.C = append(f.Connections.C, fbx.Connection{
-				Type: "OO", Parent: 0, Child: part.FbxModel.Id,
-			})
+			f.AddConnections(bfbx73.C("OO", part.FbxModelId, 0))
 		}
 	}
-
-	f.CountDefinitions()
 
 	return f
 }

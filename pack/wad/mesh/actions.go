@@ -17,7 +17,7 @@ func (mesh *Mesh) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *h
 		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".obj")
 	case "fbx":
 		var buf bytes.Buffer
-		log.Printf("Error when exporting mesh: %v", mesh.ExportFbxDefault(wrsrc).Export(&buf))
+		log.Printf("Error when exporting mesh: %v", mesh.ExportFbxDefault(wrsrc).Write(&buf))
 		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".fbx")
 	}
 }
