@@ -3,17 +3,19 @@ package obj
 import (
 	"fmt"
 	"math"
+	"path/filepath"
+
+	"github.com/mogaika/fbx/builders/bfbx73"
 
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/mogaika/god_of_war_browser/fbx"
-	"github.com/mogaika/god_of_war_browser/fbx/cache"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
 
 	file_mdl "github.com/mogaika/god_of_war_browser/pack/wad/mdl"
 )
 
 type FbxExporter struct {
-	FbxModelId uint64
+	FbxModelId int64
 }
 
 func quatToEuler(q mgl32.Quat) (e mgl32.Vec3) {
@@ -39,20 +41,25 @@ func quatToEuler(q mgl32.Quat) (e mgl32.Vec3) {
 	return e
 }
 
-func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
+func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *FbxExporter {
 	fe := &FbxExporter{
 		FbxModelId: f.GenerateId(),
 	}
-	defer cache.Add(wrsrc.Tag.Id, fe)
+	defer f.AddCache(wrsrc.Tag.Id, fe)
 
-	model := &fbx.Model{
-		Id:      fe.FbxModelId,
-		Name:    "Model::" + wrsrc.Tag.Name,
-		Element: "Null",
-		Version: 232,
-		Shading: true,
-		Culling: "CullingOff",
-	}
+	model := bfbx73.Model(fe.FbxModelId, wrsrc.Tag.Name+"\x00\x01Model", "Null").AddNodes(
+		bfbx73.Version(232),
+		bfbx73.Shading(true),
+		bfbx73.Culling("CullingOff"),
+	)
+
+	nodeAttribute := bfbx73.NodeAttribute(f.GenerateId(), wrsrc.Tag.Name+"\x00\x01NodeAttribute", "Null").AddNodes(
+		bfbx73.TypeFlags("Null"),
+	)
+
+	f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fe.FbxModelId))
+
+	f.AddObjects(model, nodeAttribute)
 
 	for _, id := range wrsrc.Node.SubGroupNodes {
 		n := wrsrc.Wad.GetNodeById(id)
@@ -62,8 +69,8 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cach
 				mdl := inst.(*file_mdl.Model)
 
 				var exMdl *file_mdl.FbxExporter
-				if exMdlI := cache.Get(n.Tag.Id); exMdlI == nil {
-					exMdl = mdl.ExportFbx(wrsrc.Wad.GetNodeResourceByTagId(n.Tag.Id), f, cache)
+				if exMdlI := f.GetCached(n.Tag.Id); exMdlI == nil {
+					exMdl = mdl.ExportFbx(wrsrc.Wad.GetNodeResourceByTagId(n.Tag.Id), f)
 				} else {
 					exMdl = exMdlI.(*file_mdl.FbxExporter)
 				}
@@ -75,44 +82,39 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cach
 						joint := o.Joints[part.RawPart.JointId]
 
 						q := mgl32.Mat4ToQuat(joint.RenderMat)
-						euler := quatToEuler(q)
 						pos := joint.RenderMat.Col(3).Vec3()
+						rotation := quatToEuler(q).Mul(180.0 / math.Pi)
 						scale := joint.RenderMat.Diag().Vec3().Mul(joint.RenderMat.Diag().W())
 
-						partModel.Properties70.P = append(partModel.Properties70.P,
-							&fbx.Propertie70{
-								Name: "Lcl Translation", Type: "Lcl Translation", Purpose: "", Idk: "A+", Value: pos},
-							&fbx.Propertie70{
-								Name: "Lcl Rotation", Type: "Lcl Rotation", Purpose: "", Idk: "A+", Value: euler.Mul(180.0 / math.Pi)},
-							&fbx.Propertie70{
-								Name: "Lcl Scaling", Type: "Lcl Scaling", Purpose: "", Idk: "A+", Value: scale})
+						// TODO: change float32 to float64
+						partModel.GetOrAddNode(bfbx73.Properties70()).AddNodes(
+							bfbx73.P("Lcl Translation", "Lcl Translation", "", "A+",
+								float64(pos[0]), float64(pos[1]), float64(pos[2])),
+							bfbx73.P("Lcl Rotation", "Lcl Rotation", "", "A+",
+								float64(rotation[0]), float64(rotation[1]), float64(rotation[2])),
+							bfbx73.P("Lcl Scaling", "Lcl Scaling", "", "A+",
+								float64(scale[0]), float64(scale[1]), float64(scale[2])),
+						)
+						partModel.Properties[1] = fmt.Sprintf("%s_part%d\x00\x01Model", joint.Name, part.Part)
 
-						partModel.Name = fmt.Sprintf("Model::%s_part%d", joint.Name, part.Part)
-						f.Connections.C = append(f.Connections.C, fbx.Connection{
-							Type: "OO", Parent: model.Id, Child: partModel.Id,
-						})
+						f.AddConnections(
+							bfbx73.C("OO", partModel.Properties[0].(int64), model.Properties[0].(int64)),
+						)
 					}
 				}
 			}
 		}
 	}
 
-	f.Objects.Model = append(f.Objects.Model, model)
-
 	return fe
 }
 
-func (o *Object) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbx.FBX {
-	f := fbx.NewFbx()
-	f.Objects.Model = make([]*fbx.Model, 0)
+func (o *Object) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbxbuilder.FBXBuilder {
+	f := fbxbuilder.NewFBXBuilder(filepath.Join(wrsrc.Wad.Name(), wrsrc.Name()))
 
-	fe := o.ExportFbx(wrsrc, f, cache.NewCache())
+	fe := o.ExportFbx(wrsrc, f)
 
-	f.Connections.C = append(f.Connections.C, fbx.Connection{
-		Type: "OO", Parent: 0, Child: fe.FbxModelId,
-	})
-
-	f.CountDefinitions()
+	f.AddConnections(bfbx73.C("OO", fe.FbxModelId, 0))
 
 	return f
 }

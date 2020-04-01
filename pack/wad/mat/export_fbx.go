@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/mogaika/god_of_war_browser/fbx"
-	"github.com/mogaika/god_of_war_browser/fbx/cache"
+	"github.com/mogaika/fbx/builders/bfbx73"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_txr "github.com/mogaika/god_of_war_browser/pack/wad/txr"
 	"github.com/mogaika/god_of_war_browser/utils"
+	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
 )
 
 type FbxExporter struct {
-	MaterialId uint64
+	MaterialId int64
 }
 
-func (m *Material) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Cache) *FbxExporter {
+func (m *Material) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *FbxExporter {
 	fe := &FbxExporter{}
-	defer cache.Add(wrsrc.Tag.Id, fe)
+	defer f.AddCache(wrsrc.Tag.Id, fe)
 
 	var mainLayer *Layer
 
@@ -47,24 +47,19 @@ func (m *Material) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Ca
 
 	fe.MaterialId = f.GenerateId()
 
-	material := &fbx.Material{
-		Id:           fe.MaterialId,
-		Name:         fmt.Sprintf("Material::%d_%v", wrsrc.Tag.Id, wrsrc.Tag.Name),
-		Element:      "",
-		Version:      102,
-		ShadingModel: "lambert",
-		MultiLayer:   0,
-		Properties70: fbx.Properties70{
-			P: []*fbx.Propertie70{
-				&fbx.Propertie70{Name: "AmbientColor", Type: "Color", Idk: "A", Value: []float32{0, 0, 0}},
-				&fbx.Propertie70{Name: "DiffuseColor", Type: "Color", Idk: "A", Value: color[:3]},
-				&fbx.Propertie70{Name: "Emissive", Type: "Vector3D", Purpose: "Vector", Value: []float32{0, 0, 0}},
-				&fbx.Propertie70{Name: "Ambient", Type: "Vector3D", Purpose: "Vector", Value: []float32{0, 0, 0}},
-				&fbx.Propertie70{Name: "Diffuse", Type: "Vector3D", Purpose: "Vector", Value: color[:3]},
-				&fbx.Propertie70{Name: "Opacity", Type: "double", Purpose: "Number", Value: color[3]},
-			},
-		},
-	}
+	material := bfbx73.Material(fe.MaterialId, fmt.Sprintf("%d_%v\x00\x01Material", wrsrc.Tag.Id, wrsrc.Tag.Name), "").AddNodes(
+		bfbx73.Version(102),
+		bfbx73.ShadingModel("lambert"),
+		bfbx73.MultiLayer(0),
+		bfbx73.Properties70().AddNodes(
+			bfbx73.P("AmbientColor", "Color", "", "A", float64(0), float64(0), float64(0)),
+			bfbx73.P("DiffuseColor", "Color", "", "A", float64(color[0]), float64(color[1]), float64(color[2])),
+			bfbx73.P("Emissive", "Vector3D", "Vector", "", float64(0), float64(0), float64(0)),
+			bfbx73.P("Ambient", "Vector3D", "Vector", "", float64(0), float64(0), float64(0)),
+			bfbx73.P("Diffuse", "Vector3D", "Vector", "", float64(color[0]), float64(color[1]), float64(color[2])),
+			bfbx73.P("Opacity", "double", "Number", "", float64(color[3])),
+		),
+	)
 
 	if mainLayer.ParsedFlags.HaveTexture {
 		n := wrsrc.Wad.GetNodeByName(mainLayer.Texture, wrsrc.Node.Id-1, false)
@@ -73,23 +68,21 @@ func (m *Material) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbx.FBX, cache *cache.Ca
 		}
 
 		var textureFe *file_txr.FbxExporter
-		if cachedTexture := cache.Get(n.Tag.Id); cachedTexture == nil {
+		if cachedTexture := f.GetCached(n.Tag.Id); cachedTexture == nil {
 			txr, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id)
 			if err != nil {
 				log.Panicf("Error getting texture '%s' for material '%s': %v", n.Tag.Name, wrsrc.Tag.Name, err)
 			}
 
-			textureFe = txr.(*file_txr.Texture).ExportFbx(wrsrc.Wad.GetNodeResourceByNodeId(n.Id), f, cache)
+			textureFe = txr.(*file_txr.Texture).ExportFbx(wrsrc.Wad.GetNodeResourceByNodeId(n.Id), f)
 		} else {
 			textureFe = cachedTexture.(*file_txr.FbxExporter)
 		}
 
-		f.Connections.C = append(f.Connections.C, fbx.Connection{
-			Type: "OP", Child: textureFe.TextureId, Parent: fe.MaterialId, Extra: []string{"DiffuseColor"},
-		})
+		f.AddConnections(bfbx73.C("OP", textureFe.TextureId, fe.MaterialId, "DiffuseColor"))
 	}
 
-	f.Objects.Material = append(f.Objects.Material, material)
+	f.AddObjects(material)
 
 	return fe
 }
