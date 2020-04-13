@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/mogaika/fbx/builders/bfbx73"
 
@@ -122,6 +123,11 @@ func (f *FBXBuilder) createHeaders(filename string) {
 				bfbx73.P("UnitScaleFactor", "double", "Number", "", float64(1)),
 				bfbx73.P("OriginalUnitScaleFactor", "double", "Number", "", float64(1)),
 				bfbx73.P("AmbientColor", "ColorRGB", "Color", "", float64(0), float64(0), float64(0)),
+				bfbx73.P("DefaultCamera", "KString", "", "", "Producer Perspective"),
+				bfbx73.P("TimeMode", "enum", "", "", int32(10)),
+				bfbx73.P("TimeSpanStart", "KTime", "Time", "", int64(0)),
+				bfbx73.P("TimeSpanStop", "KTime", "Time", "", int64(46186158000)),
+				bfbx73.P("CustomFrameRate", "double", "Number", "", float64(25)),
 			),
 		),
 		bfbx73.Documents().AddNodes(
@@ -278,6 +284,14 @@ func (f *FBXBuilder) GetCached(id wad.TagId) interface{} {
 	}
 }
 
+func (f *FBXBuilder) GetCachedOr(id wad.TagId, createFunc func() interface{}) interface{} {
+	if result := f.GetCached(id); result != nil {
+		return result
+	} else {
+		return createFunc()
+	}
+}
+
 func (f *FBXBuilder) GenerateId() int64 {
 	f.lastId++
 	return f.lastId
@@ -287,8 +301,12 @@ func (f *FBXBuilder) GenerateId() int64 {
 func (f *FBXBuilder) Write(w io.Writer) error {
 	f.countDefinitions()
 
+	sort.Slice(f.connections.Nodes, func(i, j int) bool {
+		return f.connections.Nodes[i].Properties[2].(int64) < f.connections.Nodes[j].Properties[2].(int64)
+	})
+
 	print(f.f.SPrint())
-	f.f.PrintConnections(0, 0)
+	f.f.PrintConnectionsTree(0)
 
 	tempFile, err := ioutil.TempFile("", "fbxexport.*.fbx")
 	if err != nil {
