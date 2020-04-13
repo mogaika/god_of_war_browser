@@ -203,6 +203,7 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 	feo.FbxModelId = f.GenerateId()
 	feo.FbxModel = bfbx73.Model(feo.FbxModelId, name+"\x00\x01Model", "Mesh").AddNodes(
 		bfbx73.Version(232),
+		bfbx73.Properties70(),
 		bfbx73.Shading(true),
 		bfbx73.Culling("CullingOff"),
 	)
@@ -240,6 +241,7 @@ func (fe *FbxExporter) exportPart(f *fbxbuilder.FBXBuilder, fep *FbxExportPart) 
 	fep.FbxModelId = f.GenerateId()
 	fep.FbxModel = bfbx73.Model(fep.FbxModelId, name+"\x00\x01Model", "Null").AddNodes(
 		bfbx73.Version(232),
+		bfbx73.Properties70(),
 		bfbx73.Shading(true),
 		bfbx73.Culling("CullingOff"),
 	)

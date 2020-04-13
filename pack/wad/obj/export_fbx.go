@@ -5,17 +5,23 @@ import (
 	"math"
 	"path/filepath"
 
+	"github.com/go-gl/mathgl/mgl32"
+
+	"github.com/mogaika/fbx"
 	"github.com/mogaika/fbx/builders/bfbx73"
 
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
-	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
-
 	file_mdl "github.com/mogaika/god_of_war_browser/pack/wad/mdl"
+	"github.com/mogaika/god_of_war_browser/utils/fbxbuilder"
 )
+
+type FbxExporterJoint struct {
+	FbxModel *fbx.Node
+}
 
 type FbxExporter struct {
 	FbxModelId int64
+	Joints     []FbxExporterJoint
 }
 
 func quatToEuler(q mgl32.Quat) (e mgl32.Vec3) {
@@ -44,11 +50,13 @@ func quatToEuler(q mgl32.Quat) (e mgl32.Vec3) {
 func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *FbxExporter {
 	fe := &FbxExporter{
 		FbxModelId: f.GenerateId(),
+		Joints:     make([]FbxExporterJoint, len(o.Joints)),
 	}
 	defer f.AddCache(wrsrc.Tag.Id, fe)
 
 	model := bfbx73.Model(fe.FbxModelId, wrsrc.Tag.Name+"\x00\x01Model", "Null").AddNodes(
 		bfbx73.Version(232),
+		bfbx73.Properties70(),
 		bfbx73.Shading(true),
 		bfbx73.Culling("CullingOff"),
 	)
@@ -58,9 +66,9 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 	)
 
 	f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fe.FbxModelId))
-
 	f.AddObjects(model, nodeAttribute)
 
+	// find joints created by model (part phase)
 	for _, id := range wrsrc.Node.SubGroupNodes {
 		n := wrsrc.Wad.GetNodeById(id)
 		if inst, _, err := wrsrc.Wad.GetInstanceFromNode(n.Id); err == nil {
@@ -68,16 +76,14 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 			case *file_mdl.Model:
 				mdl := inst.(*file_mdl.Model)
 
-				var exMdl *file_mdl.FbxExporter
-				if exMdlI := f.GetCached(n.Tag.Id); exMdlI == nil {
-					exMdl = mdl.ExportFbx(wrsrc.Wad.GetNodeResourceByTagId(n.Tag.Id), f)
-				} else {
-					exMdl = exMdlI.(*file_mdl.FbxExporter)
-				}
+				exMdl := f.GetCachedOr(n.Tag.Id, func() interface{} {
+					return mdl.ExportFbx(wrsrc.Wad.GetNodeResourceByTagId(n.Tag.Id), f)
+				}).(*file_mdl.FbxExporter)
 
 				for _, submodel := range exMdl.Models {
 					for _, part := range submodel.Parts {
 						partModel := part.FbxModel
+						fe.Joints[part.RawPart.JointId].FbxModel = partModel
 
 						joint := o.Joints[part.RawPart.JointId]
 
@@ -86,7 +92,8 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 						rotation := quatToEuler(q).Mul(180.0 / math.Pi)
 						scale := joint.RenderMat.Diag().Vec3().Mul(joint.RenderMat.Diag().W())
 
-						// TODO: change float32 to float64
+						// rename original mdl objects to model
+						partModel.Properties[1] = fmt.Sprintf("%s\x00\x01Model", joint.Name)
 						partModel.GetOrAddNode(bfbx73.Properties70()).AddNodes(
 							bfbx73.P("Lcl Translation", "Lcl Translation", "", "A+",
 								float64(pos[0]), float64(pos[1]), float64(pos[2])),
@@ -95,7 +102,6 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 							bfbx73.P("Lcl Scaling", "Lcl Scaling", "", "A+",
 								float64(scale[0]), float64(scale[1]), float64(scale[2])),
 						)
-						partModel.Properties[1] = fmt.Sprintf("%s_part%d\x00\x01Model", joint.Name, part.Part)
 
 						f.AddConnections(
 							bfbx73.C("OO", partModel.Properties[0].(int64), model.Properties[0].(int64)),
@@ -105,6 +111,15 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 			}
 		}
 	}
+
+	/*
+		for iJoint, joint := range o.Joints {
+			ejoint := &fe.Joints[iJoint]
+			if ejoint == nil {
+
+			}
+		}
+	*/
 
 	return fe
 }

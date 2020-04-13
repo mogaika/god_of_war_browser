@@ -30,16 +30,16 @@ func (cxt *Chunk) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *F
 
 	cxtModel := bfbx73.Model(fe.FbxModelId, wrsrc.Tag.Name+"\x00\x01Model", "Null").AddNodes(
 		bfbx73.Version(232),
+		bfbx73.Properties70(),
 		bfbx73.Shading(true),
 		bfbx73.Culling("CullingOff"),
 	)
-	/*
-		nodeAttribute := bfbx73.NodeAttribute(f.GenerateId(), wrsrc.Tag.Name+"\x00\x01NodeAttribute", "Null").AddNodes(
-			bfbx73.TypeFlags("Null"),
-		)
-		f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fe.FbxModelId))
-	*/
-	f.AddObjects(cxtModel) // , nodeAttribute)
+
+	nodeAttribute := bfbx73.NodeAttribute(f.GenerateId(), wrsrc.Tag.Name+"\x00\x01NodeAttribute", "Null").AddNodes(
+		bfbx73.TypeFlags("Null"),
+	)
+	f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fe.FbxModelId))
+	f.AddObjects(cxtModel, nodeAttribute)
 
 	for _, iSubNode := range wrsrc.Node.SubGroupNodes {
 		instance, _, err := wrsrc.Wad.GetInstanceFromNode(iSubNode)
@@ -56,6 +56,7 @@ func (cxt *Chunk) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *F
 		instModelId := f.GenerateId()
 		instModel := bfbx73.Model(instModelId, wrsrc.Wad.Nodes[iSubNode].Tag.Name+"\x00\x01Model", "Null").AddNodes(
 			bfbx73.Version(232),
+			bfbx73.Properties70(),
 			bfbx73.Shading(true),
 			bfbx73.Culling("CullingOff"),
 			bfbx73.Properties70().AddNodes(

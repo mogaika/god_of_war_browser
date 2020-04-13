@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -262,7 +261,6 @@ func (f *FBXBuilder) countDefinitions() {
 		}
 
 		objectType.GetOrAddNode(bfbx73.Count(0)).Properties[0] = count
-		log.Printf("counting %v %v %v", name, count)
 	}
 
 	definitions.GetOrAddNode(bfbx73.Count(0)).Properties[0] = totalCount
