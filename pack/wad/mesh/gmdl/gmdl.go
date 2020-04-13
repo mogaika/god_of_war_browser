@@ -108,7 +108,15 @@ func (s *Stream) parseData(bs *utils.BufStack) error {
 		floatArr := make([][2]float32, len(uintArr))
 		for i, uintBlock := range uintArr {
 			for j, v := range uintBlock {
-				floatArr[i][j] = half.Float16(v).Float32()
+				var floatVal float32
+				// flp untextured meshes have +infinity, we can't convert it to json, so setting it to 0
+				if v == 0x7c00 {
+					floatVal = 0.0
+				} else {
+					floatVal = half.Float16(v).Float32()
+				}
+
+				floatArr[i][j] = floatVal
 			}
 		}
 		s.Values = floatArr
