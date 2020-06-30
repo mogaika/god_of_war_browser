@@ -488,6 +488,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
             let t = sl.Transformation;
             let m = t.Matrix;
+            // MARK 1s
             u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
             window.open('/label.html?' + u, '_blank');
         }
