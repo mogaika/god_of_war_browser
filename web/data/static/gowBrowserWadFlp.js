@@ -488,13 +488,14 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
             let t = sl.Transformation;
             let m = t.Matrix;
+
             u.append('m', JSON.stringify([m[0], m[1], 0, 0, m[2], m[3], 0, 0, 0, 0, 1, 0, t.OffsetX, t.OffsetY, 0, 1]));
             window.open('/label.html?' + u, '_blank');
         }
 
         let get_label_from_table_tr = function(tr) {
             let sl = {
-                'Transformation': JSON.parse(tr.find("td").last().text()),
+                'Transformation': JSON.parse(tr.find("td").last().find("textarea").last().val()),
                 'RenderCommandsList': [],
             };
 
@@ -583,7 +584,9 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
         row.append($("<td>").append(cmdsContainer));
         row.append($("<td>").append(btns));
-        row.append($("<td>").text(JSON.stringify(sl.Transformation)));
+
+        let $transform = $("<textarea id='matrix'>").css('height', '12em').val(JSON.stringify(sl.Transformation, null, ' '));
+        row.append($("<td>").append($transform));
         return row;
     }
 
@@ -830,25 +833,26 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             }
 
             switch (h.TypeArrayId) {
-                default: $data_table.append(JSON.stringify(obj));
-                break;
+                default:
+                    $data_table.append(JSON.stringify(obj));
+                    break;
                 case 1:
-                        print_mesh(obj);
+                    print_mesh(obj);
                     break;
                 case 4:
-                        $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
+                    $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
                     break;
                 case 6:
-                        print_data6(obj);
+                    print_data6(obj);
                     break;
                 case 7:
-                        print_data6_subtype1(obj);
+                    print_data6_subtype1(obj);
                     break;
                 case 8:
-                        print_data6_subtype1(obj);
+                    print_data6_subtype1(obj);
                     break;
                 case 9:
-                        print_transform(obj);
+                    print_transform(obj);
                     break;
             }
 
