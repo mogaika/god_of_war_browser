@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 
@@ -99,9 +100,16 @@ func (s *Stream) parseData(bs *utils.BufStack) error {
 	default:
 		return fmt.Errorf("Unknown stream id %v (%v:%v)", bs, s.Name, s.Id)
 	}
-	if err := binary.Read(bytes.NewReader(bs.Raw()), binary.BigEndian, s.Values); err != nil {
+
+	var endian binary.ByteOrder = binary.BigEndian
+	if config.GetPlayStationVersion() == config.PSVita {
+		endian = binary.LittleEndian
+	}
+
+	if err := binary.Read(bytes.NewReader(bs.Raw()), endian, s.Values); err != nil {
 		return fmt.Errorf("Error parsing stream data %v (%v): %v", bs, s.Name, err)
 	}
+
 	switch s.Id {
 	case 5:
 		uintArr := s.Values.([][2]uint16)
@@ -134,18 +142,37 @@ func (s *Stream) parseData(bs *utils.BufStack) error {
 }
 
 func (s *Stream) fromBuf(bs *utils.BufStack) error {
-	bs = bs
-	s.Name = bs.ReadStringBuffer(4)
+	switch config.GetPlayStationVersion() {
+	case config.PS3:
+		s.Name = bs.ReadStringBuffer(4)
+		s.Id = bs.ReadBU16()
+		s.Flags = bs.ReadBU16()
+	case config.PSVita:
+		s.Name = utils.ReverseString(bs.ReadStringBuffer(4))
+		s.Id = bs.ReadLU16()
+		s.Flags = bs.ReadLU16()
+	default:
+		panic("unknown ps version")
+	}
+
 	bs.SetName(s.Name)
-	s.Id = bs.ReadBU16()
-	s.Flags = bs.ReadBU16()
 
 	if s.Flags != 2 {
 		return fmt.Errorf("s.Flags == %v", s.Flags)
 	}
 
-	dataOffset := bs.ReadBU32()
-	dataSize := bs.ReadBU32()
+	var dataOffset, dataSize uint32
+
+	switch config.GetPlayStationVersion() {
+	case config.PS3:
+		dataOffset = bs.ReadBU32()
+		dataSize = bs.ReadBU32()
+	case config.PSVita:
+		dataOffset = bs.ReadLU32()
+		dataSize = bs.ReadLU32()
+	default:
+		panic("unknown ps version")
+	}
 
 	bs.SetSize(bs.Pos()).VerifySize(STREAM_SIZE)
 	bsData := bs.Parent().Parent().SubBuf("buffer", int(dataOffset)).SetName(s.Name).SetSize(int(dataSize))
@@ -160,16 +187,35 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 	}
 	m.Id = bsHeader.ReadBU16()
 	m.Flags = bsHeader.ReadBU16()
-	if m.Flags != 8 {
-		return fmt.Errorf("m.Flags == %v", m.Flags)
+
+	switch config.GetPlayStationVersion() {
+	case config.PS3:
+		if m.Flags != 8 {
+			return fmt.Errorf("m.Flags == %v", m.Flags)
+		}
+	case config.PSVita:
+		if m.Flags != 9 {
+			return fmt.Errorf("m.Flags == %v", m.Flags)
+		}
+	default:
+		panic("unknown ps version")
 	}
+
 	indexesOffset := int(bsHeader.ReadBU32())
 	bsHeader.SetSize(bsHeader.Pos()).VerifySize(MDL_SIZE)
 
 	bsData := bsHeader.SubBufFollowing("data").Expand()
 
 	bsStreamsCount := bsData.SubBuf("streamsCount", 0).SetSize(4)
-	streamsCount := int(bsStreamsCount.ReadBU32())
+
+	var streamsCount int
+	switch config.GetPlayStationVersion() {
+	case config.PS3:
+		streamsCount = int(bsStreamsCount.ReadBU32())
+	case config.PSVita:
+		streamsCount = int(bsStreamsCount.ReadLU32())
+	}
+
 	bsStreams := bsData.SubBuf("streams", 4).SetSize(streamsCount * STREAM_SIZE)
 
 	m.Streams = make(map[string]Stream)
@@ -183,12 +229,24 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 	}
 
 	bsIndexes := bsData.SubBuf("indexes", indexesOffset)
-	m.Indexes = make([]uint32, bsIndexes.ReadBU32())
-	for i := range m.Indexes {
-		m.Indexes[i] = bsIndexes.ReadBU32()
-	}
 
-	bsIndexes.SetSize(bsIndexes.Pos()).VerifySize(len(m.Indexes)*4 + 4)
+	switch config.GetPlayStationVersion() {
+	case config.PS3:
+		m.Indexes = make([]uint32, bsIndexes.ReadBU32())
+		for i := range m.Indexes {
+			m.Indexes[i] = bsIndexes.ReadBU32()
+		}
+		bsIndexes.SetSize(bsIndexes.Pos()).VerifySize(len(m.Indexes)*4 + 4)
+	case config.PSVita:
+		log.Printf("Unknown floats: %v %v", bsIndexes.ReadLF(), bsIndexes.ReadLF())
+		log.Printf("Unknown int: %v", bsIndexes.ReadBU32())
+		m.Indexes = make([]uint32, bsIndexes.ReadBU32())
+		log.Printf("Indexes: %v (%.8x)", len(m.Indexes), len(m.Indexes))
+		for i := range m.Indexes {
+			m.Indexes[i] = uint32(bsIndexes.ReadBU16())
+		}
+		bsIndexes.SetSize(bsIndexes.Pos()).VerifySize(len(m.Indexes)*2 + 4 + 12)
+	}
 
 	bsObjects := bsIndexes.SubBufFollowing("objects")
 	bsObjects.Expand()
