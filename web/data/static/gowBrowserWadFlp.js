@@ -103,10 +103,14 @@ gowFlp.prototype.getTransformFromObject = function(transform) {
 gowFlp.prototype.cacheTexture = function(texture_name) {
     // return texture from cache or creates new
     if (!this.texmap.hasOwnProperty(texture_name)) {
-        let img = this.root.Textures[texture_name].Images[0].Image;
-        let texture = new grTexture('data:image/png;base64,' + img);
-        texture.markAsFontTexture();
-
+    	let texture;
+    	if (this.root.Textures[texture_name].Images.length) {
+	        let img = this.root.Textures[texture_name].Images[0].Image;
+	        texture = new grTexture('data:image/png;base64,' + img);
+	        texture.markAsFontTexture();
+        } else {
+        	texture = gr_instance.emptyTexture;
+        }
         this.texmap[texture_name] = texture;
     }
     return this.texmap[texture_name];

@@ -168,6 +168,13 @@ func (bs *BufStack) Pos() int {
 }
 
 func (bs *BufStack) Read(amount int) []byte {
+	defer func() {
+		if err := recover(); err != nil {
+			println(fmt.Sprintf("panic when reading %d (0x%x) bytes in %v",
+				amount, amount, bs.String()))
+			panic(err)
+		}
+	}()
 	oldPos := bs.pos
 	bs.pos += amount
 	return bs.buf[oldPos:bs.pos]
