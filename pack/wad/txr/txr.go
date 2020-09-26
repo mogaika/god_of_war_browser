@@ -3,7 +3,6 @@ package txr
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -11,8 +10,9 @@ import (
 	"image/png"
 	"math"
 
-	"github.com/mogaika/god_of_war_browser/config"
+	"github.com/pkg/errors"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_gfx "github.com/mogaika/god_of_war_browser/pack/wad/gfx"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -28,8 +28,13 @@ type Texture struct {
 	Flags         uint32
 }
 
+type nextGenImager interface {
+	Images() []image.Image
+}
+
 const FILE_SIZE = 0x58
 const TXR_MAGIC = 0x00000007
+const PS3_VITA_TEXTURE_MAGIC = 0x00070007
 
 func NewFromData(buf []byte) (*Texture, error) {
 	tex := &Texture{
@@ -171,24 +176,28 @@ func (txr *Texture) MarshalBlend(clrBlend []float32, wrsrc *wad.WadNodeRsrc) (in
 			return nil, fmt.Errorf("Cannot find pal: %s", txr.PalName)
 		}
 
-		if config.GetPlayStationVersion() == config.PS3 {
-			_, ps3t, err := txr.findPS3Texture(wrsrc)
+		switch config.GetPlayStationVersion() {
+		case config.PS3, config.PSVita:
+			_, ngtf, err := txr.findPSNextGenTexture(wrsrc)
 			if err != nil {
 				return nil, err
 			}
 
-			sImg := ps3t.images[0]
+			imager := ngtf.(nextGenImager)
 
-			b := sImg.Bounds()
-			newImg := image.NewNRGBA(b)
-			draw.Draw(newImg, b, sImg, b.Min, draw.Src)
+			res.Images = make([]AjaxImage, 0)
 
-			blendImg(newImg, clrBlend)
-			var bufImage bytes.Buffer
-			png.Encode(&bufImage, newImg)
+			for _, img := range imager.Images() {
+				b := img.Bounds()
+				newImg := image.NewNRGBA(b)
+				draw.Draw(newImg, b, img, b.Min, draw.Src)
 
-			res.Images = []AjaxImage{AjaxImage{Gfx: 0, Pal: 0, Image: bufImage.Bytes()}}
-		} else {
+				blendImg(newImg, clrBlend)
+				var bufImage bytes.Buffer
+				png.Encode(&bufImage, newImg)
+				res.Images = append(res.Images, AjaxImage{Gfx: 0, Pal: 0, Image: bufImage.Bytes()})
+			}
+		default:
 			gfxc, _, err := wrsrc.Wad.GetInstanceFromNode(gfxn.Id)
 			if err != nil {
 				return nil, fmt.Errorf("Error getting gfx %s: %v", txr.GfxName, err)
@@ -239,4 +248,18 @@ func init() {
 	}
 	wad.SetHandler(config.GOW1, TXR_MAGIC, h)
 	wad.SetHandler(config.GOW2, TXR_MAGIC, h)
+
+	hRemaster := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		switch config.GetPlayStationVersion() {
+		case config.PS3:
+			return NewPs3TextureFromData(utils.NewBufStack("ps3texture", wrsrc.Tag.Data))
+		case config.PSVita:
+			return NewPsVitaTextureFromData(utils.NewBufStack("psvita", wrsrc.Tag.Data))
+		default:
+			return nil, errors.Errorf("playstation version is not supported")
+		}
+	}
+	wad.SetHandler(config.GOW1, PS3_VITA_TEXTURE_MAGIC, hRemaster)
+	// TODO: not sure about this (gow2 ps3): check
+	wad.SetHandler(config.GOW2, PS3_VITA_TEXTURE_MAGIC, hRemaster)
 }

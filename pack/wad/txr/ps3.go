@@ -9,12 +9,9 @@ import (
 	"log"
 	"math/bits"
 
-	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
-
-const PS3_TEXTURE_MAGIC = 0x70007
 
 type Ps3Texture struct {
 	Unk00           uint32
@@ -36,6 +33,10 @@ type Ps3Texture struct {
 	images []image.Image
 }
 
+func (t *Ps3Texture) Images() []image.Image {
+	return t.images
+}
+
 type Ps3TextureAjax struct {
 	Ps3Texture
 	Images [][]byte
@@ -49,9 +50,12 @@ func (t *Ps3Texture) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 	for i, img := range t.images {
 		var buf bytes.Buffer
-		png.Encode(&buf, img)
+		if err := png.Encode(&buf, img); err != nil {
+			return nil, err
+		}
 		a.Images[i] = buf.Bytes()
 	}
+
 	return a, nil
 }
 
@@ -215,35 +219,22 @@ func NewPs3TextureFromData(bs *utils.BufStack) (*Ps3Texture, error) {
 	return t, nil
 }
 
-func (txr *Texture) findPS3Texture(wrsrc *wad.WadNodeRsrc) (*wad.Node, *Ps3Texture, error) {
-	ps3tn := wrsrc.Wad.GetNodeByName(txr.SubTxrName, wrsrc.Node.Id, false)
-	if ps3tn == nil {
-		return nil, nil, fmt.Errorf("Cannot find ps3texture: %s", txr.SubTxrName)
+func (txr *Texture) findPSNextGenTexture(wrsrc *wad.WadNodeRsrc) (*wad.Node, wad.File, error) {
+	node := wrsrc.Wad.GetNodeByName(txr.SubTxrName, wrsrc.Node.Id, false)
+	if node == nil {
+		return nil, nil, fmt.Errorf("Cannot find next gen texture: %s", txr.SubTxrName)
 	}
 
-	ps3tc, _, err := wrsrc.Wad.GetInstanceFromNode(ps3tn.Id)
+	texture, _, err := wrsrc.Wad.GetInstanceFromNode(node.Id)
 	if err != nil {
-		return ps3tn, nil, fmt.Errorf("Error getting ps3texture %s: %v", txr.SubTxrName, err)
+		return node, nil, fmt.Errorf("Error getting next gen texture %s: %v", txr.SubTxrName, err)
 	}
 
-	return ps3tn, ps3tc.(*Ps3Texture), nil
-}
-
-func init() {
-	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		if config.GetPlayStationVersion() == config.PS3 {
-			return NewPs3TextureFromData(utils.NewBufStack("ps3texture", wrsrc.Tag.Data))
-		} else {
-			return nil, fmt.Errorf("Ps3 only tag")
-		}
-	}
-	wad.SetHandler(config.GOW1, PS3_TEXTURE_MAGIC, h)
-	// TODO: not sure about this (gow2 ps3): check
-	wad.SetHandler(config.GOW2, PS3_TEXTURE_MAGIC, h)
+	return node, texture, nil
 }
 
 func (txr *Texture) changeTexturePS3(wrsrc *wad.WadNodeRsrc, img image.Image) error {
-	_, _, err := txr.findPS3Texture(wrsrc)
+	_, _, err := txr.findPSNextGenTexture(wrsrc)
 	if err != nil {
 		return err
 	}
