@@ -283,6 +283,19 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
+		/*
+			k := 0
+			for i := range inst.Data8.FrameScriptLables {
+				fsl := &inst.Data8.FrameScriptLables[i]
+				for i := range fsl.Subs {
+					log.Printf("Script ------------ %q \n%s\n", fsl.LabelName,
+						strings.Replace(fsl.Subs[i].Script.Decompiled, "<br>", "\n", -1))
+				}
+				k++
+				if k > 50 {
+					break
+				}
+			}*/
 
 		return inst, nil
 	})

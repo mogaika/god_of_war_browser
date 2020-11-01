@@ -3,6 +3,7 @@ package toc
 import (
 	"bytes"
 	"encoding/binary"
+	"log"
 	"sort"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -58,6 +59,8 @@ func (toc *TableOfContent) unmarshalGOW1(b []byte) error {
 			newF.encounters[0] = e
 			toc.files[raw.Name] = newF
 		}
+
+		log.Printf("f %.16s offset 0x%.8x lba 0x%.6x", raw.Name, raw.Offset, raw.Offset/utils.SECTOR_SIZE)
 
 		b = b[GOW1_ENTRY_SIZE:]
 	}

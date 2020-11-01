@@ -326,3 +326,7 @@ div.flpcolorpreview {
 .flexgrow {
 	flex-grow: 1;
 }
+
+.keepspaces {
+	white-space: pre;
+}
