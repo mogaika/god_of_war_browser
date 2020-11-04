@@ -15,10 +15,7 @@ import (
 
 var ServerDirectory vfs.Directory
 var DriverDirectory vfs.Directory
-var wsUpgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
+var wsUpgrader = websocket.Upgrader{}
 
 func StartServer(addr string, packsDir vfs.Directory, driver vfs.Directory, webPath string) error {
 	ServerDirectory = packsDir

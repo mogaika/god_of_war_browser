@@ -15,12 +15,12 @@ const ANIMATIONS_MAGIC = 0x00000003
 const (
 	DATATYPE_SKINNING     = 0  // apply to object (matrices)
 	DATATYPE_MATERIAL     = 3  // apply to material (color)
-	DATATYPE_UNKNOWN5     = 5  // apply to object (show/hide maybe)
+	DATATYPE_UNKNOWN5     = 5  // apply to object (show/hide maybe or switch meshes)
 	DATATYPE_TEXUREPOS    = 8  // apply to material (uv)
 	DATATYPE_TEXTURESHEET = 9  // apply to material (changes data_id of gfx palette indexes, like gif frame)
 	DATATYPE_PARTICLES    = 10 // apply to object (particles), probably additive matricies animation?, or physical affect body affect
-	DATATYPE_UNKNOWN11    = 11 // apply to object with sound (? in StonedBRK models)
-	DATATYPE_UNKNOWN12    = 12 // apply to object (? in flagGrp and chest models)
+	DATATYPE_UNKNOWN11    = 11 // apply to object with sound emitter (? in StonedBRK models and chest model and pushpullblock)
+	DATATYPE_UNKNOWN12    = 12 // apply to object (? in flagGrp) flag wind simulation? first mesh static, second - leather? per-vertice animation?
 	// total - 15 types
 )
 

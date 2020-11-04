@@ -103,13 +103,13 @@ gowFlp.prototype.getTransformFromObject = function(transform) {
 gowFlp.prototype.cacheTexture = function(texture_name) {
     // return texture from cache or creates new
     if (!this.texmap.hasOwnProperty(texture_name)) {
-    	let texture;
-    	if (this.root.Textures[texture_name].Images.length) {
-	        let img = this.root.Textures[texture_name].Images[0].Image;
-	        texture = new grTexture('data:image/png;base64,' + img);
-	        texture.markAsFontTexture();
+        let texture;
+        if (this.root.Textures[texture_name].Images.length) {
+            let img = this.root.Textures[texture_name].Images[0].Image;
+            texture = new grTexture('data:image/png;base64,' + img);
+            texture.markAsFontTexture();
         } else {
-        	texture = gr_instance.emptyTexture;
+            texture = gr_instance.emptyTexture;
         }
         this.texmap[texture_name] = texture;
     }
@@ -837,26 +837,25 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             }
 
             switch (h.TypeArrayId) {
-                default:
-                    $data_table.append(JSON.stringify(obj));
-                    break;
+                default: $data_table.append(JSON.stringify(obj));
+                break;
                 case 1:
-                    print_mesh(obj);
+                        print_mesh(obj);
                     break;
                 case 4:
-                    $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
+                        $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
                     break;
                 case 6:
-                    print_data6(obj);
+                        print_data6(obj);
                     break;
                 case 7:
-                    print_data6_subtype1(obj);
+                        print_data6_subtype1(obj);
                     break;
                 case 8:
-                    print_data6_subtype1(obj);
+                        print_data6_subtype1(obj);
                     break;
                 case 9:
-                    print_transform(obj);
+                        print_transform(obj);
                     break;
             }
 

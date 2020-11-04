@@ -1,6 +1,7 @@
 package mdl
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/mogaika/fbx/builders/bfbx73"
@@ -21,6 +22,7 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fbx
 	defer f.AddCache(wrsrc.Tag.Id, fe)
 
 	materials := make([]int64, 0)
+	modelId := 0
 
 	for _, id := range wrsrc.Node.SubGroupNodes {
 		node := wrsrc.Wad.GetNodeById(id)
@@ -44,11 +46,13 @@ func (m *Model) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fbx
 				} else {
 					fbxMesh = fbxMeshI.(*file_mesh.FbxExporter)
 				}
+				modelId += 1
 
 				fe.Models = append(fe.Models, fbxMesh)
 
 				for _, part := range fbxMesh.Parts {
 					for _, object := range part.Objects {
+						object.FbxModel.Properties[1] = fmt.Sprintf("m%d_%s", modelId, object.FbxModel.Properties[1])
 						f.AddConnections(bfbx73.C("OO", materials[object.MaterialId], object.FbxModelId))
 					}
 				}
@@ -66,7 +70,10 @@ func (m *Model) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbxbuilder.FBXBuilder 
 
 	for _, model := range fe.Models {
 		for _, part := range model.Parts {
-			f.AddConnections(bfbx73.C("OO", part.FbxModelId, 0))
+			//f.AddConnections(bfbx73.C("OO", part.FbxModelId, 0))
+			for _, object := range part.Objects {
+				f.AddConnections(bfbx73.C("OO", object.FbxModelId, 0))
+			}
 		}
 	}
 

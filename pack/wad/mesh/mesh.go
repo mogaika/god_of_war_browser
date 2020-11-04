@@ -39,6 +39,10 @@ type Packet struct {
 type Object struct {
 	Offset uint32
 
+	// Types:
+	//   0x1D - static mesh
+	//   0x0E - dynamic or transparent
+	//   everything else - lines
 	Type                  uint16
 	Unk02                 uint16
 	DmaTagsCountPerPacket uint32
