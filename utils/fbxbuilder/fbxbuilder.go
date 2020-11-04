@@ -16,7 +16,7 @@ import (
 )
 
 const FBX_CREATOR = "FBX SDK/FBX Plugins version 2013.3 build=20121223"
-const FBX_APPLICATION_VENDOR = "GoW Fan Commnuity"
+const FBX_APPLICATION_VENDOR = "GoW Modders Commnuity"
 const FBX_APPLICATION_NAME = "god_of_war_browser"
 const FBX_APPLICATION_VERSION = "1.0"
 const FBX_DATE_TIME_GMT = "01/01/1970 00:00:00.000"
@@ -303,8 +303,8 @@ func (f *FBXBuilder) Write(w io.Writer) error {
 		return f.connections.Nodes[i].Properties[2].(int64) < f.connections.Nodes[j].Properties[2].(int64)
 	})
 
-	print(f.f.SPrint())
-	f.f.PrintConnectionsTree(0)
+	//print(f.f.SPrint())
+	//f.f.PrintConnectionsTree(0)
 
 	tempFile, err := ioutil.TempFile("", "fbxexport.*.fbx")
 	if err != nil {

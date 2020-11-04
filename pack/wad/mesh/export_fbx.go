@@ -14,6 +14,7 @@ import (
 
 type FbxExportObject struct {
 	FbxGeometryId int64
+	FbxGeometry   *fbx.Node
 	FbxModelId    int64
 	FbxModel      *fbx.Node
 
@@ -22,13 +23,16 @@ type FbxExportObject struct {
 	Object     int
 	MaterialId int
 	InstanceId int
+
+	VerticeToJoint     [][2]uint16
+	VerticeJointWeight []float32
+	AffectedByJoints   map[uint16]struct{}
 }
 
 type FbxExportPart struct {
-	FbxModel   *fbx.Node
-	FbxModelId int64
-	SkeletUsed bool
-	Objects    []*FbxExportObject
+	//FbxModel   *fbx.Node
+	//FbxModelId int64
+	Objects []*FbxExportObject
 
 	Part    int
 	RawPart *Part
@@ -55,9 +59,6 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 		if len(jointMap) == 0 {
 			panic("wtf?")
 		}
-		if len(jointMap) != 1 || jointMap[0] != 0 {
-			fep.SkeletUsed = true
-		}
 	}
 
 	vertices := make([]float64, 0)
@@ -72,6 +73,9 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 	haveUV := o.Packets[0][0].Uvs.U != nil
 
 	flip := false
+
+	verticeToJoint := make([][2]uint16, 0)
+	verticeJointWeight := make([]float32, 0)
 
 	// first extract pos, color, norm
 	for iPacket := range o.Packets[0] {
@@ -90,10 +94,25 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 				flip = !flip
 			}
 
+			joint1 := uint16(o.JointMappers[0][packet.Joints[iVertex]])
+			joint2 := uint16(o.JointMappers[0][packet.Joints2[iVertex]])
+			weight := packet.Trias.Weight[iVertex]
+
 			vertices = append(vertices,
 				float64(packet.Trias.X[iVertex]),
 				float64(packet.Trias.Y[iVertex]),
 				float64(packet.Trias.Z[iVertex]))
+
+			verticeToJoint = append(verticeToJoint, [2]uint16{joint1, joint2})
+			verticeJointWeight = append(verticeJointWeight, weight)
+
+			if weight < 1.0 {
+				feo.AffectedByJoints[joint1] = struct{}{}
+			}
+			if weight > 0.0 {
+				feo.AffectedByJoints[joint2] = struct{}{}
+			}
+
 			if haveNorm {
 				normals = append(normals,
 					float64(packet.Norms.X[iVertex]),
@@ -114,7 +133,7 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 		}
 	}
 
-	name := fmt.Sprintf("g%d_o%d_m%d_i%d", feo.Group, feo.Object, feo.MaterialId, feo.InstanceId)
+	name := fmt.Sprintf("p%d_g%d_o%d_m%d_i%d", feo.Part, feo.Group, feo.Object, feo.MaterialId, feo.InstanceId)
 
 	feo.FbxGeometryId = f.GenerateId()
 
@@ -122,7 +141,11 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 		bfbx73.Version(100),
 	)
 
-	geometry := bfbx73.Geometry(feo.FbxGeometryId, name+"\x00\x01Geometry", "Mesh").AddNodes(
+	//geometry := bfbx73.Geometry(feo.FbxGeometryId, name+"\x00\x01Geometry", "Mesh").AddNodes(
+	geometry := bfbx73.Geometry(feo.FbxGeometryId, "\x00\x01Geometry", "Mesh").AddNodes(
+		bfbx73.Properties70().AddNodes(
+			bfbx73.P("Color", "ColorRGB", "Color", "", float64(1), float64(1), float64(1)),
+		),
 		bfbx73.GeometryVersion(124),
 		bfbx73.Vertices(vertices),
 		bfbx73.PolygonVertexIndex(indexes),
@@ -200,10 +223,19 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 		),
 	)
 
+	feo.VerticeToJoint = verticeToJoint
+	feo.VerticeJointWeight = verticeJointWeight
+	feo.FbxGeometry = geometry
 	feo.FbxModelId = f.GenerateId()
 	feo.FbxModel = bfbx73.Model(feo.FbxModelId, name+"\x00\x01Model", "Mesh").AddNodes(
 		bfbx73.Version(232),
-		bfbx73.Properties70(),
+		bfbx73.Properties70().AddNodes(
+			bfbx73.P("InheritType", "enum", "", "", int32(1)),
+			bfbx73.P("DefaultAttributeIndex", "int", "Integer", "", int32(0)),
+			bfbx73.P("Lcl Translation", "Lcl Translation", "", "A", float64(0), float64(0), float64(0)),
+			bfbx73.P("Lcl Rotation", "Lcl Rotation", "", "A", float64(0), float64(0), float64(0)),
+			bfbx73.P("Lcl Scaling", "Lcl Scaling", "", "A", float64(1), float64(1), float64(1)),
+		),
 		bfbx73.Shading(true),
 		bfbx73.Culling("CullingOff"),
 	)
@@ -226,36 +258,42 @@ func (fe *FbxExporter) exportPart(f *fbxbuilder.FBXBuilder, fep *FbxExportPart) 
 
 			for iInstance := uint32(0); iInstance < object.InstancesCount; iInstance++ {
 				feo := &FbxExportObject{
-					Part:       fep.Part,
-					Group:      iGroup,
-					Object:     iObject,
-					InstanceId: int(iInstance),
+					Part:             fep.Part,
+					Group:            iGroup,
+					Object:           iObject,
+					InstanceId:       int(iInstance),
+					AffectedByJoints: make(map[uint16]struct{}),
 				}
 				fe.exportObject(f, feo, fep)
 			}
 		}
 	}
 
-	name := fmt.Sprintf("part%d", fep.Part)
+	/*
+		name := fmt.Sprintf("part%d", fep.Part)
 
-	fep.FbxModelId = f.GenerateId()
-	fep.FbxModel = bfbx73.Model(fep.FbxModelId, name+"\x00\x01Model", "Null").AddNodes(
-		bfbx73.Version(232),
-		bfbx73.Properties70(),
-		bfbx73.Shading(true),
-		bfbx73.Culling("CullingOff"),
-	)
+		fep.FbxModelId = f.GenerateId()
+		fep.FbxModel = bfbx73.Model(fep.FbxModelId, name+"\x00\x01Model", "Null").AddNodes(
+			bfbx73.Version(232),
+			bfbx73.Properties70().AddNodes(
+				bfbx73.P("InheritType", "enum", "", "", int32(1)),
+				bfbx73.P("DefaultAttributeIndex", "int", "Integer", "", int32(0)),
+				bfbx73.P("Lcl Translation", "Lcl Translation", "", "A", float64(0), float64(0), float64(0)),
+			),
+			bfbx73.Shading(true),
+			bfbx73.Culling("CullingOff"),
+		)
 
-	nodeAttribute := bfbx73.NodeAttribute(
-		f.GenerateId(), name+"\x00\x01NodeAttribute", "Null").AddNodes(
-		bfbx73.TypeFlags("Null"),
-	)
-
-	f.AddObjects(fep.FbxModel, nodeAttribute)
-	f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fep.FbxModelId))
-	for _, object := range fep.Objects {
-		f.AddConnections(bfbx73.C("OO", object.FbxModelId, fep.FbxModelId))
-	}
+		nodeAttribute := bfbx73.NodeAttribute(
+			f.GenerateId(), name+"\x00\x01NodeAttribute", "Null").AddNodes(
+			bfbx73.TypeFlags("Null"),
+		)
+	*/
+	//f.AddObjects(fep.FbxModel, nodeAttribute)
+	//f.AddConnections(bfbx73.C("OO", nodeAttribute.Properties[0].(int64), fep.FbxModelId))
+	//for _, object := range fep.Objects {
+	//f.AddConnections(bfbx73.C("OO", object.FbxModelId, fep.FbxModelId))
+	//}
 
 	fe.Parts = append(fe.Parts, fep)
 }
@@ -282,7 +320,10 @@ func (m *Mesh) ExportFbxDefault(wrsrc *wad.WadNodeRsrc) *fbxbuilder.FBXBuilder {
 	fe := m.ExportFbx(wrsrc, f)
 
 	for _, part := range fe.Parts {
-		f.AddConnections(bfbx73.C("OO", part.FbxModelId, 0))
+		//f.AddConnections(bfbx73.C("OO", part.FbxModelId, 0))
+		for _, object := range part.Objects {
+			f.AddConnections(bfbx73.C("OO", object.FbxModelId, 0))
+		}
 	}
 
 	return f

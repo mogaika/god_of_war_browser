@@ -632,13 +632,15 @@ function summaryLoadWadGmdl(data, wad, nodeid) {
 }
 
 function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
-    let table = undefined;
+    let tables = [];
     if (data.Meshes && data.Meshes.length) {
-        let mesh = data.Meshes[0];
-        if (!!data.GMDL) {
-            table = loadGmdlFromAjax(mdl, data.GMDL, mesh, needTable);
-        } else {
-            table = loadMeshFromAjax(mdl, mesh, needTable);
+        //let mesh = data.Meshes[0];
+        for (let mesh of data.Meshes) {
+            if (!!data.GMDL) {
+                tables.push(loadGmdlFromAjax(mdl, data.GMDL, mesh, needTable));
+            } else {
+                tables.push(loadMeshFromAjax(mdl, mesh, needTable));
+            }
         }
     }
 
@@ -718,7 +720,7 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
             }
         }
     }
-    return table;
+    return tables;
 }
 
 function summaryLoadWadMdl(data, wad, nodeid) {
@@ -750,8 +752,10 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
     dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
 
-    let mdlTable = loadMdlFromAjax(mdl, data, false, true);
-    dataSummary.append(mdlTable);
+    let mdlTables = loadMdlFromAjax(mdl, data, false, true);
+    for (let mdlTable of mdlTables) {
+        dataSummary.append(mdlTable);
+    }
 
     gr_instance.models.push(mdl);
     gr_instance.requestRedraw();
@@ -916,8 +920,10 @@ function loadCollisionFromAjax(mdl, data) {
 
 function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
     if (data.Model) {
-        let mdlTable = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
-        dataSummary.append(mdlTable);
+        let mdlTables = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
+        for (let mdlTable of mdlTables) {
+            dataSummary.append(mdlTables);
+        }
     } else if (data.Collision) {
         loadCollisionFromAjax(mdl, data.Collision);
     }

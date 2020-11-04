@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad/anm"
@@ -29,20 +30,35 @@ type Joint struct {
 	ChildsStart int16
 	ChildsEnd   int16
 	Parent      int16
+	ExternalId  int16
 	UnkCoeef    float32
 	Flags       uint32
+	// if flags & 0x6000 != 0
+	// 6000? maybe 600?
+	// then make strange calculation with matrix invert
+	//log.Printf("joint %d flag %t", i, flags&0x6000 != 0)
+
+	// flags & 0x0008 != 0, is matrix external?
+	//                      then there is a ExternalId (mat2 index) you need to multiply matrix by
+	//                      after size calculation, but before position calculation
+	// flags & 0x0040 != 0, ignore parent scale??
+	// flags & 0x0200 != 0, rotation changes in animation
+	// flags & 0x0400 != 0, position changes in animation
+	// flags & 0x0800 != 0, scale changes in animation
+	// flags & 0x8000 != 0, then childsStart != -1 (childs count > 0)
+	//                      then quaterion, else euler  *affects only animations??)
+	//                      every external node uses euler? for easier coding?
 
 	IsSkinned bool
 	InvId     int16
 
 	IsExternal bool // then not used for rendering?
-	ExternalId int16
 
-	BindToJointMat mgl32.Mat4 // bind space
-	ParentToJoint  mgl32.Mat4 // idle space??
-
-	OurJointToIdleMat mgl32.Mat4
-	RenderMat         mgl32.Mat4
+	BindToJointMat    mgl32.Mat4 // bind world joint => local joint
+	BindWorldJoint    mgl32.Mat4 // bind world joint
+	ParentToJoint     mgl32.Mat4 // idle parent local joint => local joint
+	OurJointToIdleMat mgl32.Mat4 // idle world joint
+	RenderMat         mgl32.Mat4 // bind world joint => idle world joint
 }
 
 const JOINT_CHILD_NONE = -1
@@ -69,18 +85,22 @@ type Object struct {
 	Vec6offset uint32
 	Vec7offset uint32
 
-	Matrixes1 []mgl32.Mat4 // bind pose
-	Matrixes2 []mgl32.Mat4 // special mat4 for flag & 0x8 != 0 cases
-	Matrixes3 []mgl32.Mat4 // inverse bind pose matrix (only for joints that animated? or rendered? (skinned) or have ident mat for this)
-	Vectors4  []mgl32.Vec4 // idle pos xyz
-	Vectors5  [][4]int32   // idle pos rot quaterion Q.14fp
-	Vectors6  []mgl32.Vec4 // idle pose scale
-	Vectors7  []mgl32.Vec4
+	Matrixes1 []mgl32.Mat4 // idle parent local joint => local joint
+	Matrixes2 []mgl32.Mat4 // special mat4 for flag & 0x8 != 0 cases (external matrices). Used only as 3x3 matrix (rotation only?)
+
+	// inverse bind pose matrix (only for joints that animated? or rendered? (skinned) or have ident mat for this)
+	// Or only for joints which are not blended with other joints for any vertex so meshes can be saved in joint space instead of bind pose
+	Matrixes3 []mgl32.Mat4 // bind world joint => local joint
+
+	Vectors4 []mgl32.Vec4 // idle local joint pos xyz
+	Vectors5 [][4]int32   // idle local joint pos rot quaterion Q.14fp
+	Vectors6 []mgl32.Vec4 // idle local joint pose scale
+	Vectors7 []mgl32.Vec4 // unknown (always zero?) unused???
 }
 
 func (obj *Object) StringJoint(id int16, spaces string) string {
 	j := obj.Joints[id]
-	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%sv5 : %#v\n%ssiz: %#v\n%sv7 : %#v\n",
+	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%srot: %#v\n%ssiz: %#v\n%sv7 : %#v\n",
 		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
 		spaces, obj.Matrixes1[j.Id], spaces, obj.Vectors4[j.Id],
 		spaces, obj.Vectors5[j.Id], spaces, obj.Vectors6[j.Id],
@@ -109,7 +129,7 @@ func (obj *Object) StringTree() string {
 		buffer.WriteString(obj.StringJoint(i, spaces))
 
 		if j.ChildsStart != JOINT_CHILD_NONE {
-			if j.ChildsEnd == -1 && len(stack) > 0 {
+			if j.ChildsEnd == JOINT_CHILD_NONE && len(stack) > 0 {
 				stack = append(stack, stack[len(stack)-1])
 			} else {
 				stack = append(stack, j.ChildsEnd)
@@ -150,21 +170,6 @@ func NewFromData(buf []byte) (*Object, error) {
 		nameBuf := buf[nameBufStart : nameBufStart+0x18]
 
 		flags := binary.LittleEndian.Uint32(jointBuf[0:4])
-
-		// if flags & 0x6000 != 0
-		// 6000? maybe 600?
-		// then make strange calculation with matrix invert
-		//log.Printf("joint %d flag %t", i, flags&0x6000 != 0)
-
-		// flags & 0x0008 != 0, then there is a uint16 field [0xa:0xc] (mat2 index) you need to multiply matrix by
-		//                      after size calculation, but before position calculation
-		// flags & 0x0040 != 0, ignore parent scale??
-		// flags & 0x0200 != 0, rotation changes
-		// flags & 0x0400 != 0, position changes
-		// flags & 0x0800 != 0, scale changes ????
-		// flags & 0x8000 != 0, then childsStart != -1 (childs count > 0)
-		//                      then quaterion, else euler  *affects only animations??)
-		//                      every external node uses euler? for easier coding?
 
 		isInvMat := flags&0xa0 == 0xa0 || obj.jointsCount == obj.Mat3count
 		obj.Joints[i] = Joint{
@@ -249,7 +254,7 @@ func NewFromData(buf []byte) (*Object, error) {
 		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
 	}
 
-	//log.Printf("%s\n%s", s, obj.StringTree())
+	log.Printf("%s\n%s", s, obj.StringTree())
 
 	return obj, nil
 }
@@ -265,10 +270,14 @@ func (obj *Object) FillJoints() {
 			j.BindToJointMat = mgl32.Ident4()
 		}
 
+		j.BindWorldJoint = j.BindToJointMat.Inv()
+
 		if j.Parent != JOINT_CHILD_NONE {
 			j.OurJointToIdleMat = obj.Joints[j.Parent].OurJointToIdleMat.Mul4(j.ParentToJoint)
+			//j.BindGlobalMat = obj.Joints[j.Parent].BindGlobalMat.Mul4(j.BindToJointMat.Inv())
 		} else {
 			j.OurJointToIdleMat = j.ParentToJoint
+			//j.BindGlobalMat = j.BindToJointMat.Inv()
 		}
 
 		if j.IsSkinned {
@@ -313,6 +322,25 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	}
 
 	return mrshl, nil
+}
+
+func (o *Object) GetEulerLocalRotationForJoint(jointId int16) mgl32.Vec3 {
+	var rotation mgl32.Vec3
+	const Quat_to_float = 1.0 / float32(1<<14)
+	if o.Joints[jointId].Flags&0x8000 != 0 {
+		var q2 mgl32.Quat
+		q2.V[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float
+		q2.V[1] = float32(o.Vectors5[jointId][1]) * Quat_to_float
+		q2.V[2] = float32(o.Vectors5[jointId][2]) * Quat_to_float
+		q2.W = float32(o.Vectors5[jointId][3]) * Quat_to_float
+		q2 = q2.Normalize()
+		rotation = utils.QuatToEuler(q2).Mul(180.0 / math.Pi)
+	} else {
+		rotation[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float * 360.0
+		rotation[1] = float32(o.Vectors5[jointId][1]) * Quat_to_float * 360.0
+		rotation[2] = float32(o.Vectors5[jointId][2]) * Quat_to_float * 360.0
+	}
+	return rotation
 }
 
 func init() {
