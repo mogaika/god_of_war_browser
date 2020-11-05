@@ -19,62 +19,50 @@ import (
 )
 
 /*
+	Model.LimbNode.Lcl Translation/Rotation/Scale = idle joint relative to parent
+	Deformer.SubDeformer.Cluster.Transform  = bind global space -> local joint space (in our case mesh space == 0.0)
+	Deformer.SubDeformer.Cluster.TransformLink = joint global space
 
-Model.LimbNode.Lcl Translation/Rotation/Scale = idle joint relative to parent
-Deformer.SubDeformer.Cluster.Transform  = bind global space -> local joint space (in our case mesh space == 0.0)
-Deformer.SubDeformer.Cluster.TransformLink = joint global space
+	for us .Cluster.Transform = TransformLink.Inverse() because our mesh always at zero transformation
+	transform link of parent + lcl transform =  transform link
 
-for us .Cluster.Transform = TransformLink.Inverse() because our mesh always at zero transformation
+= = = Anim KeyAttrFlags
 
-root:
-"Transform"             -0.4361787941877432           -0.30410740677543485        -0.17652908241815707
-"TransformLink"         -0.48030415177345276           0.42872610688209534         0
-"Lcl Translation"       -0.574337363243103            10.336705207824707           0.42872610688209534
+1 << 2 |   # interpolation mode, 1 = constant, 2 = linear, 3 = cubic.
+1 << 8 |   # tangent mode, 8 = auto, 9 = TCB, 10 = user, 11 = generic break,
+1 << 13 |  # tangent mode, 12 = generic clamp, 13 = generic time independent,
+1 << 14 |  # tangent mode, 13 + 14 = generic clamp progressive.
 
-body_mid:
-"Transform"            -12.203012111062623            -0.598253509775529          -0.17653064704568763
-"TransformLink"         -0.7640330791473389           12.203010559082031           0.0000008529175943294831
-"Lcl Translation"       11.777702331542969            -0.0000018775463104248047    0.00000010880864920181921
+Cubic|TangeantUser|WeightedRight|WeightedNextLeft
+0x03000408      50332680
 
-left_hand:
-"Transform"              0.10985150765632992          27.388223260721695          -0.17653089722715437
-"TransformLink"         -0.7640385031700134           27.381908416748047           0.0000011781957027778844
-"Lcl Transform"         15.178899765014648             0.0000029802322387695312    0.000000297664314530266
+Cubic|TangeantUser|WeightedRight
+0x01000408      16778248
 
-right_hand:
-"Transform"              1.0037788351553132          -27.37004334833559           -0.17652940501075795
-"TransformLink"         -0.7640431523323059           27.38190460205078            0.0000008805266134004341
-"Lcl Transform"         15.178895950317383             0.00000762939453125        -0.000000000055138116294983774
+Cubic|TangeantUser
+0x00000408      1032
+
+Cubic|TangeantAuto|GenericTimeIndependent|GenericClampProgressive
+0x00006108      24840
 
 
-transform link of parent + lcl transform =  transform link
+= = = Anim KeyAttrDataFloat
 
-*/
+RightSlope:2.28906, NextLeftSlope:0, RightWeight:0.333333, NextLeftWeight:0.333333, RightVelocity:0, NextLeftVelocity:0;
+1074954210,0,218434821,0,
 
-/*
-    deformer:
-	transformMatrix		// The transformation of the mesh at binding time
-	transformLinkMatrix	// The transformation of the cluster(joint) at binding time from joint space to world space
+RightAuto:0, NextLeftAuto:0;
+0,0,218434821,0,
 
-	bind pose per limb node contains PoseNode.Matrix == Deformer.TransformLink //
+RightSlope:0.421768, NextLeftSlope:0.0552456, RightWeight:0.333333, NextLeftWeight:0.333333, RightVelocity:0, NextLeftVelocity:0;
+1054339578,1029851450,218434821,0,
 
-	transformLinkMatrix = PoseNode.Matrix = Global Joint Matrix
+RightSlope:0.0552447, NextLeftSlope:0, RightWeight:0.333333, NextLeftWeight:0.333333, RightVelocity:0, NextLeftVelocity:0;
+1029851214,0,218434821,0,
 
-	globalBindposeInverseMatrix = transformMatrix * geometryTransform;
-*/
+RightAuto:0, NextLeftAuto:0;
+0,0,218434821,0
 
-/*
-	From blender exporter source code:
-	# Transform, TransformLink and TransformAssociateModel matrices...
-	# They seem to be doublons of BindPose ones??? Have armature (associatemodel) in addition, though.
-	# WARNING! Even though official FBX API presents Transform in global space,
-	#          **it is stored in bone space in FBX data!** See:
-	#          http://area.autodesk.com/forum/autodesk-fbx/fbx-sdk/why-the-values-return-
-	#                 by-fbxcluster-gettransformmatrix-x-not-same-with-the-value-in-ascii-fbx-file/
-	elem_data_single_float64_array(fbx_clstr, b"Transform",
-	                               matrix4_to_array(mat_world_bones[bo_obj].inverted_safe() @ mat_world_obj))
-	elem_data_single_float64_array(fbx_clstr, b"TransformLink", matrix4_to_array(mat_world_bones[bo_obj]))
-	elem_data_single_float64_array(fbx_clstr, b"TransformAssociateModel", matrix4_to_array(mat_world_arm))
 */
 
 type FbxExporterJoint struct {
@@ -103,6 +91,7 @@ func (fe *FbxExporter) AddMeshPartWithSkinning(o *Object, part *file_mesh.FbxExp
 		skinDeformer.AddNodes(
 			bfbx73.Version(101),
 			bfbx73.Link_DeformAcuracy(50.0),
+			bfbx73.SkinningType("Linear"),
 		)
 
 		f.AddConnections(
@@ -120,9 +109,9 @@ func (fe *FbxExporter) AddMeshPartWithSkinning(o *Object, part *file_mesh.FbxExp
 				if jointsForVertice[0] == jointID && jointsForVertice[1] == jointID {
 					weight = 1.0
 				} else if jointsForVertice[0] == jointID {
-					weight = 1.0 - object.VerticeJointWeight[iVertice]
-				} else if jointsForVertice[1] == jointID {
 					weight = object.VerticeJointWeight[iVertice]
+				} else if jointsForVertice[1] == jointID {
+					weight = 1.0 - object.VerticeJointWeight[iVertice]
 				} else {
 					continue
 				}
