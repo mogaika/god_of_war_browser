@@ -51,7 +51,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.DmaTagsCountPerPacket*0x10
 		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.DmaTagsCountPerPacket)
 
-		ds := NewMeshParserStream(allb, o, packetOffset, nil, exlog)
+		ds := NewMeshParserStream(allb, o, packetOffset, exlog)
 		if err := ds.ParsePackets(); err != nil {
 			return err
 		}

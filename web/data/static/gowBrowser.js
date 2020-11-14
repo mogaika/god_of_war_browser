@@ -46,7 +46,6 @@ function treeItemInputFilterHandler() {
 
 function set3dVisible(show) {
     if (show) {
-    	ga_instance.paused = false;
         view3d.show();
         viewSummary.attr('style', '');
         gr_instance.setInterfaceCameraMode(false);
@@ -423,9 +422,9 @@ $(document).ready(function() {
     inputAsSwitch("#view-3d-config input#enable-backface-culling", function(enable) {
         gr_instance.cull = enable;
     }, false);
-    inputAsSwitch("#view-3d-config input#pause-animation", function(enable) {
-        ga_instance.paused = enable;
-    }, false);
+    inputAsSwitch("#view-3d-config input#enable-animation", function(enable) {
+        ga_instance.active = enable;
+    }, true);
 });
 
 function hexdump(buffer, blockSize) {

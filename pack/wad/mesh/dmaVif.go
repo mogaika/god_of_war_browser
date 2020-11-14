@@ -24,7 +24,6 @@ type MeshParserStream struct {
 	state               *MeshParserState
 	lastPacketDataStart uint32
 	lastPacketDataEnd   uint32
-	jm                  []uint32
 }
 
 type MeshParserState struct {
@@ -38,21 +37,20 @@ type MeshParserState struct {
 	Buffer     int
 }
 
-func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, jm []uint32, exlog *utils.Logger) *MeshParserStream {
+func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, exlog *utils.Logger) *MeshParserStream {
 	return &MeshParserStream{
 		Data:    allb,
 		Object:  object,
 		Offset:  packetOffset,
 		Log:     exlog,
 		Packets: make([]Packet, 0),
-		jm:      jm,
 	}
 }
 
 func (ms *MeshParserStream) flushState() error {
 	if ms.state != nil {
 		ms.Log.Printf("      packet %d", len(ms.Packets))
-		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart, ms.Object, ms.jm)
+		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart, ms.Object)
 		if err != nil {
 			return err
 		}
@@ -115,7 +113,7 @@ func (state *MeshParserState) getJointIndexesFromMetaBlock(block []byte) [2]uint
 	return [2]uint8{block[13] >> 4, block[12] >> 2}
 }
 
-func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo *Object, jm []uint32) (*Packet, error) {
+func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo *Object) (*Packet, error) {
 	if state.XYZW == nil {
 		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
 			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: 0x%x. State: %+#v", debugPos, state)
@@ -126,8 +124,6 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 	packet := &Packet{HasTransparentBlending: false}
 	packet.Offset = debugPos
 
-	// r_hero0.wad => hero_0 o_p1_g0_o10:3_p12 still wrong
-
 	countTrias := len(state.XYZW) / 8
 	packet.Trias.X = make([]float32, countTrias)
 	packet.Trias.Y = make([]float32, countTrias)
@@ -135,17 +131,11 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 	packet.Trias.Skip = make([]bool, countTrias)
 	packet.Trias.Weight = make([]float32, countTrias)
 
-	hashes := make([]uint64, countTrias)
-
 	for i := range packet.Trias.X {
 		bp := i * 8
 		packet.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixedPoint8
 		packet.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixedPoint8
 		packet.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixedPoint8
-
-		hashes[i] =
-			uint64(binary.LittleEndian.Uint32(state.XYZW[bp:])) |
-				(uint64(binary.LittleEndian.Uint16(state.XYZW[bp+4:])) << 32)
 
 		flags := binary.LittleEndian.Uint16(state.XYZW[bp+6 : bp+8])
 		packet.Trias.Skip[i] = flags&0x8000 != 0
@@ -236,15 +226,18 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 		for iBlock, block := range blocks {
 			blockVersCount := int(block[0])
 
-			debugColor := func(r, g, b uint16) {
-				for j := 0; j < blockVersCount; j++ {
-					packet.Blend.R[vertnum+j] = r
-					packet.Blend.G[vertnum+j] = g
-					packet.Blend.B[vertnum+j] = b
-					packet.Blend.A[vertnum+j] = 0xffff
+			/*
+				debugColor := func(r, g, b uint16) {
+					for j := 0; j < blockVersCount; j++ {
+						packet.Blend.R[vertnum+j] = r
+						packet.Blend.G[vertnum+j] = g
+						packet.Blend.B[vertnum+j] = b
+						packet.Blend.A[vertnum+j] = 0xffff
+					}
 				}
-			}
-			_ = debugColor
+				_ = debugColor
+
+			*/
 
 			// block[0] = affected vertex count
 			// block[1] = 0x80 if last block, else 0
@@ -320,18 +313,18 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 
 				currentVertexJointIndexes := blockJointIndexes
 				if block[5]&0x20 != 0 {
-					exlog.Printf("   stich index %d", stichPushIndex)
-
 					if block[5]&0x10 != 0 {
 						// if inside stich
 						// every second vertex should use joint indexes from next block
 						if stichPushIndex%2 != 0 {
 							currentVertexJointIndexes = state.getJointIndexesFromMetaBlock(blocks[iBlock+1])
 						}
+						exlog.Printf("   stich inc %d", stichPushIndex)
 						stichPushIndex++
 					} else {
 						// next stich, use saved indexes from previous "stich"
 						stichPushIndex--
+						exlog.Printf("   stich dec %d", stichPushIndex)
 						if stichPushIndex%2 != 0 {
 							currentVertexJointIndexes = state.getJointIndexesFromMetaBlock(blocks[iBlock-1])
 						}
@@ -341,27 +334,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 				packet.Joints[t] = uint16(currentVertexJointIndexes[0])
 				packet.Joints2[t] = uint16(currentVertexJointIndexes[1])
 
-				jointDiffState := -1
-				myHash := hashes[t]
-				for iHash := 0; iHash < t; iHash++ {
-					if hashes[iHash] == myHash {
-						state := 0
-						if uint16(currentVertexJointIndexes[0]) != packet.Joints[iHash] {
-							state += 1
-						}
-						if uint16(currentVertexJointIndexes[1]) != packet.Joints2[iHash] {
-							state += 2
-						}
-						if jointDiffState < state {
-							jointDiffState = state
-						}
-					}
-				}
-				jointDiffStateChar := []rune{' ', 'k', 'd', 'D', 'B'}[jointDiffState+1]
-
-				exlog.Printf("   %c b5=%.3b v %.3d bv %.2d j[%.3d %.3d][%.2d %.2d] x %f y %f z %f skip %v jw %f",
-					jointDiffStateChar, block[5]>>4, t, j,
-					jm[currentVertexJointIndexes[0]], jm[currentVertexJointIndexes[1]],
+				exlog.Printf("   b5=%.3b v %.3d bv %.2d j[%.2d %.2d] x %f y %f z %f skip %v jw %f",
+					block[5]>>4, t, j,
 					currentVertexJointIndexes[0], currentVertexJointIndexes[1],
 					packet.Trias.X[t], packet.Trias.Y[t], packet.Trias.Z[t],
 					packet.Trias.Skip[t], packet.Trias.Weight[t],

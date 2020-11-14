@@ -394,10 +394,10 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                     }
                     objName += ":" + object.MaterialId;
 
-                    
+                    let meshes = [];
+
                     for (let iPacket in dmaPackets) {
-                    	let meshes = [];
-						
+
                         let dmaPacket = dmaPackets[iPacket];
                         let mesh = parseMeshPacket(object, dmaPacket, iInstance);
                         if (object.TextureLayersCount != 1) {
@@ -411,27 +411,27 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         totalMeshes.push(mesh);
                         model.addMesh(mesh);
 
-                    if (table) {
-                        let label = $('<label>');
-                        let chbox = $('<input type="checkbox" checked>');
-                        let td = $('<td>').append(label);
-                        chbox.click(meshes, function(ev) {
-                            for (let i in ev.data) {
-                                ev.data[i].setVisible(this.checked);
-                            }
-                            gr_instance.requestRedraw();
-                        });
-                        td.mouseenter([model, meshes], function(ev) {
-                            ev.data[0].showExclusiveMeshes(ev.data[1]);
-                            gr_instance.requestRedraw();
-                        }).mouseleave(model, function(ev, a) {
-                            ev.data.showExclusiveMeshes();
-                            gr_instance.requestRedraw();
-                        });
-                        label.append(chbox);
-                        label.append("o_" + objName + "_p" + iPacket);
-                        table.append($('<tr>').append(td));
-                    }
+                        if (table) {
+                            let label = $('<label>');
+                            let chbox = $('<input type="checkbox" checked>');
+                            let td = $('<td>').append(label);
+                            chbox.click(meshes, function(ev) {
+                                for (let i in ev.data) {
+                                    ev.data[i].setVisible(this.checked);
+                                }
+                                gr_instance.requestRedraw();
+                            });
+                            td.mouseenter([model, meshes], function(ev) {
+                                ev.data[0].showExclusiveMeshes(ev.data[1]);
+                                gr_instance.requestRedraw();
+                            }).mouseleave(model, function(ev, a) {
+                                ev.data.showExclusiveMeshes();
+                                gr_instance.requestRedraw();
+                            });
+                            label.append(chbox);
+                            label.append("o_" + objName);
+                            table.append($('<tr>').append(td));
+                        }
                     }
                 }
             }
@@ -973,7 +973,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
     dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
 
-	let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
+    let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
     dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
 
     let jointsTable = $('<table>');
@@ -1023,7 +1023,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
                 parseInt(((joint.Id / 64) % 8) * 15) + ');')
             .append(joint.Id).attr("rowspan", 20));
 
-		let firstRow = true;
+        let firstRow = true;
 
         for (let k in joint) {
             if (k === "Name" ||
@@ -1035,31 +1035,31 @@ function summaryLoadWadObj(data, wad, nodeid) {
                 k === "RenderMat" ||
                 k === "Parent") {
 
-				let d = joint[k];
-				if (Array.isArray(d) && d.length == 4*4) {
-					row.append($('<td>').text(k));
-					jointsTable.append(row);
-					
-					let t = [d[12].toFixed(1), d[13].toFixed(1), d[14].toFixed(1)];
-					let s = [d[0].toFixed(2), d[5].toFixed(2), d[10].toFixed(2), d[15].toFixed(2)];
-					
-					let ry = Math.asin(d[8]).toFixed(2);
-					let rx = Math.atan2( -d[ 9]/Math.cos(ry) , +d[10]/Math.cos(ry)).toFixed(2);
-					let rz = Math.atan2( -d[ 4]/Math.cos(ry) , +d[ 0]/Math.cos(ry)).toFixed(2);
-					
-					let appRow = function (name, arr) {
-						jointsTable.append($('<tr>').append($('<td>').text(name + ":" + arr.join(","))));
-					}
-					
-					appRow("t", [d[12].toFixed(2), d[13].toFixed(2), d[14].toFixed(2)]);
-					appRow("r",  [rx,ry,rz]);
-					appRow("s",  [d[0].toFixed(2), d[5].toFixed(2), d[10].toFixed(2), d[15].toFixed(2)]);
-				} else {
-					row.append($('<td>').text(k + ": " + JSON.stringify(d)));
-					jointsTable.append(row);
-				}
-				
-				row = $('<tr>');
+                let d = joint[k];
+                if (Array.isArray(d) && d.length == 4 * 4) {
+                    row.append($('<td>').text(k));
+                    jointsTable.append(row);
+
+                    let t = [d[12].toFixed(1), d[13].toFixed(1), d[14].toFixed(1)];
+                    let s = [d[0].toFixed(2), d[5].toFixed(2), d[10].toFixed(2), d[15].toFixed(2)];
+
+                    let ry = Math.asin(d[8]).toFixed(2);
+                    let rx = Math.atan2(-d[9] / Math.cos(ry), +d[10] / Math.cos(ry)).toFixed(2);
+                    let rz = Math.atan2(-d[4] / Math.cos(ry), +d[0] / Math.cos(ry)).toFixed(2);
+
+                    let appRow = function(name, arr) {
+                        jointsTable.append($('<tr>').append($('<td>').text(name + ":" + arr.join(","))));
+                    }
+
+                    appRow("t", [d[12].toFixed(2), d[13].toFixed(2), d[14].toFixed(2)]);
+                    appRow("r", [rx, ry, rz]);
+                    appRow("s", [d[0].toFixed(2), d[5].toFixed(2), d[10].toFixed(2), d[15].toFixed(2)]);
+                } else {
+                    row.append($('<td>').text(k + ": " + JSON.stringify(d)));
+                    jointsTable.append(row);
+                }
+
+                row = $('<tr>');
             }
         }
         jointsTable.append(row);
@@ -1166,71 +1166,71 @@ function summaryLoadWadSbk(data, wad, nodeid) {
         let li = $("<li>").append(vaglink).append(" id:" + i + " stream id:" + snd.StreamId);
 
         if (data.IsVagFiles) {
-        	let wavplayer = $("<source>").attr("src", getSndLink('wav'));
-        	let wavlink = $("<audio controls>").attr("preload", "none").append(wavplayer);
+            let wavplayer = $("<source>").attr("src", getSndLink('wav'));
+            let wavlink = $("<audio controls>").attr("preload", "none").append(wavplayer);
             li.append("<br>").append(wavlink);
         } else {
-        	let commands = $("<table>");
-			let banksound = data.Bank.BankSounds[snd.StreamId];
-			
-			let banksoundsNoCommand = {};
-			for (let key in banksound) {
-				if (key != 'Commands') {
-					banksoundsNoCommand[key] = banksound[key];
-				}
-			}
-			
-			commands.append($("<tr>").append(
-				$("<td>").text("Parameters")).append(
-					$("<td>").attr("colspan", 2).text(JSON.stringify(banksoundsNoCommand))
-				));
-			
-			let cmdRow = $("<tr>").append($("<td>").text("Commands").attr("rowspan", banksound.Commands.length));
-			for (let command of banksound.Commands) {
-				let commandClean = {};
-				for (let key in command) {
-					if (key != 'SampleRef' && key != 'Cmd' && key != 'VagRef' && key != 'UnkRef') {
-						commandClean[key] = command[key];
-					}
-				}
-				
-				let argsCol = $("<td>").text(JSON.stringify(commandClean));				
-				if (command.SampleRef != null) {
-					let sampleRef = command.SampleRef;
-					
-					let sampleRefClean = {};
-					for (let key in sampleRef) {
-						if (key != 'AdpcmOffset' && key != 'AdpcmSize') {
-							sampleRefClean[key] = sampleRef[key];
-						}
-					}
-					
-					argsCol.append($("<br>")).append("Sample:");
-					argsCol.append($("<br>")).append(JSON.stringify(sampleRefClean));
-					
-					let sndurl = getActionLinkForWadNode(wad, nodeid, 'smpd', 
-						'offset=' + sampleRef.AdpcmOffset + '&size=' + sampleRef.AdpcmSize);
-					let wavplayer = $("<source>").attr("src", sndurl);
-		        	let wavlink = $("<audio controls>").attr("preload", "none").append(wavplayer);
-					
-		           	argsCol.append($("<br>")).append("Audio offset " + sampleRef.AdpcmOffset + " size " + sampleRef.AdpcmSize);
-					argsCol.append($("<br>")).append(wavlink);
-				}
-				if (command.VagRef != null) {
-					let vagRef = command.VagRef;
-					argsCol.append($("<br>")).append("ref: " + JSON.stringify(vagRef));
-				}
-				if (command.UnkRef != null) {
-					let unkRef = command.UnkRef;
-					argsCol.append($("<br>")).append("ref: " + JSON.stringify(unkRef));
-				}
-				
-				cmdRow.append($("<td>").text(command.Cmd)).append(argsCol);
-				commands.append(cmdRow);
-				cmdRow = $("<tr>");
-			}
-			
-			li.append(commands);
+            let commands = $("<table>");
+            let banksound = data.Bank.BankSounds[snd.StreamId];
+
+            let banksoundsNoCommand = {};
+            for (let key in banksound) {
+                if (key != 'Commands') {
+                    banksoundsNoCommand[key] = banksound[key];
+                }
+            }
+
+            commands.append($("<tr>").append(
+                $("<td>").text("Parameters")).append(
+                $("<td>").attr("colspan", 2).text(JSON.stringify(banksoundsNoCommand))
+            ));
+
+            let cmdRow = $("<tr>").append($("<td>").text("Commands").attr("rowspan", banksound.Commands.length));
+            for (let command of banksound.Commands) {
+                let commandClean = {};
+                for (let key in command) {
+                    if (key != 'SampleRef' && key != 'Cmd' && key != 'VagRef' && key != 'UnkRef') {
+                        commandClean[key] = command[key];
+                    }
+                }
+
+                let argsCol = $("<td>").text(JSON.stringify(commandClean));
+                if (command.SampleRef != null) {
+                    let sampleRef = command.SampleRef;
+
+                    let sampleRefClean = {};
+                    for (let key in sampleRef) {
+                        if (key != 'AdpcmOffset' && key != 'AdpcmSize') {
+                            sampleRefClean[key] = sampleRef[key];
+                        }
+                    }
+
+                    argsCol.append($("<br>")).append("Sample:");
+                    argsCol.append($("<br>")).append(JSON.stringify(sampleRefClean));
+
+                    let sndurl = getActionLinkForWadNode(wad, nodeid, 'smpd',
+                        'offset=' + sampleRef.AdpcmOffset + '&size=' + sampleRef.AdpcmSize);
+                    let wavplayer = $("<source>").attr("src", sndurl);
+                    let wavlink = $("<audio controls>").attr("preload", "none").append(wavplayer);
+
+                    argsCol.append($("<br>")).append("Audio offset " + sampleRef.AdpcmOffset + " size " + sampleRef.AdpcmSize);
+                    argsCol.append($("<br>")).append(wavlink);
+                }
+                if (command.VagRef != null) {
+                    let vagRef = command.VagRef;
+                    argsCol.append($("<br>")).append("ref: " + JSON.stringify(vagRef));
+                }
+                if (command.UnkRef != null) {
+                    let unkRef = command.UnkRef;
+                    argsCol.append($("<br>")).append("ref: " + JSON.stringify(unkRef));
+                }
+
+                cmdRow.append($("<td>").text(command.Cmd)).append(argsCol);
+                commands.append(cmdRow);
+                cmdRow = $("<tr>");
+            }
+
+            li.append(commands);
         }
         list.append(li);
     }

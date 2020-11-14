@@ -4,7 +4,7 @@ let ga_instance;
 
 function gaAnimationManager() {
     this.lastUpdateTime = window.performance.now() / 1000.0;
-    this.paused = false;
+    this.active = true;
     this.matLayerAnimations = [];
     this.matSheetAnimations = [];
     this.objSkeletAnimations = [];
@@ -13,17 +13,17 @@ function gaAnimationManager() {
 gaAnimationManager.prototype.update = function() {
     let currentTime = window.performance.now() / 1000.0;
     let dt = currentTime - this.lastUpdateTime;
-    
-    if (!this.paused) {
-	    for (let i in this.matLayerAnimations) {
-	        this.matLayerAnimations[i].update(dt);
-	    }
-	    for (let i in this.matSheetAnimations) {
-	        this.matSheetAnimations[i].update(dt);
-	    }
-	    for (let i in this.objSkeletAnimations) {
-	        this.objSkeletAnimations[i].update(dt);
-	    }
+
+    if (this.active) {
+        for (let i in this.matLayerAnimations) {
+            this.matLayerAnimations[i].update(dt);
+        }
+        for (let i in this.matSheetAnimations) {
+            this.matSheetAnimations[i].update(dt);
+        }
+        for (let i in this.objSkeletAnimations) {
+            this.objSkeletAnimations[i].update(dt);
+        }
     }
 
     this.lastUpdateTime = currentTime;
@@ -48,36 +48,33 @@ gaAnimationManager.prototype.addAnimation = function(anim) {
 
 gaAnimationManager.prototype.freeAnimation = function(anim) {
     switch (anim.type) {
-        case 0:
-            {
-                let id = this.objSkeletAnimations.indexOf(anim);
-                if (id >= 0) {
-                    let a = this.objSkeletAnimations.splice(id, 1)[0];
-                    a.reset();
-                    a.recalcMatrices();
-                    gr_instance.requireRedraw = true;
-                }
+        case 0: {
+            let id = this.objSkeletAnimations.indexOf(anim);
+            if (id >= 0) {
+                let a = this.objSkeletAnimations.splice(id, 1)[0];
+                a.reset();
+                a.recalcMatrices();
+                gr_instance.requireRedraw = true;
             }
-            break;
-        case 8:
-            {
-                let id = this.matLayerAnimations.indexOf(anim);
-                if (id >= 0) {
-                    this.matLayerAnimations.splice(id, 1);
-                }
-            }
-            break;
-        case 9:
-            {
-                let id = this.matSheetAnimations.indexOf(anim);
-                if (id >= 0) {
-                    this.matSheetAnimations.splice(id, 1);
-                }
-            }
-            break;
-        default:
-            console.error("Unknown animation type ", anim);
-            break;
+        }
+        break;
+    case 8: {
+        let id = this.matLayerAnimations.indexOf(anim);
+        if (id >= 0) {
+            this.matLayerAnimations.splice(id, 1);
+        }
+    }
+    break;
+    case 9: {
+        let id = this.matSheetAnimations.indexOf(anim);
+        if (id >= 0) {
+            this.matSheetAnimations.splice(id, 1);
+        }
+    }
+    break;
+    default:
+        console.error("Unknown animation type ", anim);
+        break;
     }
 }
 

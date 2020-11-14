@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -240,10 +241,10 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 		unkf1, unkf2, unkint := bsIndexes.ReadLF(), bsIndexes.ReadLF(), bsIndexes.ReadBU32()
 		_, _, _ = unkf1, unkf2, unkint
 
-		//log.Printf("Unknown floats: %v %v", unkf1, unkf2)
-		//log.Printf("Unknown int: %v", unkint)
+		log.Printf("Unknown floats: %v %v", unkf1, unkf2)
+		log.Printf("Unknown int: %v", unkint)
 		m.Indexes = make([]uint32, bsIndexes.ReadBU32())
-		//log.Printf("Indexes: %v (%.8x)", len(m.Indexes), len(m.Indexes))
+		log.Printf("Indexes: %v (%.8x)", len(m.Indexes), len(m.Indexes))
 		for i := range m.Indexes {
 			m.Indexes[i] = uint32(bsIndexes.ReadBU16())
 		}
