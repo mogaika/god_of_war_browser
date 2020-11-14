@@ -24,6 +24,7 @@ type MeshParserStream struct {
 	state               *MeshParserState
 	lastPacketDataStart uint32
 	lastPacketDataEnd   uint32
+	jm                  []uint32
 }
 
 type MeshParserState struct {
@@ -37,19 +38,21 @@ type MeshParserState struct {
 	Buffer     int
 }
 
-func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, exlog *utils.Logger) *MeshParserStream {
+func NewMeshParserStream(allb []byte, object *Object, packetOffset uint32, jm []uint32, exlog *utils.Logger) *MeshParserStream {
 	return &MeshParserStream{
 		Data:    allb,
 		Object:  object,
 		Offset:  packetOffset,
 		Log:     exlog,
 		Packets: make([]Packet, 0),
+		jm:      jm,
 	}
 }
 
 func (ms *MeshParserStream) flushState() error {
 	if ms.state != nil {
-		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart, ms.Object)
+		ms.Log.Printf("      packet %d", len(ms.Packets))
+		packet, err := ms.state.ToPacket(ms.Log, ms.lastPacketDataStart, ms.Object, ms.jm)
 		if err != nil {
 			return err
 		}
@@ -108,7 +111,11 @@ func (ms *MeshParserStream) ParsePackets() error {
 	return nil
 }
 
-func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo *Object) (*Packet, error) {
+func (state *MeshParserState) getJointIndexesFromMetaBlock(block []byte) [2]uint8 {
+	return [2]uint8{block[13] >> 4, block[12] >> 2}
+}
+
+func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo *Object, jm []uint32) (*Packet, error) {
 	if state.XYZW == nil {
 		if state.UV != nil || state.Norm != nil || state.VertexMeta != nil || state.RGBA != nil {
 			return nil, fmt.Errorf("Empty xyzw array, possibly incorrect data: 0x%x. State: %+#v", debugPos, state)
@@ -119,17 +126,26 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 	packet := &Packet{HasTransparentBlending: false}
 	packet.Offset = debugPos
 
+	// r_hero0.wad => hero_0 o_p1_g0_o10:3_p12 still wrong
+
 	countTrias := len(state.XYZW) / 8
 	packet.Trias.X = make([]float32, countTrias)
 	packet.Trias.Y = make([]float32, countTrias)
 	packet.Trias.Z = make([]float32, countTrias)
 	packet.Trias.Skip = make([]bool, countTrias)
 	packet.Trias.Weight = make([]float32, countTrias)
+
+	hashes := make([]uint64, countTrias)
+
 	for i := range packet.Trias.X {
 		bp := i * 8
 		packet.Trias.X[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp:bp+2]))) / GSFixedPoint8
 		packet.Trias.Y[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+2:bp+4]))) / GSFixedPoint8
 		packet.Trias.Z[i] = float32(int16(binary.LittleEndian.Uint16(state.XYZW[bp+4:bp+6]))) / GSFixedPoint8
+
+		hashes[i] =
+			uint64(binary.LittleEndian.Uint32(state.XYZW[bp:])) |
+				(uint64(binary.LittleEndian.Uint16(state.XYZW[bp+4:])) << 32)
 
 		flags := binary.LittleEndian.Uint16(state.XYZW[bp+6 : bp+8])
 		packet.Trias.Skip[i] = flags&0x8000 != 0
@@ -203,23 +219,29 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 	}
 
 	if state.VertexMeta != nil {
-		blocks := len(state.VertexMeta) / 0x10
+		blocks := make([][]byte, len(state.VertexMeta)/0x10)
+		for iBlock := range blocks {
+			blocks[iBlock] = state.VertexMeta[iBlock*0x10 : (iBlock+1)*0x10]
+		}
+
 		packet.VertexMeta = state.VertexMeta
 		vertexes := len(packet.Trias.X)
 
 		packet.Joints = make([]uint16, vertexes)
 		packet.Joints2 = make([]uint16, vertexes)
 
+		stichPushIndex := 0
+
 		vertnum := 0
-		for i := 0; i < blocks; i++ {
-			block := state.VertexMeta[i*16 : i*16+16]
-			block_verts := int(block[0])
+		for iBlock, block := range blocks {
+			blockVersCount := int(block[0])
 
 			debugColor := func(r, g, b uint16) {
-				for j := 0; j < block_verts; j++ {
+				for j := 0; j < blockVersCount; j++ {
 					packet.Blend.R[vertnum+j] = r
 					packet.Blend.G[vertnum+j] = g
 					packet.Blend.B[vertnum+j] = b
+					packet.Blend.A[vertnum+j] = 0xffff
 				}
 			}
 			_ = debugColor
@@ -229,9 +251,9 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 			// block[2:4] = 0x00
 			// block[4:8] = 4bit fields [
 			//        0:4 - count of matbit flags
-			//        4:8 - 1 if 12:16 == 7 or 12:16 == 3, elsewhere 0
+			//        4:8 - 1 if push joint swap stack?, else = 0
 			//       8:12 - 0
-			//      12:16 - depends on block id. either {4,0...} either {7,6,0...}. or if in middle then {0...,3,2,0...}
+			//      12:16 - flags: |0x4 - first block, |0x3 - push joint swap stack? |0x2 - use joint swap stack?
 			//      16:20 - 0xe - have texture (have rgb?), 0x6 - no texture, 0x2 - no texture (have rgb?), shadow layer (no rgb?)
 			//      20:24 - 0x2 || 0x4;
 			//      24:28 - 0
@@ -239,7 +261,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 			// block[8:12] = 4bit matflags, stacked in particular order
 			//        0x2 - if have texture
 			//        0xf - if npc (do not depend on animations availability) / accept lighting? / lit?
-			//        0x1 - if not gui
+			//        0x1 - if not gui (should use projection matrix?)
 			//        0x5 - always (end of flags mark?)
 			// block[12] = jointid1 * 4
 			// block[13] = jointid2 * 16
@@ -250,6 +272,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 					ok := true
 					lo := v & 0xf
 					hi := v >> 4
+
 					switch iBlock {
 					case 1:
 						ok = v == 0 || v == 0x80
@@ -259,25 +282,9 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 						ok = v == 0
 					case 4:
 						ok = (lo != 0 && lo <= 4) &&
-							(hi == 0 || hi == 1)
+							((hi != 0) == (block[5]&0x30 == 0x30))
 					case 5:
-						ok = (lo == 0) &&
-							(hi == 0 || hi == 2 || hi == 3 || hi == 4 || hi == 6 || hi == 7)
-						/*
-							r := uint16(0)
-							g := r
-							b := r
-							if hi&1 == 1 {
-								r = 0xff
-							}
-							if hi&2 == 2 {
-								g = 0xff
-							}
-							if hi&4 == 4 {
-								b = 0xff
-							}
-							debugColor(r, g, b)
-						*/
+						ok = v&0x8f == 0
 					case 6:
 						/*
 							if hi == 0x2 {
@@ -293,6 +300,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 							(hi == block[4]&0xf)
 					case 12:
 						ok = v%4 == 0
+					case 13:
+						ok = v%16 == 0
 					case 14:
 						ok = v == 0
 					case 15:
@@ -304,30 +313,65 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 				}
 			}
 
-			/*
-				switch ooo.NextFreeVUBufferId {
-				case 0:
-					debugColor(0xff, 0, 0)
-				case 1:
-					debugColor(0, 0xff, 0)
-				case 2:
-					debugColor(0, 0, 0xff)
-				default:
-					debugColor(0xff, 0xff, 0xff)
-				}
-			*/
+			blockJointIndexes := state.getJointIndexesFromMetaBlock(block)
 
-			for j := 0; j < block_verts; j++ {
-				packet.Joints[vertnum+j] = uint16(block[13] >> 4)
-				if packet.Joints2 != nil {
-					packet.Joints2[vertnum+j] = uint16(block[12] >> 2)
+			for j := 0; j < blockVersCount; j++ {
+				t := vertnum + j
+
+				currentVertexJointIndexes := blockJointIndexes
+				if block[5]&0x20 != 0 {
+					exlog.Printf("   stich index %d", stichPushIndex)
+
+					if block[5]&0x10 != 0 {
+						// if inside stich
+						// every second vertex should use joint indexes from next block
+						if stichPushIndex%2 != 0 {
+							currentVertexJointIndexes = state.getJointIndexesFromMetaBlock(blocks[iBlock+1])
+						}
+						stichPushIndex++
+					} else {
+						// next stich, use saved indexes from previous "stich"
+						stichPushIndex--
+						if stichPushIndex%2 != 0 {
+							currentVertexJointIndexes = state.getJointIndexesFromMetaBlock(blocks[iBlock-1])
+						}
+					}
 				}
+
+				packet.Joints[t] = uint16(currentVertexJointIndexes[0])
+				packet.Joints2[t] = uint16(currentVertexJointIndexes[1])
+
+				jointDiffState := -1
+				myHash := hashes[t]
+				for iHash := 0; iHash < t; iHash++ {
+					if hashes[iHash] == myHash {
+						state := 0
+						if uint16(currentVertexJointIndexes[0]) != packet.Joints[iHash] {
+							state += 1
+						}
+						if uint16(currentVertexJointIndexes[1]) != packet.Joints2[iHash] {
+							state += 2
+						}
+						if jointDiffState < state {
+							jointDiffState = state
+						}
+					}
+				}
+				jointDiffStateChar := []rune{' ', 'k', 'd', 'D', 'B'}[jointDiffState+1]
+
+				exlog.Printf("   %c b5=%.3b v %.3d bv %.2d j[%.3d %.3d][%.2d %.2d] x %f y %f z %f skip %v jw %f",
+					jointDiffStateChar, block[5]>>4, t, j,
+					jm[currentVertexJointIndexes[0]], jm[currentVertexJointIndexes[1]],
+					currentVertexJointIndexes[0], currentVertexJointIndexes[1],
+					packet.Trias.X[t], packet.Trias.Y[t], packet.Trias.Z[t],
+					packet.Trias.Skip[t], packet.Trias.Weight[t],
+				)
 			}
 
-			vertnum += block_verts
+			vertnum += blockVersCount
 			if block[1] != 0 {
-				if i != blocks-1 {
-					return nil, fmt.Errorf("Block count != blocks: %v <= %v", blocks, i)
+				if iBlock != len(blocks)-1 {
+					return nil, fmt.Errorf("Block count != blocks: %v <= %v", len(blocks), iBlock)
 				}
 			}
 		}
@@ -347,13 +391,9 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 		u32 := func(barr []byte, id int) uint32 {
 			return binary.LittleEndian.Uint32(barr[id*4 : id*4+4])
 		}
-		f32 := func(barr []byte, id int) float32 {
-			return math.Float32frombits(u32(barr, id))
-		}
-		return fmt.Sprintf(" %.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %.4x   |  %.8x %.8x %.8x %.8x |  %f  %f  %f  %f",
+		return fmt.Sprintf(" %.4x %.4x  %.4x %.4x   %.4x %.4x  %.4x %.4x   |  %.8x %.8x %.8x %.8x",
 			u16(a, 0), u16(a, 1), u16(a, 2), u16(a, 3), u16(a, 4), u16(a, 5), u16(a, 6), u16(a, 7),
 			u32(a, 0), u32(a, 1), u32(a, 2), u32(a, 3),
-			f32(a, 0), f32(a, 1), f32(a, 2), f32(a, 3),
 		)
 	}
 
@@ -506,7 +546,7 @@ func (ms *MeshParserStream) ParseVif(packetDataStart, packetDataEnd uint32) erro
 			ms.Log.Printf("[%.4s] + unpack: 0x%.2x cmd: 0x%.2x elements: 0x%.2x components: %d width: %.2d target: 0x%.3x sign: %t tops: %t size: %.6x",
 				handledBy, ms.lastPacketDataStart+tagPos, vifCode.Cmd(), vifCode.Num(), vifComponents, vifWidth, vifTarget, vifIsSigned, vifUseTops, vifBlockSize)
 
-			ms.Log.Printf("   __RAW: %s", utils.SDump(vifBlock))
+			// ms.Log.Printf("   __RAW: %s", utils.SDump(vifBlock))
 
 			if detectingErr != nil || handledBy == "" {
 				ms.Log.Printf("ERROR: %v", detectingErr)

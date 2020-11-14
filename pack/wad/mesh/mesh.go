@@ -2,7 +2,6 @@ package mesh
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -44,21 +43,24 @@ type Object struct {
 	//   0x0E - dynamic or transparent
 	//   everything else - lines
 	Type                  uint16
-	Unk02                 uint16
+	Unk02                 uint16 // always zero
 	DmaTagsCountPerPacket uint32
 	MaterialId            uint16
 	JointMapElementsCount uint16
+
 	// new dma program per each instance.
-	// uses same buffers except rgba lighting
-	// have own jointmappers
-	InstancesCount      uint32
-	Flags               uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
-	FlagsMask           uint32
-	TextureLayersCount  uint8
-	Unk19               uint8 // total dma programs count ?
-	NextFreeVUBufferId  uint16
-	Unk1c               uint16 // source faces count
-	SourceVerticesCount uint16 // unique vertices count ?
+	// uses same buffers except rgba lighting, own jointmapper per instance
+	InstancesCount uint32
+	Flags          uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
+	FlagsMask      uint32
+
+	// new dma program per texture layer
+	// uses same buffers except uv and rgba for  second layer
+	TextureLayersCount    uint8
+	TotalDmaProgramsCount uint8 // total dma programs count ?
+	NextFreeVUBufferId    uint16
+	Unk1c                 uint16 // source faces count
+	SourceVerticesCount   uint16 // unique vertices count ?
 
 	Packets             [][]Packet
 	RawDmaAndJointsData []byte
@@ -68,10 +70,13 @@ type Object struct {
 
 type Group struct {
 	Offset uint32
+	// Each part - lod group
 
+	// value with minus, for last lod - very huge number
 	HideDistance float32
-	Objects      []Object
-	HasBbox      uint32
+
+	Objects []Object
+	HasBbox uint32
 }
 
 type Part struct {
@@ -158,7 +163,7 @@ func init() {
 	wad.SetHandler(config.GOW1, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
 		g, err := gmdl.NewGMDL(bs.SubBuf("gmdl", 4).Expand().SetName(wrsrc.Name()))
-		log.Printf("\n%v", bs.StringTree())
+		// log.Printf("\n%v", bs.StringTree())
 		return g, err
 	})
 }

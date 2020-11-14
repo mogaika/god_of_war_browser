@@ -333,6 +333,10 @@ grTexture.prototype.applyTexParameters = function() {
         return;
     }
     gl.bindTexture(gl.TEXTURE_2D, this.txr);
+    if (gr_instance.glExtFilterAnisotropic) {
+    	let maxAnisotropy = gl.getParameter(gr_instance.glExtFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+		gl.texParameterf(gl.TEXTURE_2D, gr_instance.glExtFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
+    }
     if (this.isFontTexture) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -576,6 +580,10 @@ function grCameraTargeted() {
     this.distance = 100.0;
     this.rotation = [15.0, 45.0 * 3, 0];
 }
+grCameraTargeted.prototype.setTarget = function(target) {
+	this.target = target;
+	gr_instance.requestRedraw();
+}
 grCameraTargeted.prototype.getProjectionMatrix = function() {
     return mat4.perspective(mat4.create(), glMatrix.toRadian(this.fow), gr_instance.rectX / gr_instance.rectY, this.nearPlane, this.farPlane);
 }
@@ -644,6 +652,7 @@ function grController(viewDomObject) {
         alert("Could not initialize WebGL");
         return;
     }
+    gr_instance = this;
 
     this.frameChecker = 0;
     this.requireRedraw = false;
@@ -664,13 +673,21 @@ function grController(viewDomObject) {
     this.fontTexture.markAsFontTexture();
     this.filterMask = 0;
     this.cull = false;
-
+    this.glExtFilterAnisotropic = gl.getExtension('EXT_texture_filter_anisotropic');
+    
+	let eventWithShift = false;
     canvas.mousewheel(function(event) {
         gr_instance.camera.onMouseWheel(event.deltaY * event.deltaFactor);
         event.stopPropagation();
         event.preventDefault();
     }).mousedown(function(event) {
         if (event.button < 2) {
+        	if (event.button == 0 && event.shiftKey) {
+				eventWithShift = true;
+				event.button = 1;
+			} else {
+				eventWithShift = false;
+			}
             gr_instance.mouseDown[event.button] = true;
             event.stopPropagation();
             event.preventDefault();
@@ -679,17 +696,14 @@ function grController(viewDomObject) {
             }
         }
     })
-
-    canvas[0].addEventListener('webglcontextlost', function(e) {
-        console.log("webgl context lost", e);
-    });
-    canvas[0].addEventListener('webglcontextrestored', function(e) {
-        console.log("webgl context restored", e);
-    });
-
+    
     $(document).mouseup(function(event) {
         if (event.button < 2) {
             gr_instance.mouseDown[event.button] = false;
+            if (event.button == 0 && eventWithShift) {
+            	gr_instance.mouseDown[1] = false;
+			}
+
             event.stopPropagation();
             event.preventDefault();
             if (event.button === 0) {
@@ -703,6 +717,13 @@ function grController(viewDomObject) {
             event.stopPropagation();
             event.preventDefault();
         }
+    });
+
+    canvas[0].addEventListener('webglcontextlost', function(e) {
+        console.log("webgl context lost", e);
+    });
+    canvas[0].addEventListener('webglcontextrestored', function(e) {
+        console.log("webgl context restored", e);
     });
 
     this.setInterfaceCameraMode();

@@ -187,6 +187,18 @@ func (bs *BufStack) Skip(amount int) {
 	}
 }
 
+func (bs *BufStack) ReadEU64(bo binary.ByteOrder) uint64 {
+	return bo.Uint64(bs.Read(8))
+}
+
+func (bs *BufStack) ReadEU32(bo binary.ByteOrder) uint32 {
+	return bo.Uint32(bs.Read(4))
+}
+
+func (bs *BufStack) ReadEU16(bo binary.ByteOrder) uint16 {
+	return bo.Uint16(bs.Read(2))
+}
+
 func (bs *BufStack) ReadLU64() uint64 {
 	return binary.LittleEndian.Uint64(bs.Read(8))
 }
@@ -254,6 +266,18 @@ func (bs *BufStack) VerifySize(pos int) {
 	}
 }
 
+func (bs *BufStack) EU64(bo binary.ByteOrder, off int) uint64 {
+	return bo.Uint64(bs.buf[off:])
+}
+
+func (bs *BufStack) EU32(bo binary.ByteOrder, off int) uint32 {
+	return bo.Uint32(bs.buf[off:])
+}
+
+func (bs *BufStack) EU16(bo binary.ByteOrder, off int) uint16 {
+	return bo.Uint16(bs.buf[off:])
+}
+
 func (bs *BufStack) LU64(off int) uint64 {
 	return binary.LittleEndian.Uint64(bs.buf[off:])
 }
@@ -280,6 +304,10 @@ func (bs *BufStack) BU16(off int) uint16 {
 
 func (bs *BufStack) Byte(off int) byte {
 	return bs.buf[off]
+}
+
+func (bs *BufStack) EF(bo binary.ByteOrder, off int) float32 {
+	return math.Float32frombits(bs.EU32(bo, off))
 }
 
 func (bs *BufStack) LF(off int) float32 {

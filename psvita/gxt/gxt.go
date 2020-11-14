@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"image"
 	"io"
-	"log"
 	"os"
 
 	"github.com/mogaika/god_of_war_browser/psvita/textureformats"
@@ -54,7 +53,7 @@ func (g *GXT) parseTextureInfo(r io.Reader, ti *TextureInfo) error {
 		return errors.Errorf("Unsupported pallete index %d", ti.PaletteIndex)
 	}
 
-	log.Printf("%+#v", ti)
+	// log.Printf("%+#v", ti)
 
 	return nil
 }
@@ -111,7 +110,7 @@ func Open(r io.Reader) (*GXT, error) {
 		return nil, errors.Errorf("Unsupported palettes (%d,%d)", g.Header.PalettCountP4, g.Header.PalettCountP8)
 	}
 
-	log.Printf("%+#v", g.Header)
+	// log.Printf("%+#v", g.Header)
 
 	g.TextureInfos = make([]TextureInfo, g.Header.TexturesCount)
 

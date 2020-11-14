@@ -38,9 +38,6 @@ func (c *client) writePump() {
 	for {
 		select {
 		case msg, ok := <-c.send:
-			if err := c.conn.SetWriteDeadline(time.Now().Add(40 * time.Second)); err != nil {
-				panic(err)
-			}
 			if !ok {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -50,7 +47,6 @@ func (c *client) writePump() {
 				return
 			}
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(40 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Printf("[status] ws write ping error: %v", err)
 				return

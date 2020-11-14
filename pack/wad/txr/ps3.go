@@ -9,26 +9,34 @@ import (
 	"log"
 	"math/bits"
 
+	"github.com/mogaika/god_of_war_browser/psvita/textureformats"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
+const (
+	CELL_GCM_TEXTURE_A8R8G8B8        = 0x85
+	CELL_GCM_TEXTURE_COMPRESSED_DXT1 = 0x86
+	CELL_GCM_TEXTURE_D8R8G8B8        = 0x9e
+)
+
 type Ps3Texture struct {
-	Unk00           uint32
-	DataTotalSize   uint32
-	Unk08           uint32
-	Zero0c          uint32
-	DataOffset      uint32
-	DataPayloadSize uint32
-	Unk18           uint8
-	MipMapCounts    uint8
-	Unk1a           uint8
-	Zero1b          uint8
-	Unk1c           uint32
-	Width           uint16
-	Height          uint16
-	Zero24          uint8
-	Unk25           uint8
+	Unk00              uint32
+	DataTotalSize      uint32
+	Unk08              uint32
+	Zero0c             uint32
+	DataOffset         uint32
+	DataPayloadSize    uint32
+	TextureColorFormat uint8 // use CELL_GCM_TEXTURE_ from pcsx3
+	MipMapCounts       uint8
+	Unk1a              uint8
+	Zero1b             uint8
+	Unk1c              uint32
+	Width              uint16
+	Height             uint16
+	Zero24             uint8
+	Unk25              uint8
 
 	images []image.Image
 }
@@ -69,8 +77,12 @@ func (t *Ps3Texture) checkUnksAndZeros() error {
 	if t.Zero0c != 0 {
 		return fmt.Errorf("Incorrect Zero0c: %v", t.Zero0c)
 	}
-	if t.Unk18 != 0x85 && t.Unk18 != 0x9e {
-		return fmt.Errorf("Incorrect Unk18: %v", t.Unk18)
+	switch t.TextureColorFormat {
+	case CELL_GCM_TEXTURE_A8R8G8B8:
+	case CELL_GCM_TEXTURE_D8R8G8B8:
+	case CELL_GCM_TEXTURE_COMPRESSED_DXT1:
+	default:
+		return fmt.Errorf("Unknown texture color format: 0x%x", t.TextureColorFormat)
 	}
 	if t.Unk1a != 2 {
 		return fmt.Errorf("Incorrect Unk1a: %v", t.Unk1a)
@@ -125,23 +137,48 @@ func ps3SwizzleIndex(x, y, width, height uint32) int {
 func (t *Ps3Texture) imageFromBs(bs *utils.BufStack, width, height int, unswizzle bool) image.Image {
 	i := image.NewNRGBA(image.Rect(0, 0, width, height))
 
-	index := 0
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			pos := index * 4
-			if unswizzle {
-				pos = ps3SwizzleIndex(uint32(x), uint32(y), uint32(width), uint32(height)) * 4
+	if t.TextureColorFormat == CELL_GCM_TEXTURE_A8R8G8B8 ||
+		t.TextureColorFormat == CELL_GCM_TEXTURE_D8R8G8B8 {
+		index := 0
+
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				pos := index
+				if unswizzle {
+					pos = ps3SwizzleIndex(uint32(x), uint32(y), uint32(width), uint32(height))
+				}
+				pos *= 4
+
+				i.SetNRGBA(x, y, color.NRGBA{
+					A: bs.Byte(pos),
+					R: bs.Byte(pos + 1),
+					G: bs.Byte(pos + 2),
+					B: bs.Byte(pos + 3),
+				})
+
+				index++
 			}
-			i.SetNRGBA(x, y, color.NRGBA{
-				A: bs.Byte(pos),
-				R: bs.Byte(pos + 1),
-				G: bs.Byte(pos + 2),
-				B: bs.Byte(pos + 3),
-			})
-			index++
 		}
+		bs.VerifySize(index * 4)
+	} else if t.TextureColorFormat == CELL_GCM_TEXTURE_COMPRESSED_DXT1 {
+		dxtI := textureformats.DecompressImageDX1(bs.Raw(), width, height)
+
+		if unswizzle {
+			for y := 0; y < height; y++ {
+				for x := 0; x < width; x++ {
+					// TODO: fix swizzle
+
+					pos := ps3SwizzleIndex(uint32(x), uint32(y), uint32(width), uint32(height))
+					i.SetNRGBA(x, y, dxtI.NRGBAAt(pos%width, pos/width))
+				}
+			}
+		} else {
+			i = dxtI
+		}
+		bs.VerifySize(width * height / 2)
+	} else {
+		log.Panicf("Unknown texture color format: 0x%x", t.TextureColorFormat)
 	}
-	bs.VerifySize(index * 4)
 
 	return i
 }
@@ -166,7 +203,16 @@ func (t *Ps3Texture) loadImages(dataBs *utils.BufStack) error {
 			curH = 1
 		}
 
-		imageRealSize := uint32(curW) * uint32(curH) * 4
+		imagePixelsCount := uint32(curW) * uint32(curH)
+		var imageRealSize uint32
+		if t.TextureColorFormat == CELL_GCM_TEXTURE_COMPRESSED_DXT1 {
+			if mipmapId == 0 {
+				log.Println("DXT1 TEXTURE UNSWIZZLING BROKEN")
+			}
+			imageRealSize = imagePixelsCount / 2
+		} else {
+			imageRealSize = imagePixelsCount * 4
+		}
 
 		mipmapBs := dataBs.SubBuf(fmt.Sprintf("mipmap%d", mipmapId), int(dataOffset)).SetSize(int(imageRealSize))
 
@@ -185,21 +231,21 @@ func NewPs3TextureFromData(bs *utils.BufStack) (*Ps3Texture, error) {
 	headerBs := texBs.SubBuf("header", 0).SetSize(0x80)
 
 	t := &Ps3Texture{
-		Unk00:           headerBs.BU32(0),
-		DataTotalSize:   headerBs.BU32(0x04),
-		Unk08:           headerBs.BU32(0x08),
-		Zero0c:          headerBs.BU32(0x0c),
-		DataOffset:      headerBs.BU32(0x10),
-		DataPayloadSize: headerBs.BU32(0x14),
-		Unk18:           headerBs.Byte(0x18),
-		MipMapCounts:    headerBs.Byte(0x19),
-		Unk1a:           headerBs.Byte(0x1a),
-		Zero1b:          headerBs.Byte(0x1b),
-		Unk1c:           headerBs.BU32(0x1c),
-		Width:           headerBs.BU16(0x20),
-		Height:          headerBs.BU16(0x22),
-		Zero24:          headerBs.Byte(0x24),
-		Unk25:           headerBs.Byte(0x25),
+		Unk00:              headerBs.BU32(0),
+		DataTotalSize:      headerBs.BU32(0x04),
+		Unk08:              headerBs.BU32(0x08),
+		Zero0c:             headerBs.BU32(0x0c),
+		DataOffset:         headerBs.BU32(0x10),
+		DataPayloadSize:    headerBs.BU32(0x14),
+		TextureColorFormat: headerBs.Byte(0x18),
+		MipMapCounts:       headerBs.Byte(0x19),
+		Unk1a:              headerBs.Byte(0x1a),
+		Zero1b:             headerBs.Byte(0x1b),
+		Unk1c:              headerBs.BU32(0x1c),
+		Width:              headerBs.BU16(0x20),
+		Height:             headerBs.BU16(0x22),
+		Zero24:             headerBs.Byte(0x24),
+		Unk25:              headerBs.Byte(0x25),
 	}
 
 	if err := t.checkUnksAndZeros(); err != nil {
@@ -214,7 +260,7 @@ func NewPs3TextureFromData(bs *utils.BufStack) (*Ps3Texture, error) {
 		return nil, fmt.Errorf("Error loading images: %v", err)
 	}
 
-	log.Printf("\n%v", bs.StringTree())
+	// log.Printf("\n%v", bs.StringTree())
 
 	return t, nil
 }

@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/png"
 	"io"
-	"log"
 
 	"github.com/pkg/errors"
 
@@ -70,10 +69,9 @@ func NewPsVitaTextureFromData(bs *utils.BufStack) (*PsVitaTexture, error) {
 		return nil, errors.Errorf("Incorrect magic 0x%x", magic)
 	}
 
-	unk01 := headerBs.ReadBU32()
-	unk02 := headerBs.ReadBU16()
-
-	log.Printf("unk01:0x%x unk02:0x%x", unk01, unk02)
+	unk01, unk02 := headerBs.ReadBU32(), headerBs.ReadBU16()
+	_, _ = unk01, unk02
+	// log.Printf("unk01:0x%x unk02:0x%x", unk01, unk02)
 
 	gxtBs := headerBs.SubBufFollowing("gxt").Expand()
 	if g, err := gxt.Open(bytes.NewReader(gxtBs.Raw())); err != nil {

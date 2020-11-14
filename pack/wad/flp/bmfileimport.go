@@ -151,7 +151,7 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 		Flags:                 0,
 		FlagsMask:             0xffffff35,
 		TextureLayersCount:    1,
-		Unk19:                 1,
+		TotalDmaProgramsCount: 1,
 		NextFreeVUBufferId:    1,
 		Unk1c:                 1,
 		SourceVerticesCount:   4,

@@ -4,6 +4,7 @@ let ga_instance;
 
 function gaAnimationManager() {
     this.lastUpdateTime = window.performance.now() / 1000.0;
+    this.paused = false;
     this.matLayerAnimations = [];
     this.matSheetAnimations = [];
     this.objSkeletAnimations = [];
@@ -12,15 +13,17 @@ function gaAnimationManager() {
 gaAnimationManager.prototype.update = function() {
     let currentTime = window.performance.now() / 1000.0;
     let dt = currentTime - this.lastUpdateTime;
-
-    for (let i in this.matLayerAnimations) {
-        this.matLayerAnimations[i].update(dt, currentTime);
-    }
-    for (let i in this.matSheetAnimations) {
-        this.matSheetAnimations[i].update(dt, currentTime);
-    }
-    for (let i in this.objSkeletAnimations) {
-        this.objSkeletAnimations[i].update(dt, currentTime);
+    
+    if (!this.paused) {
+	    for (let i in this.matLayerAnimations) {
+	        this.matLayerAnimations[i].update(dt);
+	    }
+	    for (let i in this.matSheetAnimations) {
+	        this.matSheetAnimations[i].update(dt);
+	    }
+	    for (let i in this.objSkeletAnimations) {
+	        this.objSkeletAnimations[i].update(dt);
+	    }
     }
 
     this.lastUpdateTime = currentTime;
@@ -89,7 +92,7 @@ function gaMatertialLayerAnimation(anim, act, stateIndex, material) {
     material.anims.push(this);
 }
 
-gaMatertialLayerAnimation.prototype.update = function(dt, currentTime) {
+gaMatertialLayerAnimation.prototype.update = function(dt) {
     let newTime = this.time + dt;
     if (!this.enabled) {
         return;
@@ -188,9 +191,10 @@ gaObjSkeletAnimation.prototype.recalcMatrices = function() {
 
         let result = global;
         if ((joint.Flags & 0x8) != 0) {
-            //mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
+            // mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
             // console.warn("joint flags 0x8: ", joint.Name, joint);
-            result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
+            // console.log(joint.Name, obj.Matrixes2[joint.ExternalId]);
+            // result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
         }
 
         let resultInverted = result;
@@ -330,7 +334,7 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
     return changed;
 }
 
-gaObjSkeletAnimation.prototype.update = function(dt, currentTime) {
+gaObjSkeletAnimation.prototype.update = function(dt) {
     let newTime = this.time + dt;
     if (!this.enabled) {
         return;
@@ -421,7 +425,7 @@ function gaMatertialSheetAnimation(anim, act, stateIndex, material) {
     material.anims.push(this);
 }
 
-gaMatertialSheetAnimation.prototype.update = function(dt, currentTime) {
+gaMatertialSheetAnimation.prototype.update = function(dt) {
     var newTime = this.time + dt * 0.5;
     var stateDesc = this.act.StateDescrs[this.stateIndex];
     var dataType = this.anim.DataTypes[this.stateIndex];
