@@ -109,15 +109,14 @@ func main() {
 		defer f.Close()
 	}
 
-	// parsecheck = true
+	parsecheck = true
 	if parsecheck {
-		parseCheck(gameDir)
-	} else {
-		status.Info("Starting web server on address '%s'", addr)
+		//parseCheck(gameDir)
+	}
+	status.Info("Starting web server on address '%s'", addr)
 
-		if err := web.StartServer(addr, gameDir, driverDir, "web"); err != nil {
-			log.Fatalf("Cannot start web server: %v", err)
-		}
+	if err := web.StartServer(addr, gameDir, driverDir, "web"); err != nil {
+		log.Fatalf("Cannot start web server: %v", err)
 	}
 }
 

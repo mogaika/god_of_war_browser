@@ -29,7 +29,7 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 
 		switch cmdFlags {
 		case 0:
-			log.Printf(" | end ========")
+			//log.Printf(" | end ========")
 			return nil
 		case 0x80:
 			t.Path = bsdata.ReadZString(0x100)
@@ -51,6 +51,7 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 			// log.Printf(" | vfs goto ..")
 		case 0x20:
 			nameHash := bsdata.ReadLU32()
+			_ = nameHash
 			bufSizeOrIdk := 0
 			switch cmd & 0xf {
 			case 0:
@@ -75,8 +76,9 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 			if !createdNode {
 				panic("data without node")
 			}
-			// log.Printf("  cmd hash %.8x %q size %.4x: %v",
-			//	   nameHash, utils.GameStringUnhashNodes(nameHash), bufSizeOrIdk, utils.DumpToOneLineString(cmdData))
+			//log.Printf("  cmd hash %.8x %q size %.4x: %v",
+			//	nameHash, utils.GameStringUnhashNodes(nameHash), bufSizeOrIdk, utils.DumpToOneLineString(cmdData))
+
 			log.Printf("   %s/%q (%.8x) s(%d):",
 				path, utils.GameStringUnhashNodes(nameHash), nameHash, bufSizeOrIdk)
 			log.Printf("           %q", utils.DumpToOneLineString(cmdData))

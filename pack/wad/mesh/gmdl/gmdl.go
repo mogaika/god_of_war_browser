@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
 
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -79,7 +78,7 @@ func (o *Object) fromBuf(bs *utils.BufStack) error {
 	for i := range o.JointsMap {
 		o.JointsMap[i] = bs.ReadBU32()
 	}
-	log.Printf("%#+v", o)
+	// log.Printf("%#+v", o)
 	bs.SetSize(bs.Pos())
 
 	return nil
@@ -238,10 +237,13 @@ func (m *Model) fromBuf(bs *utils.BufStack) error {
 		}
 		bsIndexes.SetSize(bsIndexes.Pos()).VerifySize(len(m.Indexes)*4 + 4)
 	case config.PSVita:
-		log.Printf("Unknown floats: %v %v", bsIndexes.ReadLF(), bsIndexes.ReadLF())
-		log.Printf("Unknown int: %v", bsIndexes.ReadBU32())
+		unkf1, unkf2, unkint := bsIndexes.ReadLF(), bsIndexes.ReadLF(), bsIndexes.ReadBU32()
+		_, _, _ = unkf1, unkf2, unkint
+
+		//log.Printf("Unknown floats: %v %v", unkf1, unkf2)
+		//log.Printf("Unknown int: %v", unkint)
 		m.Indexes = make([]uint32, bsIndexes.ReadBU32())
-		log.Printf("Indexes: %v (%.8x)", len(m.Indexes), len(m.Indexes))
+		//log.Printf("Indexes: %v (%.8x)", len(m.Indexes), len(m.Indexes))
 		for i := range m.Indexes {
 			m.Indexes[i] = uint32(bsIndexes.ReadBU16())
 		}
@@ -278,7 +280,7 @@ func (g *GMDL) fromBuf(bs *utils.BufStack) error {
 	g.Unk4 = bsHeader.ReadBU32()
 	g.Unk8 = bsHeader.ReadBU32()
 	g.UnkC = bsHeader.ReadBU32()
-	log.Printf("%#+v", g)
+	// log.Printf("%#+v", g)
 	g.Models = make([]Model, bsHeader.ReadBU32())
 	g.Unk14 = bsHeader.ReadBU32()
 

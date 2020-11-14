@@ -7,13 +7,11 @@ import (
 	"log"
 	"math"
 
-	"github.com/mogaika/god_of_war_browser/pack/wad/anm"
-
-	"github.com/mogaika/god_of_war_browser/config"
-
 	"github.com/go-gl/mathgl/mgl32"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/pack/wad/anm"
 	"github.com/mogaika/god_of_war_browser/pack/wad/collision"
 	"github.com/mogaika/god_of_war_browser/pack/wad/mdl"
 	"github.com/mogaika/god_of_war_browser/pack/wad/scr"
@@ -32,22 +30,31 @@ type Joint struct {
 	Parent      int16
 	ExternalId  int16
 	UnkCoeef    float32
-	Flags       uint32
-	// if flags & 0x6000 != 0
-	// 6000? maybe 600?
-	// then make strange calculation with matrix invert
-	//log.Printf("joint %d flag %t", i, flags&0x6000 != 0)
 
-	// flags & 0x0008 != 0, is matrix external?
-	//                      then there is a ExternalId (mat2 index) you need to multiply matrix by
-	//                      after size calculation, but before position calculation
+	// flags & 0x0001 != 0, ??? looks like require 0x0800
+	// flags & 0x0002 != 0, ???
+	// flags & 0x0004 != 0, ???
+	// flags & 0x0008 != 0, is matrix external? or rotated additionaly?
+	//                      then there is a ExternalId (mat2 index) you need to multiply matrix by mat2 rotation-only mat
+	//                      after size calculation, but before translate
+	//                      maybe replace rotation matrix?
+	// flags & 0x0010 != 0, ??? looks like not used
+	// flags & 0x0020 != 0, joint
 	// flags & 0x0040 != 0, ignore parent scale??
+	// flags & 0x0080 != 0, has inversebindposematrix
+	// flags & 0x0100 != 0, ??? looks like not used
 	// flags & 0x0200 != 0, rotation changes in animation
 	// flags & 0x0400 != 0, position changes in animation
 	// flags & 0x0800 != 0, scale changes in animation
-	// flags & 0x8000 != 0, then childsStart != -1 (childs count > 0)
-	//                      then quaterion, else euler  *affects only animations??)
-	//                      every external node uses euler? for easier coding?
+	// flags & 0x1000 != 0, ??? probably particle, or maybe external usage.
+	//                      example joint names: efxplane, emit, explosion, flash, flare, particleFXsplash,
+	// flags & 0x2000 != 0, face camera. vertical rotation only probably.
+	//                      example joint names: saveCamFace, camFaceJoint03
+	// flags & 0x4000 != 0, halo, glow or flash effect
+	// flags & 0x8000 != 0, then quaterion, else euler
+	//
+	// if flags & 0x6000 != 0  then make strange calculation with matrix invert
+	Flags uint32
 
 	IsSkinned bool
 	InvId     int16
@@ -72,18 +79,7 @@ type Object struct {
 		0bit - need creation of array(joints count) of words? if dynamic model?
 	*/
 
-	dataOffset  uint32
-	jointsCount uint32
-
-	Mat1count  uint32
-	Mat2offset uint32
-	Mat2count  uint32
-	Mat3offset uint32
-	Mat3count  uint32
-	Vec4offset uint32
-	Vec5offset uint32
-	Vec6offset uint32
-	Vec7offset uint32
+	dataOffset uint32
 
 	Matrixes1 []mgl32.Mat4 // idle parent local joint => local joint
 	Matrixes2 []mgl32.Mat4 // special mat4 for flag & 0x8 != 0 cases (external matrices). Used only as 3x3 matrix (rotation only?)
@@ -98,7 +94,7 @@ type Object struct {
 	Vectors7 []mgl32.Vec4 // unknown (always zero?) unused???
 }
 
-func (obj *Object) StringJoint(id int16, spaces string) string {
+func (obj *Object) StringJoint(id int, spaces string) string {
 	j := obj.Joints[id]
 	return fmt.Sprintf("%sjoint [%.4x <=%.4x %.4x->%.4x %t:%.4x : %v]  %s:\n%srot: %#v\n%spos: %#v\n%srot: %#v\n%ssiz: %#v\n%sv7 : %#v\n",
 		spaces, j.Id, j.Parent, j.ChildsStart, j.ChildsEnd, j.IsSkinned, j.InvId, j.UnkCoeef, j.Name,
@@ -110,13 +106,12 @@ func (obj *Object) StringJoint(id int16, spaces string) string {
 }
 
 func (obj *Object) StringTree() string {
-	stack := make([]int16, 0, 32)
-	spaces := string(make([]byte, 0, 64))
-	spaces = ""
+	stack := make([]int, 0, 32)
+	spaces := ""
 
 	var buffer bytes.Buffer
 
-	for i := int16(0); i < int16(obj.jointsCount); i++ {
+	for i := range obj.Joints {
 		j := obj.Joints[i]
 
 		if j.Parent != JOINT_CHILD_NONE {
@@ -132,7 +127,7 @@ func (obj *Object) StringTree() string {
 			if j.ChildsEnd == JOINT_CHILD_NONE && len(stack) > 0 {
 				stack = append(stack, stack[len(stack)-1])
 			} else {
-				stack = append(stack, j.ChildsEnd)
+				stack = append(stack, int(j.ChildsEnd))
 			}
 			spaces += " -"
 		}
@@ -140,38 +135,39 @@ func (obj *Object) StringTree() string {
 	return buffer.String()
 }
 
-func NewFromData(buf []byte) (*Object, error) {
+func NewFromData(buf []byte, objName string) (*Object, error) {
 	obj := new(Object)
 
-	obj.jointsCount = binary.LittleEndian.Uint32(buf[0x1c:0x20])
-	obj.dataOffset = binary.LittleEndian.Uint32(buf[0x28:0x2c])
-	obj.Joints = make([]Joint, obj.jointsCount)
+	obj.Joints = make([]Joint, binary.LittleEndian.Uint32(buf[0x1c:0x20]))
+	dataOffset := binary.LittleEndian.Uint32(buf[0x28:0x2c])
+
 	obj.File0x20 = binary.LittleEndian.Uint32(buf[0x20:])
 	obj.File0x24 = binary.LittleEndian.Uint32(buf[0x24:])
 
-	matdata := buf[obj.dataOffset : obj.dataOffset+DATA_HEADER_SIZE]
+	matdata := buf[dataOffset : dataOffset+DATA_HEADER_SIZE]
 
-	obj.Mat1count = binary.LittleEndian.Uint32(matdata[0:4])
-	obj.Mat2offset = binary.LittleEndian.Uint32(matdata[4:8])
-	obj.Mat2count = binary.LittleEndian.Uint32(matdata[8:12])
-	obj.Mat3offset = binary.LittleEndian.Uint32(matdata[12:16])
-	obj.Mat3count = binary.LittleEndian.Uint32(matdata[16:20])
-	obj.Vec4offset = binary.LittleEndian.Uint32(matdata[32:36])
-	obj.Vec5offset = binary.LittleEndian.Uint32(matdata[36:40])
-	obj.Vec6offset = binary.LittleEndian.Uint32(matdata[40:44])
-	obj.Vec7offset = binary.LittleEndian.Uint32(matdata[44:48])
+	mat1count := binary.LittleEndian.Uint32(matdata[0:4])
+	mat2offset := binary.LittleEndian.Uint32(matdata[4:8])
+	mat2count := binary.LittleEndian.Uint32(matdata[8:12])
+	mat3offset := binary.LittleEndian.Uint32(matdata[12:16])
+	mat3count := binary.LittleEndian.Uint32(matdata[16:20])
+	vec4offset := binary.LittleEndian.Uint32(matdata[32:36])
+	vec5offset := binary.LittleEndian.Uint32(matdata[36:40])
+	vec6offset := binary.LittleEndian.Uint32(matdata[40:44])
+	vec7offset := binary.LittleEndian.Uint32(matdata[44:48])
+
+	//	called := false
 
 	invid := int16(0)
 	for i := range obj.Joints {
 		jointBufStart := HEADER_SIZE + i*0x10
 		jointBuf := buf[jointBufStart : jointBufStart+0x10]
 
-		nameBufStart := HEADER_SIZE + int(obj.jointsCount)*0x10 + i*0x18
+		nameBufStart := HEADER_SIZE + len(obj.Joints)*0x10 + i*0x18
 		nameBuf := buf[nameBufStart : nameBufStart+0x18]
 
 		flags := binary.LittleEndian.Uint32(jointBuf[0:4])
 
-		isInvMat := flags&0xa0 == 0xa0 || obj.jointsCount == obj.Mat3count
 		obj.Joints[i] = Joint{
 			Name:        utils.BytesToString(nameBuf[:]),
 			Flags:       flags,
@@ -181,17 +177,42 @@ func NewFromData(buf []byte) (*Object, error) {
 			ExternalId:  int16(binary.LittleEndian.Uint16(jointBuf[0xa:0xc])),
 			UnkCoeef:    math.Float32frombits(binary.LittleEndian.Uint32(jointBuf[0xc:0x10])),
 			Id:          int16(i),
-			IsSkinned:   isInvMat,
+			IsSkinned:   flags&0x80 != 0, // || uint32(len(obj.Joints)) == mat3count
 			IsExternal:  flags&0x8 != 0,
 			InvId:       invid,
 		}
 
-		if isInvMat {
+		joint := &obj.Joints[i]
+
+		/*
+			fti := func(flag uint32) int {
+				if flags&flag != 0 {
+					return 1
+				} else {
+					return 0
+				}
+			}
+
+			if fti(8) != 0 {
+			if !called {
+				called = true
+				log.Printf("loading object %q", objName)
+			}
+			log.Printf("[%03d] p %03d ce %03d 0x%.8x ext %v joint %v ignParScale %v hasIPB %v strngInv %v quat %v %q",
+				i,
+				joint.Parent, joint.ChildsEnd,
+				joint.Flags,
+				fti(0x8), fti(0x20), fti(0x40), fti(0x80), fti(0x4000),
+				fti(0x8000),
+				joint.Name)
+			//}
+		*/
+		if joint.IsSkinned {
 			invid++
 		}
 	}
-	if invid != int16(obj.Mat3count) {
-		return nil, fmt.Errorf("Invalid inv mat id calculation %v != %v", invid, obj.Mat3count)
+	if invid != int16(mat3count) {
+		return nil, fmt.Errorf("Invalid inv mat id calculation %v != %v", invid, mat3count)
 	}
 
 	// log.Println(obj.File0x20, obj.File0x24, obj.jointsCount)
@@ -199,21 +220,21 @@ func NewFromData(buf []byte) (*Object, error) {
 		return nil, fmt.Errorf("Invalid File0x20 == 0x%x", obj.File0x20)
 	}
 
-	obj.Matrixes1 = make([]mgl32.Mat4, obj.Mat1count)
-	obj.Matrixes2 = make([]mgl32.Mat4, obj.Mat2count)
-	obj.Matrixes3 = make([]mgl32.Mat4, obj.Mat3count)
-	obj.Vectors4 = make([]mgl32.Vec4, obj.Mat1count)
-	obj.Vectors5 = make([][4]int32, obj.Mat1count)
-	obj.Vectors6 = make([]mgl32.Vec4, obj.Mat1count)
-	obj.Vectors7 = make([]mgl32.Vec4, obj.Mat1count)
+	obj.Matrixes1 = make([]mgl32.Mat4, mat1count)
+	obj.Matrixes2 = make([]mgl32.Mat4, mat2count)
+	obj.Matrixes3 = make([]mgl32.Mat4, mat3count)
+	obj.Vectors4 = make([]mgl32.Vec4, mat1count)
+	obj.Vectors5 = make([][4]int32, mat1count)
+	obj.Vectors6 = make([]mgl32.Vec4, mat1count)
+	obj.Vectors7 = make([]mgl32.Vec4, mat1count)
 
-	mat1buf := buf[obj.dataOffset+DATA_HEADER_SIZE : obj.dataOffset+DATA_HEADER_SIZE+uint32(len(obj.Matrixes1))*0x40]
-	mat2buf := buf[obj.dataOffset+obj.Mat2offset : obj.dataOffset+obj.Mat2offset+uint32(len(obj.Matrixes2))*0x40]
-	mat3buf := buf[obj.dataOffset+obj.Mat3offset : obj.dataOffset+obj.Mat3offset+uint32(len(obj.Matrixes3))*0x40]
-	vec4buf := buf[obj.dataOffset+obj.Vec4offset : obj.dataOffset+obj.Vec4offset+uint32(len(obj.Vectors4))*0x10]
-	vec5buf := buf[obj.dataOffset+obj.Vec5offset : obj.dataOffset+obj.Vec5offset+uint32(len(obj.Vectors5))*0x10]
-	vec6buf := buf[obj.dataOffset+obj.Vec6offset : obj.dataOffset+obj.Vec6offset+uint32(len(obj.Vectors6))*0x10]
-	vec7buf := buf[obj.dataOffset+obj.Vec7offset : obj.dataOffset+obj.Vec7offset+uint32(len(obj.Vectors7))*0x10]
+	mat1buf := buf[dataOffset+DATA_HEADER_SIZE : dataOffset+DATA_HEADER_SIZE+uint32(len(obj.Matrixes1))*0x40]
+	mat2buf := buf[dataOffset+mat2offset : dataOffset+mat2offset+uint32(len(obj.Matrixes2))*0x40]
+	mat3buf := buf[dataOffset+mat3offset : dataOffset+mat3offset+uint32(len(obj.Matrixes3))*0x40]
+	vec4buf := buf[dataOffset+vec4offset : dataOffset+vec4offset+uint32(len(obj.Vectors4))*0x10]
+	vec5buf := buf[dataOffset+vec5offset : dataOffset+vec5offset+uint32(len(obj.Vectors5))*0x10]
+	vec6buf := buf[dataOffset+vec6offset : dataOffset+vec6offset+uint32(len(obj.Vectors6))*0x10]
+	vec7buf := buf[dataOffset+vec7offset : dataOffset+vec7offset+uint32(len(obj.Vectors7))*0x10]
 
 	for i := range obj.Matrixes1 {
 		if err := binary.Read(bytes.NewReader(mat1buf[i*0x40:i*0x40+0x40]), binary.LittleEndian, &obj.Matrixes1[i]); err != nil {
@@ -254,7 +275,7 @@ func NewFromData(buf []byte) (*Object, error) {
 		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
 	}
 
-	log.Printf("%s\n%s", s, obj.StringTree())
+	// log.Printf("%s\n%s", s, obj.StringTree())
 
 	return obj, nil
 }
@@ -304,7 +325,8 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 			switch inst.(type) {
 			case *mdl.Model, *scr.ScriptParams, *collision.Collision, *anm.Animations:
 				if subFileMarshled, err := inst.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id)); err != nil {
-					panic(err)
+					log.Panicf("Obj %q marshal problem of subobject %q: %v", wrsrc.Tag.Name, n.Tag.Name, err)
+					//continue
 				} else {
 					switch inst.(type) {
 					case *mdl.Model:
@@ -324,9 +346,32 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return mrshl, nil
 }
 
+func (o *Object) GetQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
+	var q mgl32.Quat
+	const Quat_to_float = 1.0 / (1 << 14)
+
+	if o.Joints[jointId].Flags&0x8000 != 0 {
+		q.V[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float
+		q.V[1] = float32(o.Vectors5[jointId][1]) * Quat_to_float
+		q.V[2] = float32(o.Vectors5[jointId][2]) * Quat_to_float
+		q.W = float32(o.Vectors5[jointId][3]) * Quat_to_float
+	} else {
+		yaw := float64(o.Vectors5[jointId][0]) * Quat_to_float * (2.0 / math.Pi)
+		pitch := float64(o.Vectors5[jointId][1]) * Quat_to_float * (2.0 / math.Pi)
+		roll := float64(o.Vectors5[jointId][2]) * Quat_to_float * (2.0 / math.Pi)
+
+		q.V[0] = float32(math.Sin(roll/2)*math.Cos(pitch/2)*math.Cos(yaw/2) - math.Cos(roll/2)*math.Sin(pitch/2)*math.Sin(yaw/2))
+		q.V[1] = float32(math.Cos(roll/2)*math.Sin(pitch/2)*math.Cos(yaw/2) + math.Sin(roll/2)*math.Cos(pitch/2)*math.Sin(yaw/2))
+		q.V[2] = float32(math.Cos(roll/2)*math.Cos(pitch/2)*math.Sin(yaw/2) - math.Sin(roll/2)*math.Sin(pitch/2)*math.Cos(yaw/2))
+		q.W = float32(math.Cos(roll/2)*math.Cos(pitch/2)*math.Cos(yaw/2) + math.Sin(roll/2)*math.Sin(pitch/2)*math.Sin(yaw/2))
+	}
+	return q.Normalize()
+}
+
 func (o *Object) GetEulerLocalRotationForJoint(jointId int16) mgl32.Vec3 {
 	var rotation mgl32.Vec3
 	const Quat_to_float = 1.0 / float32(1<<14)
+
 	if o.Joints[jointId].Flags&0x8000 != 0 {
 		var q2 mgl32.Quat
 		q2.V[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float
@@ -345,6 +390,6 @@ func (o *Object) GetEulerLocalRotationForJoint(jointId int16) mgl32.Vec3 {
 
 func init() {
 	wad.SetHandler(config.GOW1, OBJECT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		return NewFromData(wrsrc.Tag.Data)
+		return NewFromData(wrsrc.Tag.Data, wrsrc.Wad.Name()+":"+wrsrc.Tag.Name)
 	})
 }

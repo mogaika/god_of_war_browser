@@ -7,9 +7,13 @@ import (
 	"net/http"
 )
 
-func WriteFile(w http.ResponseWriter, in io.Reader, name string) {
+func WriteFileHeaders(w http.ResponseWriter, name string) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+name+"\"")
+}
+
+func WriteFile(w http.ResponseWriter, in io.Reader, name string) {
+	WriteFileHeaders(w, name)
 	io.Copy(w, in)
 }
 

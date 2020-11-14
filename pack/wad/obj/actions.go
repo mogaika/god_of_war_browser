@@ -1,10 +1,10 @@
 package obj
 
 import (
-	"archive/zip"
-	"bytes"
 	"log"
 	"net/http"
+
+	"github.com/mogaika/god_of_war_browser/utils/gltfutils"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/webutils"
@@ -12,45 +12,21 @@ import (
 
 func (obj *Object) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
 	switch action {
+	case "gltf":
+		doc := gltfutils.NewDocument()
+		webutils.WriteFileHeaders(w, wrsrc.Tag.Name+".glb")
+
+		if _, err := obj.ExportGLTF(wrsrc, doc); err != nil {
+			log.Printf("Error when exporting object as gltf: %v", err)
+		}
+
+		if err := gltfutils.ExportBinary(w, doc); err != nil {
+			log.Printf("Failed to encode gltf: %v", err)
+		}
 	case "fbx":
-		var buf bytes.Buffer
-		//log.Printf("Error when exporting obj: %v", obj.ExportFbxDefault(wrsrc).ExportZip(&buf, wrsrc.Tag.Name+".fbx"))
-		log.Printf("Error when exporting obj: %v", obj.ExportFbxDefault(wrsrc).Write(&buf))
-		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".fbx")
-	case "zip":
-		var buf, objBuf, mtlBuf bytes.Buffer
-
-		z := zip.NewWriter(&buf)
-
-		textures, err := obj.ExportObj(wrsrc, wrsrc.Name()+".mtl", &objBuf, &mtlBuf)
-		if err != nil {
-			log.Println("exporterr", err)
+		webutils.WriteFileHeaders(w, wrsrc.Tag.Name+".fbx")
+		if err := obj.ExportFbxDefault(wrsrc).Write(w); err != nil {
+			log.Printf("Error when exporting object as fbx: %v", err)
 		}
-
-		wObj, err := z.Create(wrsrc.Name() + ".obj")
-		if err != nil {
-			log.Println("objerr", err)
-		}
-		wObj.Write(objBuf.Bytes())
-
-		wMtl, err := z.Create(wrsrc.Name() + ".mtl")
-		if err != nil {
-			log.Println("mtlerr", err)
-		}
-		wMtl.Write(mtlBuf.Bytes())
-
-		for tname, t := range textures {
-			wTxr, err := z.Create(tname + ".png")
-			if err != nil {
-				log.Println("txrerr", tname, err)
-			}
-			wTxr.Write(t)
-		}
-
-		if err := z.Close(); err != nil {
-			log.Println("zcloseerr", err)
-		}
-
-		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Name()+".zip")
 	}
 }

@@ -1,7 +1,6 @@
 package mesh
 
 import (
-	"bytes"
 	"log"
 	"net/http"
 
@@ -11,13 +10,10 @@ import (
 
 func (mesh *Mesh) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
 	switch action {
-	case "obj":
-		var buf bytes.Buffer
-		log.Printf("Error when exporting mesh: %v", mesh.ExportObj(&buf, nil, nil))
-		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".obj")
 	case "fbx":
-		var buf bytes.Buffer
-		log.Printf("Error when exporting mesh: %v", mesh.ExportFbxDefault(wrsrc).Write(&buf))
-		webutils.WriteFile(w, bytes.NewReader(buf.Bytes()), wrsrc.Tag.Name+".fbx")
+		webutils.WriteFileHeaders(w, wrsrc.Tag.Name+".fbx")
+		if err := mesh.ExportFbxDefault(wrsrc).Write(w); err != nil {
+			log.Printf("Error when exporting mesh as fbx: %v", err)
+		}
 	}
 }

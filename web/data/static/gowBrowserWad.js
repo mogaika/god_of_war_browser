@@ -394,8 +394,10 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                     }
                     objName += ":" + object.MaterialId;
 
-                    let meshes = [];
+                    
                     for (let iPacket in dmaPackets) {
+                    	let meshes = [];
+						
                         let dmaPacket = dmaPackets[iPacket];
                         let mesh = parseMeshPacket(object, dmaPacket, iInstance);
                         if (object.TextureLayersCount != 1) {
@@ -408,7 +410,6 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         mesh.meta['object'] = iObject;
                         totalMeshes.push(mesh);
                         model.addMesh(mesh);
-                    }
 
                     if (table) {
                         let label = $('<label>');
@@ -428,8 +429,9 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                             gr_instance.requestRedraw();
                         });
                         label.append(chbox);
-                        label.append("o_" + objName);
+                        label.append("o_" + objName + "_p" + iPacket);
                         table.append($('<tr>').append(td));
+                    }
                     }
                 }
             }
@@ -453,11 +455,8 @@ function summaryLoadWadMesh(data, wad, nodeid) {
 
     let mdl = new grModel();
 
-    let dumplinkobj = getActionLinkForWadNode(wad, nodeid, 'obj');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkobj).append('Download .obj (xyz+norm+uv)'));
-
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx (7.x ASCII)'));
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
 
     let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
@@ -568,13 +567,10 @@ function loadGmdlPartFromAjax(model, data, iPart, originalPart, table = undefine
 
         let originalMeshObject;
         if (originalPart) {
-            if (originalPart.Groups.length > 1) {
-                log.error("Original part group: ", originalPart.Groups, originalPart);
-            }
+            // ignore lods
             originalMeshObject = originalPart.Groups[0].Objects[iObject];
         }
         let mesh = parseGmdlObjectMesh(part, object, originalMeshObject);
-
 
         totalMeshes.push(mesh);
         model.addMesh(mesh);
@@ -634,7 +630,6 @@ function summaryLoadWadGmdl(data, wad, nodeid) {
 function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
     let tables = [];
     if (data.Meshes && data.Meshes.length) {
-        //let mesh = data.Meshes[0];
         for (let mesh of data.Meshes) {
             if (!!data.GMDL) {
                 tables.push(loadGmdlFromAjax(mdl, data.GMDL, mesh, needTable));
@@ -746,11 +741,8 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     }
     dataSummary.append(table);
 
-    let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
-    dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
-
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
 
     let mdlTables = loadMdlFromAjax(mdl, data, false, true);
     for (let mdlTable of mdlTables) {
@@ -978,11 +970,11 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
 function summaryLoadWadObj(data, wad, nodeid) {
     gr_instance.cleanup();
 
-    let dumplink = getActionLinkForWadNode(wad, nodeid, 'zip');
-    dataSummary.append($('<a class="center">').attr('href', dumplink).append('Download .zip(obj+mtl+png)'));
-
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+
+	let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
 
     let jointsTable = $('<table>');
 
@@ -1013,7 +1005,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
         }
 
-        let $stopAnim = $("<button>").text("> stop anim <").css("margin-left", "10%");
+        let $stopAnim = $("<button>").text("stop anim");
         $stopAnim.click(function() {
             let anims = ga_instance.objSkeletAnimations;
             for (let i in anims) {
@@ -1029,20 +1021,45 @@ function summaryLoadWadObj(data, wad, nodeid) {
                 parseInt((joint.Id % 8) * 15) + ',' +
                 parseInt(((joint.Id / 8) % 8) * 15) + ',' +
                 parseInt(((joint.Id / 64) % 8) * 15) + ');')
-            .append(joint.Id).attr("rowspan", 7 * 2));
+            .append(joint.Id).attr("rowspan", 20));
+
+		let firstRow = true;
 
         for (let k in joint) {
             if (k === "Name" ||
                 k === "IsSkinned" ||
+                k === "IsExternal" ||
                 k === "OurJointToIdleMat" ||
                 k === "ParentToJoint" ||
                 k === "BindToJointMat" ||
                 k === "RenderMat" ||
                 k === "Parent") {
-                row.append($('<td>').text(k));
-                jointsTable.append(row);
-                jointsTable.append($('<tr>').append($('<td>').text(JSON.stringify(joint[k]))));
-                row = $('<tr>');
+
+				let d = joint[k];
+				if (Array.isArray(d) && d.length == 4*4) {
+					row.append($('<td>').text(k));
+					jointsTable.append(row);
+					
+					let t = [d[12].toFixed(1), d[13].toFixed(1), d[14].toFixed(1)];
+					let s = [d[0].toFixed(2), d[5].toFixed(2), d[10].toFixed(2), d[15].toFixed(2)];
+					
+					let ry = Math.asin(d[8]).toFixed(2);
+					let rx = Math.atan2( -d[ 9]/Math.cos(ry) , +d[10]/Math.cos(ry)).toFixed(2);
+					let rz = Math.atan2( -d[ 4]/Math.cos(ry) , +d[ 0]/Math.cos(ry)).toFixed(2);
+					
+					let appRow = function (name, arr) {
+						jointsTable.append($('<tr>').append($('<td>').text(name + ":" + arr.join(","))));
+					}
+					
+					appRow("t", [d[12].toFixed(2), d[13].toFixed(2), d[14].toFixed(2)]);
+					appRow("r",  [rx,ry,rz]);
+					appRow("s",  [d[0].toFixed(2), d[5].toFixed(2), d[10].toFixed(2), d[15].toFixed(2)]);
+				} else {
+					row.append($('<td>').text(k + ": " + JSON.stringify(d)));
+					jointsTable.append(row);
+				}
+				
+				row = $('<tr>');
             }
         }
         jointsTable.append(row);
@@ -1117,11 +1134,11 @@ function summaryLoadWadCxt(data, wad, nodeid) {
         gr_instance.cleanup();
 
         let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
     } else {
         dataSummary.empty();
         let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
-        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .zip(fbx+png)'));
+        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
     }
 
     if ((data.Instances !== null && data.Instances.length) || gw_cxt_group_loading) {
@@ -1146,12 +1163,74 @@ function summaryLoadWadSbk(data, wad, nodeid) {
         };
 
         let vaglink = $("<a>").append(snd.Name).attr('href', getSndLink('vag'));
-        let wavlink = $("<audio controls>").attr("preload", "none").append($("<source>").attr("src", getSndLink('wav')));
-
-        let li = $("<li>").append(vaglink);
+        let li = $("<li>").append(vaglink).append(" id:" + i + " stream id:" + snd.StreamId);
 
         if (data.IsVagFiles) {
+        	let wavplayer = $("<source>").attr("src", getSndLink('wav'));
+        	let wavlink = $("<audio controls>").attr("preload", "none").append(wavplayer);
             li.append("<br>").append(wavlink);
+        } else {
+        	let commands = $("<table>");
+			let banksound = data.Bank.BankSounds[snd.StreamId];
+			
+			let banksoundsNoCommand = {};
+			for (let key in banksound) {
+				if (key != 'Commands') {
+					banksoundsNoCommand[key] = banksound[key];
+				}
+			}
+			
+			commands.append($("<tr>").append(
+				$("<td>").text("Parameters")).append(
+					$("<td>").attr("colspan", 2).text(JSON.stringify(banksoundsNoCommand))
+				));
+			
+			let cmdRow = $("<tr>").append($("<td>").text("Commands").attr("rowspan", banksound.Commands.length));
+			for (let command of banksound.Commands) {
+				let commandClean = {};
+				for (let key in command) {
+					if (key != 'SampleRef' && key != 'Cmd' && key != 'VagRef' && key != 'UnkRef') {
+						commandClean[key] = command[key];
+					}
+				}
+				
+				let argsCol = $("<td>").text(JSON.stringify(commandClean));				
+				if (command.SampleRef != null) {
+					let sampleRef = command.SampleRef;
+					
+					let sampleRefClean = {};
+					for (let key in sampleRef) {
+						if (key != 'AdpcmOffset' && key != 'AdpcmSize') {
+							sampleRefClean[key] = sampleRef[key];
+						}
+					}
+					
+					argsCol.append($("<br>")).append("Sample:");
+					argsCol.append($("<br>")).append(JSON.stringify(sampleRefClean));
+					
+					let sndurl = getActionLinkForWadNode(wad, nodeid, 'smpd', 
+						'offset=' + sampleRef.AdpcmOffset + '&size=' + sampleRef.AdpcmSize);
+					let wavplayer = $("<source>").attr("src", sndurl);
+		        	let wavlink = $("<audio controls>").attr("preload", "none").append(wavplayer);
+					
+		           	argsCol.append($("<br>")).append("Audio offset " + sampleRef.AdpcmOffset + " size " + sampleRef.AdpcmSize);
+					argsCol.append($("<br>")).append(wavlink);
+				}
+				if (command.VagRef != null) {
+					let vagRef = command.VagRef;
+					argsCol.append($("<br>")).append("ref: " + JSON.stringify(vagRef));
+				}
+				if (command.UnkRef != null) {
+					let unkRef = command.UnkRef;
+					argsCol.append($("<br>")).append("ref: " + JSON.stringify(unkRef));
+				}
+				
+				cmdRow.append($("<td>").text(command.Cmd)).append(argsCol);
+				commands.append(cmdRow);
+				cmdRow = $("<tr>");
+			}
+			
+			li.append(commands);
         }
         list.append(li);
     }

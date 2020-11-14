@@ -1,16 +1,12 @@
 package collision
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/config"
-
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -24,35 +20,30 @@ type Collision struct {
 	Shape     interface{}
 }
 
-func NewFromData(f *bytes.Reader, wrtr io.Writer) (c *Collision, err error) {
-	var buf [16]byte
-	if _, err := f.ReadAt(buf[:], 0); err != nil {
-		return nil, err
-	}
+func NewFromData(bs *utils.BufStack, wrtr io.Writer) (c *Collision, err error) {
+	head := bs.Raw()[:16]
 
 	c = &Collision{
-		Magic: binary.LittleEndian.Uint32(buf[0:4]),
+		Magic: bs.LU32(0),
 	}
 
 	for _, sh := range []struct {
 		Offset int
 		Name   string
 	}{{8, "BallHull"}, {4, "SheetHdr"}, {4, "mCDbgHdr"}} {
-		if utils.BytesToString(buf[sh.Offset:sh.Offset+8]) == sh.Name {
+		if utils.BytesToString(head[sh.Offset:sh.Offset+8]) == sh.Name {
 			c.ShapeName = sh.Name
 			break
 		}
 	}
 
+	bs.SetName(c.ShapeName)
+
 	switch c.ShapeName {
 	case "SheetHdr":
-		if data, err := ioutil.ReadAll(f); err != nil {
-			return nil, fmt.Errorf("Error reading sheethdr: %v", err)
-		} else {
-			c.Shape, err = NewRibSheet(utils.NewBufStack("sheethdr", data), wrtr)
-		}
+		c.Shape, err = NewRibSheet(bs, wrtr)
 	case "BallHull":
-		c.Shape, err = NewBallHull(f, wrtr)
+		c.Shape, err = NewBallHull(bs, wrtr)
 	default:
 		return nil, fmt.Errorf("Unknown enz shape type %s", c.ShapeName)
 	}
@@ -73,6 +64,8 @@ func init() {
 
 		// f := ioutil.Discard
 
-		return NewFromData(bytes.NewReader(wrsrc.Tag.Data), f)
+		bs := utils.NewBufStack("collision", wrsrc.Tag.Data)
+
+		return NewFromData(bs, f)
 	})
 }

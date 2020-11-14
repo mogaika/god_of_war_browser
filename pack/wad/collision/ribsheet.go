@@ -3,7 +3,6 @@ package collision
 import (
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 
@@ -127,7 +126,7 @@ func NewRibSheet(bs *utils.BufStack, wrtw io.Writer) (*ShapeRibSheet, error) {
 		// log.Printf("%d points loaded", len(rib.Some9Points))
 	}
 
-	log.Printf("TREEEEEEEEEE\n%s", bs.StringTree())
+	// log.Printf("TREEEEEEEEEE\n%s", bs.StringTree())
 
 	{
 		fmt.Fprintf(wrtw, "o ribsheet\n")

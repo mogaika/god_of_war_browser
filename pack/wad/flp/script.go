@@ -85,6 +85,7 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				if len(buf) < 2 {
 					log.Printf("Error parsing script: op code parameter missed")
 				}
+
 				opLen := binary.LittleEndian.Uint16(buf)
 				buf = buf[2:]
 				op.Data = buf[:opLen]
@@ -198,7 +199,8 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				op.Data = buf[:opLen]
 				buf = buf[opLen:]
 			} else {
-				log.Panicf("Unsupported version of ps")
+				//panic("Unsupported version of ps")
+				return
 			}
 		} else {
 			switch op.Code {
@@ -291,11 +293,6 @@ func (s *Script) Marshal() []byte {
 
 func NewScriptFromData(buf []byte, stringsSector []byte) (s *Script) {
 	s = new(Script)
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Error parsing script: %v", r)
-		}
-	}()
 	s.parseOpcodes(buf, stringsSector)
 	s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
 	return s

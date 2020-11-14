@@ -34,7 +34,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.Flags = binary.LittleEndian.Uint32(b[0x10:])
 	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]
-	o.Unk19 = b[0x19]
+	o.TotalDmaProgramsCount = b[0x19]
 	o.NextFreeVUBufferId = binary.LittleEndian.Uint16(b[0x1a:])
 	o.Unk1c = binary.LittleEndian.Uint16(b[0x1c:])
 	o.SourceVerticesCount = binary.LittleEndian.Uint16(b[0x1e:])
@@ -42,7 +42,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	exlog.Printf("        | type: 0x%.4x  unk02: 0x%.4x packets per filter?: %d materialId: %d joints: %d",
 		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, len(o.JointMappers[0]))
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
-		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
+		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.TotalDmaProgramsCount, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
 	exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
 
 	dmaCalls := o.InstancesCount * uint32(o.TextureLayersCount)
@@ -51,7 +51,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.DmaTagsCountPerPacket*0x10
 		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.DmaTagsCountPerPacket)
 
-		ds := NewMeshParserStream(allb, o, packetOffset, exlog)
+		ds := NewMeshParserStream(allb, o, packetOffset, nil, exlog)
 		if err := ds.ParsePackets(); err != nil {
 			return err
 		}

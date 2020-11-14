@@ -20,7 +20,7 @@ func (o *Object) Marshal() *bytes.Buffer {
 	binary.LittleEndian.PutUint32(buf[0x10:], o.Flags)
 	binary.LittleEndian.PutUint32(buf[0x14:], o.FlagsMask)
 	buf[0x18] = o.TextureLayersCount
-	buf[0x19] = o.Unk19
+	buf[0x19] = o.TotalDmaProgramsCount
 	binary.LittleEndian.PutUint16(buf[0x1a:], o.NextFreeVUBufferId)
 	binary.LittleEndian.PutUint16(buf[0x1c:], o.Unk1c)
 	binary.LittleEndian.PutUint16(buf[0x1e:], o.SourceVerticesCount)

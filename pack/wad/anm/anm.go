@@ -14,7 +14,7 @@ const ANIMATIONS_MAGIC = 0x00000003
 
 const (
 	DATATYPE_SKINNING     = 0  // apply to object (matrices)
-	DATATYPE_MATERIAL     = 3  // apply to material (color)
+	DATATYPE_MATERIAL     = 3  // apply to material (color) or light
 	DATATYPE_UNKNOWN5     = 5  // apply to object (show/hide maybe or switch meshes)
 	DATATYPE_TEXUREPOS    = 8  // apply to material (uv)
 	DATATYPE_TEXTURESHEET = 9  // apply to material (changes data_id of gfx palette indexes, like gif frame)

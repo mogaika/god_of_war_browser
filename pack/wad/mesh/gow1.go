@@ -28,6 +28,7 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		return fmt.Errorf("Unknown type %x", o.Type)
 	}
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
+
 	o.DmaTagsCountPerPacket = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
 	o.InstancesCount = binary.LittleEndian.Uint32(b[0xc:])
@@ -44,7 +45,9 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.UseInvertedMatrix = o.Flags&0x40 != 0
 	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]
-	o.Unk19 = b[0x19]
+
+	o.TotalDmaProgramsCount = b[0x19]
+
 	o.NextFreeVUBufferId = binary.LittleEndian.Uint16(b[0x1a:])
 	o.Unk1c = binary.LittleEndian.Uint16(b[0x1c:])
 	o.SourceVerticesCount = binary.LittleEndian.Uint16(b[0x1e:])
@@ -52,16 +55,29 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	exlog.Printf("        | type: 0x%.4x  unk02: 0x%.4x packets per filter?: %d materialId: %d joints: %d",
 		o.Type, o.Unk02, o.DmaTagsCountPerPacket, o.MaterialId, o.JointMapElementsCount)
 	exlog.Printf("        | unk0c: 0x%.8x unk10: 0x%.8x unk14: 0x%.8x textureLayers: %d unk19: 0x%.2x next free vu buffer: 0x%.4x unk1c: 0x%.4x source vertices count: 0x%.4x ",
-		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.Unk19, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
+		o.InstancesCount, o.Flags, o.FlagsMask, o.TextureLayersCount, o.TotalDmaProgramsCount, o.NextFreeVUBufferId, o.Unk1c, o.SourceVerticesCount)
 	// exlog.Printf("      --===--\n%v\n", utils.SDump(o.RawDmaAndJointsData))
 
 	dmaCalls := o.InstancesCount * uint32(o.TextureLayersCount)
+
+	if o.JointMappers != nil {
+		// right after dma calls
+		jointMapsOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.DmaTagsCountPerPacket
+		for iJm, jm := range o.JointMappers {
+			jointMapOffset := jointMapsOffset + uint32(iJm)*uint32(o.JointMapElementsCount)*4
+			for i := range jm {
+				jm[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
+			}
+		}
+		exlog.Printf("              - joint map: %+#v", o.JointMappers)
+	}
+
 	o.Packets = make([][]Packet, dmaCalls)
 	for iDmaChain := uint32(0); iDmaChain < dmaCalls; iDmaChain++ {
 		packetOffset := o.Offset + OBJECT_GOW1_HEADER_SIZE + iDmaChain*o.DmaTagsCountPerPacket*0x10
 		exlog.Printf("        - packets %d offset 0x%.8x pps 0x%.8x", iDmaChain, packetOffset, o.DmaTagsCountPerPacket)
 
-		ds := NewMeshParserStream(allb, o, packetOffset, exlog)
+		ds := NewMeshParserStream(allb, o, packetOffset, o.JointMappers[0], exlog)
 		if err := ds.ParsePackets(); err != nil {
 			return err
 		}
@@ -82,17 +98,6 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 		o.Packets[iDmaChain] = ds.Packets
 	}
 	//exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
-	if o.JointMappers != nil {
-		// right after dma calls
-		jointMapsOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.DmaTagsCountPerPacket
-		for iJm, jm := range o.JointMappers {
-			jointMapOffset := jointMapsOffset + uint32(iJm)*uint32(o.JointMapElementsCount)*4
-			for i := range jm {
-				jm[i] = binary.LittleEndian.Uint32(b[jointMapOffset+uint32(i)*4:])
-			}
-		}
-		exlog.Printf("              - joint map: %+#v", o.JointMappers)
-	}
 
 	if o.TextureLayersCount != 1 && o.InstancesCount != 1 {
 		return fmt.Errorf("can instance and layer in same time %x : %x", o.InstancesCount, o.TextureLayersCount)
