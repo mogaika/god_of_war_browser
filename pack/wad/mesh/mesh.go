@@ -2,14 +2,15 @@ package mesh
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/mogaika/god_of_war_browser/config"
-	"github.com/mogaika/god_of_war_browser/utils"
-
 	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/mogaika/god_of_war_browser/pack/wad/mesh/common"
 	"github.com/mogaika/god_of_war_browser/pack/wad/mesh/gmdl"
+	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type Packet struct {
@@ -25,7 +26,7 @@ type Packet struct {
 		X, Y, Z []float32
 	}
 	Blend struct {
-		R, G, B, A []uint16 // actually uint8, only for marshaling
+		R, G, B, A []uint16 // actually uint8, only for marshaling (not base64-encode)
 	}
 	Joints                 []uint16
 	Joints2                []uint16
@@ -133,13 +134,141 @@ func NewFromData(b []byte, exlog *utils.Logger) (*Mesh, error) {
 	}
 }
 
+func (m *Mesh) AsCommonMesh() *common.Mesh {
+	cMesh := &common.Mesh{
+		Parts: make([]*common.Part, len(m.Parts)),
+	}
+
+	for iPart := range m.Parts {
+		part := &m.Parts[iPart]
+		cPart := &common.Part{
+			LodGroups: make([]*common.LodGroup, len(part.Groups)),
+		}
+		cMesh.Parts[iPart] = cPart
+
+		for iGroup := range part.Groups {
+			group := &part.Groups[iGroup]
+			cLodGroup := &common.LodGroup{
+				Objects:      make([]*common.Object, len(group.Objects)),
+				HideDistance: group.HideDistance,
+			}
+			cPart.LodGroups[iGroup] = cLodGroup
+
+			for iObject := range group.Objects {
+				object := &group.Objects[iObject]
+				cObject := &common.Object{
+					Vertices:       make([]common.Vertex, 0, 64),
+					Indexes:        make([]int, 0, 128),
+					JointMaps:      object.JointMappers,
+					BlendColors:    make([][]common.RGBA, 0, 2),
+					UVs:            make([][]common.UV, 0, 2),
+					MaterialIndex:  int(object.MaterialId),
+					PartIndex:      iPart,
+					LodGroupIndex:  iGroup,
+					ObjectIndex:    iObject,
+					InstancesCount: int(object.InstancesCount),
+					LayersCount:    int(object.TextureLayersCount),
+				}
+				cLodGroup.Objects[iObject] = cObject
+
+				if object.Packets[0][0].Norms.X != nil {
+					cObject.Normals = make([]common.Normal, 0, 64)
+				}
+
+				// fill vertices and normals from first packet
+				for iInstance := 0; iInstance < int(object.InstancesCount); iInstance++ {
+					for iLayer := 0; iLayer < int(object.TextureLayersCount); iLayer++ {
+						iDmaPacket := iInstance*int(object.TextureLayersCount) + iLayer
+						packets := object.Packets[iDmaPacket]
+
+						var blendColors []common.RGBA
+						if packets[0].Blend.R != nil {
+							blendColors = make([]common.RGBA, 0, 64)
+						}
+
+						var uvs []common.UV
+						if iInstance == 0 {
+							// uv differs only for layers
+							if packets[0].Uvs.U != nil {
+								uvs = make([]common.UV, 0, 64)
+							}
+						}
+
+						for iPacket := range packets {
+							packet := &packets[iPacket]
+
+							for iVertex := range packet.Trias.X {
+								if iDmaPacket == 0 {
+									// fill vertices, indexes and normals from first dma packet
+									cObject.Vertices = append(cObject.Vertices,
+										common.Vertex{
+											Position: common.Position{
+												packet.Trias.X[iVertex],
+												packet.Trias.Y[iVertex],
+												packet.Trias.Z[iVertex],
+											},
+											Weight: packet.Trias.Weight[iVertex],
+											JointsIndexes: [2]uint16{
+												packet.Joints[iVertex],
+												packet.Joints2[iVertex]},
+										})
+
+									if !packet.Trias.Skip[iVertex] {
+										curIndex := len(cObject.Vertices) - 1
+										cObject.Indexes = append(cObject.Indexes,
+											curIndex-2, curIndex-1, curIndex)
+									}
+
+									if cObject.Normals != nil {
+										cObject.Normals = append(cObject.Normals,
+											common.Normal{
+												packet.Norms.X[iVertex],
+												packet.Norms.Y[iVertex],
+												packet.Norms.Z[iVertex],
+											})
+									}
+								}
+
+								if blendColors != nil {
+									blendColors = append(blendColors,
+										common.RGBA{
+											R: uint8(packet.Blend.R[iVertex]),
+											G: uint8(packet.Blend.G[iVertex]),
+											B: uint8(packet.Blend.B[iVertex]),
+											A: byte((float64(packet.Blend.A[iVertex]) / 128.0) * 255.0),
+										})
+								}
+								if uvs != nil {
+									uvs = append(uvs,
+										common.UV{
+											packet.Uvs.U[iVertex],
+											packet.Uvs.V[iVertex],
+										})
+								}
+							}
+						}
+
+						if blendColors != nil {
+							cObject.BlendColors = append(cObject.BlendColors, blendColors)
+						}
+						if uvs != nil {
+							cObject.UVs = append(cObject.UVs, uvs)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return cMesh
+}
+
 func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return m, nil
 }
 
 func init() {
 	wad.SetHandler(config.GOW1, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-
 		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
@@ -148,7 +277,13 @@ func init() {
 
 		//logger := utils.Logger{ioutil.Discard}
 
-		return NewFromData(wrsrc.Tag.Data, &logger)
+		mesh, err := NewFromData(wrsrc.Tag.Data, &logger)
+		if mesh.BaseBoneIndex != 0 {
+			log.Printf("bbi: %d mesh: %s:%s j: %q",
+				mesh.BaseBoneIndex, wrsrc.Wad.Name(), wrsrc.Tag.Name, mesh.NameOfRootJoint)
+		}
+
+		return mesh, err
 	})
 	wad.SetHandler(config.GOW2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		fpath := filepath.Join("logs_gow2", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))

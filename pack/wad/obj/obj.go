@@ -156,7 +156,7 @@ func NewFromData(buf []byte, objName string) (*Object, error) {
 	vec6offset := binary.LittleEndian.Uint32(matdata[40:44])
 	vec7offset := binary.LittleEndian.Uint32(matdata[44:48])
 
-	//	called := false
+	// called := false
 
 	invid := int16(0)
 	for i := range obj.Joints {
@@ -193,20 +193,22 @@ func NewFromData(buf []byte, objName string) (*Object, error) {
 				}
 			}
 
-			if fti(8) != 0 {
+			//if fti(8) != 0 {
 			if !called {
 				called = true
 				log.Printf("loading object %q", objName)
 			}
-			log.Printf("[%03d] p %03d ce %03d 0x%.8x ext %v joint %v ignParScale %v hasIPB %v strngInv %v quat %v %q",
+			log.Printf("[%03d] p %03d ce %03d 0x%.8x ext %v joint %v ignParScale %v hasIPB %v strngInv %v quat %v %q r %v",
 				i,
 				joint.Parent, joint.ChildsEnd,
 				joint.Flags,
 				fti(0x8), fti(0x20), fti(0x40), fti(0x80), fti(0x4000),
 				fti(0x8000),
-				joint.Name)
+				joint.Name,
+			)
 			//}
 		*/
+
 		if joint.IsSkinned {
 			invid++
 		}
@@ -346,46 +348,46 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return mrshl, nil
 }
 
-func (o *Object) GetQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
-	var q mgl32.Quat
-	const Quat_to_float = 1.0 / (1 << 14)
+const quat_to_float = 1.0 / (1 << 14)
 
-	if o.Joints[jointId].Flags&0x8000 != 0 {
-		q.V[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float
-		q.V[1] = float32(o.Vectors5[jointId][1]) * Quat_to_float
-		q.V[2] = float32(o.Vectors5[jointId][2]) * Quat_to_float
-		q.W = float32(o.Vectors5[jointId][3]) * Quat_to_float
-	} else {
-		yaw := float64(o.Vectors5[jointId][0]) * Quat_to_float * (2.0 / math.Pi)
-		pitch := float64(o.Vectors5[jointId][1]) * Quat_to_float * (2.0 / math.Pi)
-		roll := float64(o.Vectors5[jointId][2]) * Quat_to_float * (2.0 / math.Pi)
-
-		q.V[0] = float32(math.Sin(roll/2)*math.Cos(pitch/2)*math.Cos(yaw/2) - math.Cos(roll/2)*math.Sin(pitch/2)*math.Sin(yaw/2))
-		q.V[1] = float32(math.Cos(roll/2)*math.Sin(pitch/2)*math.Cos(yaw/2) + math.Sin(roll/2)*math.Cos(pitch/2)*math.Sin(yaw/2))
-		q.V[2] = float32(math.Cos(roll/2)*math.Cos(pitch/2)*math.Sin(yaw/2) - math.Sin(roll/2)*math.Sin(pitch/2)*math.Cos(yaw/2))
-		q.W = float32(math.Cos(roll/2)*math.Cos(pitch/2)*math.Cos(yaw/2) + math.Sin(roll/2)*math.Sin(pitch/2)*math.Sin(yaw/2))
-	}
-	return q.Normalize()
+// no conversion from euler
+func (o *Object) getQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
+	return mgl32.Quat{
+		V: mgl32.Vec3{
+			float32(o.Vectors5[jointId][0]),
+			float32(o.Vectors5[jointId][1]),
+			float32(o.Vectors5[jointId][2]),
+		}.Mul(quat_to_float),
+		W: float32(o.Vectors5[jointId][3]) * quat_to_float,
+	}.Normalize()
 }
 
-func (o *Object) GetEulerLocalRotationForJoint(jointId int16) mgl32.Vec3 {
-	var rotation mgl32.Vec3
-	const Quat_to_float = 1.0 / float32(1<<14)
-
+// with conversion from euler
+func (o *Object) GetQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
 	if o.Joints[jointId].Flags&0x8000 != 0 {
-		var q2 mgl32.Quat
-		q2.V[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float
-		q2.V[1] = float32(o.Vectors5[jointId][1]) * Quat_to_float
-		q2.V[2] = float32(o.Vectors5[jointId][2]) * Quat_to_float
-		q2.W = float32(o.Vectors5[jointId][3]) * Quat_to_float
-		q2 = q2.Normalize()
-		rotation = utils.QuatToEuler(q2).Mul(180.0 / math.Pi)
+		return o.getQuaterionLocalRotationForJoint(jointId).Normalize()
 	} else {
-		rotation[0] = float32(o.Vectors5[jointId][0]) * Quat_to_float * 360.0
-		rotation[1] = float32(o.Vectors5[jointId][1]) * Quat_to_float * 360.0
-		rotation[2] = float32(o.Vectors5[jointId][2]) * Quat_to_float * 360.0
+		euler := o.getEulerLocalRotationForJoint(jointId)
+		return utils.EulerToQuat(euler)
 	}
-	return rotation
+}
+
+// no conversion from quat, result in degrees
+func (o *Object) getEulerLocalRotationForJoint(jointId int) mgl32.Vec3 {
+	return mgl32.Vec3{
+		float32(o.Vectors5[jointId][0]),
+		float32(o.Vectors5[jointId][1]),
+		float32(o.Vectors5[jointId][2])}.Mul(quat_to_float * 360.0)
+}
+
+// with conversion from quat, result in degrees
+func (o *Object) GetEulerLocalRotationForJoint(jointId int) mgl32.Vec3 {
+	if o.Joints[jointId].Flags&0x8000 != 0 {
+		q := o.getQuaterionLocalRotationForJoint(jointId)
+		return utils.QuatToEuler(q).Mul(180.0 / math.Pi)
+	} else {
+		return o.getEulerLocalRotationForJoint(jointId)
+	}
 }
 
 func init() {
