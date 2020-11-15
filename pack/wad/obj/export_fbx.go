@@ -180,7 +180,7 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 			eJoint.FbxNodeAttributeId = f.GenerateId()
 
 			pos := o.Vectors4[objJoint.Id]
-			rotation := o.GetEulerLocalRotationForJoint(objJoint.Id)
+			rotation := o.GetEulerLocalRotationForJoint(int(objJoint.Id))
 			scale := o.Vectors6[objJoint.Id]
 
 			eJoint.FbxLimbNode = bfbx73.Model(eJoint.FbxLimbNodeId, objJoint.Name+"\x00\x01Model", "LimbNode").AddNodes(

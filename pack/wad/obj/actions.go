@@ -13,14 +13,14 @@ import (
 func (obj *Object) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
 	switch action {
 	case "gltf":
-		doc := gltfutils.NewDocument()
+		gltfCacher := gltfutils.NewCacher()
 		webutils.WriteFileHeaders(w, wrsrc.Tag.Name+".glb")
 
-		if _, err := obj.ExportGLTF(wrsrc, doc); err != nil {
+		if _, err := obj.ExportGLTF(wrsrc, gltfCacher); err != nil {
 			log.Printf("Error when exporting object as gltf: %v", err)
 		}
 
-		if err := gltfutils.ExportBinary(w, doc); err != nil {
+		if err := gltfutils.ExportBinary(w, gltfCacher.Doc); err != nil {
 			log.Printf("Failed to encode gltf: %v", err)
 		}
 	case "fbx":

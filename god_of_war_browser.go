@@ -109,9 +109,9 @@ func main() {
 		defer f.Close()
 	}
 
-	parsecheck = true
+	//parsecheck = true
 	if parsecheck {
-		//parseCheck(gameDir)
+		parseCheck(gameDir)
 	}
 	status.Info("Starting web server on address '%s'", addr)
 

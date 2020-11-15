@@ -378,28 +378,24 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
         for (let iObject in group.Objects) {
             let object = group.Objects[iObject];
 
-            //let iSkin = 0;
             for (let iInstance = 0; iInstance < object.InstancesCount; iInstance++) {
                 for (let iLayer = 0; iLayer < object.TextureLayersCount; iLayer++) {
-                    // there is no situation when TextureLayersCount > 1 && InstancesCount > 1
-                    // so we can multiply on any of them
-
                     let iDmaPacket = iInstance * object.TextureLayersCount + iLayer;
                     let dmaPackets = object.Packets[iDmaPacket];
-                    let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject;
-                    if (object.InstancesCount > 1) {
+
+                    let objName = "p" + iPart + "_g" + iGroup + "_o" + iObject + "m" + object.MaterialId;
+                    if (object.InstancesCount != 1) {
                         objName += "_i" + iInstance
-                    } else if (object.TextureLayersCount > 1) {
+                    } else if (object.TextureLayersCount != 1) {
                         objName += "_l" + iLayer;
                     }
-                    objName += ":" + object.MaterialId;
 
                     let meshes = [];
 
                     for (let iPacket in dmaPackets) {
-
                         let dmaPacket = dmaPackets[iPacket];
                         let mesh = parseMeshPacket(object, dmaPacket, iInstance);
+
                         if (object.TextureLayersCount != 1) {
                             mesh.setLayer(iLayer);
                         }
@@ -410,28 +406,28 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         mesh.meta['object'] = iObject;
                         totalMeshes.push(mesh);
                         model.addMesh(mesh);
+                    }
 
-                        if (table) {
-                            let label = $('<label>');
-                            let chbox = $('<input type="checkbox" checked>');
-                            let td = $('<td>').append(label);
-                            chbox.click(meshes, function(ev) {
-                                for (let i in ev.data) {
-                                    ev.data[i].setVisible(this.checked);
-                                }
-                                gr_instance.requestRedraw();
-                            });
-                            td.mouseenter([model, meshes], function(ev) {
-                                ev.data[0].showExclusiveMeshes(ev.data[1]);
-                                gr_instance.requestRedraw();
-                            }).mouseleave(model, function(ev, a) {
-                                ev.data.showExclusiveMeshes();
-                                gr_instance.requestRedraw();
-                            });
-                            label.append(chbox);
-                            label.append("o_" + objName);
-                            table.append($('<tr>').append(td));
-                        }
+                    if (table) {
+                        let label = $('<label>');
+                        let chbox = $('<input type="checkbox" checked>');
+                        let td = $('<td>').append(label);
+                        chbox.click(meshes, function(ev) {
+                            for (let i in ev.data) {
+                                ev.data[i].setVisible(this.checked);
+                            }
+                            gr_instance.requestRedraw();
+                        });
+                        td.mouseenter([model, meshes], function(ev) {
+                            ev.data[0].showExclusiveMeshes(ev.data[1]);
+                            gr_instance.requestRedraw();
+                        }).mouseleave(model, function(ev, a) {
+                            ev.data.showExclusiveMeshes();
+                            gr_instance.requestRedraw();
+                        });
+                        label.append(chbox);
+                        label.append("o_" + objName);
+                        table.append($('<tr>').append(td));
                     }
                 }
             }
@@ -457,6 +453,12 @@ function summaryLoadWadMesh(data, wad, nodeid) {
 
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
     dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+
+    let dumplinkobj = getActionLinkForWadNode(wad, nodeid, 'obj');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkobj).append('Download .obj'));
+
+    let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
 
     let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
@@ -743,6 +745,9 @@ function summaryLoadWadMdl(data, wad, nodeid) {
 
     let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
     dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+
+    let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
+    dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
 
     let mdlTables = loadMdlFromAjax(mdl, data, false, true);
     for (let mdlTable of mdlTables) {
@@ -1074,8 +1079,6 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
         gr_instance.models.push(mdl);
         gr_instance.requestRedraw();
-    } else {
-        set3dVisible(false);
     }
 }
 

@@ -104,10 +104,12 @@ func NewFromData(data []byte) (*Animations, error) {
 		dt.Param1 = rawFmt[2]
 		dt.Param2 = rawFmt[3]
 
-		if dt.TypeId == 0 {
-			fff, _ = os.Create(`currentanim.log`)
-			_l = &utils.Logger{fff}
-		}
+		/*
+			if dt.TypeId == 0 {
+				fff, _ = os.Create(`currentanim.log`)
+				_l = &utils.Logger{fff}
+			}
+		*/
 	}
 
 	rawGroupsPointers := data[0x18:]

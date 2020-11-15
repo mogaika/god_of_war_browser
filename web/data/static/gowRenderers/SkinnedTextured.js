@@ -151,9 +151,9 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
         gl.vertexAttribPointer(this.aVertexJointID2, 1, gl.BYTE, false, 0, 0);
     } else {
         // TODO : restore warn
-        //if (hasJoints) {
-        //    console.warn("has joints but without jointIdsBuffer", mesh);
-        //}
+        if (hasJoints) {
+            console.warn("has joints but without jointIdsBuffer", mesh);
+        }
         gl.uniform1i(this.uUseJoints, 0);
         gl.disableVertexAttribArray(this.aVertexJointID1);
         gl.disableVertexAttribArray(this.aVertexJointID2);
