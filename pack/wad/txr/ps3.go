@@ -77,6 +77,7 @@ func (t *Ps3Texture) checkUnksAndZeros() error {
 	if t.Zero0c != 0 {
 		return fmt.Errorf("Incorrect Zero0c: %v", t.Zero0c)
 	}
+
 	switch t.TextureColorFormat {
 	case CELL_GCM_TEXTURE_A8R8G8B8:
 	case CELL_GCM_TEXTURE_D8R8G8B8:

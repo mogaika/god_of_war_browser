@@ -22,26 +22,26 @@ type ShapeRibSheet struct {
 	CountOfSomethingUnk44 uint16
 	CountOfSomethingUnk46 uint16
 	CountOfSomethingUnk48 uint16
-	CountOfSomethingUnk4a uint16
+	CountOfSomethingUnk4a uint16 // count of floats @9
 	CountOfSomethingUnk4c uint16
 	CountOfSomethingUnk4e uint16
 
-	CountOfSomethingUnk50 uint16
-	CountOfSomethingUnk52 uint16
-	CountOfSomethingUnk54 uint16
+	CountOfSomethingUnk50 uint16 // count of debug materials @4
+	CountOfSomethingUnk52 uint16 // count of logical fields or flags @5
+	CountOfSomethingUnk54 uint16 //
 	CountOfSomethingUnk56 uint16
 	CountOfSomethingUnk5a uint16
 	CountOfSomethingUnk5c uint16
 
 	OffsetToSome64 uint32
 	OffsetToSome68 uint32
-	OffsetToSome6c uint32 // offset_to ctxNames   array of char[0x18]
-	OffsetToSome70 uint32
-	OffsetToSome74 uint32
+	OffsetToSome6c uint32 // offset to ctx names array of (element size 0x18) @3
+	OffsetToSome70 uint32 // offset to debug materials (element size 0x40) @4
+	OffsetToSome74 uint32 // offset to logical fields or flags (element size 0x4c) @5
 	OffsetToSome78 uint32
-	OffsetToSome7c uint32 // ?? triangle indexes
-	OffsetToSome80 uint32 // ?? quads indexes ??
-	OffsetToSome84 uint32 // ?? floats array
+	OffsetToSome7c uint32 // offset to triangle indexes (element size 0xa) @7
+	OffsetToSome80 uint32 // offset to quads indexes (element size 0xc) @8
+	OffsetToSome84 uint32 // offset to floats array (element size 0xc)  @9
 	OffsetToSome88 uint32
 	OffsetToSome8c uint32
 
@@ -91,7 +91,7 @@ func NewRibSheet(bs *utils.BufStack, wrtw io.Writer) (*ShapeRibSheet, error) {
 	{
 		triaIndexBs := bs.SubBuf("triaIndexBuffer", int(rib.OffsetToSome7c)).SetSize(int(rib.OffsetToSome80 - rib.OffsetToSome7c))
 
-		rib.Some7TrianglesIndex = make([][3]uint16, triaIndexBs.Size()/10)
+		rib.Some7TrianglesIndex = make([][3]uint16, triaIndexBs.Size()/0xa)
 		for i := range rib.Some7TrianglesIndex {
 			off := i * 10
 			rib.Some7TrianglesIndex[i][0] = triaIndexBs.LU16(off + 4)
@@ -103,7 +103,7 @@ func NewRibSheet(bs *utils.BufStack, wrtw io.Writer) (*ShapeRibSheet, error) {
 	{
 		quadIndexBs := bs.SubBuf("quadIndexBuffer", int(rib.OffsetToSome80)).SetSize(int(rib.OffsetToSome84 - rib.OffsetToSome80))
 
-		rib.Some8QuadsIndex = make([][4]uint16, quadIndexBs.Size()/12)
+		rib.Some8QuadsIndex = make([][4]uint16, quadIndexBs.Size()/0xc)
 		for i := range rib.Some8QuadsIndex {
 			off := i * 12
 			rib.Some8QuadsIndex[i][0] = quadIndexBs.LU16(off + 4)

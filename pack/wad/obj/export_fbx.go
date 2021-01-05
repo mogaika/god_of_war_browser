@@ -1,7 +1,6 @@
 package obj
 
 import (
-	"fmt"
 	"log"
 	"path/filepath"
 
@@ -119,7 +118,6 @@ func (fe *FbxExporter) AddMeshPartWithSkinning(o *Object, part *file_mesh.FbxExp
 				if weight <= 0.000001 {
 					continue
 				}
-				fmt.Println(jointsForVertice, object.VerticeJointWeight[iVertice], "selected j", jointID, "w", weight)
 
 				indexes = append(indexes, int32(iVertice))
 				weights = append(weights, float64(weight))

@@ -49,6 +49,7 @@ func NewFromData(buf []byte) (*Instance, error) {
 type Ajax struct {
 	Instance
 	Scripts []interface{}
+	Name    string
 }
 
 func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
@@ -74,6 +75,7 @@ func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	}
 
 	return &Ajax{
+		Name:     wrsrc.Name(),
 		Instance: *inst,
 		Scripts:  scripts,
 	}, nil

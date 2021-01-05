@@ -5,11 +5,34 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"os"
+	"sync"
 
 	"github.com/go-gl/mathgl/mgl32"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad/scr/store"
 	"github.com/mogaika/god_of_war_browser/utils"
+)
+
+type EntityType uint8
+
+const (
+	ENTITY_TYPE_ENTRY_SENSOR       EntityType = 0
+	ENTITY_TYPE_EXIT_SENSOR        EntityType = 1
+	ENTITY_TYPE_CREATION_SENSOR    EntityType = 2
+	ENTITY_TYPE_DESTRUCTION_SENSOR EntityType = 3
+	ENTITY_TYPE_EVENT_SENSOR       EntityType = 4
+	ENTITY_TYPE_ANIMATOR           EntityType = 5
+	ENTITY_TYPE_UNKNOWN_6          EntityType = 6
+	ENTITY_TYPE_VIS                EntityType = 7
+	ENTITY_TYPE_EVENT_TRANSMITTER  EntityType = 8
+	ENTITY_TYPE_START              EntityType = 9
+	ENTITY_TYPE_SPAWN_ENEMY        EntityType = 10
+	ENTITY_TYPE_CREATOR            EntityType = 11
+	ENTITY_TYPE_GLOBAL_DATA        EntityType = 12
+	ENTITY_TYPE_LEVEL_DATA         EntityType = 13
+	ENTITY_TYPE_MARKER             EntityType = 14
+	ENTITY_TYPE_SOUND_CONTROLLER   EntityType = 15
 )
 
 type Entities struct {
@@ -236,7 +259,7 @@ type Entity struct {
 
 	Field_0x40           uint16
 	Size                 uint16
-	EntityType           uint16
+	EntityType           EntityType
 	EntityUniqueID       uint16
 	Field_0x4a           uint16
 	StringsCount         uint16
@@ -253,7 +276,7 @@ func EntityFromBytes(b []byte) *Entity {
 	e := &Entity{
 		Field_0x40:           binary.LittleEndian.Uint16(b[0x40:]),
 		Size:                 binary.LittleEndian.Uint16(b[0x44:]),
-		EntityType:           binary.LittleEndian.Uint16(b[0x46:]),
+		EntityType:           EntityType(binary.LittleEndian.Uint16(b[0x46:])),
 		EntityUniqueID:       binary.LittleEndian.Uint16(b[0x48:]),
 		Field_0x4a:           binary.LittleEndian.Uint16(b[0x4a:]),
 		StringsCount:         binary.LittleEndian.Uint16(b[0x4c:]),
@@ -293,12 +316,23 @@ func EntityFromBytes(b []byte) *Entity {
 	return e
 }
 
+var globlock sync.Mutex
+
 func SCR_Entities(b []byte) interface{} {
 	entities := &Entities{Array: make([]*Entity, 0)}
+
+	globlock.Lock()
+	defer globlock.Unlock()
+
+	efname, _ := os.OpenFile("entityassoc.txt", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	defer efname.Close()
 
 	for start := 0; start < len(b); {
 		e := EntityFromBytes(b[start:])
 		start += int(e.Size)
+
+		fmt.Fprintf(efname, "t%.2d id%.3d %q hc%d dc%d\n",
+			e.EntityType, e.EntityUniqueID, e.Name, len(e.Handlers), len(e.DependsEntitiesIds))
 
 		entities.Array = append(entities.Array, e)
 	}

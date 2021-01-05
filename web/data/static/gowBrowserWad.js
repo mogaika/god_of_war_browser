@@ -1106,6 +1106,12 @@ function loadCxtFromAjax(data, parseScripts = true) {
         // same as above
         let instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
         //let instMat = mat4.fromQuat(mat4.create(), rot);
+		
+		let pos = inst.Position1;
+        let text3d = new grTextMesh("\x04" + inst.Name, instMat[12], instMat[13], instMat[14], true);
+        text3d.setOffset(-0.5, -0.5);
+        text3d.setMaskBit(6);
+		gr_instance.texts.push(text3d);
 
         //console.log(inst.Object, instMat);
         //if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {

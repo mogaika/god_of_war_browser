@@ -419,6 +419,7 @@ $(document).ready(function() {
     inputAsRenderMask("#view-3d-config input#show-entity", 3, true);
     inputAsRenderMask("#view-3d-config input#show-collision", 4, true);
     inputAsRenderMask("#view-3d-config input#show-light", 5, true);
+    inputAsRenderMask("#view-3d-config input#show-instance", 6, true);
     inputAsSwitch("#view-3d-config input#enable-backface-culling", function(enable) {
         gr_instance.cull = enable;
     }, false);
