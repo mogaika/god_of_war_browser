@@ -1,0 +1,104 @@
+=== Type 0 - Trigger Entry Sensor
+TrigVol-EntrySensor1
+EntryVol-EntrySensor1
+pCube1-EntrySensor1
+Depends: [], [8,7,9,10,11,13,16,18,21,23,26,28,50,86,87,88,92,99]
+
+#1 = sometimes -1 (-1 - for trigger once?)
+#4 = on trigger
+#6 = variable id to store triggered object?
+
+=== Type 1 - Trigger Exit Sensor
+
+=== Type 2 - Creation Sensor
+
+=== Type 3 - Destruction Sensor
+
+=== Type 4 - EventSensor
+
+=== Type 5 - Animator
+
+=== Type 6 - Unknown
+
+=== Type 7 - Vis
+PlayerStartZone-VisIdleOn
+#13 = set idle
+PlayerStartZone-VisIdleOff
+#11 = 13 ?
+#13 = remove idle
+PlayerStartZone-VisCheck
+#11 = 13.100
+#13 = CheckPoint 
+
+
+
+=== Type 8 - EventTransmitter
+#0 = event id
+#9 = variable id to pick triggered object?
+PlayerStartZone-EvtForce
+#0 = 1019
+#1 = 512
+#7 = onTrigger
+#9 = 1
+DeathZone1-pCube2-EventTransmitter1
+#0 = 1029
+#9 = 8
+
+
+=== Type 9 - Start
+Depends: None
+#0 = 'Hero' ?
+#1 = 1?
+
+
+=== Type 10 - Spawn Enemy ?
+
+
+=== Type 11 - Creator
+Depends: None
+#0 = 'chest'
+#5 = 42
+#6 = 1
+#8 = TRUE
+
+
+
+=== Type 12 - GlobalData
+Depends: None
+
+
+
+=== Type 13 - LevelData
+Depends: None
+#(level data[id+1]) = leveldata[id]
+id <= 15, if overflows, next Level data used
+
+also contains level data string name <=> id inside
+
+
+=== Type 14 - Marker
+
+
+=== Type 15 - SoundController
+
+
+
+
+
+
+
+
+
+EVT_Break = 1009
+EVT_Reset_usedWhenRestoreChestAndSoOn = 1015
+EVT_FallAnim_or_Die = 1019
+EVT_ChestOpened? = 1023
+EVT_UseWorld_likeR2 = 1024
+EVT_GrabCicle_or_Move = 1035
+EVT_?ShowMessage? = 1040
+EVT_ExplodeDeath? = 1042
+EVT_ReadStart = 1048
+EVT_MsgDone = 1049
+EVT_Timer = 1050
+
+
