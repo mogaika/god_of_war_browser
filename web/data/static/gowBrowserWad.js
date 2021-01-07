@@ -238,6 +238,10 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                 }
             } else if (tag.Tag == 112) {
                 summaryLoadWadGeomShape(data);
+            } else if (tag.Tag == 500) {
+                summaryLoadWadRSRCS(data, wad, tagid);
+                needMarshalDump = false;
+                needHexDump = false;
             } else {
                 needHexDump = true;
             }
@@ -1106,12 +1110,12 @@ function loadCxtFromAjax(data, parseScripts = true) {
         // same as above
         let instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
         //let instMat = mat4.fromQuat(mat4.create(), rot);
-		
-		let pos = inst.Position1;
+
+        let pos = inst.Position1;
         let text3d = new grTextMesh("\x04" + inst.Name, instMat[12], instMat[13], instMat[14], true);
         text3d.setOffset(-0.5, -0.5);
         text3d.setMaskBit(6);
-		gr_instance.texts.push(text3d);
+        gr_instance.texts.push(text3d);
 
         //console.log(inst.Object, instMat);
         //if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {
@@ -1312,4 +1316,51 @@ function summaryLoadWadScript(data) {
     }
 
     set3dVisible(false);
+}
+
+
+function summaryLoadWadRSRCS(data, wad, nodeid) {
+    set3dVisible(false);
+
+    let list = $("<ul>");
+
+    let newRSRCSWAd = function(name) {
+        let text = $("<span>").text(name);
+        let delbtn = $("<button>").text("remove").click(function() {
+            $(this).parent().remove();
+        });
+
+
+        list.append($('<li>').append(text).append(delbtn));
+    };
+
+    $.each(data.Wads, function(k, val) {
+        newRSRCSWAd(val);
+    });
+
+    let addWad = $("<input type='text' placeholder='wadname'>");
+    let addBtn = $("<button>").text("add").click(function() {
+        newRSRCSWAd(addWad.val());
+    })
+
+    let saveBtn = $("<button>").text("save").click(function() {
+        let params = {};
+        $("ul").find("li span").each(function(k, v) {
+            params["wad" + k] = $(v).text();
+        });
+
+        $.ajax({
+            url: getActionLinkForWadNode(wad, nodeid, 'update'),
+            data: params,
+            success: function(a) {
+                if (a != "" && a.error) {
+                    alert("Error: " + a.error);
+                } else {
+                    alert("Success");
+                }
+            }
+        });
+    })
+
+    dataSummary.append(addWad).append(addBtn).append(list).append(saveBtn);
 }

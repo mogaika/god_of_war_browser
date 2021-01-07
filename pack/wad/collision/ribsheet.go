@@ -88,6 +88,8 @@ func NewRibSheet(bs *utils.BufStack, wrtw io.Writer) (*ShapeRibSheet, error) {
 		OffsetToSome8c: headerbs.LU32(0x8c),
 	}
 
+	utils.LogDump(rib)
+
 	{
 		triaIndexBs := bs.SubBuf("triaIndexBuffer", int(rib.OffsetToSome7c)).SetSize(int(rib.OffsetToSome80 - rib.OffsetToSome7c))
 

@@ -48,33 +48,36 @@ gaAnimationManager.prototype.addAnimation = function(anim) {
 
 gaAnimationManager.prototype.freeAnimation = function(anim) {
     switch (anim.type) {
-        case 0: {
-            let id = this.objSkeletAnimations.indexOf(anim);
-            if (id >= 0) {
-                let a = this.objSkeletAnimations.splice(id, 1)[0];
-                a.reset();
-                a.recalcMatrices();
-                gr_instance.requireRedraw = true;
+        case 0:
+            {
+                let id = this.objSkeletAnimations.indexOf(anim);
+                if (id >= 0) {
+                    let a = this.objSkeletAnimations.splice(id, 1)[0];
+                    a.reset();
+                    a.recalcMatrices();
+                    gr_instance.requireRedraw = true;
+                }
             }
-        }
-        break;
-    case 8: {
-        let id = this.matLayerAnimations.indexOf(anim);
-        if (id >= 0) {
-            this.matLayerAnimations.splice(id, 1);
-        }
-    }
-    break;
-    case 9: {
-        let id = this.matSheetAnimations.indexOf(anim);
-        if (id >= 0) {
-            this.matSheetAnimations.splice(id, 1);
-        }
-    }
-    break;
-    default:
-        console.error("Unknown animation type ", anim);
-        break;
+            break;
+        case 8:
+            {
+                let id = this.matLayerAnimations.indexOf(anim);
+                if (id >= 0) {
+                    this.matLayerAnimations.splice(id, 1);
+                }
+            }
+            break;
+        case 9:
+            {
+                let id = this.matSheetAnimations.indexOf(anim);
+                if (id >= 0) {
+                    this.matSheetAnimations.splice(id, 1);
+                }
+            }
+            break;
+        default:
+            console.error("Unknown animation type ", anim);
+            break;
     }
 }
 

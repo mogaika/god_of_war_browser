@@ -34,6 +34,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/mdl"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/obj"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/rsrcs"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/sbk"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/shg"

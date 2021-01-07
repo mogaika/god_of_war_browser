@@ -223,7 +223,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
                     }
                     let jointId = mesh.jointMapping[i];
                     if (jointId >= matrices.length) {
-                    	// this warning spams for fpl
+                        // this warning spams for fpl
                         // console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + matrices.length);
                     } else {
                         gl.uniformMatrix4fv(this.umJoints[i], false, matrices[jointId]);

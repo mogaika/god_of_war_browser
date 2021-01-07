@@ -37,18 +37,18 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 			// log.Printf(" | vfs goto /")
 			path = "/"
 			if t.Path != "" {
-				// log.Printf(" | vfs create twk '%s'", t.Path)
+				log.Printf(" | vfs create twk '%s'", t.Path)
 				path = t.Path
 				createdNode = true
 			}
 		case 0x10:
 			subPath := bsdata.ReadZString(0x100)
 			path += "/" + subPath
-			// log.Printf(" | vfs goto %q", subPath)
+			log.Printf(" | vfs goto %q", subPath)
 		case 0x40:
 			parts := strings.Split(path, "/")
 			path = strings.Join(parts[:len(parts)-1], "/")
-			// log.Printf(" | vfs goto ..")
+			log.Printf(" | vfs goto ..")
 		case 0x20:
 			nameHash := bsdata.ReadLU32()
 			_ = nameHash
@@ -79,9 +79,8 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 			//log.Printf("  cmd hash %.8x %q size %.4x: %v",
 			//	nameHash, utils.GameStringUnhashNodes(nameHash), bufSizeOrIdk, utils.DumpToOneLineString(cmdData))
 
-			log.Printf("   %s/%q (%.8x) s(%d):",
-				path, utils.GameStringUnhashNodes(nameHash), nameHash, bufSizeOrIdk)
-			log.Printf("           %q", utils.DumpToOneLineString(cmdData))
+			log.Printf("  hash(%.8x) path(%s/%q) value(%q)",
+				nameHash, path, utils.GameStringUnhashNodes(nameHash), utils.DumpToOneLineString(cmdData))
 		default:
 			handled = false
 		}
