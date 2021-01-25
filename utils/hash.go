@@ -33,6 +33,11 @@ func loadHashes(filename string) error {
 		if err == io.EOF {
 			return nil
 		}
+
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
 		line = strings.TrimSuffix(line, "\n")
 		var hash, init uint32
 		n, err := fmt.Sscanf(line, "%x:%x:", &hash, &init)
@@ -45,8 +50,12 @@ func loadHashes(filename string) error {
 		parts := strings.SplitN(line, ":", 3)
 		input := parts[2]
 
+		if hash != GameStringHashNodes(input, init) {
+			log.Printf("!!! Invalid hash in hashes txt (%q)", input)
+		}
+
 		if init == 0 {
-			// TODO: store init == 0 too
+			// TODO: store init != 0 too
 			hashesMap.Store(hash, input)
 		}
 	}

@@ -108,7 +108,6 @@ func GetEscFunc(scope, fid uint16) string {
 
 		case 0x9:
 			return "AbortCutscene? (bool)"
-
 		case 0xa:
 			return "Print text on screen(type, messageID)"
 
@@ -131,7 +130,7 @@ func GetEscFunc(scope, fid uint16) string {
 			return "Print text on screen(unkn, type, messageID)"
 
 		case 0x2f:
-			return "Comlete Game"
+			return "Complete Game"
 		}
 	}
 	return ""

@@ -88,12 +88,15 @@ also contains level data string name <=> id inside
 
 
 
+EVT_MpegDone = 501
 
 EVT_Break = 1009
 EVT_Reset_usedWhenRestoreChestAndSoOn = 1015
 EVT_FallAnim_or_Die = 1019
 EVT_ChestOpened? = 1023
 EVT_UseWorld_likeR2 = 1024
+                      1025
+                      1029
 EVT_GrabCicle_or_Move = 1035
 EVT_?ShowMessage? = 1040
 EVT_ExplodeDeath? = 1042
