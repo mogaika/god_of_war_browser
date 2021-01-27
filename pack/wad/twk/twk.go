@@ -88,6 +88,9 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 			} else {
 				log.Printf("  hash(%.8x) path(%s/%q) value(%q)",
 					nameHash, path, utils.GameStringUnhashNodes(nameHash), utils.DumpToOneLineString(cmdData))
+				if bufSizeOrIdk >= 0x40 {
+					utils.LogDump(cmdData)
+				}
 			}
 		default:
 			handled = false
