@@ -39,6 +39,7 @@ func loadHashes(filename string) error {
 		}
 
 		line = strings.TrimSuffix(line, "\n")
+		line = strings.TrimSuffix(line, "\r")
 		var hash, init uint32
 		n, err := fmt.Sscanf(line, "%x:%x:", &hash, &init)
 		if n != 2 {
