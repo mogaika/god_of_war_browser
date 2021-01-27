@@ -1,7 +1,9 @@
 package twk
 
 import (
+	"encoding/binary"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
@@ -72,15 +74,21 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 				bufSizeOrIdk = 0x1000
 			}
 			cmdData := bsdata.Read(bufSizeOrIdk)
-			_ = cmdData
+
 			if !createdNode {
 				panic("data without node")
 			}
 			//log.Printf("  cmd hash %.8x %q size %.4x: %v",
 			//	nameHash, utils.GameStringUnhashNodes(nameHash), bufSizeOrIdk, utils.DumpToOneLineString(cmdData))
 
-			log.Printf("  hash(%.8x) path(%s/%q) value(%q)",
-				nameHash, path, utils.GameStringUnhashNodes(nameHash), utils.DumpToOneLineString(cmdData))
+			if bufSizeOrIdk == 4 {
+				log.Printf("  hash(%.8x) path(%s/%q) value(%q) (0x%.8x) (%f)",
+					nameHash, path, utils.GameStringUnhashNodes(nameHash), utils.DumpToOneLineString(cmdData),
+					binary.LittleEndian.Uint32(cmdData), math.Float32frombits(binary.LittleEndian.Uint32(cmdData)))
+			} else {
+				log.Printf("  hash(%.8x) path(%s/%q) value(%q)",
+					nameHash, path, utils.GameStringUnhashNodes(nameHash), utils.DumpToOneLineString(cmdData))
+			}
 		default:
 			handled = false
 		}
