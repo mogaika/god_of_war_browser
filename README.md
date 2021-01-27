@@ -8,6 +8,8 @@ Some functions are broken on the *Japanese version of the game (NTSC-J)*.
 
 ### [Download latest build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 
+### [Join Discord](https://discord.gg/gTYHV2mJ)
+
 ## Instructions
 - Download and unzip [latest build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 - Open a console window and launch the binary with chosen parameters:
@@ -21,6 +23,10 @@ Some functions are broken on the *Japanese version of the game (NTSC-J)*.
   - Target game
     ```-gowversion 1``` for GoW I or ```-gowversion 2``` for GoW II
 - Open http://127.0.0.1:8000/ in your browser (address can be changed via ```-i Listen_IP:PORT```)
+- In 3d view you can use:
+	- `LMB` to look around. While holding `LMB` use `W` or `S` to move target forwards or backwards
+	- `Shift + LMB` or `MMB` to move target in horizontal plane
+	- Mouse wheel to zoom to/from target
 
 ## What if I want to mod the game?
 You can! But it is hard at this time :(
