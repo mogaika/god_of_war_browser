@@ -595,6 +595,20 @@ grCameraTargeted.prototype.getViewMatrix = function() {
     mat4.rotate(viewMatrix, viewMatrix, glMatrix.toRadian(this.rotation[2]), [0, 0, 1]);
     return mat4.translate(viewMatrix, viewMatrix, [-this.target[0], -this.target[1], -this.target[2]]);
 }
+grCameraTargeted.prototype.moveForward = function(speed) {
+    let m = mat4.create();
+    mat4.rotate(m, m, glMatrix.toRadian(this.rotation[0]), [1, 0, 0]);
+    mat4.rotate(m, m, glMatrix.toRadian(this.rotation[1]), [0, 1, 0]);
+    mat4.rotate(m, m, glMatrix.toRadian(this.rotation[2]), [0, 0, 1]);
+    mat4.invert(m, m);
+    let v = vec3.fromValues(0, 0, 1);
+
+    vec3.scale(v, v, -speed);
+    vec3.transformMat4(v, v, m);
+    vec3.add(this.target, this.target, v);
+
+    gr_instance.requestRedraw();
+}
 grCameraTargeted.prototype.getProjViewMatrix = function() {
     return mat4.mul(mat4.create(), this.getProjectionMatrix(), this.getViewMatrix());
 }
@@ -625,6 +639,7 @@ function grCameraInterface() {
 }
 grCameraInterface.prototype = Object.create(grCameraTargeted.prototype);
 grCameraInterface.prototype.constructor = grCameraInterface;
+grCameraInterface.prototype.moveForward = function(speed) {}
 grCameraInterface.prototype.getProjectionMatrix = function() {
     let w = gr_instance.rectX * this.distance * 0.004;
     let h = gr_instance.rectY * this.distance * 0.004;
@@ -658,12 +673,13 @@ function grController(viewDomObject) {
     this.requireRedraw = false;
     this.renderChain = undefined;
     this.models = [];
+    this.moving = false;
     this.texts = [];
+    this.moveSpeed = 500.0;
     this.helpers = [
         grHelper_Pivot(),
     ];
-    this.cameraModels = new grCameraTargeted();
-    this.cameraInterface = new grCameraInterface();
+    this.resetCamera();
     this.orthoMatrix = mat4.create();
     this.rectX = gl.canvas.width;
     this.rectY = gl.canvas.height;
@@ -674,6 +690,8 @@ function grController(viewDomObject) {
     this.filterMask = 0;
     this.cull = false;
     this.glExtFilterAnisotropic = gl.getExtension('EXT_texture_filter_anisotropic');
+    this.movingForward = false;
+    this.movingBackwards = false;
 
     let eventWithShift = false;
     canvas.mousewheel(function(event) {
@@ -717,6 +735,24 @@ function grController(viewDomObject) {
             event.stopPropagation();
             event.preventDefault();
         }
+    }).keydown(function(event) {
+        if (event.key == "w") {
+            if (gr_instance.mouseDown.reduce((a, b) => (a | b), false)) {
+                gr_instance.movingForward = true;
+                gr_instance.requestRedraw();
+            }
+        } else if (event.key == "s") {
+            if (gr_instance.mouseDown.reduce((a, b) => (a | b), false)) {
+                gr_instance.movingBackwards = true;
+                gr_instance.requestRedraw();
+            }
+        }
+    }).keyup(function(event) {
+        if (event.key == "w") {
+            gr_instance.movingForward = false;
+        } else if (event.key == "s") {
+            gr_instance.movingBackwards = false;
+        }
     });
 
     canvas[0].addEventListener('webglcontextlost', function(e) {
@@ -726,8 +762,15 @@ function grController(viewDomObject) {
         console.log("webgl context restored", e);
     });
 
-    this.setInterfaceCameraMode();
     canvas.resize(this._onResize);
+}
+grController.prototype.resetCamera = function() {
+    let is2d = this.camera != this.cameraModels;
+
+    this.cameraModels = new grCameraTargeted();
+    this.cameraInterface = new grCameraInterface();
+    this.setInterfaceCameraMode(is2d);
+    this.requestRedraw();
 }
 grController.prototype.setFilterMask = function(mask) {
     if (this.filterMask == mask) {
@@ -739,8 +782,8 @@ grController.prototype.setFilterMask = function(mask) {
 grController.prototype.flushScene = function() {
     this.renderChain.flushScene(this);
 }
-grController.prototype.setInterfaceCameraMode = function(is3d) {
-    this.camera = (!!is3d) ? this.cameraInterface : this.cameraModels;
+grController.prototype.setInterfaceCameraMode = function(is2d) {
+    this.camera = (!!is2d) ? this.cameraInterface : this.cameraModels;
 }
 grController.prototype.changeRenderChain = function(chainType) {
     if (this.renderChain)
@@ -758,9 +801,12 @@ grController.prototype._onResize = function() {
     gr_instance.onResize();
     gr_instance.requestRedraw();
 }
-grController.prototype.render = function() {
+grController.prototype.render = function(dt) {
     if (gl.canvas.clientWidth !== this.rectX || gl.canvas.clientHeight !== this.rectY) {
         this.onResize();
+    }
+    if (this.movingForward != this.movingBackwards) {
+        this.camera.moveForward(this.moveSpeed * dt * (this.movingForward ? 1 : -1));
     }
     if (this.requireRedraw) {
         let glError = gl.getError();
@@ -780,12 +826,19 @@ grController.prototype.requestRedraw = function() {
     this.requireRedraw = true;
 }
 grController.prototype.animationFrameCallback = function() {
+    let currentTime = window.performance.now() / 1000.0;
+    if (this.lastUpdateTime === undefined) {
+        this.lastUpdateTime = currentTime;
+    }
+    let dt = currentTime - this.lastUpdateTime;
+
     this.frameChecker = 0;
     if (typeof ga_instance !== "undefined" && ga_instance) {
         ga_instance.update();
     }
-    this.render();
+    this.render(dt);
     this.initFrameCallback();
+    this.lastUpdateTime = currentTime;
 }
 grController.prototype.initFrameCallback = function() {
     requestAnimationFrame(function() {

@@ -326,3 +326,14 @@ div.flpcolorpreview {
 .flexgrow {
 	flex-grow: 1;
 }
+
+div.view-item-container {
+	position: relative;
+}
+
+div.view-3d-helpers {
+	position: absolute;
+	right: 2px;
+	top: 2px;
+	user-select: none;
+}

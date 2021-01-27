@@ -426,6 +426,17 @@ $(document).ready(function() {
     inputAsSwitch("#view-3d-config input#enable-animation", function(enable) {
         ga_instance.active = enable;
     }, true);
+    inputAsSwitch(".view-item-container input#enable-3d-helpers", function(enable) {
+        let $helpers = $(".view-item-container #hidden-3d-helpers");
+        if (enable) {
+            $helpers.show();
+        } else {
+            $helpers.hide();
+        }
+    }, false);
+    $("#hidden-3d-helpers #button-3d-reset-camera").click(function() {
+        gr_instance.resetCamera();
+    });
 });
 
 function hexdump(buffer, blockSize) {
