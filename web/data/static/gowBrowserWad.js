@@ -165,6 +165,7 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         break;
                     case 0x00000018: // sbk blk
                     case 0x00040018: // sbk vag
+                    case 0x00000015: // sbk blk
                         summaryLoadWadSbk(data, wad, tagid);
                         needMarshalDump = true;
                         break;

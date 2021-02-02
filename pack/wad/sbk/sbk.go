@@ -19,6 +19,7 @@ import (
 
 const SBK_SBLK_MAGIC = 0x18
 const SBK_VAG_MAGIC = 0x40018
+const GOW2_SBP_MAGIC = 0x00000015
 
 type Sound struct {
 	Name     string
@@ -387,5 +388,9 @@ func init() {
 	})
 	wad.SetHandler(config.GOW1, SBK_VAG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(utils.NewBufStack("sbk_vag", wrsrc.Tag.Data), false)
+	})
+
+	wad.SetHandler(config.GOW2, GOW2_SBP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(utils.NewBufStack("sbp_vag", wrsrc.Tag.Data), true)
 	})
 }
