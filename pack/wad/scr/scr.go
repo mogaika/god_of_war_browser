@@ -36,4 +36,7 @@ func init() {
 	wad.SetHandler(config.GOW1, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
+	wad.SetHandler(config.GOW2, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
+	})
 }
