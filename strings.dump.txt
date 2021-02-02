@@ -1,0 +1,1247 @@
+goMewH
+rWeapIH
+BonusXX
+ANIStand
+ANITurnOnSpot
+ANIWalk
+ANIStrafeF
+ANIStrafeR
+ANIStrafeB
+ANIStrafeL
+ANIFlyH
+ANIFlyF
+ANIFlyR
+ANIFlyB
+ANIFlyL
+ANIWallHang
+ANIWallHangCatch
+ANIWallHangR
+ANIWallHangL
+ANIJump
+ANIVJump
+ANIWJump
+ANIDblJump
+ANIVDblJump
+ANIFall
+ANIDblFall
+ANIHighFall
+ANIVFall
+ANIVDblFall
+ANILand
+ANIVLand
+ANIHighLand
+ANIClimb
+ANIClimbIdle
+ANIClimbAL
+ANIClimbAR
+ANIClimbALIdle
+ANIClimbARIdle
+ANIClimbCL
+ANIClimbCR
+ANISlide
+ANISwim
+ANISwimIdle
+ANITread
+ANITreadSwim
+ANIDiveDashC
+ANIDiveDashCI
+ANIDiveDash
+ANIDive1
+ANIDive2
+ANIBalanceWalk
+ANIBalanceCatch
+ANIBalancePullupL
+ANIBalancePullupR
+ANIWallCatch
+ANIWallPullup
+ANIWallFront
+ANIWallFrontR
+ANIWallFrontL
+ANIWallBack
+ANIWallBackR
+ANIWallBackL
+ANIRope
+ANIRopeU
+ANIRopeD
+ANIRopeSWStart
+ANIRopeSW1
+ANIRopeSW2
+ANIRopeSW3
+ANIRopeSW4
+ANIRopeIdle
+ANIRSlide
+ANIBRope
+ANIBRopeF
+ANIZipLine
+ANILadder
+ANILadderU
+ANILadderD
+ANILDis1
+ANILDis2
+ANILSlide
+ANIPushI
+ANIPushL
+ANIPushR
+ANIPushF
+ANIPushB
+ANIStartKickBox
+ANIKickBoxIdle
+ANIKickBox
+ANICrankIdle
+ANICrankPush
+ANICrankPull
+ANICrankPushL
+ANICrankPullL
+ANICrankPushR
+ANICrankPullR
+ANILever
+ANIUWLever
+ANITandF1
+ANITandF2
+ANITandF3
+ANICSM1
+ANICSM2
+ Bfff?
+Bfff?
+Athn01A
+Used!
+Cloth
+Strand 
+ Motion
+Motion
+Sphere 
+_Tween
+_Cycle
+DefaultHFSM
+Breakable
+bitfield0
+bitfield1
+bitfield2
+bitfield3
+None
+Collision
+Camera
+Entity
+Sound
+BallHull
+mCDbgHdr
+SheetHdr
+Epilogue Server
+Dynamic
+Fog_R
+Fog_G
+Fog_B
+Fog_A
+CentreZ
+Blend Mode
+BackPlane_A
+The_Viewport
+Material Server
+MAT_trail1
+MAT_swordtrail
+Emitter Rotate
+Emitter Translate
+Trail Rotate
+Trail Translate
+NULL
+Texture Server
+Lights Server
+SCR_Mirror
+SCR_cloth
+The_Viewport2
+CXT_Default
+Must
+Can 
+MPEG
+AuSt
+AuPa
+Buff
+Data
+Read
+Cant
+EOF 
+Rest
+Wait
+Shar
+Root
+Debug
+RCM_%s
+RCM_
+Camera Server
+Flip And Kick Lock
+Black Screen Kick
+MPEG End Copy Kick
+true
+false
+(NULL)
+_level
+Flash Movie
+Play
+Stop
+#ERROR#
+PLAY
+STOP
+Msg Type Rate
+Msg Style 1 Red
+Msg Style 1 Green
+Msg Style 1 Blue
+Msg Style 1 Slant
+Msg Style 2 Red
+Msg Style 2 Green
+Msg Style 2 Blue
+Msg Style 2 Slant
+FLP_%s
+Pre-Immediate Upload error
+Immediate Upload error
+Lights
+wad_r_perm
+wad_pand04g
+MAT_stencil
+Custom
+Outdoor Small
+Outdoor Medium
+Outdoor Large
+Indoor Small
+Indoor Medium
+Indoor Large
+Underwater
+RSE_
+Override Reverb
+Doppler
+Directionality
+Doppler Limit
+Slow Mo Scale
+Slow Mo Max Slew
+listener
+SBK_
+SB_%s
+Music
+Mime Dialogue
+Ambient Streams (U1)
+IOP Streams     (U2)
+Footsteps       (U3)
+Menu Sounds     (U4)
+Interactives    (U5)
+MPEG            (U6)
+Music UW no mod (U7)
+SFX UW pitch    (U8)
+SFX UW no mod   (U9)
+Ambient UW nomod(U10)
+IOP UW no mod   (U11)
+Dry Effects     (U12)
+Base Reverb
+Surround
+Mono
+Stereo
+Underwater Volume Scale
+Underwater Pitch Offset
+Underwater Music Vol Scale
+Underwater Tween Time
+Mic Max Distance
+Mic Boom Ratio
+RB NODE Heap
+_engine
+GFXX
+TXRX
+MATX
+SNDX
+LGTX
+FLPX
+LINE
+stencil
+trail1
+FALSE
+TRUE
+/System
+/TweakTemplates
+InstanceRefNum
+Create Instance
+/TweakTemplates/%s
+/TweakTemplates/%s/%03d
+ADPCM
+SPDIF
+A01MP05
+A01MP02
+A01MP03
+mpeg
+unexpected MPEG error???
+goBerserkBlade
+DecisionTree
+DTre
+GrowAdult
+goCerGrow
+goEyeBeam
+goMedHeadFlash
+MEW01JOCHEA1
+GOEYEPOWER
+Circle Health Threshold
+Circle Health Threshold %d
+Circle Health Threshold 0
+Circle Health Threshold 1
+Circle Health Threshold 2
+Circle Health Threshold 3
+Circle Health Threshold 4
+Instance
+Step
+SwimStroke
+Script
+CliffHand
+CliffFoot
+CliffLand
+RopeHand
+RopeSlide
+HeadTrack
+SpeedY
+SpeedZ
+SND_BEAM_TOTTER_LP
+BalanceGeom
+SND_BOW_FIRE
+SCR_ArcherShoot
+RegenBar
+Site%d
+Site0
+Site1
+Site2
+Site3
+Site4
+SCR_PlayEffect
+SCR_Teleport
+SCR_RegenHealthBar
+BalanceMeter
+SCR_BalanceMeter
+SCR_BalanceMeterRight
+GrowChar
+SCR_GrowTimer
+Concussion
+SCR_ConcussionBurst
+RepeatPress
+TimedPress
+SCR_ResetHUD
+SCR_RepeatPress
+SCR_TimedPress
+SubTrack
+godust1
+SCR_SubTrack
+/Player/Lightning
+Damage Freq
+Mash Max Spin
+Allow Movement
+Movement Speed
+From Above Bolt Freq
+Hit Sound
+Hit Context
+Ground Impulse Away
+Ground Impulse Up
+Ground Impulse Right
+Air Impulse Away
+Air Impulse Up
+Air Impulse Right
+Stage %d Damage Per Second
+Stage %d Magic Drain
+Stage %d Duration
+Stage %d Reach
+Stage %d Mash Damage Scale
+Stage %d Mash Reach Scale
+Stage %d Mashometer Drain
+Stage %d Mashometer Max
+Stage %d Allow Mashing
+Stage %d Tint Red
+Stage %d Tint Green
+Stage %d Tint Blue
+Stage %d Bright Camera Filter
+Stage %d Dark Camera Filter
+Stage %d Flash Freq
+Stage %d Fog Template
+sourceJoint
+targetJoint
+WAD_R_Lghtn
+goLightningAttackMain
+goLightningRadius
+goStrikeGrp
+goLightningSingleBolt
+SCR_Lightning
+gome
+/Player/MedusaHead
+HeadName
+JointName
+Up Angle Degree
+Down Angle Degree
+Aim Speed
+Flash Anim Pos
+Anim Rate
+Stage %d Distance
+Stage %d Cone Top Rad
+Stage %d Cone Base Rad
+Stage %d Drain
+Stage %d Freeze Factor
+Stage %d Effect
+Stage %d Flash Distance
+Stage %d Flash Cone Top Rad
+Stage %d Flash Cone Base Rad
+Stage %d Flash Points
+Stage %d Flash Freeze Factor
+Stage %d Allow Flash Freeze
+Stage %d Flash Effect
+Stage %d Nuke Points
+Stage %d Allow Nuke
+useHeadTurnLeft
+useHeadTurnRight
+WAD_R_Medhd
+SND_MEDUSA_RAY_SHOT
+SND_IG_MAGICOUT
+EyeAttack
+SCR_ShowMedusaHead
+SCR_MedusaHead
+SCR_FlashMedusaHead
+SCR_AimMedusaHead
+SCR_TriggerMedusaHead
+SCR_MedusaNuke
+SCR_EyeBeamOn
+SCR_EyeBeamOff
+SCR_ExplodeDeath
+SCR_SendBreakEvent
+SCR_SwitchNavBanks
+PlayFX
+BlockMod
+Move Min
+Move Min Block
+Move Limit
+/Player/BerserkBlade
+Stage %d Damage Multiplier
+Stage %d GO Name
+WAD_R_Brsrk
+RWEAPIH
+RWRIST
+goMAIBSActive
+SCR_DeductItem
+SCR_AddItem
+SCR_EnableBerserkBlade
+SCR_DisableBerserkBlade
+SCR_HideBerserkBlade
+SCR_BerserkBladeFX
+SCR_ShowAttachments
+SCR_HideAttachments
+SCR_FirstTimeMsg
+SCR_FlashSprite
+SCR_Commend
+SCR_ClearRadius
+SCR_DetachFromWall
+goDedRed
+goDeadHit
+goDeadDie
+/Player/RaiseTheDead
+Stage %d Num Dead Guys
+Stage %d Max Time
+Stage %d Max Damage
+Stage %d Damage Per Hit
+Stage %d Max Velocity
+Stage %d Max Reach
+Stage %d Homing Amount
+WAD_R_Rdead
+SCR_RaiseTheDead
+Radius
+FollowPlayer
+SonicScream
+Spawn
+SCR_FollowPlayer
+SCR_SonicScream
+SCR_Spawn
+SCR_TurnToRock
+SCR_UnFreeze
+/Player/Thunderbolt
+Stage %d Arrow Emitter
+Stage %d Playback Speed
+Stage %d Charge Time
+Stage %d Allow Charging
+Stage %d Ch1 Arrow Emitter
+Stage %d Ch1 Threshold
+Stage %d Ch1 Magic Drain
+Stage %d Ch2 Arrow Emitter
+Stage %d Ch2 Threshold
+Stage %d Ch2 Magic Drain
+WAD_R_Thblt
+goBolt
+goBoltChargeUp
+LWEAPIH
+boltLoop
+boltTurnLeft
+boltTurnRight
+boltCharge
+boltChargeIdle
+boltChargeTurnLeft
+boltChargeTurnRight
+SCR_ShowThunderbolt
+SCR_ChargeThunderbolt
+SCR_ThrowThunderbolt
+SCR_TriggerThunderbolt
+SCR_PlaybackThunderbolt
+GlobalData
+LevelData
+Internal3
+@Enemy1
+CLI_WYP_Site%d
+PushPull
+IO_CSM
+SavePoint
+goSavePoint
+SCR_Entities
+EntityCount
+patrol
+Refracting
+Delayed enable false
+WAD_
+Player
+WAD_R_Hero
+goHero
+Bonus
+Pand00B
+Pand00A
+Unknown zone
+HealthMeter_Value
+MagicMeter_Value
+EnemyMeter_Value1
+EnemyMeter_Value2
+EnemyMeter_Value3
+EnemyState_Value1
+EnemyState_Value2
+EnemyState_Value3
+CoolMeter_Value
+Timer_Value
+Timer_Seconds
+Commend_Value
+TestString_Value
+HitCounter_Value
+Combo_Amount
+Combo_Message
+HealthMeter_Level
+MagicMeter_Level
+MeterBarGrow
+HealthShard_Count
+MagicShard_Count
+SirenPiece_Count
+Trident_Status
+Lightning_Status
+Medusa_Status
+Thunderbolt_Status
+RaiseDead_Status
+BerserkBlade_Status
+ZoneReport_Title
+MessageTemplate_Line1
+MessageTemplate_Line2
+MessageTemplate_Line3
+MessageTemplate_Line4
+MessageTemplate_Line5
+MessageTemplate_Style
+MenuTemplate_Line1
+MenuTemplate_Line2
+MenuTemplate_Line3
+MenuTemplate_Menu1
+MenuTemplate_Menu2
+MenuTemplate_Menu3
+MenuTemplate_Menu4
+MenuTemplate_Menu5
+PowerOrb_Capacity
+LightningOrb_Capacity
+MedusaOrb_Capacity
+ThunderboltOrb_Capacity
+RaiseDeadOrb_Capacity
+BerserkBladeOrb_Capacity
+BladesOrb_Capacity
+MemoryCard_CardSlot
+MemoryCard_Name1
+MemoryCard_Name2
+MemoryCard_Name3
+MemoryCard_Name4
+MemoryCard_Date1
+MemoryCard_Date2
+MemoryCard_Date3
+MemoryCard_Date4
+MemoryCard_PlayTime1
+MemoryCard_PlayTime2
+MemoryCard_PlayTime3
+MemoryCard_PlayTime4
+BonusName1
+BonusName2
+BonusName3
+BonusName4
+BonusName5
+BonusName6
+BonusName7
+BonusName8
+BonusLocked1
+BonusLocked2
+BonusLocked3
+BonusLocked4
+BonusLocked5
+BonusLocked6
+BonusLocked7
+BonusLocked8
+BonusDesc1
+BonusDesc2
+BonusDesc3
+MoveName1
+MoveName2
+MoveName3
+MoveName4
+MoveName5
+MoveName6
+MoveName7
+MoveName8
+MoveButtons1
+MoveButtons2
+MoveButtons3
+MoveButtons4
+MoveButtons5
+MoveButtons6
+MoveButtons7
+MoveButtons8
+MoveDesc1
+MoveDesc2
+MoveDesc3
+ShellStartState
+Costumes_Unlocked
+HardMode_Unlocked
+GameVersion
+EndGame
+EnableButtons
+Difficulty_Level
+Costume_Choice
+PowerUp_FirstTime
+Zone_Choice
+PowerOrb_Count
+LightningOrb_Count
+MedusaOrb_Count
+ThunderboltOrb_Count
+RaiseDeadOrb_Count
+BerserkBladeOrb_Count
+BladesOrb_Count
+Lightning_Level
+Medusa_Level
+Thunderbolt_Level
+RaiseDead_Level
+BerserkBlade_Level
+Blades_Level
+MessageTemplate_Event
+MenuTemplate_Event
+InterfaceStyle_Event
+MeterBar_Event
+HealthMeter_Event
+MagicMeter_Event
+PowerOrb_Event
+HitCounter_Event
+PickUp_Event
+PickUpInfo_Event
+EnemyMeter_Event1
+EnemyMeter_Event2
+EnemyMeter_Event3
+EnemyState_Event1
+EnemyState_Event2
+EnemyState_Event3
+CoolMeter_Event
+Timer_Event
+Commend_Event
+TestString_Event
+PauseMenu_Event
+PSMMenu_Event
+DeadMenu_Event
+FailedMenu_Event
+ZoneReport_Event
+SaveGame_Event
+DiscRemoved_Event
+PadRemoved_Event
+MemoryCard_Event
+Menu_Choice
+Done
+PauseDone
+PSMDone
+DropShadowColor
+DropShadowOffset
+MusicVolume
+SoundVolume
+Vibration
+WideScreen
+ProgressiveScan
+DeFlicker
+SoundMode
+Sound1
+Sound2
+Sound3
+Sound4
+GenericPickUp
+MemoryCard_Image1
+MemoryCard_Image2
+MemoryCard_Image3
+MemoryCard_Image4
+PS2_
+WadName
+SND_
+MemoryCard_Select
+MoveScroll
+BonusScroll
+msgs_en.txt
+Msg %d
+Msg 0
+Msg 1
+Msg 2
+Msg 4
+PS2_MessageTemplate_Line%d
+Menu %d
+Menu 0
+Menu 1
+Menu 2
+XButtonGreek
+TriangleButtonGreek
+CircleButtonGreek
+SquareButtonGreek
+Up180CW
+Up180CCW
+Down180CW
+Down180CCW
+360CW
+360CCW
+XButtonPress
+R2ButtonPress
+WiggleStick
+WiggleBackForth
+R2ButtonStatic
+Arena10
+Olymp04
+Semo01
+Semo02
+Semo03
+Semo04
+Semo05
+Semo06
+Semo07
+Semo08
+Semo09
+Semo10
+Semo13
+SND_MM_SELECT
+SND_M_TIT1E1_2
+Bonus20
+SND_M_CREDITS1
+R_Wpn
+R_Thblt
+R_Rdead
+R_Medhd
+R_Lghtn
+R_Brsrk
+R_Perm
+Levels
+HERO_HEAP_SIZE
+Hero
+SLOT_HEAP_SIZE
+Slots
+UPGRADE_HEAP_SIZE
+Upgrade
+Shell
+R_Shell
+R_Hero%d
+R_SavePt
+CXT_default
+SheetFX
+PartType
+WallHangTimer
+Damage
+AIDamage
+Mortal (Easy)
+Hero (Normal)
+Spartan (Hard)
+God (Very Hard)
+Damage Mult
+AI Damage Mult
+AI Recovery Time Mult
+/GlobGame
+Gravity
+Walkable Slope Angle
+Circle Sound Delay
+Difficulty
+Easy
+Normal
+Hard
+Impossible
+BMI01JOCHEA1
+steamAttach%02d
+steamAttach01
+steamAttach02
+steamAttach03
+steamAttach04
+steamAttach05
+steamAttach06
+steamAttach07
+goSteamVent01
+BMI01JOLULN1
+BMI01JOLHUM1
+BMI01JORULN1
+BMI01JORHUM1
+BMI01JOCVEB1
+BMI01JOCVEC1
+BMI01JOCNEC1
+goLeftArmShatterBRK
+goLeftShouldBRK
+goRArm2BRK
+goRightShouldBRK
+goAbdomenBRK
+goChestBRK
+goHelmetBRK
+goCollarBRK
+RSE_SNDVents
+SND_MB_VENTSHOT
+SND_MB_VENT%d_LP
+Camera Target Weight
+Camera Target Radius
+Damage Per Vent Stage
+Damage Per Armor Stage
+No Armor Health Threshold
+Walk Forward
+Leap Back
+Dodge
+Stagger First Time
+Stagger
+Stunned
+Armor Stagger
+Armor Stunned
+No Armor Stunned
+Platform Stagger First Time
+Platform Stagger
+Platform Stunned
+Platform Armor Stagger
+Platform Armor Stunned
+Platform No Armor Stunned
+Platform Mount
+Platform Dismount
+Victory
+Platform Victory
+Retreat
+Behind Close Dist
+Close Mid Dist
+Mid Far Dist
+Far Walk Dist
+Center Angle
+Retreat Dist
+Platform Dist
+Platform Back Dist
+Platform Center Angle
+SCR_BMITurnOffVents
+SCR_BMIOnPlatform
+SCR_BMIBrokenPieces
+SCR_BMINoDodge
+SCR_GlowEnemyMeter
+MAT_MAIfclh
+goAthenaBlade
+MAT_shreddedArm
+/GlobGame/BAR
+Player Soldier Tweaks
+Patrol%d
+Patrol0
+Patrol1
+Patrol2
+Patrol3
+Patrol4
+Patrol5
+SND_TRANSFORM_LP
+SND_TRANSFORM_END
+/Player
+Max Hit Points Level 0
+Max Hit Points Level 1
+Max Hit Points Level 2
+Max Hit Points Level 3
+Max Hit Points Level 4
+Max Magic Level 0
+Max Magic Level 1
+Max Magic Level 2
+Max Magic Level 3
+Max Magic Level 4
+Max Magic Level 5
+Targeting Range
+Manual Targeting Range
+Deaths Before Easy Offer
+Shards Per Meter Level
+Death Menu Time
+Hit Counter Reset Time
+Meter Bar Hold Time
+Wiggle Meter Drain
+Frozen Invulnerable Time
+Statue Vertical Break Speed
+Soldier Tweaks
+%s/Weapon Level %d
+Weapon Level %d
+Weapon Level 1
+Weapon Level 2
+Weapon Level 3
+Weapon Level 4
+Weapon Level 5
+%s/Costume %d
+Costume %d
+Costume 1
+Costume 2
+Costume 3
+Costume 4
+Costume 5
+God Mode On Threshold
+God Mode Off Threshold
+God Mode Loop Name
+God Mode End Name
+God Mode End Threshold
+Low Health Threshold
+Low Health Min Freq
+Low Health Min Volume
+Low Health Max Freq
+Low Health Death Freq
+Low Health Death Timer
+%s/Bonus
+%s/Reticle
+Blade Damping
+Blade Scale On Back
+Blade Scale In Hand
+Blade Scale Out Hand
+Blade Collision Tolerance
+Segment Length
+Link Diameter
+Glow Diameter
+Shadow Diameter
+Auto Aim Damping
+Dmg Mult
+Trail Tint R
+Trail Tint G
+Trail Tint B
+Trail Tint A
+Allow God Mode
+Allow God Mode Inf Magic
+God Mode Meter Drain
+God Mode Dmg Mult
+God Mode Enmy Dmg Mult
+God Mode Tint R
+God Mode Tint G
+God Mode Tint B
+God Mode Trail Tint R
+God Mode Trail Tint G
+God Mode Trail Tint B
+God Mode Trail Tint A
+Infinite Magic
+Health Orb Mult
+Magic Orb Mult
+Weapon Orb Mult
+Weapon Length
+God Mode Weapon Length
+Threshold
+Milestone %d Hits
+Template %d
+Valid Tint R
+Valid Tint G
+Valid Tint B
+Invalid Tint R
+Invalid Tint G
+Invalid Tint B
+goTargetLK
+head
+WAD_R_Wpn
+SND_SELECT_LIGHTNING
+SND_SELECT_MEDUSA
+SND_SELECT_BOLT
+SND_SELECT_RTD
+SND_SELECT_NULL
+goFlashGrp
+goBreastPlate
+goHelmet
+goShoulderGuardR
+goBracerR
+goGrieveR
+goShoulderGuardL
+goBracerL
+goGrieveL
+vertebrae4
+rHumerus
+rRadius
+rTibia
+lHumerus
+lRadius
+lTibia
+SND_MI_RAGEMIME
+SND_MINIGAME_BUTTON
+SND_LOWHEALTH
+SND_LEVELUPCARD
+Overhead
+ModelViewer
+Follow
+Cinema
+Control Tween Safety
+Control Tween Speed
+Control Tween Threshold
+normal 
+world  
+surface
+Brkb
+Unfreeze Speed
+SND_MINIGAME_AVAILABLE
+goMiniGameCircle
+Sold
+Fixed
+Zoned
+Model Viewer
+Flying
+Freeze
+Ballista
+Zoom
+Tilt
+Combo
+Swimming
+#<Position
+Position
+XYZW
+Elevation
+Rotation
+Angle of View
+Elevation Mode
+Rotation Mode
+Boom Ratio
+Max To Dolly
+Min To Dolly
+Max To Target
+Min To Target
+Elevation Constraint
+Rotation Constraint
+Move Dolly
+Rail Relative
+Dolly Damping
+Safe Zone Top
+Safe Zone Bottom
+Safe Zone Left
+Safe Zone Right
+Jump Compensation
+Double Jump Comp
+Trigger Animation
+Action Zoom
+Multiple Targets
+Mic Underwater
+Use Static Target
+Ignore Mic Max Distance
+Override Mic Boom Ratio
+Priority
+Tween Default
+From Camera %i
+From Camera 1
+From Camera 2
+From Camera 3
+Tween Time %i
+Tween Time 1
+Tween Time 2
+Tween Time 3
+Ignore %i
+Ignore 1
+Ignore 2
+Ignore 3
+In Combat
+On Ground
+On Rope
+Climbing
+Jumping
+Falling
+Filter Template
+default
+target
+dolly
+delta
+static target
+AimJoint
+CamPos
+Width
+CameraShake
+CameraFilter
+RGBA
+CameraDOF
+TimeWarpBlur
+AresCamera1
+BAR01JOCVEC1
+pause AI
+f line symetrical
+f line angle
+f line weight
+seperating min
+seperating max
+seperating weight
+obscured symetrical
+obscured weight
+dolly rot angle
+dolly rot limit
+dolly rot weight
+distance min
+distance min weight
+inside rim min
+inside rim weight
+horizontal max
+horizontal weight
+vertical max
+vertical weight
+minimum dist
+minimum dist weight
+maximum dist
+maximum dist weight
+slope weight
+bay floor
+bowl base
+bowl centre x
+bowl centre z
+bowl radius
+bowl slope
+bowl h delta
+max rail speed
+boom speed in
+boom speed out
+static_friction
+dynamic_friction
+weight_1
+weight_2
+mass
+soft_clamp_width
+zeroJoint
+synchJoint
+/GlobGame/BloodSpots
+Offset
+Cone
+Impulse
+Nominal Distance
+Nominal Particles
+Nominal Size
+Fall Time
+Emit Time
+Clamp Spread Size
+Clamp Part Size
+Clamp Num Part
+Particle System 1 Light
+Particle System 1 Dark
+Particle System 2 Light
+Particle System 2 Dark
+Particle System 3 Light
+Particle System 3 Dark
+Pelvis
+MAT_chainlink
+MAT_chainglow
+goMAIgodblade
+MAT_godswordtrail
+MAT_godchainlink
+MAT_godchainglow
+goMAIblade
+LeftBladeLight
+RightBladeLight
+SND_KICKCHARGEVO_LP
+godoublejump
+SND_HERO_JUMPVOC
+SND_JUMPOUTWATER
+SND_SWIM_UW_LOOP
+SND_UNDERWATAMB_LP
+SND_HERO_BREATH_NORM
+%s_BD
+lMetatarsal
+rMetatarsal
+pelvis
+lwrist
+rwrist
+neck
+gobubpart
+goRipples
+handle%1d
+Attachment
+blooddrip
+bloodspray
+flame
+CombatFile
+CombatFileSet
+File %d
+File 1
+File 2
+File 3
+File 4
+goCamera
+SCR_Sound
+SCR_LeftRightAim
+SCR_LeftAim
+SCR_RightAim
+SCR_NoShadow
+SCR_NoPlayerBars
+TXR_FOG
+MAT_%s
+scrape
+TAndF
+SND_HERO_LIFTVOC
+magic
+magic2
+health
+health2
+power
+power2
+plain
+Push
+Rope
+Thing On A Spring Factor 1
+Thing On A Spring Factor 2
+gorain
+gosnow
+goplankton
+godust
+goembers
+gogroundfog
+SCR_Sky
+SCR_Fog
+SCR_LayeredFog
+SCR_AresSky
+SCR_FarClip
+SCR_RopeSkinned
+SCR_Weather
+SCR_LensFlare
+SCR_Water
+SCR_GhostTrail
+SCR_ThingOnASpring
+SCR_Shadow
+SND_ICON
+gofireplane
+gomai
+goBirds
+goDustRocks
+goDustPuff
+Athn01A
+Arena
+480P Toggle Lock
+ArrowEmitter
+Arrow
+Translate
+OrbEmitter
+SND_ORBPICKUP
+goHealthOrb
+ForceFeedback
+Input %d Bias
+Input %d Scale
+Input %d Operator
+Test Instance
+PlayList
+Track %02i
+Track 01
+Track 02
+Track 03
+Track 04
+Track 05
+Track 06
+Stopped
+Paused
+Silent
+Fade Up
+Fade Set
+Fade To Stop
+Fade To Pause
+Fade To Silence
+WadInfoGroup
+GO %d Name
+WadInfo
+Extra GO %d Name
+Extra GO %d Cap
+Group %d Idx
+Group %d
+IO_TandF
+MC_DATA
+Empty
+data
+HeroBreak
+Creator
+fieldtest
+
