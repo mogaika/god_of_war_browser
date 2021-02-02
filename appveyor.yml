@@ -29,6 +29,7 @@ after_build:
   - 7z a god_of_war_browser.zip LOCALIZATION.md
   - 7z a god_of_war_browser.zip README.md
   - 7z a god_of_war_browser.zip hashes.dump.txt
+  - 7z a god_of_war_browser.zip strings.dump.txt
   - mv god_of_war_browser.zip god_of_war_browser.%APPVEYOR_BUILD_VERSION%.zip
 
 test: off

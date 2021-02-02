@@ -62,10 +62,39 @@ func loadHashes(filename string) error {
 	}
 }
 
+func loadStringHashes(filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+	for {
+		line, err := r.ReadString('\n')
+		if err == io.EOF {
+			return nil
+		}
+
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		line = strings.TrimSuffix(line, "\n")
+		line = strings.TrimSuffix(line, "\r")
+
+		hashesMap.Store(GameStringHashNodes(line, 0), line)
+	}
+}
+
 func init() {
 	go func() {
 		if err := loadHashes("hashes.dump.txt"); err != nil {
 			log.Printf("Failed to load hash file: %v", err)
+		}
+
+		if err := loadHashes("strings.dump.txt"); err != nil {
+			log.Printf("Failed to load string hashes file: %v", err)
 		}
 	}()
 }
