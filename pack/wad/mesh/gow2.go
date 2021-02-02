@@ -26,11 +26,16 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
 	o.DmaTagsCountPerPacket = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
-	o.JointMappers = make([][]uint32, 1)
-	if jmLen := binary.LittleEndian.Uint16(b[0xa:]); jmLen != 0 {
-		o.JointMappers[0] = make([]uint32, binary.LittleEndian.Uint16(b[0xa:]))
-	}
 	o.InstancesCount = binary.LittleEndian.Uint32(b[0xc:])
+	o.JointMapElementsCount = binary.LittleEndian.Uint16(b[0xa:])
+
+	o.JointMappers = make([][]uint32, o.InstancesCount)
+	if o.JointMapElementsCount != 0 {
+		for iJm := range o.JointMappers {
+			o.JointMappers[iJm] = make([]uint32, o.JointMapElementsCount)
+		}
+	}
+
 	o.Flags = binary.LittleEndian.Uint32(b[0x10:])
 	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]

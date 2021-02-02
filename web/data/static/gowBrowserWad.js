@@ -216,6 +216,7 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         summaryLoadWadMdl(data, wad, tagid);
                         break;
                     case 0x00040001: // obj
+                    case 0x00010001: // obj gow2
                         summaryLoadWadObj(data, wad, tagid);
                         break;
                     case 0x80000001: // cxt
