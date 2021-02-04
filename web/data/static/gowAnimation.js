@@ -222,18 +222,18 @@ gaObjSkeletAnimation.prototype.reset = function() {
 
 
 // return first sample index
-function animationReturnStreamData(manager, globalManager, animNextTime, frameTime) {
+function animationReturnStreamDataIndex(manager, globalManager, animNextTime, frameTime) {
     const eps = 1.0 / (1024.0 * 16.0);
     // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
     let globalFramesCount = globalManager.Count + globalManager.Offset + globalManager.DatasCount3 - 1;
-    let animFrameTime = animNextTime / frameTime;
-    if ((animFrameTime + eps) > globalFramesCount ||
-        (animFrameTime - eps) < manager.Offset) {
+    let animFrame = animNextTime / frameTime;
+    if ((animFrame + eps) > globalFramesCount ||
+        (animFrame - eps) < manager.Offset) {
         return undefined;
     }
 
-    let streamSampleIdx = animFrameTime - manager.Offset;
+    let streamSampleIdx = animFrame - manager.Offset;
     if (streamSampleIdx >= manager.Count + manager.DatasCount3) {
         return undefined;
     } else if (streamSampleIdx > manager.Count - 1) {
@@ -245,11 +245,11 @@ function animationReturnStreamData(manager, globalManager, animNextTime, frameTi
     }
 }
 
-function animationHandleRotationStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l = false) {
+function animationHandleSkinningStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l = false) {
     const eps = 1.0 / (1024.0 * 16.0);
     // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
-    let newSamplePos = animationReturnStreamData(stream.Manager, globalManager, newTime, frameTime);
+    let newSamplePos = animationReturnStreamDataIndex(stream.Manager, globalManager, newTime, frameTime);
     if (newSamplePos === undefined) {
         return false;
     }
@@ -265,7 +265,7 @@ function animationHandleRotationStream(stream, globalManager, prevTime, newTime,
 
         let prevValueMultiplyer, prevSampleIndex;
         let prevSampleOffset;
-        let prevSamplePos = animationReturnStreamData(stream.Manager, globalManager, prevTime, frameTime);
+        let prevSamplePos = animationReturnStreamDataIndex(stream.Manager, globalManager, prevTime, frameTime);
         if (prevSamplePos !== undefined) {
             // if not first frame in batch
             prevSampleIndex = Math.floor(prevSamplePos);
@@ -360,20 +360,20 @@ gaObjSkeletAnimation.prototype.update = function(dt) {
 
             if (globalRotationStream.Manager.Count) {
                 let stream = globalRotationStream;
-                if (animationHandleRotationStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
+                if (animationHandleSkinningStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
                     changed = true;
                 }
             } else {
                 for (let iAdditiveSample in data.RotationSubStreamsAdd) {
                     let stream = data.RotationSubStreamsAdd[iAdditiveSample];
-                    if (animationHandleRotationStream(stream, globalRotationStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
+                    if (animationHandleSkinningStream(stream, globalRotationStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
                         changed = true;
                     }
                 }
 
                 for (let iRoughSample in data.RotationSubStreamsRough) {
                     let stream = data.RotationSubStreamsRough[iRoughSample];
-                    if (animationHandleRotationStream(stream, globalRotationStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
+                    if (animationHandleSkinningStream(stream, globalRotationStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
                         changed = true;
                     }
                 }
@@ -381,20 +381,20 @@ gaObjSkeletAnimation.prototype.update = function(dt) {
 
             if (globalPositionStream.Manager.Count) {
                 let stream = globalPositionStream;
-                if (animationHandleRotationStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                if (animationHandleSkinningStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
                     changed = true;
                 }
             } else {
                 for (let iAdditiveSample in data.PositionSubStreamsAdd) {
                     let stream = data.PositionSubStreamsAdd[iAdditiveSample];
-                    if (animationHandleRotationStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                    if (animationHandleSkinningStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
                         changed = true;
                     }
                 }
 
                 for (let iRoughSample in data.PositionSubStreamsRough) {
                     let stream = data.PositionSubStreamsRough[iRoughSample];
-                    if (animationHandleRotationStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                    if (animationHandleSkinningStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
                         changed = true;
                     }
                 }

@@ -190,11 +190,11 @@ func parseFramesRotationRaw(buf []byte, subStream *AnimStateSubstream, bitMap *D
 	}
 	const elementSize = 2
 	bitMap.Iterate(func(bitIndex, iteration int) {
-		frames := make([]int16, subStream.Manager.Count)
+		frames := make([]float32, subStream.Manager.Count)
 		frameStep := int(bitMap.PairedElementsCount) * elementSize
 		for iFrame := range frames {
 			offset := frameStep*iFrame + int(bitMap.DataOffset) + iteration*elementSize + additionalOffset
-			frames[iFrame] = int16(binary.LittleEndian.Uint16(buf[offset:]))
+			frames[iFrame] = float32(int16(binary.LittleEndian.Uint16(buf[offset:])))
 		}
 		subStream.Samples[int(descr.BaseTargetDataIndex)+bitIndex] = frames
 	})

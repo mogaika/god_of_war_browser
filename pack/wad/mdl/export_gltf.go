@@ -3,11 +3,12 @@ package mdl
 import (
 	"log"
 
+	"github.com/qmuntal/gltf"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_mat "github.com/mogaika/god_of_war_browser/pack/wad/mat"
 	file_mesh "github.com/mogaika/god_of_war_browser/pack/wad/mesh"
 	"github.com/mogaika/god_of_war_browser/utils/gltfutils"
-	"github.com/qmuntal/gltf"
 )
 
 type GLTFModelExported struct {

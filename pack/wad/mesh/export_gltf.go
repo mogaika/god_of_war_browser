@@ -3,12 +3,11 @@ package mesh
 import (
 	"fmt"
 
+	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils/gltfutils"
 
 	"github.com/qmuntal/gltf"
 	"github.com/qmuntal/gltf/modeler"
-
-	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
 
 type GLTFObjectExported struct {

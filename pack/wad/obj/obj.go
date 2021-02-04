@@ -56,10 +56,11 @@ type Joint struct {
 	// if flags & 0x6000 != 0  then make strange calculation with matrix invert
 	Flags uint32
 
-	IsSkinned bool
-	InvId     int16
+	IsSkinned   bool
+	IsExternal  bool // then not used for rendering?
+	IsQuaterion bool
 
-	IsExternal bool // then not used for rendering?
+	InvId int16
 
 	BindToJointMat    mgl32.Mat4 // bind world joint => local joint
 	BindWorldJoint    mgl32.Mat4 // bind world joint
@@ -177,8 +178,9 @@ func NewFromData(buf []byte, objName string) (*Object, error) {
 			ExternalId:  int16(binary.LittleEndian.Uint16(jointBuf[0xa:0xc])),
 			UnkCoeef:    math.Float32frombits(binary.LittleEndian.Uint32(jointBuf[0xc:0x10])),
 			Id:          int16(i),
-			IsSkinned:   flags&0x80 != 0, // || uint32(len(obj.Joints)) == mat3count
 			IsExternal:  flags&0x8 != 0,
+			IsSkinned:   flags&0x80 != 0, // || uint32(len(obj.Joints)) == mat3count
+			IsQuaterion: flags&0x8000 != 0,
 			InvId:       invid,
 		}
 
@@ -364,7 +366,7 @@ func (o *Object) getQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
 
 // with conversion from euler
 func (o *Object) GetQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
-	if o.Joints[jointId].Flags&0x8000 != 0 {
+	if o.Joints[jointId].IsQuaterion {
 		return o.getQuaterionLocalRotationForJoint(jointId).Normalize()
 	} else {
 		euler := o.getEulerLocalRotationForJoint(jointId)
@@ -382,7 +384,7 @@ func (o *Object) getEulerLocalRotationForJoint(jointId int) mgl32.Vec3 {
 
 // with conversion from quat, result in degrees
 func (o *Object) GetEulerLocalRotationForJoint(jointId int) mgl32.Vec3 {
-	if o.Joints[jointId].Flags&0x8000 != 0 {
+	if o.Joints[jointId].IsQuaterion {
 		q := o.getQuaterionLocalRotationForJoint(jointId)
 		return utils.QuatToEuler(q).Mul(180.0 / math.Pi)
 	} else {
