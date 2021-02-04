@@ -57,10 +57,20 @@ func (c *client) writePump() {
 
 func NewClient(conn *websocket.Conn) *client {
 	c := &client{conn: conn, send: make(chan []byte, 32)}
+
 	registerClient(c)
 	go c.writePump()
+	go func(conn *websocket.Conn) {
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}(c.conn)
+
 	globalLock.Lock()
 	defer globalLock.Unlock()
+
 	c.send <- lastMessage
 	return c
 }
