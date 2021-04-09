@@ -370,7 +370,7 @@ func (o *Object) GetQuaterionLocalRotationForJoint(jointId int) mgl32.Quat {
 		return o.getQuaterionLocalRotationForJoint(jointId).Normalize()
 	} else {
 		euler := o.getEulerLocalRotationForJoint(jointId)
-		return utils.EulerToQuat(euler)
+		return utils.EulerToQuat(utils.DegreeToRadiansV3(euler))
 	}
 }
 

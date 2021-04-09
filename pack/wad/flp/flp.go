@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	FLP_MAGIC   = 0x21
-	HEADER_SIZE = 0x60
+	FLP_MAGIC      = 0x21
+	FLP_MAGIC_GOW2 = 0x1b
+	HEADER_SIZE    = 0x60
 
 	DATA1_ELEMENT_SIZE                            = 0x4
 	DATA2_ELEMENT_SIZE                            = 0x8
@@ -279,6 +280,15 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(config.GOW1, FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		inst, err := NewFromData(wrsrc.Tag.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		return inst, nil
+	})
+
+	wad.SetHandler(config.GOW2, FLP_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err

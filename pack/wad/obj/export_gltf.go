@@ -69,7 +69,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 			}
 
 			gltfAnim := &gltf.Animation{
-				Name:     group.Name + " " + act.Name,
+				Name:     group.Name + "_" + act.Name,
 				Samplers: make([]*gltf.AnimationSampler, 0),
 				Channels: make([]*gltf.Channel, 0),
 			}
@@ -94,8 +94,8 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 							W: v[3] * quat_to_float,
 						}
 					} else {
-						q = utils.EulerToQuat(
-							mgl32.Vec3{v[0], v[1], v[2]}.Mul(quat_to_float * 360.0),
+						q = utils.EulerToQuat(utils.DegreeToRadiansV3(
+							mgl32.Vec3{v[0], v[1], v[2]}.Mul(quat_to_float * 360.0)),
 						)
 					}
 
@@ -103,7 +103,23 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 					output = append(output, [4]float32{q.V[0], q.V[1], q.V[2], q.W})
 				}
 
-				// utils.LogDump(input, output)
+				if act.Name == "air360" {
+					if !o.Joints[iJoint].IsQuaterion {
+						if iJoint == 2 {
+							log.Printf("++++ JOINT %d", iJoint)
+							for i, v := range stream.Values {
+								q := utils.EulerToQuat(utils.DegreeToRadiansV3(
+									mgl32.Vec3{v[0], v[1], v[2]}.Mul(quat_to_float * 360.0),
+								))
+								log.Printf("[%d]: %v %v",
+									stream.Index[i],
+									stream.Values[i],
+									utils.QuatToEuler(q).Mul(1.0/(quat_to_float*360.0)))
+							}
+						}
+					}
+					//utils.LogDump(input, output)
+				}
 
 				inputAccesor := modeler.WriteAccessor(doc, gltf.TargetNone, input)
 				outputAccesor := modeler.WriteAccessor(doc, gltf.TargetNone, output)
@@ -111,7 +127,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 				gltfAnim.Samplers = append(gltfAnim.Samplers, &gltf.AnimationSampler{
 					Input:         &inputAccesor,
 					Output:        &outputAccesor,
-					Interpolation: gltf.InterpolationLinear,
+					Interpolation: gltf.InterpolationStep,
 				})
 				gltfAnim.Channels = append(gltfAnim.Channels, &gltf.Channel{
 					Sampler: gltf.Index(uint32(len(gltfAnim.Samplers) - 1)),
@@ -134,7 +150,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 				gltfAnim.Samplers = append(gltfAnim.Samplers, &gltf.AnimationSampler{
 					Input:         &inputAccesor,
 					Output:        &outputAccesor,
-					Interpolation: gltf.InterpolationLinear,
+					Interpolation: gltf.InterpolationStep,
 				})
 				gltfAnim.Channels = append(gltfAnim.Channels, &gltf.Channel{
 					Sampler: gltf.Index(uint32(len(gltfAnim.Samplers) - 1)),

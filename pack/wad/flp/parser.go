@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -55,7 +56,7 @@ func (d3 *Font) FromBuf(buf []byte) int {
 
 func (d3 *Font) Parse(buf []byte, pos int) int {
 	if d3.Flags&(4|2) == (4 | 2) {
-		panic("d3.Flags &(4|2) == (4|2")
+		panic("d3.Flags &(4|2) == (4|2)")
 	}
 	if d3.Flags&(2|4) != 0 {
 		d3.MeshesRefs = make([]MeshPartReference, d3.CharsCount)
@@ -297,20 +298,34 @@ func (d10 *BlendColor) FromBuf(buf []byte) int {
 }
 
 func (f *FLP) fromBuffer(buf []byte) error {
-	f.Unk04 = binary.LittleEndian.Uint32(buf[0x4:])
-	f.Unk08 = binary.LittleEndian.Uint32(buf[0x8:])
-	f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0xc:]))
-	f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x14:]))
-	f.Fonts = make([]Font, binary.LittleEndian.Uint32(buf[0x1c:]))
-	f.StaticLabels = make([]StaticLabel, binary.LittleEndian.Uint32(buf[0x24:]))
-	f.DynamicLabels = make([]DynamicLabel, binary.LittleEndian.Uint32(buf[0x2c:]))
-	f.Datas6 = make([]Data6, binary.LittleEndian.Uint32(buf[0x34:]))
-	f.Datas7 = make([]Data6Subtype1, binary.LittleEndian.Uint32(buf[0x3c:]))
-	f.Transformations = make([]Transformation, binary.LittleEndian.Uint16(buf[0x48:]))
-	f.BlendColors = make([]BlendColor, binary.LittleEndian.Uint16(buf[0x50:]))
+	var pos int
+	if config.GetGOWVersion() == config.GOW1 {
+		f.Unk04 = binary.LittleEndian.Uint32(buf[0x4:])
+		f.Unk08 = binary.LittleEndian.Uint32(buf[0x8:])
+
+		f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0xc:]))
+		f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x14:]))
+		f.Fonts = make([]Font, binary.LittleEndian.Uint32(buf[0x1c:]))
+		f.StaticLabels = make([]StaticLabel, binary.LittleEndian.Uint32(buf[0x24:]))
+		f.DynamicLabels = make([]DynamicLabel, binary.LittleEndian.Uint32(buf[0x2c:]))
+		f.Datas6 = make([]Data6, binary.LittleEndian.Uint32(buf[0x34:]))
+		f.Datas7 = make([]Data6Subtype1, binary.LittleEndian.Uint32(buf[0x3c:]))
+		f.Transformations = make([]Transformation, binary.LittleEndian.Uint16(buf[0x48:]))
+		f.BlendColors = make([]BlendColor, binary.LittleEndian.Uint16(buf[0x50:]))
+
+		pos = HEADER_SIZE
+	} else {
+		f.Unk04 = binary.LittleEndian.Uint32(buf[0x30:])
+		f.Unk08 = binary.LittleEndian.Uint32(buf[0x34:])
+
+		f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0x38:])) // checked
+		f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x3c:]))     // checked
+
+		pos = 0x5c
+	}
+
 	f.Strings = make([]string, 0)
 
-	pos := HEADER_SIZE
 	for i := range f.GlobalHandlersIndexes {
 		pos += f.GlobalHandlersIndexes[i].FromBuf(buf[pos:])
 	}
@@ -320,6 +335,10 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	}
 	for i := range f.MeshPartReferences {
 		pos = f.MeshPartReferences[i].Parse(buf, pos)
+	}
+
+	if config.GetGOWVersion() == config.GOW2 {
+		return nil
 	}
 
 	for i := range f.Fonts {

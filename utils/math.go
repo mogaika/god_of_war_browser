@@ -30,9 +30,17 @@ func QuatToEuler(q mgl32.Quat) (e mgl32.Vec3) {
 	return e
 }
 
-// input in degres
+func DegreeToRadiansV3(v mgl32.Vec3) mgl32.Vec3 {
+	return v.Mul(1.0 / (2.0 * math.Pi))
+}
+
+func RadiansToDegreeV3(v mgl32.Vec3) mgl32.Vec3 {
+	return v.Mul(2.0 * math.Pi)
+}
+
+// input in radians
 func EulerToQuat(v mgl32.Vec3) (q mgl32.Quat) {
-	const halfToRad = (0.5 * math.Pi) / 180.0
+	const halfToRad = ((0.5 * math.Pi) / 180.0) * 2.0 * math.Pi
 	x := float64(v[0]) * halfToRad
 	y := float64(v[1]) * halfToRad
 	z := float64(v[2]) * halfToRad

@@ -34,7 +34,8 @@ func (wad *Wad) WebHandlerForNodeByTagId(w http.ResponseWriter, tagId TagId) err
 
 func (wad *Wad) WebHandlerDumpTagData(w http.ResponseWriter, id TagId) {
 	tag := wad.GetTagById(id)
-	webutils.WriteFile(w, bytes.NewBuffer(tag.Data), tag.Name)
+	node := wad.GetNodeById(tag.NodeId)
+	webutils.WriteFile(w, bytes.NewBuffer(node.Tag.Data), node.Tag.Name)
 }
 
 func (wad *Wad) WebHandlerCallResourceHttpAction(w http.ResponseWriter, r *http.Request, id TagId, action string) error {

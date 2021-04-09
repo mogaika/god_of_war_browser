@@ -8,11 +8,13 @@ function gaAnimationManager() {
     this.matLayerAnimations = [];
     this.matSheetAnimations = [];
     this.objSkeletAnimations = [];
+    this.speed = 1.0;
 };
 
 gaAnimationManager.prototype.update = function() {
     let currentTime = window.performance.now() / 1000.0;
     let dt = currentTime - this.lastUpdateTime;
+    dt = dt * this.speed;
 
     if (this.active) {
         for (let i in this.matLayerAnimations) {

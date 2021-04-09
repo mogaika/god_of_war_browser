@@ -260,7 +260,7 @@ type Entity struct {
 	Size                 uint16
 	EntityType           EntityType
 	EntityUniqueID       uint16
-	Field_0x4a           uint16
+	Field_0x4a           uint16 // Base index for level/global data (when in separated files)
 	StringsCount         uint16
 	HandlersCount        uint16
 	DependsEntitiesCount uint16

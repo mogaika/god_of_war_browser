@@ -24,6 +24,8 @@ Example: Play door open anim
 === Type 6 - Unknown
 
 === Type 7 - Vis
+enable/disable cameras or objects?
+
 PlayerStartZone-VisIdleOn
 #13 = set idle
 PlayerStartZone-VisIdleOff

@@ -923,7 +923,7 @@ function loadCollisionFromAjax(mdl, data) {
 
 function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
     if (data.Model) {
-        let mdlTables = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
+        let mdlTables = loadMdlFromAjax(mdl, data.Model, parseScripts, false);
         for (let mdlTable of mdlTables) {
             dataSummary.append(mdlTables);
         }
@@ -1032,7 +1032,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
                 parseInt((joint.Id % 8) * 15) + ',' +
                 parseInt(((joint.Id / 8) % 8) * 15) + ',' +
                 parseInt(((joint.Id / 64) % 8) * 15) + ');')
-            .append(joint.Id).attr("rowspan", 20));
+            .append(joint.Id).attr("rowspan", 22));
 
         let firstRow = true;
 
@@ -1040,6 +1040,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
             if (k === "Name" ||
                 k === "IsSkinned" ||
                 k === "IsExternal" ||
+                k === "IsQuaterion" ||
                 k === "OurJointToIdleMat" ||
                 k === "ParentToJoint" ||
                 k === "BindToJointMat" ||
@@ -1077,7 +1078,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
     });
     dataSummary.append(jointsTable);
 
-    if (data.Model || data.Collision) {
+    //if (data.Model || data.Collision) {
         set3dVisible(true);
 
         let mdl = new grModel();
@@ -1085,7 +1086,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
         gr_instance.models.push(mdl);
         gr_instance.requestRedraw();
-    }
+    //}
 }
 
 
