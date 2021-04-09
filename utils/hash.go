@@ -82,8 +82,8 @@ func loadStringHashes(filename string) error {
 
 		line = strings.TrimSuffix(line, "\n")
 		line = strings.TrimSuffix(line, "\r")
-
 		hashesMap.Store(GameStringHashNodes(line, 0), line)
+		hashesMap.Store(GameStringHashNodes(strings.ToUpper(line), 0), strings.ToUpper(line))
 	}
 }
 
@@ -93,7 +93,7 @@ func init() {
 			log.Printf("Failed to load hash file: %v", err)
 		}
 
-		if err := loadHashes("strings.dump.txt"); err != nil {
+		if err := loadStringHashes("strings.dump.txt"); err != nil {
 			log.Printf("Failed to load string hashes file: %v", err)
 		}
 	}()
