@@ -5,7 +5,6 @@ import (
 	"compress/zlib"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/mogaika/god_of_war_browser/config"
 
@@ -32,9 +31,6 @@ func (f *File) initBuf() error {
 	for int64(buf.Len()) < f.e.OriginalSize {
 		compressedArchiveOffset := f.e.StartOffset + compressedFileOffset
 		compressedBlockSize := f.p.blockSizes[blockIndex]
-
-		log.Printf("Compressed block size %v original size %v compressend %v totalend %v",
-			compressedBlockSize, f.p.h.BlockSize, buf.Len()+int(compressedBlockSize), f.e.OriginalSize)
 
 		if compressedBlockSize == 0 {
 			if _, err := f.p.f.ReadAt(compressedBuf, compressedArchiveOffset); err != nil {
