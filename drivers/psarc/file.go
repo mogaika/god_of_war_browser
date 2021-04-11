@@ -5,6 +5,9 @@ import (
 	"compress/zlib"
 	"fmt"
 	"io"
+	"log"
+
+	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/mogaika/god_of_war_browser/vfs"
 )
@@ -24,12 +27,14 @@ func (f *File) initBuf() error {
 
 	blockIndex := f.e.BlockListStart
 	compressedFileOffset := int64(0)
-	outFileOffset := int64(0)
 	compressedBuf := make([]byte, f.p.h.BlockSize)
 
-	for outFileOffset < f.e.OriginalSize {
+	for int64(buf.Len()) < f.e.OriginalSize {
 		compressedArchiveOffset := f.e.StartOffset + compressedFileOffset
 		compressedBlockSize := f.p.blockSizes[blockIndex]
+
+		log.Printf("Compressed block size %v original size %v compressend %v totalend %v",
+			compressedBlockSize, f.p.h.BlockSize, buf.Len()+int(compressedBlockSize), f.e.OriginalSize)
 
 		if compressedBlockSize == 0 {
 			if _, err := f.p.f.ReadAt(compressedBuf, compressedArchiveOffset); err != nil {
@@ -47,18 +52,25 @@ func (f *File) initBuf() error {
 				return fmt.Errorf("[psarc.File.initBuf blockSize!=0 ReadAt] %v", err)
 			}
 
-			// TODO: improve something here pls
-			if compressedBlock[0] != 0x78 || compressedBlock[1] != 0xda {
-				panic("OMG RANDOM")
-			}
-
-			if zr, err := zlib.NewReader(bytes.NewReader(compressedBlock)); err != nil {
-				panic(err)
+			if config.GetPlayStationVersion() == config.PSVita &&
+				// last block marked as compressed to take less space?
+				int64(buf.Len())+int64(compressedBlockSize) == f.e.OriginalSize {
+				if _, err := buf.Write(compressedBlock); err != nil {
+					panic(err)
+				}
 			} else {
-				if w, err := io.Copy(buf, zr); err != nil {
+				// TODO: improve something here pls
+				if compressedBlock[0] != 0x78 || compressedBlock[1] != 0xda {
+					panic(fmt.Sprintf("incorrect compression header: 0x%x 0x%x 0x%x 0x%x",
+						compressedBlock[0], compressedBlock[1], compressedBlock[2], compressedBlock[3]))
+				}
+
+				if zr, err := zlib.NewReader(bytes.NewReader(compressedBlock)); err != nil {
 					panic(err)
 				} else {
-					outFileOffset += w
+					if _, err := io.Copy(buf, zr); err != nil {
+						panic(err)
+					}
 				}
 			}
 
