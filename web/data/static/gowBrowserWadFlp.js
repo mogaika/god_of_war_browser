@@ -1023,12 +1023,22 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
         for (let iFont in flpdata.Fonts) {
             let font = flpdata.Fonts[iFont];
+            charstable.append($("<tr>").append("font: " + iFont));
+            charstable.append($("<tr>").append("reversed map (utf-16): " + !(font.Flags & 1)));
+
             for (let iChar in font.CharNumberToSymbolIdMap) {
                 if (font.CharNumberToSymbolIdMap[iChar] == -1) {
                     continue;
                 }
 
                 let glyphId = font.CharNumberToSymbolIdMap[iChar];
+                let char = iChar;
+
+                if (!(font.Flags & 1)) {
+                    char = glyphId;
+                    glyphId = iChar;
+                }
+
                 if (glyphId >= font.CharsCount) {
                     continue;
                 }
@@ -1072,13 +1082,14 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 mdl.addMesh(cubemesh);
                 meshes.push(cubemesh);
 
-                let char = String.fromCharCode(iChar);
+                let charS = String.fromCharCode(char);
+
                 if (flp.FontCharAliases) {
                     let map_chars = Object.keys(flp.FontCharAliases).filter(function(charUnicode) {
-                        return flp.FontCharAliases[charUnicode] == iChar
+                        return flp.FontCharAliases[charUnicode] == char
                     });
                     if (map_chars && map_chars.length !== 0) {
-                        char = String.fromCharCode(map_chars[0]);
+                        charS = String.fromCharCode(map_chars[0]);
                     }
                 }
 
@@ -1088,8 +1099,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 let tr2 = $("<tr>");
                 tr1.append($("<td>").text('#' + glyphId));
                 tr1.append($("<td>").text('width ' + symbolWidth));
-                tr1.append($("<td>").text('ansii ' + iChar));
-                tr2.append($("<td>").append($("<h2>").text(char)));
+                tr1.append($("<td>").text('ansii ' + char));
+                tr2.append($("<td>").append($("<h2>").text(charS)));
                 tr2.append($("<td>").text('mesh pt ' + chrdata.MeshPartIndex));
 
                 table.mouseenter([mdl, meshes], function(ev) {
