@@ -79,9 +79,10 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 		}
 
 		var stringRepr string = fmt.Sprintf("unknown opcode 0x%x", op.Code)
+
 		buf = buf[1:]
 		if op.Code&0x80 != 0 {
-			if config.GetPlayStationVersion() == config.PS2 {
+			if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == config.PS2 {
 				if len(buf) < 2 {
 					log.Printf("Error parsing script: op code parameter missed")
 				}
@@ -141,7 +142,7 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 					stringRepr = fmt.Sprintf(" unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
 				}
 				buf = buf[opLen:]
-			} else if config.GetPlayStationVersion() == config.PSVita {
+			} else {
 				opLen := 0
 				op.Data = buf
 				switch op.Code {
@@ -198,18 +199,21 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				}
 				op.Data = buf[:opLen]
 				buf = buf[opLen:]
-			} else {
-				//panic("Unsupported version of ps")
-				return
 			}
 		} else {
 			switch op.Code {
 			case 0:
 				stringRepr = "end"
+			// case 4:
+			// advanced version of forced Stop (current target)
+			// case 5:
+			// advanced version of forced Stop (current target)
 			case 6:
-				stringRepr = "Play"
+				stringRepr = "Play (current target)"
 			case 7:
-				stringRepr = "Stop"
+				stringRepr = "Stop (current target)"
+			// case 8:
+			// switch of some script flag which is not used anywhere?
 			case 0xa:
 				stringRepr = "@push_float = @pop_float2 + @pop_float1"
 			case 0xb:
@@ -229,23 +233,33 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 			case 0x12:
 				stringRepr = "@push_bool = convert_to_bool @pop_any"
 			case 0x13:
-				stringRepr = "@push_bool = strcmp(@pop_string2, @pop_string1) <= 0"
+				stringRepr = "@push_bool = strcmp(@pop_string2, @pop_string1) == 0"
+			case 0x14:
+				stringRepr = "@push_float = strlen(@pop_string1)"
+			case 0x15:
+				stringRepr = "@push_string = @pop_float1 @pop_float2 @pop_string3 slice string?"
 			case 0x17:
-				stringRepr = " @pop_any to nothing"
+				stringRepr = " @pop_any except string discard"
 			case 0x18:
 				stringRepr = "@push_float = round @pop_float"
 			case 0x1c:
-				stringRepr = "@push_any vfs get @pop_string1"
+				stringRepr = "@push_any vfs get @pop_string1 (relative to current target)"
 			case 0x1d:
-				stringRepr = "vfs set @pop_string2 = @pop_string1"
+				stringRepr = "vfs set @pop_string2 = @pop_string1 (relative to current target)"
 			case 0x20:
 				stringRepr = "SetTarget @pop_string1"
 			case 0x21:
 				stringRepr = "@push_string = @pop_string2 append to @pop_string1"
+			case 0x22:
+				stringRepr = "@push_any get @pop_float1 target @pop_string2"
+			case 0x23:
+				stringRepr = "@pop_string1 @pop_float2 target @pop_string3"
+			case 0x26:
+				stringRepr = " @pop_string discard"
+			case 0x29:
+				stringRepr = "@push_bool = strcmp(@pop_string2, @pop_string1) != 0"
 			case 0x34:
 				stringRepr = "@push_float  current timer value"
-			default:
-				stringRepr = " unknown opcode "
 			}
 		}
 		op.String = stringRepr

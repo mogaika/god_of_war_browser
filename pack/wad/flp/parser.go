@@ -305,10 +305,8 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) SetNameFromStringSector(stringsSector []byte) {
-	if config.GetGOWVersion() == config.GOW1 {
-		d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
-	} else {
-	}
+	d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
+	d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
