@@ -159,8 +159,10 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         return;
                     }
                 }
+                console.log(resp.ServerId);
                 switch (resp.ServerId) {
                     case 0x00000021: // flp
+                    case 0x0000001B: // flp gow2
                         summaryLoadWadFlp(data, wad, tagid);
                         break;
                     case 0x00000018: // sbk blk

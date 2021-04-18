@@ -2,7 +2,10 @@ package flp
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
+
+	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -14,8 +17,13 @@ func (d1 *GlobalHandlerIndex) FromBuf(buf []byte) int {
 }
 
 func (d2 *MeshPartReference) FromBuf(buf []byte) int {
-	d2.MeshPartIndex = int16(binary.LittleEndian.Uint16(buf[:]))
-	d2.Materials = make([]MeshPartMaterialSlot, binary.LittleEndian.Uint16(buf[2:]))
+	if config.GetGOWVersion() == config.GOW1 {
+		d2.MeshPartIndex = int16(binary.LittleEndian.Uint16(buf[:]))
+		d2.Materials = make([]MeshPartMaterialSlot, binary.LittleEndian.Uint16(buf[2:]))
+	} else {
+		d2.MeshPartIndex = int16(binary.LittleEndian.Uint16(buf[4:]))
+		d2.Materials = make([]MeshPartMaterialSlot, binary.LittleEndian.Uint16(buf[6:]))
+	}
 	return DATA2_ELEMENT_SIZE
 }
 
@@ -37,19 +45,28 @@ func (d2 *MeshPartReference) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d2s1 *MeshPartMaterialSlot) SetNameFromStringSector(stringsSector []byte) {
-	if d2s1.TextureNameSecOff != 0xffff {
-		d2s1.TextureName = utils.BytesToString(stringsSector[d2s1.TextureNameSecOff:])
+	if d2s1.TextureNameSecOff != 0xffff && d2s1.TextureNameSecOff != 0xffffffff {
+		if config.GetGOWVersion() == config.GOW1 {
+			d2s1.TextureName = utils.BytesToString(stringsSector[d2s1.TextureNameSecOff:])
+		} else {
+			d2s1.TextureName = fmt.Sprintf("!indexed %d", d2s1.TextureNameSecOff)
+		}
 	}
 }
 
 func (d3 *Font) FromBuf(buf []byte) int {
-	d3.CharsCount = binary.LittleEndian.Uint32(buf[:])
-	d3.Unk04 = binary.LittleEndian.Uint16(buf[4:])
-	d3.Size = int16(binary.LittleEndian.Uint16(buf[6:]))
-	d3.Unk08 = binary.LittleEndian.Uint16(buf[8:])
-	d3.Unk0a = binary.LittleEndian.Uint16(buf[0xa:])
-	d3.Flags = binary.LittleEndian.Uint16(buf[0xc:])
-	d3.Float020 = math.Float32frombits(binary.LittleEndian.Uint32(buf[0x20:]))
+	if config.GetGOWVersion() == config.GOW1 {
+		d3.CharsCount = binary.LittleEndian.Uint32(buf[:])
+		d3.Unk04 = binary.LittleEndian.Uint16(buf[4:])
+		d3.Size = int16(binary.LittleEndian.Uint16(buf[6:]))
+		d3.Unk08 = binary.LittleEndian.Uint16(buf[8:])
+		d3.Unk0a = binary.LittleEndian.Uint16(buf[0xa:])
+		d3.Flags = binary.LittleEndian.Uint16(buf[0xc:])
+		d3.Float020 = math.Float32frombits(binary.LittleEndian.Uint32(buf[0x20:]))
+	} else {
+		d3.CharsCount = binary.LittleEndian.Uint32(buf[0x10:])
+		d3.Flags = binary.LittleEndian.Uint16(buf[0x20:])
+	}
 	return DATA3_ELEMENT_SIZE
 }
 
@@ -66,6 +83,7 @@ func (d3 *Font) Parse(buf []byte, pos int) int {
 			pos = d3.MeshesRefs[i].Parse(buf, pos)
 		}
 	}
+
 	d3.SymbolWidths = make([]int16, d3.CharsCount)
 	for i := range d3.SymbolWidths {
 		d3.SymbolWidths[i] = int16(binary.LittleEndian.Uint16(buf[pos:]))
@@ -87,9 +105,15 @@ func (d3 *Font) Parse(buf []byte, pos int) int {
 }
 
 func (d4 *StaticLabel) FromBuf(buf []byte) int {
-	d4.Transformation.FromBuf(buf[0:])
-	d4.tempRenderCommandBuffer = make([]byte, binary.LittleEndian.Uint32(buf[0x14:]))
-	return DATA4_ELEMENT_SIZE
+	if config.GetGOWVersion() == config.GOW1 {
+		d4.Transformation.FromBuf(buf[0:])
+		d4.tempRenderCommandBuffer = make([]byte, binary.LittleEndian.Uint32(buf[0x14:]))
+		return DATA4_ELEMENT_SIZE
+	} else {
+		d4.Transformation.FromBuf(buf[4:])
+		d4.tempRenderCommandBuffer = make([]byte, binary.LittleEndian.Uint32(buf[0x18:]))
+		return DATA4_ELEMENT_SIZE_GOW2
+	}
 }
 
 func (d4 *StaticLabel) Parse(f *FLP, buf []byte, pos int) int {
@@ -150,10 +174,16 @@ func (d6 *Data6) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
-	d6s1.TotalFramesCount = binary.LittleEndian.Uint16(buf[0:])
-	d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0x2:]))
-	d6s1.FrameScriptLables = make([]FrameScriptLabel, binary.LittleEndian.Uint16(buf[0x4:]))
-	d6s1.Width = binary.LittleEndian.Uint16(buf[0xa:])
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s1.TotalFramesCount = binary.LittleEndian.Uint16(buf[0:])
+		d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0x2:]))
+		d6s1.FrameScriptLables = make([]FrameScriptLabel, binary.LittleEndian.Uint16(buf[0x4:]))
+		d6s1.Width = binary.LittleEndian.Uint16(buf[0xa:])
+	} else {
+		d6s1.TotalFramesCount = binary.LittleEndian.Uint16(buf[8:])
+		d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0xa:]))
+		d6s1.FrameScriptLables = make([]FrameScriptLabel, binary.LittleEndian.Uint16(buf[0xc:]))
+	}
 	return DATA6_SUBTYPE1_ELEMENT_SIZE
 }
 
@@ -186,8 +216,13 @@ func (d6s1 *Data6Subtype1) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s1 *ElementAnimation) FromBuf(buf []byte) int {
-	d6s1s1.FramesCount = binary.LittleEndian.Uint16(buf[0:])
-	d6s1s1.KeyFrames = make([]KeyFrame, binary.LittleEndian.Uint16(buf[0x2:]))
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s1s1.FramesCount = binary.LittleEndian.Uint16(buf[0:])
+		d6s1s1.KeyFrames = make([]KeyFrame, binary.LittleEndian.Uint16(buf[0x2:]))
+	} else {
+		d6s1s1.FramesCount = binary.LittleEndian.Uint16(buf[4:])
+		d6s1s1.KeyFrames = make([]KeyFrame, binary.LittleEndian.Uint16(buf[0x6:]))
+	}
 	return DATA6_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
 
@@ -210,20 +245,26 @@ func (d6s1s1s1 *KeyFrame) FromBuf(buf []byte) int {
 	d6s1s1s1.ElementHandler = GlobalHandler(binary.LittleEndian.Uint16(buf[2:]))
 	d6s1s1s1.TransformationId = binary.LittleEndian.Uint16(buf[4:])
 	d6s1s1s1.ColorId = binary.LittleEndian.Uint16(buf[6:])
-	d6s1s1s1.NameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
+	d6s1s1s1.NameSecOff = uint16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
 
 func (d6s1s1s1 *KeyFrame) SetNameFromStringSector(stringsSector []byte) {
-	if d6s1s1s1.NameSecOff != -1 {
+	if d6s1s1s1.NameSecOff != 0xffff {
 		d6s1s1s1.Name = utils.BytesToString(stringsSector[d6s1s1s1.NameSecOff:])
 	}
 }
 
 func (d6s1s2 *FrameScriptLabel) FromBuf(buf []byte) int {
-	d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[:])
-	d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
-	d6s1s2.LabelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[:])
+		d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
+		d6s1s2.LabelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
+	} else {
+		d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[4:])
+		d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x6:]))
+		d6s1s2.LabelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
+	}
 	return DATA6_SUBTYPE1_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -248,7 +289,11 @@ func (d6s1s2 *FrameScriptLabel) SetNameFromStringSector(stringsSector []byte) {
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) FromBuf(buf []byte) int {
-	d6s1s2s1.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s1s2s1.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
+	} else {
+		d6s1s2s1.scriptDataLength = binary.LittleEndian.Uint32(buf[4:])
+	}
 	return DATA6_SUBTYPE1_SUBTYPE2_SUBTYPE1_ELEMENT_SIZE
 }
 
@@ -260,13 +305,22 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) SetNameFromStringSector(stringsSector []byte) {
-	d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
+	} else {
+	}
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
-	d6s2.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
-	d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
-	d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s2.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
+		d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
+		d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
+	} else {
+		d6s2.scriptDataLength = binary.LittleEndian.Uint32(buf[4:])
+		d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
+		d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
+	}
 	return DATA6_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -277,7 +331,10 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 }
 
 func (d6s2 *Data6Subtype2) SetNameFromStringSector(stringsSector []byte) {
-	d6s2.Script = NewScriptFromData(d6s2.scriptData, stringsSector)
+	if config.GetGOWVersion() == config.GOW1 {
+		d6s2.Script = NewScriptFromData(d6s2.scriptData, stringsSector)
+	} else {
+	}
 }
 
 func (d9 *Transformation) FromBuf(buf []byte) int {
@@ -297,20 +354,38 @@ func (d10 *BlendColor) FromBuf(buf []byte) int {
 }
 
 func (f *FLP) fromBuffer(buf []byte) error {
-	f.Unk04 = binary.LittleEndian.Uint32(buf[0x4:])
-	f.Unk08 = binary.LittleEndian.Uint32(buf[0x8:])
-	f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0xc:]))
-	f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x14:]))
-	f.Fonts = make([]Font, binary.LittleEndian.Uint32(buf[0x1c:]))
-	f.StaticLabels = make([]StaticLabel, binary.LittleEndian.Uint32(buf[0x24:]))
-	f.DynamicLabels = make([]DynamicLabel, binary.LittleEndian.Uint32(buf[0x2c:]))
-	f.Datas6 = make([]Data6, binary.LittleEndian.Uint32(buf[0x34:]))
-	f.Datas7 = make([]Data6Subtype1, binary.LittleEndian.Uint32(buf[0x3c:]))
-	f.Transformations = make([]Transformation, binary.LittleEndian.Uint16(buf[0x48:]))
-	f.BlendColors = make([]BlendColor, binary.LittleEndian.Uint16(buf[0x50:]))
+	var pos int
 	f.Strings = make([]string, 0)
 
-	pos := HEADER_SIZE
+	if config.GetGOWVersion() == config.GOW1 {
+		f.Unk04 = binary.LittleEndian.Uint32(buf[0x4:])
+		f.Unk08 = binary.LittleEndian.Uint32(buf[0x8:])
+		f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0xc:]))
+		f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x14:]))
+		f.Fonts = make([]Font, binary.LittleEndian.Uint32(buf[0x1c:]))
+		f.StaticLabels = make([]StaticLabel, binary.LittleEndian.Uint32(buf[0x24:]))
+		f.DynamicLabels = make([]DynamicLabel, binary.LittleEndian.Uint32(buf[0x2c:]))
+		f.Datas6 = make([]Data6, binary.LittleEndian.Uint32(buf[0x34:]))
+		f.Datas7 = make([]Data6Subtype1, binary.LittleEndian.Uint32(buf[0x3c:]))
+		f.Transformations = make([]Transformation, binary.LittleEndian.Uint16(buf[0x48:]))
+		f.BlendColors = make([]BlendColor, binary.LittleEndian.Uint16(buf[0x50:]))
+		pos = HEADER_SIZE
+	} else {
+		f.Unk04 = binary.LittleEndian.Uint32(buf[0x30:])
+		f.Unk08 = binary.LittleEndian.Uint32(buf[0x34:])
+		f.GlobalHandlersIndexes = make([]GlobalHandlerIndex, binary.LittleEndian.Uint32(buf[0x38:]))
+		f.MeshPartReferences = make([]MeshPartReference, binary.LittleEndian.Uint32(buf[0x3c:]))
+		f.Fonts = make([]Font, binary.LittleEndian.Uint32(buf[0x40:]))
+		f.StaticLabels = make([]StaticLabel, binary.LittleEndian.Uint32(buf[0x44:]))
+		f.DynamicLabels = make([]DynamicLabel, binary.LittleEndian.Uint32(buf[0x48:]))
+		f.Datas6 = make([]Data6, binary.LittleEndian.Uint32(buf[0x4c:]))
+		f.Datas7 = make([]Data6Subtype1, binary.LittleEndian.Uint32(buf[0x50:]))
+		f.Transformations = make([]Transformation, binary.LittleEndian.Uint16(buf[0x54:]))
+		f.BlendColors = make([]BlendColor, binary.LittleEndian.Uint16(buf[0x56:]))
+		f.Strings = make([]string, 0)
+		pos = HEADER_SIZE_GOW2
+	}
+
 	for i := range f.GlobalHandlersIndexes {
 		pos += f.GlobalHandlersIndexes[i].FromBuf(buf[pos:])
 	}

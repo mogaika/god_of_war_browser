@@ -11,14 +11,16 @@ import (
 )
 
 const (
-	FLP_MAGIC   = 0x21
-	HEADER_SIZE = 0x60
+	FLP_MAGIC        = 0x21
+	HEADER_SIZE      = 0x60
+	HEADER_SIZE_GOW2 = 0x5c
 
 	DATA1_ELEMENT_SIZE                            = 0x4
 	DATA2_ELEMENT_SIZE                            = 0x8
 	DATA2_SUBTYPE1_ELEMENT_SIZE                   = 0x8
 	DATA3_ELEMENT_SIZE                            = 0x24
 	DATA4_ELEMENT_SIZE                            = 0x24
+	DATA4_ELEMENT_SIZE_GOW2                       = 0x1c
 	DATA5_ELEMENT_SIZE                            = 0x20
 	DATA6_ELEMENT_SIZE                            = 0xc
 	DATA6_SUBTYPE1_ELEMENT_SIZE                   = 0x18
@@ -146,7 +148,7 @@ type KeyFrame struct {
 	ElementHandler    GlobalHandler
 	TransformationId  uint16
 	ColorId           uint16
-	NameSecOff        int16
+	NameSecOff        uint16
 	Name              string
 }
 
@@ -249,6 +251,14 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 			if ref.TextureName != "" {
 				if _, ok := mrsh.Textures[ref.TextureName]; !ok {
 					txr := wrsrc.Wad.GetNodeByName(ref.TextureName, wrsrc.Node.Id, false)
+
+					if config.GetGOWVersion() == config.GOW2 {
+						goObj := wrsrc.Wad.GetNodeByName(strings.ToLower(strings.Replace(wrsrc.Name(), "FLP_", "go", 1)), wrsrc.Node.Id, false)
+						if goObj != nil {
+							txr = wrsrc.Wad.GetNodeById(goObj.SubGroupNodes[1+ref.TextureNameSecOff])
+						}
+					}
+
 					if txr != nil {
 						if wfile, _, err := wrsrc.Wad.GetInstanceFromNode(txr.Id); err == nil {
 							if marshaledNode, err := wfile.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(txr.Id)); err == nil {
@@ -260,7 +270,6 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 							log.Printf("Cannot get txr instance %s for %s: %v", txr.Tag.Name, wrsrc.Name(), err)
 						}
 					}
-
 				}
 			}
 		}
@@ -279,6 +288,14 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(config.GOW1, FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		inst, err := NewFromData(wrsrc.Tag.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		return inst, nil
+	})
+	wad.SetHandler(config.GOW2, 0x1B, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err

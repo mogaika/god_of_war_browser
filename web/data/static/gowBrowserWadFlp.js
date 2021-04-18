@@ -710,11 +710,15 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             let $data_table = $("<table>");
 
             let print_script = function(script) {
-                let code = script.Decompiled;
-                let $code_element = $("<div>").text(" > click to show decompiled script < ").css('cursor', 'pointer').click(function() {
-                    $(this).empty().css('cursor', '').append(code).off('click');
-                })
-                return $code_element;
+                if (script) {
+                    let code = script.Decompiled;
+                    let $code_element = $("<div>").text(" > click to show decompiled script < ").css('cursor', 'pointer').click(function() {
+                        $(this).empty().css('cursor', '').append(code).off('click');
+                    })
+                    return $code_element;
+                } else {
+                    return $("<div>").text("not implemented");
+                }
             }
 
             let print_data6 = function() {
