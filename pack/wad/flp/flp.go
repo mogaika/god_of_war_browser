@@ -12,6 +12,7 @@ import (
 
 const (
 	FLP_MAGIC        = 0x21
+	FLP_MAGIC_GOW2   = 0x1B
 	HEADER_SIZE      = 0x60
 	HEADER_SIZE_GOW2 = 0x5c
 
@@ -295,11 +296,18 @@ func init() {
 
 		return inst, nil
 	})
-	wad.SetHandler(config.GOW2, 0x1B, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW2, FLP_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err
 		}
+
+		/*
+			inst, err = NewFromData(inst.marshalBufferWithHeader().Bytes())
+			if err != nil {
+				return nil, errors.Wrapf(err, "Remarshal failed")
+			}
+		*/
 
 		return inst, nil
 	})

@@ -23,7 +23,7 @@ type Script struct {
 	Decompiled      string
 	labels          map[int16]string
 	marshaled       []byte
-	staticStringRef map[string][]uint16 // string ot offset
+	staticStringRef map[string][]uint16 // string to offset
 }
 
 type ScriptOpcode struct {
@@ -308,7 +308,8 @@ func (s *Script) Marshal() []byte {
 func NewScriptFromData(buf []byte, stringsSector []byte) (s *Script) {
 	s = new(Script)
 	s.parseOpcodes(buf, stringsSector)
-	s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
+	s.Decompiled = s.dissasembleToString()
+	//s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
 	return s
 }
 

@@ -713,7 +713,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 if (script) {
                     let code = script.Decompiled;
                     let $code_element = $("<div>").text(" > click to show decompiled script < ").css('cursor', 'pointer').click(function() {
-                        $(this).empty().css('cursor', '').append(code).off('click');
+                        $(this).empty().css('cursor', '').append(code.replaceAll('\n', '<br>')).off('click');
                     })
                     return $code_element;
                 } else {

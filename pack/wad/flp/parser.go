@@ -6,7 +6,6 @@ import (
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/config"
-
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
@@ -65,6 +64,11 @@ func (d3 *Font) FromBuf(buf []byte) int {
 		d3.Float020 = math.Float32frombits(binary.LittleEndian.Uint32(buf[0x20:]))
 	} else {
 		d3.CharsCount = binary.LittleEndian.Uint32(buf[0x10:])
+		d3.Float020 = math.Float32frombits(binary.LittleEndian.Uint32(buf[0x14:]))
+		d3.Unk04 = binary.LittleEndian.Uint16(buf[0x18:])
+		d3.Size = int16(binary.LittleEndian.Uint16(buf[0x1a:]))
+		d3.Unk08 = binary.LittleEndian.Uint16(buf[0x1c:])
+		d3.Unk0a = binary.LittleEndian.Uint16(buf[0x1e:])
 		d3.Flags = binary.LittleEndian.Uint16(buf[0x20:])
 	}
 	return DATA3_ELEMENT_SIZE
@@ -183,7 +187,9 @@ func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
 		d6s1.TotalFramesCount = binary.LittleEndian.Uint16(buf[8:])
 		d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0xa:]))
 		d6s1.FrameScriptLables = make([]FrameScriptLabel, binary.LittleEndian.Uint16(buf[0xc:]))
+		d6s1.Width = binary.LittleEndian.Uint16(buf[0xe:])
 	}
+
 	return DATA6_SUBTYPE1_ELEMENT_SIZE
 }
 
@@ -329,10 +335,7 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 }
 
 func (d6s2 *Data6Subtype2) SetNameFromStringSector(stringsSector []byte) {
-	if config.GetGOWVersion() == config.GOW1 {
-		d6s2.Script = NewScriptFromData(d6s2.scriptData, stringsSector)
-	} else {
-	}
+	d6s2.Script = NewScriptFromData(d6s2.scriptData, stringsSector)
 }
 
 func (d9 *Transformation) FromBuf(buf []byte) int {
