@@ -128,8 +128,8 @@ func (d4 *StaticLabel) Parse(f *FLP, buf []byte, pos int) int {
 }
 
 func (d5 *DynamicLabel) FromBuf(buf []byte) int {
-	d5.ValueNameSecOff = binary.LittleEndian.Uint16(buf[0:])
-	d5.PlaceholderSecOff = binary.LittleEndian.Uint16(buf[2:])
+	d5.valueNameSecOff = binary.LittleEndian.Uint16(buf[0:])
+	d5.placeholderSecOff = binary.LittleEndian.Uint16(buf[2:])
 	d5.FontHandler = GlobalHandler(binary.LittleEndian.Uint16(buf[4:]))
 	d5.Width1 = binary.LittleEndian.Uint16(buf[6:])
 	d5.BlendColor = binary.LittleEndian.Uint32(buf[8:])
@@ -143,11 +143,11 @@ func (d5 *DynamicLabel) FromBuf(buf []byte) int {
 }
 
 func (d5 *DynamicLabel) SetNameFromStringSector(stringsSector []byte) {
-	if d5.ValueNameSecOff != 0xffff {
-		d5.ValueName = utils.BytesToString(stringsSector[d5.ValueNameSecOff:])
+	if d5.valueNameSecOff != 0xffff {
+		d5.ValueName = utils.BytesToString(stringsSector[d5.valueNameSecOff:])
 	}
-	if d5.PlaceholderSecOff != 0xffff {
-		d5.Placeholder = utils.BytesToString(stringsSector[d5.PlaceholderSecOff:])
+	if d5.placeholderSecOff != 0xffff {
+		d5.Placeholder = utils.BytesToString(stringsSector[d5.placeholderSecOff:])
 	}
 }
 
@@ -251,13 +251,13 @@ func (d6s1s1s1 *KeyFrame) FromBuf(buf []byte) int {
 	d6s1s1s1.ElementHandler = GlobalHandler(binary.LittleEndian.Uint16(buf[2:]))
 	d6s1s1s1.TransformationId = binary.LittleEndian.Uint16(buf[4:])
 	d6s1s1s1.ColorId = binary.LittleEndian.Uint16(buf[6:])
-	d6s1s1s1.NameSecOff = uint16(binary.LittleEndian.Uint16(buf[8:]))
+	d6s1s1s1.nameSecOff = uint16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE1_SUBTYPE1_ELEMENT_SIZE
 }
 
 func (d6s1s1s1 *KeyFrame) SetNameFromStringSector(stringsSector []byte) {
-	if d6s1s1s1.NameSecOff != 0xffff {
-		d6s1s1s1.Name = utils.BytesToString(stringsSector[d6s1s1s1.NameSecOff:])
+	if d6s1s1s1.nameSecOff != 0xffff {
+		d6s1s1s1.Name = utils.BytesToString(stringsSector[d6s1s1s1.nameSecOff:])
 	}
 }
 
@@ -265,12 +265,11 @@ func (d6s1s2 *FrameScriptLabel) FromBuf(buf []byte) int {
 	if config.GetGOWVersion() == config.GOW1 {
 		d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[:])
 		d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x2:]))
-		d6s1s2.LabelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	} else {
 		d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[4:])
 		d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x6:]))
-		d6s1s2.LabelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	}
+	d6s1s2.labelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
 	return DATA6_SUBTYPE1_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -286,8 +285,8 @@ func (d6s1s2 *FrameScriptLabel) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s2 *FrameScriptLabel) SetNameFromStringSector(stringsSector []byte) {
-	if d6s1s2.LabelNameSecOff != -1 {
-		d6s1s2.LabelName = utils.BytesToString(stringsSector[d6s1s2.LabelNameSecOff:])
+	if d6s1s2.labelNameSecOff != -1 {
+		d6s1s2.LabelName = utils.BytesToString(stringsSector[d6s1s2.labelNameSecOff:])
 	}
 	for i := range d6s1s2.Subs {
 		d6s1s2.Subs[i].SetNameFromStringSector(stringsSector)

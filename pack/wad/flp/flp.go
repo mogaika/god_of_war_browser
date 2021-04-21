@@ -124,9 +124,9 @@ type StaticLabel struct {
 }
 
 type DynamicLabel struct {
-	ValueNameSecOff   uint16
+	valueNameSecOff   uint16
 	ValueName         string
-	PlaceholderSecOff uint16
+	placeholderSecOff uint16
 	Placeholder       string
 	FontHandler       GlobalHandler
 	Width1            uint16
@@ -164,13 +164,13 @@ type KeyFrame struct {
 	ElementHandler    GlobalHandler
 	TransformationId  uint16
 	ColorId           uint16
-	NameSecOff        uint16
+	nameSecOff        uint16
 	Name              string
 }
 
 type FrameScriptLabel struct {
 	TriggerFrameNumber uint16
-	LabelNameSecOff    int16
+	labelNameSecOff    int16
 	LabelName          string
 	Subs               []Data6Subtype1Subtype2Subtype1
 }
