@@ -76,7 +76,7 @@ func (d3 *Font) FromBuf(buf []byte) int {
 
 func (d3 *Font) Parse(buf []byte, pos int) int {
 	if d3.Flags&(4|2) == (4 | 2) {
-		panic("d3.Flags &(4|2) == (4|2")
+		panic("d3.Flags &(4|2) == (4|2)")
 	}
 	if d3.Flags&(2|4) != 0 {
 		d3.MeshesRefs = make([]MeshPartReference, d3.CharsCount)
@@ -312,19 +312,17 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) Parse(buf []byte, pos int) int {
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) SetNameFromStringSector(stringsSector []byte) {
 	d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
-	d6s1s2s1.Script = NewScriptFromData(d6s1s2s1.scriptData, stringsSector)
+	d6s1s2s1.scriptData = nil
 }
 
 func (d6s2 *Data6Subtype2) FromBuf(buf []byte) int {
 	if config.GetGOWVersion() == config.GOW1 {
 		d6s2.scriptDataLength = binary.LittleEndian.Uint32(buf[:])
-		d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
-		d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
 	} else {
 		d6s2.scriptDataLength = binary.LittleEndian.Uint32(buf[4:])
-		d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
-		d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
 	}
+	d6s2.EventKeysMask = binary.LittleEndian.Uint32(buf[0x8:])
+	d6s2.EventUnkMask = binary.LittleEndian.Uint16(buf[0xc:])
 	return DATA6_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -336,6 +334,7 @@ func (d6s2 *Data6Subtype2) Parse(buf []byte, pos int) int {
 
 func (d6s2 *Data6Subtype2) SetNameFromStringSector(stringsSector []byte) {
 	d6s2.Script = NewScriptFromData(d6s2.scriptData, stringsSector)
+	d6s2.scriptData = nil
 }
 
 func (d9 *Transformation) FromBuf(buf []byte) int {
@@ -416,8 +415,6 @@ func (f *FLP) fromBuffer(buf []byte) error {
 		pos += f.DynamicLabels[i].FromBuf(buf[pos:])
 	}
 
-	enterScriptPushRefFiller()
-
 	for i := range f.Datas6 {
 		pos += f.Datas6[i].FromBuf(buf[pos:])
 	}
@@ -436,8 +433,6 @@ func (f *FLP) fromBuffer(buf []byte) error {
 	pos = posPad4(pos)
 	pos += f.Data8.FromBuf(buf[pos:])
 	pos = f.Data8.Parse(buf, pos)
-
-	f.scriptPushRefs = exitScriptPushRefFiller()
 
 	pos = posPad4(pos)
 	for i := range f.Transformations {

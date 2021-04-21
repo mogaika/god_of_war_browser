@@ -3,7 +3,6 @@ package flp
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -20,28 +19,34 @@ import (
 func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.Request, action string) {
 	switch action {
 	case "staticlabels":
-		if strings.ToUpper(r.Method) == "POST" {
-			if err := r.ParseForm(); err != nil {
-				webutils.WriteError(w, errors.Wrapf(err, "Failed to parse form"))
-				return
-			}
-
-			id, err := strconv.Atoi(r.PostFormValue("id"))
-			if err != nil {
-				webutils.WriteError(w, errors.Wrapf(err, "Failed to parse id"))
-				return
-			}
-
-			if err := f.StaticLabels[id].ParseJson([]byte(r.PostFormValue("sl"))); err != nil {
-				webutils.WriteError(w, errors.Wrapf(err, "Failed to load static label"))
-				return
-			}
-
-			wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
-				wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
-			})
+		if strings.ToUpper(r.Method) != "POST" {
+			return
 		}
+
+		if err := r.ParseForm(); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to parse form"))
+			return
+		}
+
+		id, err := strconv.Atoi(r.PostFormValue("id"))
+		if err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to parse id"))
+			return
+		}
+
+		if err := f.StaticLabels[id].ParseJson([]byte(r.PostFormValue("sl"))); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to load static label"))
+			return
+		}
+
+		wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
+		})
 	case "importbmfont":
+		if strings.ToUpper(r.Method) != "POST" {
+			return
+		}
+
 		fZip, hZip, err := r.FormFile("data")
 		if err != nil {
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to open file"))
@@ -71,50 +76,30 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to import font"))
 			return
 		}
-	case "scriptstring":
-		q := r.URL.Query()
-		id, err := strconv.ParseInt(q.Get("id"), 10, 32)
-		if err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to parse id"))
-			return
-		}
-
-		decodedStr, err := base64.StdEncoding.DecodeString(q.Get("string"))
-		if err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to decode base64"))
-			return
-		}
-
-		f.scriptPushRefs[id].ChangeString(decodedStr)
-
-		if err := wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
-			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
-		}); err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to update tags data"))
-			return
-		}
 	case "transform":
-		if strings.ToUpper(r.Method) == "POST" {
-			if err := r.ParseForm(); err != nil {
-				webutils.WriteError(w, errors.Wrapf(err, "Failed to parse form"))
-				return
-			}
-
-			id, err := strconv.Atoi(r.PostFormValue("id"))
-			if err != nil {
-				webutils.WriteError(w, errors.Wrapf(err, "Failed to get id"))
-				return
-			}
-
-			if err := json.Unmarshal([]byte(r.PostFormValue("data")), &f.Transformations[id]); err != nil {
-				webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
-				return
-			}
-
-			wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
-				wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
-			})
+		if strings.ToUpper(r.Method) != "POST" {
+			return
 		}
+
+		if err := r.ParseForm(); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to parse form"))
+			return
+		}
+
+		id, err := strconv.Atoi(r.PostFormValue("id"))
+		if err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to get id"))
+			return
+		}
+
+		if err := json.Unmarshal([]byte(r.PostFormValue("data")), &f.Transformations[id]); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
+			return
+		}
+
+		wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
+		})
 	case "asjson":
 		if data, err := json.MarshalIndent(f, "", "  "); err != nil {
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
@@ -122,6 +107,10 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			webutils.WriteFile(w, bytes.NewReader(data), wrsrc.Name()+".json")
 		}
 	case "fromjson":
+		if strings.ToUpper(r.Method) != "POST" {
+			return
+		}
+
 		fJson, _, err := r.FormFile("data")
 		if err != nil {
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to get file"))
@@ -136,16 +125,57 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 		}
 
 		newFlp := &FLP{}
+		// needed for font handler parsing of dynamic label
+		currentFlpInstance = newFlp
 		if err := json.Unmarshal(data, newFlp); err != nil {
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
 			return
 		}
 
+		// decompile scripts
+		for _, d6 := range newFlp.Datas6 {
+			for _, d6s1s2 := range d6.Sub1.FrameScriptLables {
+				for _, d6s1s2s1 := range d6s1s2.Subs {
+					if err := d6s1s2s1.Script.FromDecompiled(); err != nil {
+						webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6s1s2s1 script"))
+						return
+					}
+				}
+			}
+			for _, d6s2 := range d6.Sub2s {
+				if err := d6s2.Script.FromDecompiled(); err != nil {
+					webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6s2 script"))
+					return
+				}
+			}
+		}
+		for _, d6s1s2 := range newFlp.Data8.FrameScriptLables {
+			for _, d6s1s2s1 := range d6s1s2.Subs {
+				if err := d6s1s2s1.Script.FromDecompiled(); err != nil {
+					webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6s1s2s1 script"))
+					return
+				}
+			}
+		}
+
 		newFLPBuf := newFlp.marshalBufferWithHeader()
+
+		// testing
+		// ioutil.WriteFile("/tmp/testupload.FLP", newFLPBuf.Bytes(), 0777)
 		// double check validity of file
+
 		if _, err := NewFromData(newFLPBuf.Bytes()); err != nil {
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to check validity of file"))
 			return
 		}
+
+		if err := wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
+			wrsrc.Tag.Id: newFLPBuf.Bytes(),
+		}); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to write tag"))
+			return
+		}
+
+		w.Write([]byte("Success"))
 	}
 }

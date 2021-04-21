@@ -7,80 +7,67 @@ import (
 	"log"
 	"math"
 	"strings"
-	"sync"
-
-	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/pkg/errors"
+
+	"github.com/mogaika/god_of_war_browser/config"
+	"github.com/mogaika/god_of_war_browser/scriptlang"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
-var scriptPushRefFiller []ScriptOpcodeStringPushReference
-var scriptPushRefLocker sync.Mutex
-
 type Script struct {
-	Opcodes         []*ScriptOpcode `json:"-"`
-	Decompiled      string
-	labels          map[int16]string
-	marshaled       []byte
-	staticStringRef map[string][]uint16 // string to offset
-}
-
-type ScriptOpcode struct {
-	Offset int16
-	Data   []byte
-	String string
-	Code   byte
-}
-
-type ScriptOpcodeStringPushReference struct {
-	Opcode *ScriptOpcode `json:"-"`
-	String []byte
+	Data       []interface{} `json:"-"`
+	Decompiled string
 }
 
 func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
-	s.Opcodes = make([]*ScriptOpcode, 0)
-	s.labels = make(map[int16]string)
+	s.Data = make([]interface{}, 0)
+	labels := make(map[int16]*scriptlang.Label)
+	opOffsets := make(map[int16]*scriptlang.Opcode)
+	usedLabelNames := make(map[string]struct{})
 
 	originalBufLen := len(buf)
 	for len(buf) != 0 {
-		op := &ScriptOpcode{
-			Code:   buf[0],
-			Offset: int16(originalBufLen - len(buf)),
-			Data:   buf,
+		op := &scriptlang.Opcode{
+			Code: buf[0],
 		}
+		opOffset := int16(originalBufLen - len(buf))
+		opOffsets[opOffset] = op
+		s.Data = append(s.Data, op)
 
-		jmpOffsetToStr := func(jmpoff uint16, opoff int16) string {
-			targetOffset := int16(op.Offset + int16(jmpoff) + opoff)
+		buf = buf[1:]
 
-			var targetLabel string
-			if lbl, ok := s.labels[targetOffset]; !ok {
-				targetLabel = strings.ToLower(randomdata.SillyName())
-				s.labels[targetOffset] = targetLabel
+		jmpOffsetToStr := func(jmpOff uint16, jmpOpShift int16) *scriptlang.Label {
+			targetOffset := int16(opOffset + int16(jmpOff) + jmpOpShift)
+
+			if lbl, ok := labels[targetOffset]; !ok {
+				name := randomdata.SillyName()
+				for {
+					if _, exists := usedLabelNames[name]; !exists {
+						break
+					}
+					// avoid duplicate names
+					name = randomdata.SillyName()
+				}
+				targetLabel := &scriptlang.Label{
+					Name:    strings.ToLower(name),
+					Comment: fmt.Sprintf("0x%.4x", targetOffset),
+				}
+				labels[targetOffset] = targetLabel
+				return targetLabel
 			} else {
-				targetLabel = lbl
+				return lbl
 			}
-
-			return fmt.Sprintf("$%s(%+x=%.4x)", targetLabel, int16(jmpoff), targetOffset)
 		}
 
-		strFromOffset := func(dataoff uint16) string {
-			stringSecOff := binary.LittleEndian.Uint16(op.Data[dataoff:])
-
-			str := utils.BytesToString(stringsSector[stringSecOff:])
-			if s.staticStringRef == nil {
-				s.staticStringRef = make(map[string][]uint16)
-			}
-			if _, exists := s.staticStringRef[str]; !exists {
-				s.staticStringRef[str] = make([]uint16, 0)
-			}
-			s.staticStringRef[str] = append(s.staticStringRef[str], uint16(op.Offset)+1+dataoff)
-			return str
+		strFromOffset := func(buf []byte, dataoff uint16) string {
+			stringSecOff := binary.LittleEndian.Uint16(buf[dataoff:])
+			return utils.BytesToString(stringsSector[stringSecOff:])
 		}
 
 		var stringRepr string = fmt.Sprintf("unknown opcode 0x%x", op.Code)
-
-		buf = buf[1:]
+		//log.Printf("0x%x", op.Code)
 		if op.Code&0x80 != 0 {
 			if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == config.PS2 {
 				if len(buf) < 2 {
@@ -89,105 +76,124 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 
 				opLen := binary.LittleEndian.Uint16(buf)
 				buf = buf[2:]
-				op.Data = buf[:opLen]
 
 				switch op.Code {
 				case 0x81:
-					stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
+					target := binary.LittleEndian.Uint16(buf)
+					op.Parameters = append(op.Parameters, int32(target))
+					stringRepr = fmt.Sprintf("GotoFrame %d", target)
 				case 0x83:
-					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or response result",
-						utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):]))
+					s1, s2 := utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):])
+					op.Parameters = append(op.Parameters, s1, s2)
+					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or response result", s1, s2)
 				case 0x8b:
-					stringRepr = fmt.Sprintf("SetTarget '%s'", utils.BytesToString(buf))
+					s1 := utils.BytesToString(buf)
+					op.Parameters = append(op.Parameters, s1)
+					stringRepr = fmt.Sprintf("SetTarget '%s'", s1)
 				case 0x8c:
-					stringRepr = fmt.Sprintf("GotoLabel '%s'", utils.BytesToString(buf))
+					s1 := utils.BytesToString(buf)
+					op.Parameters = append(op.Parameters, s1)
+					stringRepr = fmt.Sprintf("GotoLabel '%s'", s1)
 				case 0x96:
 					pos := uint16(0)
 					for pos < opLen {
 						stringRepr = "@push"
 						if buf[pos] == 0 {
 							l := uint16(utils.BytesStringLength(buf[pos+1:]))
-
-							if l != 0 {
-								reff := ScriptOpcodeStringPushReference{
-									Opcode: op,
-									String: buf[pos+1 : pos+1+l],
-								}
-
-								if reff.String[len(reff.String)-1] == 0 {
-									reff.String = reff.String[:len(reff.String)-1]
-								}
-								scriptPushRefFiller = append(scriptPushRefFiller, reff)
-							}
-							stringRepr += fmt.Sprintf("_string '%s' ", utils.DumpToOneLineString(buf[pos+1:pos+1+l]))
+							s := utils.DumpToOneLineString(buf[pos+1 : pos+1+l])
+							stringRepr += fmt.Sprintf("_string '%s' ", s)
+							op.Parameters = append(op.Parameters, s)
 							pos += uint16(l) + 2
 						} else {
-							stringRepr += fmt.Sprintf("_float %v ", math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:])))
+							f := math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:]))
+							stringRepr += fmt.Sprintf("_float %v ", f)
+							op.Parameters = append(op.Parameters, f)
 							pos += 5
 						}
 					}
 				case 0x99:
-					stringRepr = fmt.Sprintf("jump %s", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5))
+					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5)
+					op.Parameters = append(op.Parameters, label)
+					stringRepr = fmt.Sprintf("jump %s", label)
 				case 0x9e:
 					stringRepr = "CallFrame @pop_string"
 				case 0x9d:
-					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5))
+					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5)
+					op.Parameters = append(op.Parameters, label)
+					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", label)
 				case 0x9f:
+					op.Parameters = append(op.Parameters, int32(buf[0]))
 					state := "PLAY"
 					if buf[0] == 0 {
 						state = "STOP"
 					}
 					stringRepr = fmt.Sprintf("GotoExpression @pop_string (%s)", state)
 				default:
-					stringRepr = fmt.Sprintf(" unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
+					log.Panicf("unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
 				}
 				buf = buf[opLen:]
 			} else {
 				opLen := 0
-				op.Data = buf
 				switch op.Code {
 				case 0x81:
-					stringRepr = fmt.Sprintf("GotoFrame %d", binary.LittleEndian.Uint16(buf))
+					target := binary.LittleEndian.Uint16(buf)
+					op.Parameters = append(op.Parameters, int32(target))
+					stringRepr = fmt.Sprintf("GotoFrame %d", target)
 					opLen = 2
 				case 0x83:
-					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s' or response result",
-						strFromOffset(0), strFromOffset(2))
+					s1, s2 := strFromOffset(buf, 0), strFromOffset(buf, 2)
+					op.Parameters = append(op.Parameters, s1, s2)
+					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s' or response result", s1, s2)
 					opLen = 4
-				case 0x8a:
-					stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
-					opLen = 3
+				// case 0x8a:
+				//     stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
+				//	   opLen = 3
 				case 0x8b:
-					stringRepr = fmt.Sprintf("SetTarget '%s'", strFromOffset(0))
+					s := strFromOffset(buf, 0)
+					op.Parameters = append(op.Parameters, s)
+					stringRepr = fmt.Sprintf("SetTarget '%s'", s)
 					opLen = 2
 				case 0x8c:
-					stringRepr = fmt.Sprintf("GotoLabel '%s'", strFromOffset(0))
+					s := strFromOffset(buf, 0)
+					op.Parameters = append(op.Parameters, s)
+					stringRepr = fmt.Sprintf("GotoLabel '%s'", s)
 					opLen = 2
 				case 0x96:
 					if buf[0] == 1 {
 						opLen = 5
-						stringRepr = fmt.Sprintf("push_float %v ", math.Float32frombits(binary.LittleEndian.Uint32(buf[1:])))
+						f := math.Float32frombits(binary.LittleEndian.Uint32(buf[1:]))
+						op.Parameters = append(op.Parameters, f)
+						stringRepr = fmt.Sprintf("push_float %v ", f)
 					} else {
+						var s string
 						if buf[0] != 0 {
 							opLen = 2
-							stringRepr = fmt.Sprintf("push_string '%s'", strFromOffset(0))
+							s = strFromOffset(buf, 0)
 						} else {
+							s = strFromOffset(buf, 1)
 							opLen = 3
-							stringRepr = fmt.Sprintf("push_string '%s' ", strFromOffset(1))
 						}
+						op.Parameters = append(op.Parameters, s)
+						stringRepr = fmt.Sprintf("push_string '%s'", s)
 					}
 				case 0x99:
-					stringRepr = fmt.Sprintf("jump %s", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3))
+					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3)
+					op.Parameters = append(op.Parameters, label)
+					stringRepr = fmt.Sprintf("jump %s", label)
 					opLen = 2
-				case 0x9a:
-					stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
-					opLen = 1
+				//case 0x9a:
+				//	stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
+				//	opLen = 1
 				case 0x9d:
-					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3))
+					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3)
+					op.Parameters = append(op.Parameters, label)
+					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", label)
 					opLen = 2
 				case 0x9e:
 					stringRepr = "CallFrame @pop_string"
 					opLen = 0
 				case 0x9f:
+					op.Parameters = append(op.Parameters, int32(buf[0]))
 					state := "PLAY"
 					if buf[0] == 0 {
 						state = "STOP"
@@ -197,7 +203,6 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				default:
 					log.Panicf("Unknown variable-length opcode 0x%x", op.Code)
 				}
-				op.Data = buf[:opLen]
 				buf = buf[opLen:]
 			}
 		} else {
@@ -253,7 +258,7 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 			case 0x22:
 				stringRepr = "@push_any get @pop_float1 target @pop_string2"
 			case 0x23:
-				stringRepr = "@pop_string1 @pop_float2 target @pop_string3"
+				stringRepr = " @pop_string1 @pop_float2 target @pop_string3"
 			case 0x26:
 				stringRepr = " @pop_string discard"
 			case 0x29:
@@ -262,76 +267,246 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				stringRepr = "@push_float  current timer value"
 			}
 		}
-		op.String = stringRepr
-		s.Opcodes = append(s.Opcodes, op)
+		op.Comment = stringRepr
+	}
+
+	for labelOffset, label := range labels {
+		labelOp, ok := opOffsets[labelOffset]
+		if !ok {
+			panic("failed to find label for opcode")
+		}
+
+		index := -1
+		for i, instruction := range s.Data {
+			if op, ok := instruction.(*scriptlang.Opcode); ok {
+				if op == labelOp {
+					index = i
+					break
+				}
+			}
+		}
+		if index < 0 {
+			panic("failed to find opcode for label")
+		}
+
+		// fast insertion via copy
+		s.Data = append(s.Data, nil)
+		copy(s.Data[index+1:], s.Data[index:])
+		s.Data[index] = label
 	}
 }
 
 func (s *Script) dissasembleToString() string {
-	strs := make([]string, 0)
-	pos := int16(0)
-	ops := s.Opcodes
-	for len(ops) != 0 {
-		if label, ex := s.labels[pos]; ex {
-			strs = append(strs, fmt.Sprintf("%.4x: $%s", pos, label))
-		}
+	var buf bytes.Buffer
 
-		op := ops[0]
-		if op.Offset == pos {
-			strs = append(strs, fmt.Sprintf("%.4x: %.2x: %s", op.Offset, op.Code, op.String))
-			ops = ops[1:]
+	for _, instruction := range s.Data {
+		switch v := instruction.(type) {
+		case *scriptlang.Opcode:
+			buf.WriteString(v.String())
+			if v.Comment != "" {
+				buf.WriteString(" // ")
+				buf.WriteString(v.Comment)
+			}
+		case *scriptlang.Label:
+			buf.WriteString(v.String())
+			if v.Comment != "" {
+				buf.WriteString(" // ")
+				buf.WriteString(v.Comment)
+			}
+		default:
+			panic(instruction)
 		}
-
-		pos++
+		buf.WriteRune('\n')
 	}
 
-	return strings.Join(strs, "\n")
+	return buf.String()
 }
 
-func (s *Script) Marshal() []byte {
-	var r bytes.Buffer
-	for _, op := range s.Opcodes {
-		r.WriteByte(op.Code)
-		if op.Code&0x80 != 0 {
-			if config.GetPlayStationVersion() != config.PSVita {
-				var lenBuf [2]byte
-				binary.LittleEndian.PutUint16(lenBuf[:], uint16(len(op.Data)))
-				r.Write(lenBuf[:])
+// if marshaler == nil, then will not fill string offsets
+// useful for size calculation
+func (s *Script) Marshal(fm *FlpMarshaler) []byte {
+	labelOffsets := make(map[string]int16)
+	labelFills := make(map[int]string)
+
+	var buf bytes.Buffer
+	for _, instruction := range s.Data {
+		switch instruction.(type) {
+		case *scriptlang.Label:
+			label := instruction.(*scriptlang.Label)
+			labelOffsets[label.Name] = int16(buf.Len())
+		case *scriptlang.Opcode:
+			op := instruction.(*scriptlang.Opcode)
+			opOffset := int16(buf.Len())
+
+			writeU16 := func(v uint16) {
+				var tmp [2]byte
+				binary.LittleEndian.PutUint16(tmp[:], v)
+				buf.Write(tmp[:])
 			}
-			r.Write(op.Data)
+			writeU32 := func(v uint32) {
+				var tmp [4]byte
+				binary.LittleEndian.PutUint32(tmp[:], v)
+				buf.Write(tmp[:])
+			}
+			writeLabelOff := func(labelName string, jmpOpShift int16) {
+				labelFills[buf.Len()] = labelName
+				// later we substract this value from label offset (currently unknown)
+				writeU16(uint16(opOffset + jmpOpShift))
+			}
+			writeStringOffset := func(s string) {
+				if fm != nil {
+					fm.sbuffer.Add(s, fm.pos()+buf.Len(), 2).AllowEmptyString = true
+				}
+				writeU16(0)
+			}
+
+			buf.WriteByte(op.Code)
+			if op.Code&0x80 != 0 {
+				if config.GetGOWVersion() == config.GOW1 && config.GetPlayStationVersion() == config.PS2 {
+					switch op.Code {
+					case 0x81:
+						writeU16(2)
+						writeU16(uint16(int16(op.Parameters[0].(int32))))
+					case 0x83:
+						s1, s2 :=
+							utils.StringToBytes(op.Parameters[0].(string), true),
+							utils.StringToBytes(op.Parameters[1].(string), true)
+
+						writeU16(uint16(len(s1) + len(s2)))
+						buf.Write(s1)
+						buf.Write(s2)
+					case 0x8b:
+						s := utils.StringToBytes(op.Parameters[0].(string), true)
+						writeU16(uint16(len(s)))
+						buf.Write(s)
+					case 0x8c:
+						s := utils.StringToBytes(op.Parameters[0].(string), true)
+						writeU16(uint16(len(s)))
+						buf.Write(s)
+					case 0x96:
+						// calc op length first
+						l := uint16(0)
+						for _, p := range op.Parameters {
+							switch v := p.(type) {
+							case float32:
+								l += 5
+							case string:
+								l += 1 + uint16(len(utils.StringToBytes(v, true)))
+							default:
+								panic(p)
+							}
+						}
+						writeU16(l)
+
+						for _, p := range op.Parameters {
+							switch v := p.(type) {
+							case float32:
+								buf.WriteByte(1) // TODO: check this 1
+								writeU32(math.Float32bits(v))
+							case string:
+								buf.WriteByte(0) // TODO: check this 0
+								buf.Write(utils.StringToBytes(v, true))
+							}
+						}
+					case 0x99:
+						writeU16(2)
+						writeLabelOff(op.Parameters[0].(*scriptlang.Label).Name, 5)
+					case 0x9e:
+						writeU16(0)
+					case 0x9d:
+						writeU16(2)
+						writeLabelOff(op.Parameters[0].(*scriptlang.Label).Name, 5)
+					case 0x9f:
+						writeU16(1)
+						buf.WriteByte(byte(op.Parameters[0].(int32)))
+					default:
+						log.Panicf("unknown opcode(gow1) {%+#v}", op)
+					}
+				} else {
+					switch op.Code {
+					case 0x81:
+						writeU16(uint16(int16(op.Parameters[0].(int32))))
+					case 0x83:
+						writeStringOffset(op.Parameters[0].(string))
+						writeStringOffset(op.Parameters[1].(string))
+					case 0x8b:
+						writeStringOffset(op.Parameters[0].(string))
+					case 0x8c:
+						writeStringOffset(op.Parameters[0].(string))
+					case 0x96:
+						switch v := op.Parameters[0].(type) {
+						case float32:
+							buf.WriteByte(1)
+							writeU32(math.Float32bits(v))
+						case string:
+							buf.WriteByte(0)
+							writeStringOffset(v)
+						default:
+							panic(op)
+						}
+					case 0x99:
+						writeLabelOff(op.Parameters[0].(*scriptlang.Label).Name, 3)
+					case 0x9d:
+						writeLabelOff(op.Parameters[0].(*scriptlang.Label).Name, 3)
+					case 0x9e:
+					// nothing
+					case 0x9f:
+						buf.WriteByte(byte(op.Parameters[0].(int32)))
+					default:
+						log.Panicf("unknown opcode {%+#v}", op)
+					}
+				}
+			}
 		}
 	}
-	s.marshaled = r.Bytes()
-	return s.marshaled
+
+	result := buf.Bytes()
+
+	// insert label offsets
+	for opOffset, labelName := range labelFills {
+		labelOffset, exists := labelOffsets[labelName]
+		if !exists {
+			log.Panicf("unknown label %v", labelName)
+		}
+
+		opOffAndJmpShift := binary.LittleEndian.Uint16(result[opOffset:])
+		binary.LittleEndian.PutUint16(result[opOffset:], uint16(labelOffset-int16(opOffAndJmpShift)))
+	}
+
+	return result
+}
+
+func (s *Script) FromDecompiled() error {
+	if data, err := scriptlang.ParseScript([]byte(s.Decompiled)); err != nil {
+		return errors.Wrapf(err, "Failed to decompile script")
+	} else {
+		//log.Printf("\n%v", s.Decompiled)
+		s.Data = data
+		//utils.LogDump(s.Decompiled, s.Data)
+		return nil
+	}
 }
 
 func NewScriptFromData(buf []byte, stringsSector []byte) (s *Script) {
 	s = new(Script)
 	s.parseOpcodes(buf, stringsSector)
 	s.Decompiled = s.dissasembleToString()
-	//s.Decompiled = strings.Replace("\n"+s.dissasembleToString(), "\n", "<br>", -1)
+
+	// testing of decompiler
+	/*
+		if data, err := scriptlang.ParseScript([]byte(s.Decompiled)); err == nil {
+			ns := new(Script)
+			ns.Data = data
+			newbuf := ns.Marshal(nil)
+			ns.parseOpcodes(newbuf, []byte{0})
+			ns.Decompiled = ns.dissasembleToString()
+			//if len(buf) != len(newbuf) {
+			utils.LogDump(buf, newbuf)
+			//	log.Panic(len(buf), len(newbuf))
+			//}
+		} else {
+			log.Panic(err)
+		}
+	*/
 	return s
-}
-
-func (oref *ScriptOpcodeStringPushReference) ChangeString(data []byte) {
-	var buf bytes.Buffer
-	buf.WriteByte(0)
-	buf.Write(data)
-	if len(data) == 0 || data[len(data)-1] != 0 {
-		buf.WriteByte(0)
-	}
-	oref.Opcode.Data = buf.Bytes()
-}
-
-func enterScriptPushRefFiller() {
-	scriptPushRefFiller = make([]ScriptOpcodeStringPushReference, 0)
-	scriptPushRefLocker.Lock()
-}
-
-func exitScriptPushRefFiller() []ScriptOpcodeStringPushReference {
-	defer func() {
-		scriptPushRefFiller = nil
-		scriptPushRefLocker.Unlock()
-	}()
-	return scriptPushRefFiller
 }

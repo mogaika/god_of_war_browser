@@ -297,7 +297,25 @@ function summaryLoadWadFlp(flp, wad, tagid) {
     let flp_print_dump = function() {
         set3dVisible(false);
         dataSummary.empty();
-        dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));
+
+        let downloadJSON = $('<button>').text("Download as json").click(function() {
+            window.open(getActionLinkForWadNode(wad, tagid, 'asjson'), '_blank');
+        });
+        dataSummary.append($('<p>').append(downloadJSON));
+
+        let uploadJSON = $('<button>').text("Upload from json");
+        uploadJSON.attr("href", getActionLinkForWadNode(wad, tagid, 'fromjson'));
+        uploadJSON.click(function() {
+            console.log($(this).attr('href'));
+            uploadAjaxHandler.call(this);
+        });
+        dataSummary.append($('<p>').append(uploadJSON));
+
+        let showDump = $('<button>').text("Expand dump").click(function() {
+            $(this).attr("disabled", true);
+            dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));
+        });
+        dataSummary.append($('<p>').append(showDump));
     }
 
     const objNamesArray = ['Nothing', 'Textured mesh part', 'UNKNOWN', 'Font',
@@ -346,83 +364,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 return undefined;
             }
         }
-    }
-
-    let flp_scripts_strings = function() {
-        set3dVisible(false);
-        dataSummary.empty();
-
-        let tbody = $("<tbody>");
-        for (let iRef in flp.ScriptPushRefs) {
-            let tr = $("<tr>");
-            let ref = flp.ScriptPushRefs[iRef];
-
-            let str = atob(ref.String);
-            if (flp.FontCharAliases) {
-                let originalStr = str;
-                str = "";
-                for (let i = 0; i < originalStr.length; i++) {
-                    let charCode = originalStr.charCodeAt(i);
-                    let replaced = false;
-
-                    for (let charToReplace in flp.FontCharAliases) {
-                        if (flp.FontCharAliases[charToReplace] === charCode) {
-                            str += String.fromCharCode(charToReplace);
-                            replaced = true;
-                            break;
-                        }
-                    }
-
-                    if (replaced === false) {
-                        str += String.fromCharCode(charCode);
-                    }
-                }
-            }
-
-            tr.append($("<td>").text(iRef));
-            tr.append($("<td>").append($("<input type=text>").val(str).css("width", "100%")));
-            tr.append($("<td>").append($("<button>").text("Update").click(
-                function(ev) {
-                    let str = $(this).parent().parent().find('input[type="text"]').val();
-                    let id = Number.parseInt($(this).parent().parent().children().first().text());
-
-                    if (flp.FontCharAliases) {
-                        let originalStr = str;
-                        str = "";
-                        for (let char of originalStr) {
-                            if (flp.FontCharAliases.hasOwnProperty(char.charCodeAt(0))) {
-                                str += String.fromCharCode(flp.FontCharAliases[char.charCodeAt(0)]);
-                            } else {
-                                str += char;
-                            }
-                        }
-                    }
-
-                    $.ajax({
-                        url: getActionLinkForWadNode(wad, tagid, 'scriptstring'),
-                        data: {
-                            'id': id,
-                            'string': btoa(str)
-                        },
-                        success: function(a) {
-                            if (a != "" && a.error) {
-                                alert("Error: " + a.error);
-                            } else {
-                                alert("Success");
-                            }
-                        }
-                    });
-                }
-            )));
-            tbody.append(tr);
-        }
-
-        let headtr = $("<tr>");
-        headtr.append($("<td>").text("Id"));
-        headtr.append($("<td>").text("Text"));
-        headtr.append($("<td>"));
-
-        dataSummary.append($("<table>").width("100%").append($("<thead>").append(headtr)).append(tbody));
     }
 
     let print_static_label_as_tr = function(iSl, needref = true) {
@@ -841,25 +782,26 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             }
 
             switch (h.TypeArrayId) {
-                default: $data_table.append(JSON.stringify(obj));
-                break;
+                default:
+                    $data_table.append(JSON.stringify(obj));
+                    break;
                 case 1:
-                        print_mesh(obj);
+                    print_mesh(obj);
                     break;
                 case 4:
-                        $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
+                    $data_table.append(print_static_label_as_tr(h.IdInThatTypeArray), false);
                     break;
                 case 6:
-                        print_data6(obj);
+                    print_data6(obj);
                     break;
                 case 7:
-                        print_data6_subtype1(obj);
+                    print_data6_subtype1(obj);
                     break;
                 case 8:
-                        print_data6_subtype1(obj);
+                    print_data6_subtype1(obj);
                     break;
                 case 9:
-                        print_transform(obj);
+                    print_transform(obj);
                     break;
             }
 
@@ -1203,7 +1145,6 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_list_labels).text("Labels editor"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_print_dump).text("Dump"));
-    dataSummarySelectors.append($('<div class="item-selector">').click(flp_scripts_strings).text("Scripts strings"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_font).text("Font viewer"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_object_viewer).text("Obj explorer"));
     dataSummarySelectors.append($('<div class="item-selector">').click(flp_view_object_renderer).text("Obj renderer"));

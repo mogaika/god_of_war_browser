@@ -6,6 +6,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 )
@@ -58,14 +60,27 @@ type FLP struct {
 	Transformations       []Transformation
 	BlendColors           []BlendColor
 	Strings               []string `json:"-"`
-
-	scriptPushRefs []ScriptOpcodeStringPushReference
 }
 
 type GlobalHandler uint16
 
 func (gh GlobalHandler) MarshalJSON() ([]byte, error) {
 	return json.Marshal(currentFlpInstance.GlobalHandlersIndexes[gh])
+}
+
+func (gh *GlobalHandler) UnmarshalJSON(data []byte) error {
+	var ghi GlobalHandlerIndex
+	if err := json.Unmarshal(data, &ghi); err != nil {
+		return errors.Wrapf(err, "Failed to parse GlobalHandlerIndex for GlobalHandler")
+	}
+
+	for index, hndl := range currentFlpInstance.GlobalHandlersIndexes {
+		if hndl.TypeArrayId == ghi.TypeArrayId && hndl.IdInThatTypeArray == ghi.IdInThatTypeArray {
+			*gh = GlobalHandler(index)
+			return nil
+		}
+	}
+	return errors.Errorf("Wasn't able to find handler for font")
 }
 
 type GlobalHandlerIndex struct {
@@ -217,14 +232,12 @@ type Marshaled struct {
 	Model           interface{}
 	FontCharAliases config.FontCharToAsciiByteAssoc
 	Textures        map[string]interface{}
-	ScriptPushRefs  []ScriptOpcodeStringPushReference
 }
 
 func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	mrsh := &Marshaled{
-		FLP:            f,
-		Textures:       make(map[string]interface{}),
-		ScriptPushRefs: f.scriptPushRefs,
+		FLP:      f,
+		Textures: make(map[string]interface{}),
 	}
 	if fontaliases, err := config.GetFontAliases(); err == nil {
 		mrsh.FontCharAliases = fontaliases

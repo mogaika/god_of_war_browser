@@ -7,14 +7,13 @@ import (
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/config"
-
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
 type StringPosReplacerReference struct {
 	Position         int
 	SizeInBytes      int
-	AllowEmptyString bool
+	AllowEmptyString bool // if false, then empty string offset -1, otherwise 0
 }
 
 type StringsIndexBuffer map[string][]StringPosReplacerReference
@@ -106,17 +105,6 @@ func (fm *FlpMarshaler) pad4() {
 	fm.pad(4)
 }
 
-func (fm *FlpMarshaler) addScriptStringRefs(script *Script) {
-	if script.staticStringRef != nil {
-		pos := fm.pos()
-		for str := range script.staticStringRef {
-			for _, offset := range script.staticStringRef[str] {
-				fm.sbuffer.Add(str, pos+int(offset), 2).AllowEmptyString = true
-			}
-		}
-	}
-}
-
 func (fm *FlpMarshaler) addStringOffsetPlaceholder(s string, size int) {
 	fm.sbuffer.Add(s, fm.pos(), size)
 	fm.skip(size)
@@ -143,10 +131,10 @@ func (d2 *MeshPartReference) MarshalData(fm *FlpMarshaler) {
 		fm.w32(d2.Materials[j].Color)
 		if config.GetGOWVersion() == config.GOW1 {
 			fm.addStringOffsetPlaceholder(d2.Materials[j].TextureName, 2)
+			fm.skip(2)
 		} else {
 			fm.w32(d2.Materials[j].TextureNameSecOff)
 		}
-		fm.skip(2)
 	}
 }
 
@@ -341,7 +329,7 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalStruct(fm *FlpMarshaler) {
 	if config.GetGOWVersion() == config.GOW2 {
 		fm.skip(4) // placeholder for pointer to array
 	}
-	fm.w32(uint32(len(d6s1s2s1.Script.Marshal())))
+	fm.w32(uint32(len(d6s1s2s1.Script.Marshal(nil))))
 	if config.GetGOWVersion() == config.GOW1 {
 		fm.skip(4) // placeholder for pointer to array
 	}
@@ -349,15 +337,14 @@ func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalStruct(fm *FlpMarshaler) {
 
 func (d6s1s2s1 *Data6Subtype1Subtype2Subtype1) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
-	fm.addScriptStringRefs(d6s1s2s1.Script)
-	fm.buf.Write(d6s1s2s1.Script.marshaled)
+	fm.buf.Write(d6s1s2s1.Script.Marshal(fm))
 }
 
 func (d6s2 *Data6Subtype2) MarshalStruct(fm *FlpMarshaler) {
 	if config.GetGOWVersion() == config.GOW2 {
 		fm.skip(4) // placeholder for pointer to script payload
 	}
-	fm.w32(uint32(len(d6s2.Script.Marshal())))
+	fm.w32(uint32(len(d6s2.Script.Marshal(nil))))
 	if config.GetGOWVersion() == config.GOW1 {
 		fm.skip(4) // placeholder for pointer to script payload
 	}
@@ -368,8 +355,7 @@ func (d6s2 *Data6Subtype2) MarshalStruct(fm *FlpMarshaler) {
 
 func (d6s2 *Data6Subtype2) MarshalData(fm *FlpMarshaler) {
 	fm.pad4()
-	fm.addScriptStringRefs(d6s2.Script)
-	fm.buf.Write(d6s2.Script.marshaled)
+	fm.buf.Write(d6s2.Script.Marshal(fm))
 }
 
 func (d9 *Transformation) MarshalStruct(fm *FlpMarshaler) {
@@ -405,13 +391,13 @@ func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 		fm.skip(4) // placeholder for data8 single instance pointer
 		writeArraydescr(len(f.Transformations))
 		writeArraydescr(len(f.BlendColors))
-		writeArraydescr(0) // fill this field later (string data offset)
+		writeArraydescr(0) // fill this field later (string data size)
 		if fm.pos() != HEADER_SIZE {
 			panic("Wrong header generated")
 		}
 	} else {
 		fm.w32(FLP_MAGIC_GOW2)
-		fm.skip(0x2c)
+		fm.skip(0x2c) // 11 pointers * 4
 		fm.w32(f.Unk04)
 		fm.w32(f.Unk08)
 		fm.w32(uint32(len(f.GlobalHandlersIndexes)))
@@ -423,7 +409,7 @@ func (f *FLP) marshalBufferHeader(fm *FlpMarshaler) {
 		fm.w32(uint32(len(f.Datas7)))
 		fm.w16(uint16(len(f.Transformations)))
 		fm.w16(uint16(len(f.BlendColors)))
-		fm.w32(0) // fill this field later (string data offset)
+		fm.w32(0) // fill this field later (string data size)
 		if fm.pos() != HEADER_SIZE_GOW2 {
 			panic("Wrong header generated")
 		}
