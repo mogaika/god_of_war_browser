@@ -137,22 +137,32 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			for _, d6s1s2 := range d6.Sub1.FrameScriptLables {
 				for _, d6s1s2s1 := range d6s1s2.Subs {
 					if err := d6s1s2s1.Script.FromDecompiled(); err != nil {
-						webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6s1s2s1 script"))
+						webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6 d6s1s2s1 script"))
 						return
 					}
 				}
 			}
 			for _, d6s2 := range d6.Sub2s {
 				if err := d6s2.Script.FromDecompiled(); err != nil {
-					webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6s2 script"))
+					webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6 d6s2 script"))
 					return
+				}
+			}
+		}
+		for _, d7 := range newFlp.Datas7 {
+			for _, d6s1s2 := range d7.FrameScriptLables {
+				for _, d6s1s2s1 := range d6s1s2.Subs {
+					if err := d6s1s2s1.Script.FromDecompiled(); err != nil {
+						webutils.WriteError(w, errors.Wrapf(err, "Failed upload d7 d6s1s2s1 script"))
+						return
+					}
 				}
 			}
 		}
 		for _, d6s1s2 := range newFlp.Data8.FrameScriptLables {
 			for _, d6s1s2s1 := range d6s1s2.Subs {
 				if err := d6s1s2s1.Script.FromDecompiled(); err != nil {
-					webutils.WriteError(w, errors.Wrapf(err, "Failed upload d6s1s2s1 script"))
+					webutils.WriteError(w, errors.Wrapf(err, "Failed upload d8 d6s1s2s1 script"))
 					return
 				}
 			}
