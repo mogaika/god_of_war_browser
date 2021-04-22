@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"log"
 	"math"
+	"strings"
 
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -47,24 +48,74 @@ func (fm *FlpMarshaler) compileStringAndReturnFile() *bytes.Buffer {
 	var stringSection bytes.Buffer
 	stringSection.WriteByte(0) // empty string at start
 
-	for k, v := range map[string][]StringPosReplacerReference(fm.sbuffer) {
-		var offbuf [4]byte
-		off := stringSection.Len()
+	replaceReferences := map[string][]StringPosReplacerReference(fm.sbuffer)
 
-		if k == "" {
+	// compress strings so "4L" will reference to middle of "Line4L"
+	// find parent strings
+	parentStrings := make(map[string]string)
+	totalSave := 0
+	for s, _ := range replaceReferences {
+		for sbig, _ := range replaceReferences {
+			if len(sbig) > len(s) && strings.HasSuffix(sbig, s) {
+				parentStrings[s] = sbig
+				totalSave += len(s) + 1
+				break
+			}
+		}
+	}
+	log.Printf("Saved bytes with strings compression: %v", totalSave)
+
+	parentsOffsets := make(map[string]int)
+	// update pointers for "parent" strings
+	for s, v := range replaceReferences {
+		var offbuf [4]byte
+
+		if _, hasParent := parentStrings[s]; hasParent {
+			continue
+		}
+
+		var off int
+		if s == "" {
 			off = -1
 		} else {
-			stringSection.Write(utils.StringToBytes(k, true))
+			off = stringSection.Len()
+			parentsOffsets[s] = off
+			stringSection.Write(utils.StringToBytes(s, true))
 		}
 
 		binary.LittleEndian.PutUint32(offbuf[:], uint32(off))
 		for _, e := range v {
-			//log.Printf("String ref at %x:%d = %x to %s", e.Position, e.SizeInBytes, off, k)
-			if k == "" && e.AllowEmptyString {
+			if s == "" && e.AllowEmptyString {
+				//log.Printf("String emp ref at %x:%d = %x to %s", e.Position, e.SizeInBytes, off, s)
 				copy(buf[e.Position:e.Position+e.SizeInBytes], make([]byte, e.SizeInBytes))
 			} else {
+				//log.Printf("String par ref at %x:%d = %x to %s", e.Position, e.SizeInBytes, off, s)
 				copy(buf[e.Position:e.Position+e.SizeInBytes], offbuf[:e.SizeInBytes])
 			}
+		}
+	}
+
+	// update pointers for "subparent" strings
+	for s, v := range replaceReferences {
+		parent, hasParent := parentStrings[s]
+		if !hasParent {
+			continue
+		}
+
+		parentOffset, foundOffset := parentsOffsets[parent]
+		for !foundOffset {
+			// means our parent has other parent
+			parent = parentStrings[parent]
+			parentOffset, foundOffset = parentsOffsets[parent]
+		}
+
+		off := parentOffset + len(parent) - len(s)
+
+		var offbuf [4]byte
+		binary.LittleEndian.PutUint32(offbuf[:], uint32(off))
+		for _, e := range v {
+			//log.Printf("String sub ref at %x:%d = %x to %s (%s)", e.Position, e.SizeInBytes, off, s, parent)
+			copy(buf[e.Position:e.Position+e.SizeInBytes], offbuf[:e.SizeInBytes])
 		}
 	}
 
