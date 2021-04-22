@@ -2,7 +2,6 @@ package toc
 
 import (
 	"encoding/binary"
-	"log"
 	"sort"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -113,7 +112,6 @@ func (toc *TableOfContent) marshalGOW2() []byte {
 	currentEncounter := 0
 	for iEntry, entry := range rawFiles {
 		entry.EntriesStart = uint32(currentEncounter)
-		log.Println(entry.Name)
 
 		file := toc.files[entry.Name]
 		for _, encounter := range file.encounters {
