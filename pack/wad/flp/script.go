@@ -388,18 +388,21 @@ func (s *Script) Marshal(fm *FlpMarshaler) []byte {
 						l := uint16(0)
 						for _, p := range op.Parameters {
 							switch v := p.(type) {
-							case float32:
+							case float32, int32:
 								l += 5
 							case string:
 								l += 1 + uint16(len(utils.StringToBytes(v, true)))
 							default:
-								panic(p)
+								log.Panicf("%#+v %T", p, p)
 							}
 						}
 						writeU16(l)
 
 						for _, p := range op.Parameters {
 							switch v := p.(type) {
+							case int32:
+								buf.WriteByte(1) // TODO: check this 1
+								writeU32(math.Float32bits(float32(v)))
 							case float32:
 								buf.WriteByte(1) // TODO: check this 1
 								writeU32(math.Float32bits(v))
@@ -435,6 +438,9 @@ func (s *Script) Marshal(fm *FlpMarshaler) []byte {
 						writeStringOffset(op.Parameters[0].(string))
 					case 0x96:
 						switch v := op.Parameters[0].(type) {
+						case int32:
+							buf.WriteByte(1)
+							writeU32(math.Float32bits(float32(v)))
 						case float32:
 							buf.WriteByte(1)
 							writeU32(math.Float32bits(v))
