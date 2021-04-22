@@ -218,7 +218,7 @@ gowFlp.prototype.renderData6sub1 = function(o, handler, frameIndex, transform, c
         for (let iFrame = 0; iFrame < flpElement.KeyFrames.length; iFrame++) {
             currentFrame = flpElement.KeyFrames[iFrame];
             // console.info(frameIndex, "+ 1 >=", currentFrame.WhenThisFrameEnds);
-            if (frameIndex >= currentFrame.WhenThisFrameEnds - 1) {
+            if (frameIndex > currentFrame.WhenThisFrameEnds) {
                 continue;
             } else {
                 break;
