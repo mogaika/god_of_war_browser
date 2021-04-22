@@ -185,7 +185,5 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			webutils.WriteError(w, errors.Wrapf(err, "Failed to write tag"))
 			return
 		}
-
-		w.Write([]byte("Success"))
 	}
 }
