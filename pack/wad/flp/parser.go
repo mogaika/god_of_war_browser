@@ -269,7 +269,7 @@ func (d6s1s2 *FrameScriptLabel) FromBuf(buf []byte) int {
 		d6s1s2.TriggerFrameNumber = binary.LittleEndian.Uint16(buf[4:])
 		d6s1s2.Subs = make([]Data6Subtype1Subtype2Subtype1, binary.LittleEndian.Uint16(buf[0x6:]))
 	}
-	d6s1s2.labelNameSecOff = int16(binary.LittleEndian.Uint16(buf[8:]))
+	d6s1s2.labelNameSecOff = binary.LittleEndian.Uint16(buf[8:])
 	return DATA6_SUBTYPE1_SUBTYPE2_ELEMENT_SIZE
 }
 
@@ -285,8 +285,8 @@ func (d6s1s2 *FrameScriptLabel) Parse(buf []byte, pos int) int {
 }
 
 func (d6s1s2 *FrameScriptLabel) SetNameFromStringSector(stringsSector []byte) {
-	if d6s1s2.labelNameSecOff != -1 {
-		d6s1s2.LabelName = utils.BytesToString(stringsSector[d6s1s2.labelNameSecOff:])
+	if d6s1s2.labelNameSecOff != 0xffff {
+		d6s1s2.LabelName = utils.BytesToString(stringsSector[uint16(d6s1s2.labelNameSecOff):])
 	}
 	for i := range d6s1s2.Subs {
 		d6s1s2.Subs[i].SetNameFromStringSector(stringsSector)

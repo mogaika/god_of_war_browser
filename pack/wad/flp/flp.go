@@ -170,7 +170,7 @@ type KeyFrame struct {
 
 type FrameScriptLabel struct {
 	TriggerFrameNumber uint16
-	labelNameSecOff    int16
+	labelNameSecOff    uint16
 	LabelName          string
 	Subs               []Data6Subtype1Subtype2Subtype1
 }
