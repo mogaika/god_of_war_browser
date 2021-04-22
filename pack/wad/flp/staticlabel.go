@@ -104,7 +104,7 @@ func (d4 *StaticLabel) MarshalRenderCommandList() []byte {
 		o.WriteByte(uint8(len(cmd.Glyphs)))
 		for _, glyph := range cmd.Glyphs {
 			binary.LittleEndian.PutUint16(buf[0:], glyph.GlyphId)
-			binary.LittleEndian.PutUint16(buf[2:], uint16(int16(glyph.Width)*16.0))
+			binary.LittleEndian.PutUint16(buf[2:], uint16(float32(glyph.Width)*16.0))
 			o.Write(buf[:4])
 		}
 	}
