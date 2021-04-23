@@ -113,6 +113,6 @@ func GameStringUnhashNodes(hash uint32) string {
 	if ok {
 		return v.(string)
 	} else {
-		return "%gene% " + GameStringUnhashGenerate(hash)
+		return fmt.Sprintf("@hash(%.8x)", hash)
 	}
 }

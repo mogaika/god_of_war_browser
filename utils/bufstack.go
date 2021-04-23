@@ -98,6 +98,10 @@ func (bs *BufStack) RelativeOffset() int {
 	return bs.relativeOffset
 }
 
+func (bs *BufStack) AbsoluteOffset() int {
+	return bs.absoluteOffset
+}
+
 func (bs *BufStack) String() string {
 	return fmt.Sprintf("buf<%v>(%v)[o:0x%x,s:0x%x,ao:0x%x,ae:0x%x]",
 		bs.kind, bs.name, bs.relativeOffset, bs.size, bs.absoluteOffset, bs.absoluteOffset+bs.size)

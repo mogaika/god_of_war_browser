@@ -1,11 +1,5 @@
 'use strict';
 
-let gw_cxt_group_loading = false;
-let flp_obj_view_history = [{
-    TypeArrayId: 8,
-    IdInThatTypeArray: 0
-}];
-
 function treeLoadWad_dumpButtons(li, wadName, tag) {
     li.append($('<div>')
         .addClass('button-upload')
@@ -242,6 +236,10 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                 }
             } else if (tag.Tag == 112) {
                 summaryLoadWadGeomShape(data);
+            } else if (tag.Tag == 113) {
+                summaryLoadWadTWK(data, wad, tagid);
+                needMarshalDump = false;
+                needHexDump = false;
             } else if (tag.Tag == 500) {
                 summaryLoadWadRSRCS(data, wad, tagid);
                 needMarshalDump = false;
@@ -1364,7 +1362,80 @@ function summaryLoadWadRSRCS(data, wad, nodeid) {
                 }
             }
         });
-    })
+    });
 
     dataSummary.append(addWad).append(addBtn).append(list).append(saveBtn);
+}
+
+function summaryLoadWadTWK(data, wad, nodeid) {
+    set3dVisible(false);
+
+    let table = $("<table>");
+    let twk = data;
+
+    let info = $("<ul>");
+    info.append($("<li>").append("Name: " + twk.Name));
+    info.append($("<li>").append("MagicHeaderPresened: " + twk.MagicHeaderPresened));
+    info.append($("<li>").append("HeaderStrangeMagicUid: " + twk.HeaderStrangeMagicUid));
+    dataSummary.append(info);
+
+    let valueView = function(value) {
+        let bytes = hexStringToBytes(value.Hex);
+        let view = new DataView(bytes.buffer, 0);
+        let asString = '';
+        for (let c of bytes) {
+            if (c == 0) {
+                break;
+            }
+            asString += String.fromCharCode(c);
+        }
+
+        let s = "int32: " + view.getInt32(0, true) + " uint32: " + view.getUint32(0, true) +
+            " float: " + view.getFloat32(0, true) +
+            "</br>string: " + asString +
+            "</br>hex: " + value.Hex +
+            "</br>offset: " + value.Offset;
+        return s;
+    }
+
+    let directoryToTable;
+    directoryToTable = function(directory) {
+        let table = $("<table>");
+        for (let value of directory.Values) {
+            table.append($("<tr>").append(
+                $("<td>").append(value.Name),
+                $("<td>").append(valueView(value))
+            ));
+        }
+
+        console.log(directory);
+        if (directory.Directories) {
+            for (let subdir of directory.Directories) {
+                table.append($("<tr>").append(
+                    $("<td>").append(subdir.Name),
+                    $("<td>").append(directoryToTable(subdir))
+                ));
+            }
+        }
+
+        return table;
+    };
+
+    dataSummary.append(directoryToTable(twk));
+    console.log(twk);
+}
+
+function hexStringToBytes(string) {
+    var bytes = new Uint8Array(Math.ceil(string.length / 2));
+    for (var i = 0; i < bytes.length; i++) bytes[i] = parseInt(string.substr(i * 2, 2), 16);
+    return bytes;
+}
+
+function bytesToHexString(bytes) {
+    var string = '';
+    for (var i = 0; i < bytes.length; i++) {
+        if (bytes[i] < 16) string += '0';
+        string += bytes[i].toString(16);
+    }
+    return string;
 }

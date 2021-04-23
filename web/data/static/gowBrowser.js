@@ -6,6 +6,11 @@ let defferedLoadingWad;
 let defferedLoadingWadNode;
 let dataSelectors, dataSummarySelectors;
 let wad_last_load_view_type = 'nodes';
+let gw_cxt_group_loading = false;
+let flp_obj_view_history = [{
+    TypeArrayId: 8,
+    IdInThatTypeArray: 0
+}];
 
 String.prototype.replaceAll = function(search, replace) {
     if (replace === undefined) {
