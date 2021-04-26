@@ -133,9 +133,13 @@ type DynamicLabel struct {
 	BlendColor        uint32
 	StringLengthLimit uint16
 	OffsetX1          uint16
+	Unk010            uint16
 	Width2            uint16
+	Unk014            uint16
 	OffsetX2          uint16
+	Unk018            uint16
 	Unk01a            uint16
+	Unk01c            uint16
 	Unk01e            uint16
 }
 

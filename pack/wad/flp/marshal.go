@@ -263,13 +263,13 @@ func (d5 *DynamicLabel) MarshalStruct(fm *FlpMarshaler) {
 	fm.w32(d5.BlendColor)
 	fm.w16(d5.StringLengthLimit)
 	fm.w16(d5.OffsetX1)
-	fm.skip(2)
+	fm.w16(d5.Unk010)
 	fm.w16(d5.Width2)
-	fm.skip(2)
+	fm.w16(d5.Unk014)
 	fm.w16(d5.OffsetX2)
-	fm.skip(2)
+	fm.w16(d5.Unk018)
 	fm.w16(d5.Unk01a)
-	fm.skip(2)
+	fm.w16(d5.Unk01c)
 	fm.w16(d5.Unk01e)
 }
 

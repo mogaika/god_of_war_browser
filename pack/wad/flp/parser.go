@@ -135,9 +135,13 @@ func (d5 *DynamicLabel) FromBuf(buf []byte) int {
 	d5.BlendColor = binary.LittleEndian.Uint32(buf[8:])
 	d5.StringLengthLimit = binary.LittleEndian.Uint16(buf[0xc:])
 	d5.OffsetX1 = binary.LittleEndian.Uint16(buf[0xe:])
+	d5.Unk010 = binary.LittleEndian.Uint16(buf[0x10:])
 	d5.Width2 = binary.LittleEndian.Uint16(buf[0x12:])
+	d5.Unk014 = binary.LittleEndian.Uint16(buf[0x14:])
 	d5.OffsetX2 = binary.LittleEndian.Uint16(buf[0x16:])
+	d5.Unk018 = binary.LittleEndian.Uint16(buf[0x18:])
 	d5.Unk01a = binary.LittleEndian.Uint16(buf[0x1a:])
+	d5.Unk01c = binary.LittleEndian.Uint16(buf[0x1c:])
 	d5.Unk01e = binary.LittleEndian.Uint16(buf[0x1e:])
 	return DATA5_ELEMENT_SIZE
 }
