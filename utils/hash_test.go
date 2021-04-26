@@ -32,7 +32,7 @@ func TestStringUnhashNodes(t *testing.T) {
 			continue
 		}
 		result := GameStringUnhashNodes(test.out_nodes)
-		if result != "%gene% "+test.in_str {
+		if result != test.in_str {
 			t.Errorf("GameStringUnhashNodes(%d)=%q; expected %q", test.out_nodes, result, test.in_str)
 		}
 	}

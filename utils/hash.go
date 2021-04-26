@@ -109,10 +109,19 @@ func GameStringUnhashGenerate(hash uint32) string {
 }
 
 func GameStringUnhashNodes(hash uint32) string {
+	if hash == 0 {
+		return ""
+	}
 	v, ok := hashesMap.Load(hash)
 	if ok {
 		return v.(string)
 	} else {
-		return fmt.Sprintf("@hash(%.8x)", hash)
+		unhashed := GameStringUnhashGenerate(hash)
+		for _, c := range unhashed {
+			if c < 0x20 || c >= 0x80 {
+				return fmt.Sprintf("@hash(%.8x)", hash)
+			}
+		}
+		return unhashed
 	}
 }
