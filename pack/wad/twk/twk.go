@@ -2,7 +2,6 @@ package twk
 
 import (
 	"encoding/hex"
-	"log"
 
 	"github.com/pkg/errors"
 
@@ -48,7 +47,7 @@ func (t *TWK) Parse(bsdata *utils.BufStack) error {
 
 		switch cmdFlags {
 		case 0:
-			log.Printf(" | end ========")
+			//log.Printf(" | end ========")
 			if len(dirStack) != 0 {
 				return errors.Errorf("Non empty directories stack on end: %v", dirStack)
 			}
