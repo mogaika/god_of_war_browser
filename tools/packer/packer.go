@@ -97,7 +97,7 @@ func main() {
 
 	tokFileName := path.Join(outDir, "GODOFWAR.TOC")
 	if err := ioutil.WriteFile(tokFileName, tb.Marshal(), 0777); err != nil {
-		log.Fatal("Failed to write tok file %q: %v", tokFileName, err)
+		log.Fatalf("Failed to write tok file %q: %v", tokFileName, err)
 	}
 
 	log.Println("Packing completed!")
