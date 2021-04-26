@@ -278,3 +278,27 @@ func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {
 
 	return t, nil
 }
+
+type TableOfContentBuilder TableOfContent
+
+func NewTableOfContentBuilder() *TableOfContentBuilder {
+	return &TableOfContentBuilder{
+		files: make(map[string]*File),
+	}
+}
+
+func (t *TableOfContentBuilder) SetPackArrayIndexing(indexing int) { t.packsArrayIndexing = indexing }
+
+func (t *TableOfContentBuilder) AddFile(name string, size int64, encounter Encounter) {
+	f := &File{
+		name:       name,
+		size:       size,
+		encounters: make([]Encounter, 0),
+	}
+	f.encounters = append(f.encounters, encounter)
+	t.files[name] = f
+}
+
+func (t *TableOfContentBuilder) Marshal() []byte {
+	return (*TableOfContent)(t).Marshal()
+}
