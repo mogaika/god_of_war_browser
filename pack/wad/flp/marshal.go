@@ -306,7 +306,10 @@ func (d6s1 *Data6Subtype1) MarshalStruct(fm *FlpMarshaler) {
 		fm.w16(uint16(len(d6s1.ElementsAnimation)))
 		fm.w16(uint16(len(d6s1.FrameScriptLables)))
 		fm.w16(d6s1.Width) // TODO: prob incorrect
-		fm.skip(8)         // TODO: prob needed
+		fm.w16(d6s1.GOW2Unk010)
+		fm.w16(d6s1.GOW2Unk012)
+		fm.w16(d6s1.GOW2Unk014)
+		fm.skip(2)
 	}
 }
 

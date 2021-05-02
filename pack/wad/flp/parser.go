@@ -192,6 +192,9 @@ func (d6s1 *Data6Subtype1) FromBuf(buf []byte) int {
 		d6s1.ElementsAnimation = make([]ElementAnimation, binary.LittleEndian.Uint16(buf[0xa:]))
 		d6s1.FrameScriptLables = make([]FrameScriptLabel, binary.LittleEndian.Uint16(buf[0xc:]))
 		d6s1.Width = binary.LittleEndian.Uint16(buf[0xe:])
+		d6s1.GOW2Unk010 = binary.LittleEndian.Uint16(buf[0x10:])
+		d6s1.GOW2Unk012 = binary.LittleEndian.Uint16(buf[0x12:])
+		d6s1.GOW2Unk014 = binary.LittleEndian.Uint16(buf[0x14:])
 	}
 
 	return DATA6_SUBTYPE1_ELEMENT_SIZE

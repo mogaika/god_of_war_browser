@@ -156,6 +156,9 @@ type Data6Subtype1 struct {
 	ElementsAnimation []ElementAnimation
 	FrameScriptLables []FrameScriptLabel
 	Width             uint16
+	GOW2Unk010        uint16
+	GOW2Unk012        uint16
+	GOW2Unk014        uint16
 }
 
 type ElementAnimation struct {
