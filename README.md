@@ -8,7 +8,7 @@ Some functions are broken on the *Japanese version of the game (NTSC-J)*.
 
 ### [Download latest build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
 
-### [Join Discord](https://discord.gg/gTYHV2mJ)
+### [Join Discord](https://discord.gg/u6x3Z9v6Ed)
 
 ## Instructions
 - Download and unzip [latest build](https://ci.appveyor.com/project/mogaika/god-of-war-browser/branch/master/artifacts)
