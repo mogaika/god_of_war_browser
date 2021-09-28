@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"strings"
 
+	"github.com/Pallinder/go-randomdata"
 	"github.com/pkg/errors"
 
 	"github.com/mogaika/god_of_war_browser/config"
@@ -226,6 +228,7 @@ type BlendColor struct {
 }
 
 func NewFromData(buf []byte) (*FLP, error) {
+	randomdata.CustomRand(rand.New(rand.NewSource(0)))
 	f := &FLP{}
 	currentFlpInstance = f
 	if err := f.fromBuffer(buf); err != nil {
