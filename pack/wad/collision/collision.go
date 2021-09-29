@@ -3,6 +3,8 @@ package collision
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -41,7 +43,13 @@ func NewFromData(bs *utils.BufStack, wrtr io.Writer) (c *Collision, err error) {
 
 	switch c.ShapeName {
 	case "SheetHdr":
-		c.Shape, err = NewRibSheet(bs, wrtr)
+		var rib *ShapeRibSheet
+		if rib, err = NewRibSheet(bs, wrtr); err == nil {
+			c.Shape = rib
+			if _, err := NewRibSheet(utils.NewBufStack("heh", rib.Marshal()), ioutil.Discard); err != nil {
+				log.Printf("Failed to reopen remarshaled file: %v", err)
+			}
+		}
 	case "BallHull":
 		c.Shape, err = NewBallHull(bs, wrtr)
 	default:

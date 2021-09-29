@@ -224,12 +224,16 @@ func (t *TableOfContent) readTocFile() error {
 }
 
 func printFreeSpace(t *TableOfContent) {
-	log.Printf(" xXxXx Free space of files packed in toc/pak:")
+	// log.Printf(" xXxXx Free space of files packed in toc/pak:")
 	var totalFree int64
+	var maxSize int64
 
 	for _, fs := range constructFreeSpaceArray(t.files, t.paks) {
 		freeSpaceSize := fs.End - fs.Start
-		log.Printf("[%d] 0x%.9x <=> 0x%.9x  0x%.7x  %dkB", fs.Pak, fs.Start, fs.End, freeSpaceSize, freeSpaceSize>>10)
+		if freeSpaceSize > maxSize {
+			maxSize = freeSpaceSize
+		}
+		// log.Printf("[%d] 0x%.9x <=> 0x%.9x  0x%.7x  %dkB", fs.Pak, fs.Start, fs.End, freeSpaceSize, freeSpaceSize>>10)
 		totalFree += freeSpaceSize
 
 		// sanity check of files
@@ -249,7 +253,8 @@ func printFreeSpace(t *TableOfContent) {
 	if totalFree == 0 {
 		log.Printf("       no free space found")
 	}
-	log.Printf(" xXxXx Total free space: 0x%x  %dkB  %dMb", totalFree, totalFree>>10, totalFree>>20)
+	log.Printf("[toc] Total free space: 0x%x  %dkB  %dMb (max free block 0x%x  %dkB  %dMb)",
+		totalFree, totalFree>>10, totalFree>>20, maxSize, maxSize>>10, maxSize>>20)
 }
 
 func NewTableOfContent(dir vfs.Directory) (*TableOfContent, error) {

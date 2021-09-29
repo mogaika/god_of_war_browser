@@ -32,23 +32,38 @@ func parseCheck(rootfs vfs.Directory) {
 		switch data.(type) {
 		case *file_wad.Wad:
 			wad := data.(*file_wad.Wad)
+			contexts := make([]string, 0)
+			after := false
 			for _, node := range wad.Nodes {
-				if node.Parent != 0 {
-					continue
-				}
-				for _, onode := range wad.Nodes {
-					if onode.Tag.Id >= node.Tag.Id {
-						break
-					}
 
-					if node.Tag.Name == onode.Tag.Name {
-						log.Printf("Conflicting name %q [%d:%q:%d] [%d:%q:%d]",
-							wad.Name(),
-							node.Tag.Id, node.Tag.Name, node.Tag.Size,
-							onode.Tag.Id, onode.Tag.Name, node.Tag.Size)
-						break
+				/*if node.Parent == 0 {
+					continue
+				}*/
+				/*
+					for _, onode := range wad.Nodes {
+						if onode.Tag.Id >= node.Tag.Id {
+							break
+						}
+
+						if node.Tag.Name == onode.Tag.Name {
+							log.Printf("Conflicting name %q [%d:%q:%d] [%d:%q:%d]",
+								wad.Name(),
+								node.Tag.Id, node.Tag.Name, node.Tag.Size,
+								onode.Tag.Id, onode.Tag.Name, node.Tag.Size)
+							break
+						}
 					}
+				*/
+				if len(node.Tag.Data) != 0 && node.Tag.Name == "RIB_sheet" {
+					log.Println(wad.Name())
+					wad.GetInstanceFromNode(node.Id)
+					after = true
 				}
+				if after && len(node.Tag.Data) == 52 && strings.HasPrefix(node.Tag.Name, "CXT_") {
+					contexts = append(contexts, node.Tag.Name)
+					//log.Println(node.Tag.Name)
+				}
+
 				// if len(node.Tag.Data) != 0 && binary.LittleEndian.Uint32(node.Tag.Data) == mesh.MESH_MAGIC {
 				// 	_, _, err := wad.GetInstanceFromNode(node.Id)
 				// 	if err != nil {
@@ -59,6 +74,9 @@ func parseCheck(rootfs vfs.Directory) {
 				// 		} */
 				// 	}
 				// }
+			}
+			if after {
+				//log.Printf("CONTEXTS: %d %v", len(contexts)-1, contexts)
 			}
 		}
 	}

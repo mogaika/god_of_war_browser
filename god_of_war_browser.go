@@ -110,7 +110,7 @@ func main() {
 		defer f.Close()
 	}
 
-	//parsecheck = true
+	// parsecheck = true
 	if parsecheck {
 		parseCheck(gameDir)
 	}

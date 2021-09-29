@@ -77,6 +77,8 @@ function treeLoadWadAsNodes(wadName, data) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
                 } else if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("CXT_")) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
+                } if ($node.attr("nodetag") == "30" && $node.attr("nodename") == "RIB_sheet") {
+                    treeLoadWadNode(wadName, $node.attr("nodeid"), 0x00000011);
                 }
             });
         }
@@ -194,7 +196,7 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         set3dVisible(true);
 
                         let mdl = new grModel();
-                        loadCollisionFromAjax(mdl, data);
+                        loadCollisionFromAjax(mdl, data, wad, tagid);
 
                         gr_instance.models.push(mdl);
                         gr_instance.requestRedraw();
@@ -910,14 +912,69 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
-function loadCollisionFromAjax(mdl, data) {
+function loadCollisionFromAjax(mdl, data, wad, nodeid) {
     if (data.ShapeName == "BallHull") {
         let vec = data.Shape.Vector;
         let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3] * 2, 7, 7);
         mdl.addMesh(mesh);
         mesh.setMaskBit(4);
-    } else if (data.ShapeName == "") {
+    } else if (data.ShapeName == "SheetHdr") {
+		let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'frommodel') + '" method="post" enctype="multipart/form-data">');
+	    form.append($('<input type="file" name="model">'));
+	    let replaceBtn = $('<input type="button" value="Replace static collision geometry">')
+	    replaceBtn.click(function() {
+	        let form = $(this).parent();
+	        $.ajax({
+	            url: form.attr('action'),
+	            type: 'post',
+	            data: new FormData(form[0]),
+	            processData: false,
+	            contentType: false,
+	            success: function(a1) {
+	                if (a1 !== "") {
+	                    alert('Error: ' + a1);
+	                } else {
+	                    alert('Success!');
+	                    window.location.reload();
+	                }
+	            }
+	        });
+	    });
+	    form.append(replaceBtn);
+		dataSummary.append(form);
+		
+		let rib = data.Shape;
+		let vertices = [];
+		for (let i = 0; i < rib.Some9Points.length; i++) {
+			vertices.push(rib.Some9Points[i][0]);
+			vertices.push(rib.Some9Points[i][1]);
+			vertices.push(rib.Some9Points[i][2]);
+		}
+		console.log(rib);
 
+		let indices = [];
+		for (let i = 0; i < rib.Some6.length; i++) {
+			let polygon = rib.Some6[i];
+			if (polygon.IsQuad) {
+				let quad = rib.Some8QuadsIndex[polygon.QuadOrTriangleIndex];
+				indices.push(quad.Indexes[0]);
+				indices.push(quad.Indexes[1]);
+				indices.push(quad.Indexes[2]);
+				indices.push(quad.Indexes[3]);
+				indices.push(quad.Indexes[0]);
+				indices.push(quad.Indexes[2]);
+			} else {
+				let triangle = rib.Some7TrianglesIndex[polygon.QuadOrTriangleIndex];
+				indices.push(triangle.Indexes[0]);
+				indices.push(triangle.Indexes[1]);
+				indices.push(triangle.Indexes[2]);
+			}
+		}
+		console.log(vertices, indices);
+	    let mesh = new grMesh(vertices, indices);
+	    mesh.setJointIds([0], Array(vertices.length / 3).fill(0));
+		mdl.addMesh(mesh);
+        mesh.setMaskBit(4);
     }
 }
 
