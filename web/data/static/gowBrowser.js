@@ -82,19 +82,16 @@ function packLoad() {
     $.getJSON('/json/pack', function(files) {
         let list = $('<ol>');
         for (let i in files) {
-            let fileName = files[i];
-            list.append($('<li>')
-                .attr('filename', fileName)
-                .append($('<label>').append(fileName))
-                .append($('<a download>')
-                    .addClass('button-dump')
-                    .attr('title', 'Download file')
-                    .attr('href', '/dump/pack/' + fileName))
-                .append($('<div>')
-                    .addClass('button-upload')
-                    .attr('title', 'Upload your version of file')
-                    .attr("href", '/upload/pack/' + fileName)
-                    .click(uploadAjaxHandler)));
+            const fileName = files[i];
+            let li = $(`
+                <li filename="${fileName}">
+                    <label>${fileName}</label>
+                    <a download class="button-dump" title="Download file" href="/dump/pack/${fileName}">
+                    <div class="button-upload" title="Upload your version of file" href="/upload/pack/${fileName}">
+                </li>
+            `);
+            li.find(".button-upload").click(uploadAjaxHandler);
+            list.append(li);
         }
         dataPack.append(list);
 

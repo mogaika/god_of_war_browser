@@ -22,8 +22,8 @@ type Instance struct {
 	Id        uint16
 	Params    uint16
 	Position1 mgl32.Vec4 // object translation. need transform object by this
-	Rotation  mgl32.Vec4 // rotation of object (euler, rads)
-	Position2 mgl32.Vec4 // world-relative position for visibility check mby>???
+	Rotation  mgl32.Vec4 // 3 elements for rotation of object (euler, rads). last element is scale.
+	Position2 mgl32.Vec4 // world-relative position (of center of element probably)
 	Unk       [3]uint32
 }
 

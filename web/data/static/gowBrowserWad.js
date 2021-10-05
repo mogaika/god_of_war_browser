@@ -65,11 +65,12 @@ function treeLoadWadAsNodes(wadName, data) {
             gw_cxt_group_loading = false;
             treeLoadWadNode(wadName, node_id);
         } else {
-            setLocation(wadName + " => " + node_element.attr('nodename'), '#/' + wadName + '/' + 0);
             dataSummary.empty();
             gr_instance.cleanup();
 
             gw_cxt_group_loading = true;
+
+            setLocation(wadName + " => " + node_element.attr('nodename'), '#/' + wadName + '/' + 0);
 
             $("#view-tree ol li").each(function(i, node) {
                 let $node = $(node);
@@ -77,7 +78,8 @@ function treeLoadWadAsNodes(wadName, data) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
                 } else if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("CXT_")) {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
-                } if ($node.attr("nodetag") == "30" && $node.attr("nodename") == "RIB_sheet") {
+                }
+                if ($node.attr("nodetag") == "30" && $node.attr("nodename") == "RIB_sheet") {
                     treeLoadWadNode(wadName, $node.attr("nodeid"), 0x00000011);
                 }
             });
@@ -155,7 +157,6 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         return;
                     }
                 }
-                console.log(resp.ServerId);
                 switch (resp.ServerId) {
                     case 0x00000021: // flp
                     case 0x0000001B: // flp gow2
@@ -192,9 +193,10 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         summaryLoadWadMat(data);
                         break;
                     case 0x00000011: // collision
-                        gr_instance.cleanup();
-                        set3dVisible(true);
-
+                        if (gw_cxt_group_loading !== true) {
+                            gr_instance.cleanup();
+                            set3dVisible(true);
+                        }
                         let mdl = new grModel();
                         loadCollisionFromAjax(mdl, data, wad, tagid);
 
@@ -919,61 +921,61 @@ function loadCollisionFromAjax(mdl, data, wad, nodeid) {
         mdl.addMesh(mesh);
         mesh.setMaskBit(4);
     } else if (data.ShapeName == "SheetHdr") {
-		let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'frommodel') + '" method="post" enctype="multipart/form-data">');
-	    form.append($('<input type="file" name="model">'));
-	    let replaceBtn = $('<input type="button" value="Replace static collision geometry">')
-	    replaceBtn.click(function() {
-	        let form = $(this).parent();
-	        $.ajax({
-	            url: form.attr('action'),
-	            type: 'post',
-	            data: new FormData(form[0]),
-	            processData: false,
-	            contentType: false,
-	            success: function(a1) {
-	                if (a1 !== "") {
-	                    alert('Error: ' + a1);
-	                } else {
-	                    alert('Success!');
-	                    window.location.reload();
-	                }
-	            }
-	        });
-	    });
-	    form.append(replaceBtn);
-		dataSummary.append(form);
-		
-		let rib = data.Shape;
-		let vertices = [];
-		for (let i = 0; i < rib.Some9Points.length; i++) {
-			vertices.push(rib.Some9Points[i][0]);
-			vertices.push(rib.Some9Points[i][1]);
-			vertices.push(rib.Some9Points[i][2]);
-		}
-		console.log(rib);
+        let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'frommodel') + '" method="post" enctype="multipart/form-data">');
+        form.append($('<input type="file" name="model">'));
+        let replaceBtn = $('<input type="button" value="Replace static collision geometry">')
+        replaceBtn.click(function() {
+            let form = $(this).parent();
+            $.ajax({
+                url: form.attr('action'),
+                type: 'post',
+                data: new FormData(form[0]),
+                processData: false,
+                contentType: false,
+                success: function(a1) {
+                    if (a1 !== "") {
+                        alert('Error: ' + a1);
+                    } else {
+                        alert('Success!');
+                        window.location.reload();
+                    }
+                }
+            });
+        });
+        form.append(replaceBtn);
+        dataSummary.append(form);
 
-		let indices = [];
-		for (let i = 0; i < rib.Some6.length; i++) {
-			let polygon = rib.Some6[i];
-			if (polygon.IsQuad) {
-				let quad = rib.Some8QuadsIndex[polygon.QuadOrTriangleIndex];
-				indices.push(quad.Indexes[0]);
-				indices.push(quad.Indexes[1]);
-				indices.push(quad.Indexes[2]);
-				indices.push(quad.Indexes[3]);
-				indices.push(quad.Indexes[0]);
-				indices.push(quad.Indexes[2]);
-			} else {
-				let triangle = rib.Some7TrianglesIndex[polygon.QuadOrTriangleIndex];
-				indices.push(triangle.Indexes[0]);
-				indices.push(triangle.Indexes[1]);
-				indices.push(triangle.Indexes[2]);
-			}
-		}
-		console.log(vertices, indices);
-	    let mesh = new grMesh(vertices, indices);
-	    mesh.setJointIds([0], Array(vertices.length / 3).fill(0));
-		mdl.addMesh(mesh);
+        let rib = data.Shape;
+        let vertices = [];
+        for (let i = 0; i < rib.Some9Points.length; i++) {
+            vertices.push(rib.Some9Points[i][0]);
+            vertices.push(rib.Some9Points[i][1]);
+            vertices.push(rib.Some9Points[i][2]);
+        }
+        console.log(rib);
+
+        let indices = [];
+        for (let i = 0; i < rib.Some6.length; i++) {
+            let polygon = rib.Some6[i];
+            if (polygon.IsQuad) {
+                let quad = rib.Some8QuadsIndex[polygon.QuadOrTriangleIndex];
+                indices.push(quad.Indexes[0]);
+                indices.push(quad.Indexes[1]);
+                indices.push(quad.Indexes[2]);
+                indices.push(quad.Indexes[3]);
+                indices.push(quad.Indexes[0]);
+                indices.push(quad.Indexes[2]);
+            } else {
+                let triangle = rib.Some7TrianglesIndex[polygon.QuadOrTriangleIndex];
+                indices.push(triangle.Indexes[0]);
+                indices.push(triangle.Indexes[1]);
+                indices.push(triangle.Indexes[2]);
+            }
+        }
+        console.log(vertices, indices);
+        let mesh = new grMesh(vertices, indices);
+        mesh.setJointIds([0], Array(vertices.length / 3).fill(0));
+        mdl.addMesh(mesh);
         mesh.setMaskBit(4);
     }
 }
@@ -1161,26 +1163,29 @@ function loadCxtFromAjax(data, parseScripts = true) {
         let inst = data.Instances[i];
         let obj = data.Objects[inst.Object];
 
-        let rs = 180.0 / Math.PI;
+        const rs = (180.0 / Math.PI);
         let rot = quat.fromEuler(quat.create(), inst.Rotation[0] * rs, inst.Rotation[1] * rs, inst.Rotation[2] * rs);
+        const scale = inst.Rotation[3];
 
-        //let instMat = mat4.fromTranslation(mat4.create(), inst.Position1);
-        //instMat = mat4.mul(mat4.create(), instMat, mat4.fromQuat(mat4.create(), rot));
-        // same as above
-        let instMat = mat4.fromRotationTranslation(mat4.create(), rot, inst.Position1);
-        //let instMat = mat4.fromQuat(mat4.create(), rot);
+        let instMat = mat4.fromRotationTranslationScale(mat4.create(), rot, inst.Position1, [scale, scale, scale]);
 
-        let pos = inst.Position1;
-        let text3d = new grTextMesh("\x04" + inst.Name, instMat[12], instMat[13], instMat[14], true);
+        if (inst.Position1[3] != 1.0) {
+            console.warn("posmulincorrect", inst);
+        }
+
+        let pos = inst.Position2;
+        let text3d = new grTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
         text3d.setOffset(-0.5, -0.5);
         text3d.setMaskBit(6);
         gr_instance.texts.push(text3d);
 
-        //console.log(inst.Object, instMat);
         //if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {
         //if (obj && (obj.Model)) {
         if (obj && (obj.Model || obj.Collision)) {
             let mdl = new grModel();
+
+            dataSummary.append($('<label>').text(inst.Name));
+
             loadObjFromAjax(mdl, obj, instMat, parseScripts);
 
             for (let iScript in inst.Scripts) {
