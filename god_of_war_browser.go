@@ -83,7 +83,11 @@ func main() {
 		}
 	} else if isopath != "" {
 		f := vfs.NewDirectoryDriverFile(isopath)
-		if err = f.Open(false); err == nil {
+		if err = f.Open(false); err != nil {
+			log.Printf("Failed to open iso in rw mode, trying ro mode. (Probably emulator using same image)")
+			err = f.Open(true)
+		}
+		if err == nil {
 			if driverDir, err = iso.NewIsoDriver(f); err == nil {
 				gameDir, err = toc.NewTableOfContent(driverDir)
 			}

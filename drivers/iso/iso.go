@@ -88,16 +88,26 @@ func NewIsoDriver(f vfs.File) (*IsoDriver, error) {
 }
 
 type IsoDriverFile struct {
-	iso *IsoDriver
-	f   *udf.File
+	iso      *IsoDriver
+	f        *udf.File
+	readonly bool
 }
 
 func (f *IsoDriverFile) Init(parent vfs.Directory) {}
 func (f *IsoDriverFile) Name() string              { return f.f.Name() }
 func (f *IsoDriverFile) IsDirectory() bool         { return f.f.IsDir() }
 func (f *IsoDriverFile) Size() int64               { return f.f.Size() }
-func (f *IsoDriverFile) Open(readonly bool) error  { return nil }
-func (f *IsoDriverFile) Close() error              { return f.Sync() }
+func (f *IsoDriverFile) Open(readonly bool) error {
+	f.readonly = readonly
+	return nil
+}
+func (f *IsoDriverFile) Close() error {
+	if f.readonly {
+		return nil
+	} else {
+		return f.Sync()
+	}
+}
 func (f *IsoDriverFile) Reader() (*io.SectionReader, error) {
 	return f.f.NewReader(), nil
 }
@@ -116,6 +126,9 @@ func (f *IsoDriverFile) Copy(src io.Reader) error {
 	return err
 }
 func (f *IsoDriverFile) WriteAt(b []byte, off int64) (n int, err error) {
+	if f.readonly {
+		return 0, fmt.Errorf("[vfs] [iso] Readonly mode")
+	}
 	if off+int64(len(b)) > f.Size() {
 		return 0, fmt.Errorf("[vfs] [iso] Do not support file size increasing")
 	}
@@ -126,5 +139,8 @@ func (f *IsoDriverFile) WriteAt(b []byte, off int64) (n int, err error) {
 	return f.iso.f.WriteAt(b, f.f.GetFileOffset()+off)
 }
 func (f *IsoDriverFile) Sync() error {
+	if f.readonly {
+		return fmt.Errorf("[vfs] [iso] Readonly mode")
+	}
 	return f.iso.Sync()
 }

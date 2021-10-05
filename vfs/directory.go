@@ -120,7 +120,7 @@ func (ddf *DirectoryDriverFile) Open(readonly bool) error {
 
 		f, err := os.OpenFile(ddf.path, flags, 0)
 		if err != nil {
-			return fmt.Errorf("os.Open('%s'): %v", ddf.path, err)
+			return fmt.Errorf("os.Open('%s', readonly=%v): %v", ddf.path, readonly, err)
 		}
 		ddf.f = f
 		return nil
