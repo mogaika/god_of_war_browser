@@ -3,8 +3,6 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
-	"strings"
 
 	"github.com/mogaika/god_of_war_browser/config"
 

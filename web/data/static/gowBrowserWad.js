@@ -942,7 +942,7 @@ function loadCollisionFromAjax(mdl, data, wad, nodeid) {
         let ball = data.Shape;
         let vec = ball.Vector;
 
-        console.log(ball);
+        // console.log(ball);
 
         let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3], 7, 7);
         mdl.addMesh(mesh);
@@ -1062,7 +1062,7 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
             dataSummary.append(mdlTables);
         }
     } else if (data.Collision) {
-        console.log(matrix);
+        // console.log(matrix);
         loadCollisionFromAjax(mdl, data.Collision);
     }
 
