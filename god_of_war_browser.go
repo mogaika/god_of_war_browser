@@ -24,6 +24,7 @@ import (
 	_ "github.com/mogaika/god_of_war_browser/pack/wad"
 
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/anm"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/cam"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/collision"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/cxt"
 	_ "github.com/mogaika/god_of_war_browser/pack/wad/flp"
@@ -114,7 +115,7 @@ func main() {
 		defer f.Close()
 	}
 
-	// parsecheck = true
+	parsecheck = true
 	if parsecheck {
 		parseCheck(gameDir)
 	}

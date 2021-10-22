@@ -30,7 +30,7 @@ type Flags struct {
 	HaveTexture             bool
 
 	AnimationUVEnabled    bool // Anim type 8
-	AnimationOtherEnabled bool // ?? Anim type 3, applyed to mat, not layer
+	AnimationColorEnabled bool // ?? Anim type 3, applyed to mat, not layer
 }
 
 type Layer struct {
@@ -68,7 +68,7 @@ func (l *Layer) ParseFlags() error {
 	l.ParsedFlags.RenderingAdditive = (l.Flags[0]>>27)&1 != 0
 
 	l.ParsedFlags.AnimationUVEnabled = l.GameFlags&1 != 0
-	l.ParsedFlags.AnimationOtherEnabled = l.GameFlags&2 != 0
+	l.ParsedFlags.AnimationColorEnabled = l.GameFlags&2 != 0
 
 	cnt := 0
 	for i := uint(0); i < 4; i++ {

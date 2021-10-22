@@ -28,7 +28,7 @@ function grMesh(vertexArray, indexArray, primitive) {
 
     this.bufferIndex = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.bufferIndex);
-    this.bufferIndexType = (indexArray.length > 254) ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
+    this.bufferIndexType = (vertexArray.length > 254) ? gl.UNSIGNED_SHORT : gl.UNSIGNED_BYTE;
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, (this.bufferIndexType === gl.UNSIGNED_SHORT) ? (new Uint16Array(indexArray)) : (new Uint8Array(indexArray)), gl.STATIC_DRAW);
 
     this.bufferBlendColor = undefined;

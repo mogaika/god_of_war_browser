@@ -74,13 +74,18 @@ function treeLoadWadAsNodes(wadName, data) {
 
             $("#view-tree ol li").each(function(i, node) {
                 let $node = $(node);
-                if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("PS")) {
-                    treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
-                } else if ($node.attr("nodetag") == "30" && $node.attr("nodename").startsWith("CXT_")) {
-                    treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
-                }
-                if ($node.attr("nodetag") == "30" && $node.attr("nodename") == "RIB_sheet") {
-                    treeLoadWadNode(wadName, $node.attr("nodeid"), 0x00000011);
+                if ($node.attr("nodetag") == "30") {
+                	const nn = $node.attr("nodename");
+                	if (nn.startsWith("PS")) {
+						treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
+					} else if (nn.startsWith("CXT_")) {
+						treeLoadWadNode(wadName, $node.attr("nodeid"), 0x80000001);
+					} else if (nn.startsWith("RIB_sheet")) {
+						treeLoadWadNode(wadName, $node.attr("nodeid"), 0x00000011);
+					//} else if (nn.startsWith("CMZ_") || nn.startsWith("ENZ_") || nn.startsWith("SEZ_")) {
+					//	treeLoadWadNode(wadName, $node.attr("nodeid"), 0x00000011);
+					// // ^^^^^ this should be loaded in CMV_, ENV_, SEV_ 
+					}
                 }
             });
         }
@@ -129,8 +134,10 @@ function treeLoadWadAsTags(wadName, data) {
 }
 
 function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
-    dataSummary.empty();
-    dataSummarySelectors.empty();
+    if (!gw_cxt_group_loading) {
+	    dataSummary.empty();
+	    dataSummarySelectors.empty();
+	}
     set3dVisible(false);
 
     $.getJSON('/json/pack/' + wad + '/' + tagid, function(resp) {
@@ -915,11 +922,48 @@ function summaryLoadWadMat(data) {
 }
 
 function loadCollisionFromAjax(mdl, data, wad, nodeid) {
+	const loaddebug = function(md) {
+		for (let mdMesh of md.Meshes) {
+			let vertices = [];
+	        for (let vec of mdMesh.Vertices) {
+	            vertices.push(vec[0]);
+				vertices.push(vec[1]);
+				vertices.push(vec[2]);
+	        }
+			let indices = mdMesh.Indices;
+			let mesh = new grMesh(vertices, indices);
+	        mesh.setMaskBit(8);	
+			mesh.setJointIds([0], Array(vertices.length / 3).fill(0));
+			mdl.addMesh(mesh);
+		}
+	};
+	
     if (data.ShapeName == "BallHull") {
-        let vec = data.Shape.Vector;
-        let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3] * 2, 7, 7);
+        let ball = data.Shape;
+        let vec = ball.Vector;
+        
+        console.log(ball);
+        
+        let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3], 7, 7);
         mdl.addMesh(mesh);
         mesh.setMaskBit(4);
+        
+        if (ball.DbgMesh) {
+        	loaddebug(ball.DbgMesh);
+		} else {
+			console.log("Empty debug mesh for", data);
+		}
+    } else if (data.ShapeName == "mCDbgHdr") {
+    	let renderMaterial = new grMaterial();
+        renderMaterial.setColor([0.7, 0, 0.7, 1.0]);
+		let layer = new grMaterialLayer();
+		layer.setColor([1,1,1,0.4]);
+		layer.setMethodAdditive();
+		renderMaterial.addLayer(layer);
+		mdl.addMaterial(renderMaterial);
+		
+    	let md = data.Shape;
+		loaddebug(md);    	
     } else if (data.ShapeName == "SheetHdr") {
         let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'frommodel') + '" method="post" enctype="multipart/form-data">');
         form.append($('<input type="file" name="model">'));
@@ -946,37 +990,68 @@ function loadCollisionFromAjax(mdl, data, wad, nodeid) {
         dataSummary.append(form);
 
         let rib = data.Shape;
-        let vertices = [];
-        for (let i = 0; i < rib.Some9Points.length; i++) {
-            vertices.push(rib.Some9Points[i][0]);
-            vertices.push(rib.Some9Points[i][1]);
-            vertices.push(rib.Some9Points[i][2]);
-        }
-        console.log(rib);
 
-        let indices = [];
-        for (let i = 0; i < rib.Some6.length; i++) {
-            let polygon = rib.Some6[i];
-            if (polygon.IsQuad) {
-                let quad = rib.Some8QuadsIndex[polygon.QuadOrTriangleIndex];
-                indices.push(quad.Indexes[0]);
-                indices.push(quad.Indexes[1]);
-                indices.push(quad.Indexes[2]);
-                indices.push(quad.Indexes[3]);
-                indices.push(quad.Indexes[0]);
-                indices.push(quad.Indexes[2]);
-            } else {
-                let triangle = rib.Some7TrianglesIndex[polygon.QuadOrTriangleIndex];
-                indices.push(triangle.Indexes[0]);
-                indices.push(triangle.Indexes[1]);
-                indices.push(triangle.Indexes[2]);
-            }
-        }
-        console.log(vertices, indices);
-        let mesh = new grMesh(vertices, indices);
-        mesh.setJointIds([0], Array(vertices.length / 3).fill(0));
-        mdl.addMesh(mesh);
-        mesh.setMaskBit(4);
+		for (let materialId = 0; materialId < rib.Some4Materials.length; materialId++) {
+			let material = rib.Some4Materials[materialId];
+
+			let table = $('<table>');
+			table.append($('<tr><td>Name</td><td>' + material.Name + '</td></tr>'));
+			let colorTd = $('<td>');
+			let c = material.EditorColor;
+			table.append($('<tr><td>DebugMat</td><td>' + material.EditorMaterial + '</td></tr>'));
+			colorTd.attr('style', 'background-color: rgb(' +
+				parseInt(c[0] * 255) + ',' + parseInt(c[1] * 255) + ',' + parseInt(c[2] * 255) + ')');
+            table.append($('<tr><td>DebugColor</td></tr>').append(colorTd));
+            
+            for (let key in material.Values) {
+            	table.append($('<tr><td>' + key + '</td><td>' + material.Values[key] + '</td></tr>'));
+            };
+            dataSummary.append(table);
+
+          	let indices = [];
+	        let vertices = [];
+	        for (let i = 0; i < rib.Some9Points.length; i++) {
+	            vertices.push(rib.Some9Points[i][0]);
+	            vertices.push(rib.Some9Points[i][1]);
+	            vertices.push(rib.Some9Points[i][2]);
+	        }
+			for (let i = 0; i < rib.Some8QuadsIndex.length; i++) {
+				let quad = rib.Some8QuadsIndex[i];
+				if (quad.MaterialIndex == materialId) {
+					indices.push(quad.Indexes[0]);
+	                indices.push(quad.Indexes[1]);
+	                indices.push(quad.Indexes[2]);
+	                indices.push(quad.Indexes[3]);
+	                indices.push(quad.Indexes[0]);
+	                indices.push(quad.Indexes[2]);
+                }
+			}
+			for (let i = 0; i < rib.Some7TrianglesIndex.length; i++) {
+				let triangle = rib.Some7TrianglesIndex[i];
+				if (triangle.MaterialIndex == materialId) {
+					indices.push(triangle.Indexes[0]);
+	                indices.push(triangle.Indexes[1]);
+	                indices.push(triangle.Indexes[2]);
+                }
+			}
+
+			let renderMaterial = new grMaterial();
+	        renderMaterial.setColor(material.EditorColor);
+			
+			let layer = new grMaterialLayer();
+			layer.setColor([1,1,1,0.4]);
+			layer.setMethodAdditive();
+			renderMaterial.addLayer(layer);
+			
+			mdl.addMaterial(renderMaterial);
+			
+			if (indices.length) {
+				let mesh = new grMesh(vertices, indices);
+				mesh.setMaterialID(materialId);
+		        mesh.setMaskBit(7);	
+				mdl.addMesh(mesh);
+			}
+		}
     }
 }
 
@@ -987,6 +1062,7 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
             dataSummary.append(mdlTables);
         }
     } else if (data.Collision) {
+    	console.log(matrix);
         loadCollisionFromAjax(mdl, data.Collision);
     }
 
@@ -1184,7 +1260,7 @@ function loadCxtFromAjax(data, parseScripts = true) {
         if (obj && (obj.Model || obj.Collision)) {
             let mdl = new grModel();
 
-            dataSummary.append($('<label>').text(inst.Name));
+            dataSummary.append($('<div>').text(inst.Name));
 
             loadObjFromAjax(mdl, obj, instMat, parseScripts);
 
@@ -1209,11 +1285,10 @@ function loadCxtFromAjax(data, parseScripts = true) {
 function summaryLoadWadCxt(data, wad, nodeid) {
     if (!gw_cxt_group_loading) {
         gr_instance.cleanup();
-
+        dataSummary.empty();
         let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
         dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
     } else {
-        dataSummary.empty();
         let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
         dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
     }

@@ -24,12 +24,20 @@ type FileLoader func(rsrc *WadNodeRsrc) (File, error)
 var gHandlers map[uint64]FileLoader = make(map[uint64]FileLoader, 0)
 
 func SetHandler(version config.GOWVersion, serverId uint32, ldr FileLoader) {
-	gHandlers[(uint64(version)<<32)|uint64(serverId)] = ldr
+	key := (uint64(version) << 32) | uint64(serverId)
+	if _, ok := gHandlers[key]; ok {
+		log.Panicf("Trying to override handler %d(0x%.x) for %v version",
+			serverId, serverId, version)
+	}
+	gHandlers[key] = ldr
 }
 
 var gTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
 
 func SetTagHandler(tag uint16, ldr FileLoader) {
+	if _, ok := gTagHandlers[tag]; ok {
+		log.Panicf("Trying to override tag handler %d(0x%.x)", tag, tag)
+	}
 	gTagHandlers[tag] = ldr
 }
 

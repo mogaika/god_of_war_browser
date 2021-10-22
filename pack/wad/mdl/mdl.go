@@ -17,12 +17,25 @@ import (
 )
 
 type Model struct {
-	Unk4         uint32
-	UnkFloats    [3]float32
+	Unk4         uint32     // Always zero
+	UnkFloats    [3]float32 // Used in LOD related meshes. Maybe range for rendering
 	TextureCount uint32
 	MeshCount    uint32
 	JointsCount  uint32
-	Someinfo     [10]uint32
+
+	/*
+		[0] & 0x8 - is animated or gui
+		[0] & 0x10 - simple animated
+		[0] & 0x40 - is breakable? (and some enemy)
+		[0] & 0x80 - joint weight double blending (hero or complicated models)
+	*/
+	Flags  uint32
+	Unk24  uint32 // Unused
+	Ints28 [4]int32
+	Unk38  uint32 // Unused
+	Unk3c  uint32
+	Unk40  uint32 // count of some animated texture layers to separate anims???
+	Unk44  uint32 // Probably unused (different types)
 }
 
 const MODEL_MAGIC = 0x0002000f
@@ -37,9 +50,16 @@ func NewFromData(buf []byte) (*Model, error) {
 	mdl.TextureCount = binary.LittleEndian.Uint32(buf[0x14:0x18])
 	mdl.MeshCount = binary.LittleEndian.Uint32(buf[0x18:0x1c])
 	mdl.JointsCount = binary.LittleEndian.Uint32(buf[0x1c:0x20])
-	for i := range mdl.Someinfo {
-		mdl.Someinfo[i] = binary.LittleEndian.Uint32(buf[0x20+i*4:])
+
+	mdl.Flags = binary.LittleEndian.Uint32(buf[0x20:])
+	mdl.Unk24 = binary.LittleEndian.Uint32(buf[0x24:])
+	for i := range mdl.Ints28 {
+		mdl.Ints28[i] = int32(binary.LittleEndian.Uint32(buf[0x28+i*4:]))
 	}
+	mdl.Unk38 = binary.LittleEndian.Uint32(buf[0x38:])
+	mdl.Unk3c = binary.LittleEndian.Uint32(buf[0x3c:])
+	mdl.Unk40 = binary.LittleEndian.Uint32(buf[0x40:])
+	mdl.Unk44 = binary.LittleEndian.Uint32(buf[0x44:])
 
 	return mdl, nil
 }

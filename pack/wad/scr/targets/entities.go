@@ -105,7 +105,8 @@ func GetEscFunc(scope, fid uint16) string {
 			return "LoadCheck? (s1)"
 		case 0x7:
 			return "Goto? (s1)"
-
+		case 0x8:
+			return "Switch to camera??? (cameraName)"
 		case 0x9:
 			return "AbortCutscene? (bool)"
 		case 0xa:
@@ -113,6 +114,9 @@ func GetEscFunc(scope, fid uint16) string {
 
 		case 0xc:
 			return "Idle (bool needIdle)"
+
+		case 0x10:
+			return "Zone title report ??? (zone_index)"
 
 		case 0x13:
 			return "Trigger you have failed screen()"
@@ -125,6 +129,11 @@ func GetEscFunc(scope, fid uint16) string {
 			return "??PauseTimer_Or_TimerGetElapsedSeconds??(timerId): elapsed_sec"
 		case 0x19:
 			return "??StartTimer??(timerId)"
+
+		case 0x1b:
+			return "Start music group (flags?, soundName)"
+		case 0x1c:
+			return "Stop music group (flags?)"
 
 		case 0x1f:
 			return "Print text on screen(unkn, type, messageID)"

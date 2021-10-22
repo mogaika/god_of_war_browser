@@ -1,7 +1,6 @@
 package collision
 
 import (
-	"bytes"
 	"encoding/binary"
 	"io"
 	"math"
@@ -73,7 +72,7 @@ func (gs *GeomShape) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetTagHandler(MESH_TAG, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	/*wad.SetTagHandler(MESH_TAG, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewGeomShapeFromData(bytes.NewReader(wrsrc.Tag.Data))
-	})
+	})*/
 }

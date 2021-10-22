@@ -1,6 +1,7 @@
 package collision
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -11,17 +12,50 @@ import (
 const BALLHULL_HEADER_SIZE = 0x68
 
 const (
-	BALLHULL_SECTION_INFONAME  = 0 // 0x3c
-	BALLHULL_SECTION_POSVECTOR = 4 // 0x4c
-	BALLHULL_SECTION_5CVECTOR  = 8 // 0x5c
+	BALLHULL_SECTION_MATERIAL             = 0  // 0x3c []material
+	BALLHULL_SECTION_BALLS_JOINTS         = 1  // 0x40 []byte
+	BALLHULL_SECTION_BALLS_FLAGSORUNK2    = 2  // 0x44 []byte
+	BALLHULL_SECTION_BALLS_MAPMATERIAL    = 3  // 0x48 []byte
+	BALLHULL_SECTION_BALLS_COORDS         = 4  // 0x4c []vec4
+	BALLHULL_SECTION_MESHES_VERTICESCOUNT = 5  // 0x50 []byte
+	BALLHULL_SECTION_MESHES_FLAGSORUNK1   = 6  // 0x54 []byte
+	BALLHULL_SECTION_MESHES_FLAGSORUNK2   = 7  // 0x58 []byte
+	BALLHULL_SECTION_MESHES_BBOXES        = 8  // 0x5c []vec4
+	BALLHULL_SECTION_MESHES_MAPMATERIAL   = 9  // 0x60 []byte
+	BALLHULL_SECTION_MESHES_VERTICES      = 10 // 0x64 []vec4
 )
 
+type BallHullBall struct {
+	Coord    mgl32.Vec4
+	Joint    byte
+	Unk2     byte
+	Material byte
+}
+
+type BallHullMesh struct {
+	BBox      mgl32.Vec4
+	Vertices  []mgl32.Vec4
+	Materials []int8 // int8 just so json marshal not performs base64
+	Unk1      byte
+	Unk2      byte
+}
+
 type ShapeBallHull struct {
-	Vector        mgl32.Vec4 // bbox or bsphere
-	Offsets       [10]uint32
-	FileSize      uint32
-	Some4cVectors []mgl32.Vec4
-	Some5cVectors []mgl32.Vec4
+	Type           uint32     // +0x04 0 - object, 1 - camera, 2 - sensor, 3 - soundem
+	FileSize       uint32     // +0x10
+	BallsCount     uint32     // +0x14
+	MeshesCount    uint32     // +0x18
+	Vector         mgl32.Vec4 // +0x1c bbox or bsphere
+	Unk0x2c        uint32     // +0x2c usually 0, hero - 1, monster - 2
+	Unk0x30        uint32     // +0x30 either 0, either 0x1f
+	MaterialsCount uint32     // +0x34
+	MaterialSize   uint32     // +0x38
+	Offsets        [11]uint32 // +0x3c
+
+	Balls  []*BallHullBall
+	Meshes []*BallHullMesh
+
+	DbgMesh *ShapeDbgHdr // for export only
 }
 
 func (c *ShapeBallHull) GetSectionSize(section int) uint32 {
@@ -32,11 +66,24 @@ func (c *ShapeBallHull) GetSectionSize(section int) uint32 {
 	}
 }
 
+func readVec4(bs *utils.BufStack, vec *mgl32.Vec4) {
+	for i := range vec {
+		vec[i] = bs.ReadLF()
+	}
+}
+
 func NewBallHull(bs *utils.BufStack, wrtw io.Writer) (*ShapeBallHull, error) {
 	bsHeader := bs.SubBuf("ballhull_header", 0).SetSize(BALLHULL_HEADER_SIZE)
 
 	bh := &ShapeBallHull{
-		FileSize: bsHeader.LU32(0x10),
+		Type:           bsHeader.LU32(0x4),
+		FileSize:       bsHeader.LU32(0x10),
+		BallsCount:     bsHeader.LU32(0x14),
+		MeshesCount:    bsHeader.LU32(0x18),
+		Unk0x2c:        bsHeader.LU32(0x2c),
+		Unk0x30:        bsHeader.LU32(0x30),
+		MaterialsCount: bsHeader.LU32(0x34),
+		MaterialSize:   bsHeader.LU32(0x38),
 	}
 
 	for i := range bh.Vector {
@@ -47,24 +94,45 @@ func NewBallHull(bs *utils.BufStack, wrtw io.Writer) (*ShapeBallHull, error) {
 		bh.Offsets[i] = bsHeader.LU32(0x3c + i*4)
 	}
 
-	bh.Some4cVectors = make([]mgl32.Vec4, bh.GetSectionSize(BALLHULL_SECTION_POSVECTOR)/0x10)
-	bsSome4cVectors := bs.SubBuf("some4cVectors", int(bh.Offsets[BALLHULL_SECTION_POSVECTOR])).SetSize(0x10 * len(bh.Some4cVectors))
-
-	for iVec := range bh.Some4cVectors {
-		vec := &bh.Some4cVectors[iVec]
-		for j := range vec {
-			vec[j] = bsSome4cVectors.ReadLF()
+	bss := make([]*utils.BufStack, 11)
+	for i := range bss {
+		bss[i] = bs.SubBuf(fmt.Sprintf("data%d", i), int(bh.Offsets[i]))
+		if i < len(bss)-1 {
+			bss[i].SetSize(int(bh.Offsets[i+1] - bh.Offsets[i]))
+		} else {
+			bss[i].Expand()
 		}
 	}
 
-	bh.Some5cVectors = make([]mgl32.Vec4, bh.GetSectionSize(BALLHULL_SECTION_5CVECTOR)/0x10)
-	bsSome5cVectors := bs.SubBuf("some5cVectors", int(bh.Offsets[BALLHULL_SECTION_5CVECTOR])).SetSize(0x10 * len(bh.Some5cVectors))
+	bh.Balls = make([]*BallHullBall, bh.BallsCount)
+	for i := range bh.Balls {
+		b := &BallHullBall{}
 
-	for iVec := range bh.Some5cVectors {
-		vec := &bh.Some5cVectors[iVec]
-		for j := range vec {
-			vec[j] = bsSome5cVectors.ReadLF()
+		readVec4(bss[BALLHULL_SECTION_BALLS_COORDS], &b.Coord)
+		b.Material = bss[BALLHULL_SECTION_BALLS_MAPMATERIAL].ReadByte()
+		b.Joint = bss[BALLHULL_SECTION_BALLS_JOINTS].ReadByte()
+		b.Unk2 = bss[BALLHULL_SECTION_BALLS_FLAGSORUNK2].ReadByte()
+
+		bh.Balls[i] = b
+	}
+
+	bh.Meshes = make([]*BallHullMesh, bh.MeshesCount)
+	for i := range bh.Meshes {
+		m := &BallHullMesh{}
+		readVec4(bss[BALLHULL_SECTION_MESHES_BBOXES], &m.BBox)
+
+		verticesCount := bss[BALLHULL_SECTION_MESHES_VERTICESCOUNT].ReadByte()
+		m.Vertices = make([]mgl32.Vec4, verticesCount)
+		m.Materials = make([]int8, verticesCount)
+		m.Unk1 = bss[BALLHULL_SECTION_MESHES_FLAGSORUNK1].ReadByte()
+		m.Unk2 = bss[BALLHULL_SECTION_MESHES_FLAGSORUNK2].ReadByte()
+
+		for vi := range m.Vertices {
+			m.Materials[vi] = int8(bss[BALLHULL_SECTION_MESHES_MAPMATERIAL].ReadByte())
+			readVec4(bss[BALLHULL_SECTION_MESHES_VERTICES], &m.Vertices[vi])
 		}
+
+		bh.Meshes[i] = m
 	}
 
 	return bh, nil

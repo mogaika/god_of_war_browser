@@ -70,6 +70,9 @@ func (rs2 *RibContextZone) Load(idx int) [8][]uint16 {
 type RibMaterial struct {
 	Name   string
 	Values map[string]interface{}
+
+	EditorColor    [4]float32 // Loaded from external MAT_, should not be used except for debug rendering
+	EditorMaterial string     // Loaded MAT_ name, just for informatin
 }
 
 type RibMaterialField struct {
@@ -566,119 +569,116 @@ func (rib *ShapeRibSheet) PrintKDTree() {
 }
 
 func (rib *ShapeRibSheet) WriteDebugObject(wrtw io.Writer) {
+	//fmt.Fprintf(wrtw, "o ribsheet\n")
+	for _, point := range rib.Some9Points {
+		fmt.Fprintf(wrtw, "v %f %f %f\n", point[0], point[1], point[2])
+	}
+	pointsBaseIndex := len(rib.Some9Points)
+	/*
+		{
+			var renderNode func(id uint16)
+			renderNode = func(id uint16) {
+				n := &rib.Some1[id]
+				if n.IsPolygon {
+					fmt.Fprintf(wrtw, "o node_%d\n", id)
 
-	{
-		//fmt.Fprintf(wrtw, "o ribsheet\n")
-		for _, point := range rib.Some9Points {
+					for i := uint32(0); i < uint32(n.PolygonsCount); i++ {
+						polygonId := n.PolygonIndex + i
+						idx := uint32(rib.Some6[polygonId].IndexOfSome7Or8)
+
+						if rib.Some6[polygonId].IsQuad {
+							quadIndex := rib.Some8QuadsIndex[idx]
+							fmt.Fprintf(wrtw, "f %d %d %d\n",
+								quadIndex.Indexes[0]+1, quadIndex.Indexes[1]+1, quadIndex.Indexes[2]+1)
+							fmt.Fprintf(wrtw, "f %d %d %d\n",
+								quadIndex.Indexes[3]+1, quadIndex.Indexes[0]+1, quadIndex.Indexes[2]+1)
+						} else {
+							triIndex := rib.Some7TrianglesIndex[idx]
+							fmt.Fprintf(wrtw, "f %d %d %d\n",
+								triIndex.Indexes[0]+1, triIndex.Indexes[1]+1, triIndex.Indexes[2]+1)
+						}
+					}
+				} else {
+					renderNode(id + 1)
+					renderNode(n.PlaneSubNodeHigher)
+				}
+			}
+			renderNode(0)
+		}
+	*/
+
+	for some4Idx := uint16(0); some4Idx < uint16(len(rib.Some4Materials)); some4Idx++ {
+		fmt.Fprintf(wrtw, "o material%d\n", some4Idx)
+
+		//fmt.Fprintf(wrtw, "o triangles\n")
+		for _, triIndex := range rib.Some7TrianglesIndex {
+			if triIndex.MaterialIndex == some4Idx {
+				fmt.Fprintf(wrtw, "f %d %d %d\n",
+					triIndex.Indexes[0]+1, triIndex.Indexes[1]+1, triIndex.Indexes[2]+1)
+			}
+		}
+		//fmt.Fprintf(wrtw, "o quads\n")
+		for _, quadIndex := range rib.Some8QuadsIndex {
+			if quadIndex.MaterialIndex == some4Idx {
+				fmt.Fprintf(wrtw, "f %d %d %d\n",
+					quadIndex.Indexes[0]+1, quadIndex.Indexes[1]+1, quadIndex.Indexes[2]+1)
+				fmt.Fprintf(wrtw, "f %d %d %d\n",
+					quadIndex.Indexes[3]+1, quadIndex.Indexes[0]+1, quadIndex.Indexes[2]+1)
+			}
+		}
+	}
+
+	for is10, s10 := range rib.Some10 {
+		idxStart := pointsBaseIndex
+
+		fmt.Fprintf(wrtw, "o s10_%d\n", is10)
+
+		fa := s10.FloatArray
+		points := [8]mgl32.Vec3{
+			{fa[3], fa[1], fa[2]},
+			{fa[3], fa[1], fa[5]},
+			{fa[0], fa[1], fa[5]},
+			{fa[0], fa[1], fa[2]},
+
+			{fa[3], fa[4], fa[2]},
+			{fa[3], fa[4], fa[5]},
+			{fa[0], fa[4], fa[5]},
+			{fa[0], fa[4], fa[2]},
+		}
+
+		for _, point := range points {
+			fmt.Fprintf(wrtw, "v %f %f %f\n", point[0], point[1], point[2])
+			pointsBaseIndex++
+		}
+
+		trias := [12][3]int{
+			{2, 3, 4}, {5, 8, 7},
+			{5, 6, 2}, {2, 6, 7},
+			{7, 8, 4}, {5, 1, 4},
+			{1, 2, 4}, {6, 5, 7},
+			{1, 5, 2}, {3, 2, 7},
+			{3, 7, 4}, {8, 5, 4},
+		}
+
+		for _, tria := range trias {
+			fmt.Fprintf(wrtw, "f %d %d %d\n",
+				tria[0]+idxStart, tria[1]+idxStart, tria[2]+idxStart)
+		}
+
+	}
+
+	/*
+		vertices, triangles := rib.BuildMeshForKDTree()
+
+		off := len(rib.Some9Points)
+
+		fmt.Fprintf(wrtw, "o ribsheet\n")
+		for _, point := range vertices {
 			fmt.Fprintf(wrtw, "v %f %f %f\n", point[0], point[1], point[2])
 		}
-		pointsBaseIndex := len(rib.Some9Points)
-		/*
-			{
-				var renderNode func(id uint16)
-				renderNode = func(id uint16) {
-					n := &rib.Some1[id]
-					if n.IsPolygon {
-						fmt.Fprintf(wrtw, "o node_%d\n", id)
 
-						for i := uint32(0); i < uint32(n.PolygonsCount); i++ {
-							polygonId := n.PolygonIndex + i
-							idx := uint32(rib.Some6[polygonId].IndexOfSome7Or8)
-
-							if rib.Some6[polygonId].IsQuad {
-								quadIndex := rib.Some8QuadsIndex[idx]
-								fmt.Fprintf(wrtw, "f %d %d %d\n",
-									quadIndex.Indexes[0]+1, quadIndex.Indexes[1]+1, quadIndex.Indexes[2]+1)
-								fmt.Fprintf(wrtw, "f %d %d %d\n",
-									quadIndex.Indexes[3]+1, quadIndex.Indexes[0]+1, quadIndex.Indexes[2]+1)
-							} else {
-								triIndex := rib.Some7TrianglesIndex[idx]
-								fmt.Fprintf(wrtw, "f %d %d %d\n",
-									triIndex.Indexes[0]+1, triIndex.Indexes[1]+1, triIndex.Indexes[2]+1)
-							}
-						}
-					} else {
-						renderNode(id + 1)
-						renderNode(n.PlaneSubNodeHigher)
-					}
-				}
-				renderNode(0)
-			}
-		*/
-
-		for some4Idx := uint16(0); some4Idx < uint16(len(rib.Some4Materials)); some4Idx++ {
-			fmt.Fprintf(wrtw, "o material%d\n", some4Idx)
-
-			//fmt.Fprintf(wrtw, "o triangles\n")
-			for _, triIndex := range rib.Some7TrianglesIndex {
-				if triIndex.MaterialIndex == some4Idx {
-					fmt.Fprintf(wrtw, "f %d %d %d\n",
-						triIndex.Indexes[0]+1, triIndex.Indexes[1]+1, triIndex.Indexes[2]+1)
-				}
-			}
-			//fmt.Fprintf(wrtw, "o quads\n")
-			for _, quadIndex := range rib.Some8QuadsIndex {
-				if quadIndex.MaterialIndex == some4Idx {
-					fmt.Fprintf(wrtw, "f %d %d %d\n",
-						quadIndex.Indexes[0]+1, quadIndex.Indexes[1]+1, quadIndex.Indexes[2]+1)
-					fmt.Fprintf(wrtw, "f %d %d %d\n",
-						quadIndex.Indexes[3]+1, quadIndex.Indexes[0]+1, quadIndex.Indexes[2]+1)
-				}
-			}
+		for _, triangle := range triangles {
+			fmt.Fprintf(wrtw, "f %d %d %d\n", triangle[0]+1+off, triangle[1]+1+off, triangle[2]+1+off)
 		}
-
-		for is10, s10 := range rib.Some10 {
-			idxStart := pointsBaseIndex
-
-			fmt.Fprintf(wrtw, "o s10_%d\n", is10)
-
-			fa := s10.FloatArray
-			points := [8]mgl32.Vec3{
-				{fa[3], fa[1], fa[2]},
-				{fa[3], fa[1], fa[5]},
-				{fa[0], fa[1], fa[5]},
-				{fa[0], fa[1], fa[2]},
-
-				{fa[3], fa[4], fa[2]},
-				{fa[3], fa[4], fa[5]},
-				{fa[0], fa[4], fa[5]},
-				{fa[0], fa[4], fa[2]},
-			}
-
-			for _, point := range points {
-				fmt.Fprintf(wrtw, "v %f %f %f\n", point[0], point[1], point[2])
-				pointsBaseIndex++
-			}
-
-			trias := [12][3]int{
-				{2, 3, 4}, {5, 8, 7},
-				{5, 6, 2}, {2, 6, 7},
-				{7, 8, 4}, {5, 1, 4},
-				{1, 2, 4}, {6, 5, 7},
-				{1, 5, 2}, {3, 2, 7},
-				{3, 7, 4}, {8, 5, 4},
-			}
-
-			for _, tria := range trias {
-				fmt.Fprintf(wrtw, "f %d %d %d\n",
-					tria[0]+idxStart, tria[1]+idxStart, tria[2]+idxStart)
-			}
-
-		}
-
-		/*
-			vertices, triangles := rib.BuildMeshForKDTree()
-
-			off := len(rib.Some9Points)
-
-			fmt.Fprintf(wrtw, "o ribsheet\n")
-			for _, point := range vertices {
-				fmt.Fprintf(wrtw, "v %f %f %f\n", point[0], point[1], point[2])
-			}
-
-			for _, triangle := range triangles {
-				fmt.Fprintf(wrtw, "f %d %d %d\n", triangle[0]+1+off, triangle[1]+1+off, triangle[2]+1+off)
-			}
-		*/
-	}
+	*/
 }
