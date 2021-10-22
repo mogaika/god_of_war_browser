@@ -100,7 +100,7 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 						stringRepr = "@push"
 						if buf[pos] == 0 {
 							l := uint16(utils.BytesStringLength(buf[pos+1:]))
-							s := utils.DumpToOneLineString(buf[pos+1 : pos+1+l])
+							s := utils.BytesToString(buf[pos+1 : pos+1+l])
 							stringRepr += fmt.Sprintf("_string '%s' ", s)
 							op.Parameters = append(op.Parameters, s)
 							pos += uint16(l) + 2
@@ -129,7 +129,7 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 					}
 					stringRepr = fmt.Sprintf("GotoExpression @pop_string (%s)", state)
 				default:
-					log.Panicf("unknown opcode  << dump{%s} >>", utils.DumpToOneLineString(buf[:opLen]))
+					log.Panicf("unknown opcode %v", buf[:opLen])
 				}
 				buf = buf[opLen:]
 			} else {

@@ -3,8 +3,11 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
+	"log"
+	"strings"
 
-	"golang.org/x/text/encoding/charmap"
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"golang.org/x/text/transform"
 )
 
@@ -20,10 +23,11 @@ func BytesToString(bs []byte) string {
 		n = len(bs)
 	}
 
-	s, _, err := transform.Bytes(charmap.Windows1252.NewDecoder(), bs[0:n])
+	s, _, err := transform.Bytes(config.GetEncoding().NewDecoder(), bs[0:n])
 	if err != nil {
 		panic(err)
 	}
+
 	return string(s)
 }
 
@@ -36,7 +40,7 @@ func BytesStringLength(bs []byte) int {
 }
 
 func StringToBytesBuffer(s string, bufSize int, nilTerminate bool) []byte {
-	bs, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(s))
+	bs, _, err := transform.Bytes(config.GetEncoding().NewEncoder(), []byte(s))
 	if err != nil {
 		panic(err)
 	}
@@ -54,10 +58,11 @@ func StringToBytesBuffer(s string, bufSize int, nilTerminate bool) []byte {
 }
 
 func StringToBytes(s string, nilTerminate bool) []byte {
-	bs, _, err := transform.Bytes(charmap.Windows1252.NewEncoder(), []byte(s))
+	bs, _, err := transform.Bytes(config.GetEncoding().NewEncoder(), []byte(s))
 	if err != nil {
 		panic(err)
 	}
+
 	if nilTerminate {
 		bs = append(bs, 0)
 	}

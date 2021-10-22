@@ -44,9 +44,9 @@ import (
 )
 
 func main() {
-	var addr, tocpath, dirpath, isopath, psarcpath, psversion string
+	var addr, tocpath, dirpath, isopath, psarcpath, psversion, encoding string
 	var gowversion int
-	var parsecheck bool
+	var parsecheck, listencodings bool
 	flag.StringVar(&addr, "i", ":8000", "Address of server")
 	flag.StringVar(&tocpath, "toc", "", "Path to folder with toc file")
 	flag.StringVar(&dirpath, "dir", "", "Path to unpacked wads and other stuff")
@@ -55,11 +55,26 @@ func main() {
 	flag.StringVar(&psversion, "ps", "ps2", "Playstation version (ps2, ps3, psvita)")
 	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1', 2 - 'gow2'")
 	flag.BoolVar(&parsecheck, "parsecheck", false, "Check every file for parse errors (for devs)")
+	flag.BoolVar(&listencodings, "listencodings", false, "List text encodings")
+	flag.StringVar(&encoding, "encoding", "Windows 1252", "Select text encodings")
 	flag.Parse()
 
 	var err error
 	var gameDir vfs.Directory
 	var driverDir vfs.Directory
+
+	if listencodings {
+		listEncodings()
+		return
+	}
+	if encoding != "" {
+		log.Printf("Setting encoding %q", encoding)
+		if err := config.SetEncoding(encoding); err != nil {
+			log.Printf("Failed to set encoding %q: %v", encoding, err)
+			listEncodings()
+			return
+		}
+	}
 
 	switch psversion {
 	case "ps2":
@@ -115,7 +130,7 @@ func main() {
 		defer f.Close()
 	}
 
-	parsecheck = true
+	// parsecheck = true
 	if parsecheck {
 		parseCheck(gameDir)
 	}
@@ -135,4 +150,12 @@ func setLogging() (io.Closer, error) {
 
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
 	return f, nil
+}
+
+func listEncodings() {
+	s := fmt.Sprintf("Encodings list:")
+	for _, e := range config.ListEncodings() {
+		s += fmt.Sprintf("\n  %q", e)
+	}
+	log.Println(s)
 }

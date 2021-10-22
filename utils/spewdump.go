@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 
@@ -17,20 +16,6 @@ func init() {
 
 func Dump(a ...interface{}) {
 	fmt.Println(spewConfig.Sdump(a...))
-}
-
-func DumpToOneLineString(buf []byte) string {
-	var out bytes.Buffer
-
-	for _, b := range buf {
-		if b >= 0x20 && b <= 0x7f {
-			out.WriteRune(rune(b))
-		} else {
-			out.WriteString(fmt.Sprintf("\\x%.2x", b))
-		}
-	}
-
-	return out.String()
 }
 
 func SDump(a ...interface{}) string {
