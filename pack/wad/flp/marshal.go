@@ -156,6 +156,16 @@ func (fm *FlpMarshaler) pad4() {
 	fm.pad(4)
 }
 
+func (fm *FlpMarshaler) addStringOffsetPlaceholderFFIfEmpty(s string, size int) {
+	if s == "" {
+		for i := 0; i < size; i++ {
+			fm.buf.WriteByte(0xff)
+		}
+	} else {
+		fm.addStringOffsetPlaceholder(s, size)
+	}
+}
+
 func (fm *FlpMarshaler) addStringOffsetPlaceholder(s string, size int) {
 	fm.sbuffer.Add(s, fm.pos(), size)
 	fm.skip(size)
@@ -181,7 +191,7 @@ func (d2 *MeshPartReference) MarshalData(fm *FlpMarshaler) {
 	for j := range d2.Materials {
 		fm.w32(d2.Materials[j].Color)
 		if config.GetGOWVersion() == config.GOW1 {
-			fm.addStringOffsetPlaceholder(d2.Materials[j].TextureName, 2)
+			fm.addStringOffsetPlaceholderFFIfEmpty(d2.Materials[j].TextureName, 2)
 			fm.skip(2)
 		} else {
 			fm.w32(d2.Materials[j].TextureNameSecOff)
@@ -256,8 +266,8 @@ func (d4 *StaticLabel) MarshalData(fm *FlpMarshaler) {
 }
 
 func (d5 *DynamicLabel) MarshalStruct(fm *FlpMarshaler) {
-	fm.addStringOffsetPlaceholder(d5.ValueName, 2)
-	fm.addStringOffsetPlaceholder(d5.Placeholder, 2)
+	fm.addStringOffsetPlaceholderFFIfEmpty(d5.ValueName, 2)
+	fm.addStringOffsetPlaceholderFFIfEmpty(d5.Placeholder, 2)
 	fm.w16(uint16(d5.FontHandler))
 	fm.w16(d5.Width1)
 	fm.w32(d5.BlendColor)
@@ -353,7 +363,7 @@ func (d6s1s1s1 *KeyFrame) MarshalStruct(fm *FlpMarshaler) {
 	fm.w16(uint16(d6s1s1s1.ElementHandler))
 	fm.w16(d6s1s1s1.TransformationId)
 	fm.w16(d6s1s1s1.ColorId)
-	fm.addStringOffsetPlaceholder(d6s1s1s1.Name, 2)
+	fm.addStringOffsetPlaceholderFFIfEmpty(d6s1s1s1.Name, 2)
 }
 
 func (d6s1s2 *FrameScriptLabel) MarshalStruct(fm *FlpMarshaler) {
@@ -365,7 +375,7 @@ func (d6s1s2 *FrameScriptLabel) MarshalStruct(fm *FlpMarshaler) {
 	if config.GetGOWVersion() == config.GOW1 {
 		fm.skip(4) // array pointer placeholder
 	}
-	fm.addStringOffsetPlaceholder(d6s1s2.LabelName, 2)
+	fm.addStringOffsetPlaceholderFFIfEmpty(d6s1s2.LabelName, 2)
 	fm.skip(2)
 }
 
