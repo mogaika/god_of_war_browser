@@ -86,8 +86,8 @@ function packLoad() {
             let li = $(`
                 <li filename="${fileName}">
                     <label>${fileName}</label>
-                    <a download class="button-dump" title="Download file" href="/dump/pack/${fileName}">
-                    <div class="button-upload" title="Upload your version of file" href="/upload/pack/${fileName}">
+                    <a download class="button-dump" title="Download file" href="/dump/pack/${fileName}"></a>
+                    <div class="button-upload" title="Upload your version of file" href="/upload/pack/${fileName}"></div>
                 </li>
             `);
             li.find(".button-upload").click(uploadAjaxHandler);
