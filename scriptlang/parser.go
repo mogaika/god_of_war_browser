@@ -26,7 +26,7 @@ func init() {
 	lexer.Add([]byte(`[0-9A-F][0-9A-F]:`), getToken(TOKEN_OP))
 	lexer.Add([]byte(`\$[a-zA-Z_][a-zA-Z0-9_]*`), getToken(TOKEN_LABEL))
 	lexer.Add([]byte(`[\+\-]?[0-9]*\.?[0-9]+`), getToken(TOKEN_NUMBER))
-	lexer.Add([]byte(`(?i:true|false)`), getToken(TOKEN_BOOLEAN))
+	lexer.Add([]byte(`(true|false)`), getToken(TOKEN_BOOLEAN))
 	lexer.Add([]byte(`(\n|\r|\n\r)+`), getToken(TOKEN_NEWLINE))
 	lexer.Add([]byte(`//[^\n]*`), getToken(TOKEN_COMMENT))
 	lexer.Add([]byte(`\s+`), skip)
