@@ -244,7 +244,8 @@ func printFreeSpace(t *TableOfContent) {
 				}
 				if e.Pak == fs.Pak {
 					if e.Offset+e.Size > fs.Start && e.Offset < fs.End {
-						log.Printf("collision with file %s: 0x%.9x <=> 0x%.9x", f.name, e.Offset, e.Offset+e.Size)
+						log.Printf("Free space collision with file %s: 0x%.9x <=> 0x%.9x fs[0x%.9x <=> 0x%.9x] p%d",
+							f.name, e.Offset, e.Offset+e.Size, fs.Start, fs.End, e.Pak)
 					}
 				}
 			}

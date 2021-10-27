@@ -9,7 +9,13 @@ import (
 )
 
 func encounterSortFunc(ei *Encounter, ej *Encounter) bool {
-	return ei.Pak < ej.Pak || (ei.Pak == ej.Pak && ei.Offset < ej.Offset)
+	if ei.Pak == ej.Pak {
+		if ei.Offset == ej.Offset {
+			return ei.Size < ej.Size
+		}
+		return ei.Offset < ej.Offset
+	}
+	return ei.Pak < ej.Pak
 }
 
 func sortFilesByEncounters(files map[string]*File) []*File {
@@ -88,7 +94,6 @@ func constructFreeSpaceArray(files map[string]*File, paks []vfs.File) []FreeSpac
 		if e.Pak != lastPak {
 			handlePakChange(e.Pak)
 		}
-
 		if e.Offset > lastPos {
 			result = append(result, FreeSpace{
 				Start: lastPos,
