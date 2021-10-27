@@ -16,16 +16,17 @@ type ScriptParams struct {
 	Data       interface{}
 }
 
-func NewFromData(buf []byte) (*ScriptParams, error) {
+func NewFromData(buf []byte, wrsrc *wad.WadNodeRsrc) (*ScriptParams, error) {
 	sp := &ScriptParams{
 		TargetName: utils.BytesToString(buf[4:20]),
 	}
 
+	var err error
 	if loader := store.GetScriptLoader(sp.TargetName); loader != nil {
-		sp.Data = loader(buf[HEADER_SIZE:])
+		sp.Data, err = loader(buf[HEADER_SIZE:], wrsrc)
 	}
 
-	return sp, nil
+	return sp, err
 }
 
 func (sp *ScriptParams) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
@@ -34,9 +35,9 @@ func (sp *ScriptParams) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetHandler(config.GOW1, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		return NewFromData(wrsrc.Tag.Data)
+		return NewFromData(wrsrc.Tag.Data, wrsrc)
 	})
 	wad.SetHandler(config.GOW2, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		return NewFromData(wrsrc.Tag.Data)
+		return NewFromData(wrsrc.Tag.Data, wrsrc)
 	})
 }

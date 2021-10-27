@@ -13,6 +13,7 @@ const (
 	TOKEN_OP = iota
 	TOKEN_LABEL
 	TOKEN_NUMBER
+	TOKEN_BOOLEAN
 	TOKEN_STRING
 	TOKEN_NEWLINE
 	TOKEN_COMMENT
@@ -25,6 +26,7 @@ func init() {
 	lexer.Add([]byte(`[0-9A-F][0-9A-F]:`), getToken(TOKEN_OP))
 	lexer.Add([]byte(`\$[a-zA-Z_][a-zA-Z0-9_]*`), getToken(TOKEN_LABEL))
 	lexer.Add([]byte(`[\+\-]?[0-9]*\.?[0-9]+`), getToken(TOKEN_NUMBER))
+	lexer.Add([]byte(`(?i:true|false)`), getToken(TOKEN_BOOLEAN))
 	lexer.Add([]byte(`(\n|\r|\n\r)+`), getToken(TOKEN_NEWLINE))
 	lexer.Add([]byte(`//[^\n]*`), getToken(TOKEN_COMMENT))
 	lexer.Add([]byte(`\s+`), skip)
@@ -88,6 +90,15 @@ func ParseScript(text []byte) ([]interface{}, error) {
 				currentOp.Parameters = append(currentOp.Parameters, float32(float))
 			} else {
 				return nil, errors.Errorf("Unknown number format on line %v (%q)", tok.StartLine, tok.Lexeme)
+			}
+		case TOKEN_BOOLEAN:
+			if currentOp == nil {
+				return nil, errors.Errorf("Missed opcode on line %v (%q)", tok.StartLine, tok.Lexeme)
+			}
+			if boolean, err := strconv.ParseBool(string(tok.Lexeme)); err == nil {
+				currentOp.Parameters = append(currentOp.Parameters, boolean)
+			} else {
+				return nil, errors.Errorf("Unknown boolean format on line %v (%q)", tok.StartLine, tok.Lexeme)
 			}
 		case TOKEN_STRING:
 			if currentOp == nil {

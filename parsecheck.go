@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 
 	//"encoding/binary"
 	"log"
@@ -30,10 +31,19 @@ func parseCheck(rootfs vfs.Directory) {
 		case *file_wad.Wad:
 			wad := data.(*file_wad.Wad)
 			for _, node := range wad.Nodes {
-				if node.Parent != 0 {
+				if node.Parent != file_wad.NODE_INVALID {
 					continue
 				}
-				for _, onode := range wad.Nodes {
+
+				if strings.HasPrefix(node.Tag.Name, "ESC_") {
+					//log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
+					_, _, err := wad.GetInstanceFromNode(node.Id)
+					if err != nil {
+						log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)
+					}
+				}
+
+				/*for _, onode := range wad.Nodes {
 					if onode.Tag.Id >= node.Tag.Id {
 						break
 					}
@@ -45,7 +55,7 @@ func parseCheck(rootfs vfs.Directory) {
 							onode.Tag.Id, onode.Tag.Name, node.Tag.Size)
 						break
 					}
-				}
+				}*/
 			}
 		}
 	}

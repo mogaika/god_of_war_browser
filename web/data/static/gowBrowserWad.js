@@ -235,8 +235,8 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         break;
                     case 0x00010004: // script
                         summaryLoadWadScript(data);
-                        needMarshalDump = true;
-                        needHexDump = true;
+                        // needMarshalDump = true;
+                        // needHexDump = true;
                         break;
                     case 0x0000000c: // gfx pal
                     default:
@@ -1432,22 +1432,33 @@ function summaryLoadWadScript(data) {
             let ht = $("<table>").append($("<tr>").append($("<td>").attr("colspan", 2).append(e.Name)));
             for (let j in e) {
                 let v = e[j];
-                if (j == "Handlers") {
-                    for (let hi in v) {
-                        ht.append(
-                            $("<tr>").append($("<td>").append('Handler #' + hi))
-                            .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
-                    }
-                } else {
-                    switch (j) {
-                        case "Matrix":
-                        case "DependsEntitiesIds":
-                            v = JSON.stringify(v);
-                            break;
-                    }
-                    ht.append(
-                        $("<tr>").append($("<td>").append(j))
-                        .append($("<td>").append(v)));
+                switch (j) {
+                    case "Variables":
+                        for (let hi in v) {
+                            ht.append(
+                                $("<tr>").append($("<td>").append(
+                                    'Variable name #' + (parseInt(hi) + e.VariableOffset)))
+                                .append($("<td>").append(v[hi].Name + " (type " + v[hi].Type + ")")));
+                        }
+                        break;
+                    case "Handlers":
+                        for (let hi in v) {
+                            ht.append(
+                                $("<tr>").append($("<td>").append('Handler #' + hi))
+                                .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
+                        }
+                        break;
+                    case "Matrix":
+                    case "DependsEntitiesNames":
+                    case "DependsEntitiesIds":
+                        v = JSON.stringify(v);
+                        ht.append($("<tr>").append($("<td>").append(j)).append($("<td>").append(v)));
+                        break;
+                    case "Name":
+                        break;
+                    default:
+                        ht.append($("<tr>").append($("<td>").append(j)).append($("<td>").append(v)));
+                        break;
                 }
             }
             dataSummary.append(ht);

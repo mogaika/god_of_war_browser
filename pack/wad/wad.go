@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/mogaika/god_of_war_browser/pack/wad/scr/entitycontext"
+
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -51,6 +53,8 @@ type Wad struct {
 	Tags   []Tag
 	Nodes  []*Node
 	Roots  []NodeId
+
+	entityContext entitycontext.EntityLevelContext
 
 	HeapSizes map[string]uint32
 }
@@ -393,9 +397,14 @@ func (w *Wad) flushCache() {
 	w.Roots = nil
 }
 
+func (w *Wad) GetEntityContext() *entitycontext.EntityLevelContext {
+	return &w.entityContext
+}
+
 func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {
 	w := &Wad{
-		Source: rsrc,
+		Source:        rsrc,
+		entityContext: entitycontext.NewContext(),
 	}
 
 	if err := w.loadTags(r); err != nil {
@@ -404,6 +413,18 @@ func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {
 
 	if err := w.parseTags(); err != nil {
 		return nil, fmt.Errorf("Error when parsing tags: %v", err)
+	}
+
+	if config.GetGOWVersion() == config.GOW1 {
+		// load scripts so we have filled variables
+		for _, n := range w.Nodes {
+			if len(n.Tag.Data) > 40 && binary.LittleEndian.Uint32(n.Tag.Data) == 0x00010004 {
+				if _, _, err := w.GetInstanceFromNode(n.Id); err != nil {
+					log.Printf("[levelinit] Failed to load script %q: %v", n.Tag.Name, err)
+				}
+				n.Cache = nil
+			}
+		}
 	}
 
 	return w, nil

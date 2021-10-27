@@ -1,6 +1,8 @@
 package store
 
-type ScriptLoader func([]byte) interface{}
+import "github.com/mogaika/god_of_war_browser/pack/wad"
+
+type ScriptLoader func([]byte, *wad.WadNodeRsrc) (interface{}, error)
 
 var gScriptLoaders = make(map[string]ScriptLoader, 0)
 
