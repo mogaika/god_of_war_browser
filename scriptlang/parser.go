@@ -26,7 +26,7 @@ func init() {
 	lexer.Add([]byte(`[0-9A-F][0-9A-F]:`), getToken(TOKEN_OP))
 	lexer.Add([]byte(`\$[a-zA-Z_][a-zA-Z0-9_]*`), getToken(TOKEN_LABEL))
 	lexer.Add([]byte(`[\+\-]?[0-9]*\.?[0-9]+`), getToken(TOKEN_NUMBER))
-	lexer.Add([]byte(`(true|false)`), getToken(TOKEN_BOOLEAN))
+	lexer.Add([]byte(`(TRUE|FALSE|[Tt]rue|[Ff]alse)`), getToken(TOKEN_BOOLEAN))
 	lexer.Add([]byte(`(\n|\r|\n\r)+`), getToken(TOKEN_NEWLINE))
 	lexer.Add([]byte(`//[^\n]*`), getToken(TOKEN_COMMENT))
 	lexer.Add([]byte(`\s+`), skip)
@@ -43,13 +43,13 @@ func skip(scan *lexmachine.Scanner, match *machines.Match) (interface{}, error) 
 	return nil, nil
 }
 
-func ParseScript(text []byte) ([]interface{}, error) {
+func ParseScript(text []byte) ([]Instruction, error) {
 	scanner, err := lexer.Scanner(text)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create lexer scanner")
 	}
 
-	result := make([]interface{}, 0, 16)
+	result := make([]Instruction, 0, 16)
 
 	var currentOp *Opcode
 	var currentLabel *Label

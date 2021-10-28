@@ -105,11 +105,11 @@ handler #0 = 1
 
 
 
-
+EVT_Spawn????? = 124
 
 EVT_MpegDone = 501
 
-EVT_Break = 1009
+EVT_Break_or_damage = 1009
 EVT_Reset_usedWhenRestoreChestAndSoOn = 1015
 EVT_FallAnim_or_Die = 1019
 EVT_ChestOpened? = 1023

@@ -653,8 +653,8 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             let print_script = function(script) {
                 if (script) {
                     let code = script.Decompiled;
-                    let $code_element = $("<div>").text(" > click to show decompiled script < ").css('cursor', 'pointer').click(function() {
-                        $(this).empty().css('cursor', '').append(code.replaceAll('\n', '<br>')).off('click');
+                    let $code_element = $("<div style='white-space: pre;'>").text(" > click to show decompiled script < ").css('cursor', 'pointer').click(function() {
+                        $(this).empty().css('cursor', '').append(code.join('<br>')).off('click');
                     })
                     return $code_element;
                 } else {

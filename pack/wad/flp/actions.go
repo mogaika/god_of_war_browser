@@ -2,9 +2,7 @@ package flp
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -101,35 +99,13 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
 		})
 	case "asjson":
-		if data, err := json.MarshalIndent(f, "", "  "); err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
-		} else {
-			webutils.WriteFile(w, bytes.NewReader(data), wrsrc.Name()+".json")
-		}
+		webutils.WriteJsonFile(w, f, wrsrc.Name())
 	case "fromjson":
-		if strings.ToUpper(r.Method) != "POST" {
-			return
-		}
-
-		fJson, _, err := r.FormFile("data")
-		if err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to get file"))
-			return
-		}
-		defer fJson.Close()
-
-		data, err := ioutil.ReadAll(fJson)
-		if err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to read"))
-			return
-		}
-
 		newFlp := &FLP{}
-		// needed for font handler parsing of dynamic label
 		currentFlpInstance = newFlp
-		if err := json.Unmarshal(data, newFlp); err != nil {
-			webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
-			return
+
+		if err := webutils.ReadJsonFile(r, "data", newFlp); err != nil {
+			webutils.WriteError(w, err)
 		}
 
 		// decompile scripts

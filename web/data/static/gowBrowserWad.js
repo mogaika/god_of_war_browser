@@ -1442,15 +1442,19 @@ function summaryLoadWadScript(data) {
                         }
                         break;
                     case "Handlers":
-                        for (let hi in v) {
+                        for (let ha of v) {
                             ht.append(
-                                $("<tr>").append($("<td>").append('Handler #' + hi))
-                                .append($("<td>").append(v[hi].Decompiled.replaceAll('\n', '<br>'))));
+                                $("<tr>").append($("<td>").append('Handler #' + ha.Id))
+                                .append($("<td style='white-space: pre;'>").append(ha.Decompiled.join('<br>'))));
                         }
                         break;
+                    case "DebugTargetEntitiesNames":
+                    case "DebugReferencedByNames":
+                        ht.append($("<tr>").append($("<td>").append(j)).append($("<td>").append(v.join('<br>'))));
+                        break;
                     case "Matrix":
-                    case "DependsEntitiesNames":
-                    case "DependsEntitiesIds":
+                    case "DebugReferencedBy":
+                    case "TargetEntitiesIds":
                         v = JSON.stringify(v);
                         ht.append($("<tr>").append($("<td>").append(j)).append($("<td>").append(v)));
                         break;

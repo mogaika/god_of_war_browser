@@ -8,7 +8,6 @@ import (
 	"math"
 	"strings"
 
-	"github.com/Pallinder/go-randomdata"
 	"github.com/pkg/errors"
 
 	"github.com/mogaika/god_of_war_browser/config"
@@ -17,15 +16,15 @@ import (
 )
 
 type Script struct {
-	Data       []interface{} `json:"-"`
-	Decompiled string
+	Data       []scriptlang.Instruction `json:"-"`
+	Decompiled []string
 }
 
 func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
-	s.Data = make([]interface{}, 0)
+	s.Data = make([]scriptlang.Instruction, 0)
 	labels := make(map[int16]*scriptlang.Label)
 	opOffsets := make(map[int16]*scriptlang.Opcode)
-	usedLabelNames := make(map[string]struct{})
+	labelNamesGenerator := utils.RandomNameGenerator{}
 
 	originalBufLen := len(buf)
 	for len(buf) != 0 {
@@ -38,18 +37,11 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 
 		buf = buf[1:]
 
-		jmpOffsetToStr := func(jmpOff uint16, jmpOpShift int16) *scriptlang.Label {
+		jmpOffsetToLabel := func(jmpOff uint16, jmpOpShift int16) *scriptlang.Label {
 			targetOffset := int16(opOffset + int16(jmpOff) + jmpOpShift)
 
 			if lbl, ok := labels[targetOffset]; !ok {
-				name := randomdata.SillyName()
-				for {
-					if _, exists := usedLabelNames[name]; !exists {
-						break
-					}
-					// avoid duplicate names
-					name = randomdata.SillyName()
-				}
+				name := labelNamesGenerator.RandomName()
 				targetLabel := &scriptlang.Label{
 					Name:    strings.ToLower(name),
 					Comment: fmt.Sprintf("0x%.4x", targetOffset),
@@ -80,19 +72,19 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				switch op.Code {
 				case 0x81:
 					target := binary.LittleEndian.Uint16(buf)
-					op.Parameters = append(op.Parameters, int32(target))
+					op.AddParameters(int32(target))
 					stringRepr = fmt.Sprintf("GotoFrame %d", target)
 				case 0x83:
 					s1, s2 := utils.BytesToString(buf), utils.BytesToString(buf[1+utils.BytesStringLength(buf):])
-					op.Parameters = append(op.Parameters, s1, s2)
+					op.AddParameters(s1, s2)
 					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s', or response result", s1, s2)
 				case 0x8b:
 					s1 := utils.BytesToString(buf)
-					op.Parameters = append(op.Parameters, s1)
+					op.AddParameters(s1)
 					stringRepr = fmt.Sprintf("SetTarget '%s'", s1)
 				case 0x8c:
 					s1 := utils.BytesToString(buf)
-					op.Parameters = append(op.Parameters, s1)
+					op.AddParameters(s1)
 					stringRepr = fmt.Sprintf("GotoLabel '%s'", s1)
 				case 0x96:
 					pos := uint16(0)
@@ -102,27 +94,27 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 							l := uint16(utils.BytesStringLength(buf[pos+1:]))
 							s := utils.BytesToString(buf[pos+1 : pos+1+l])
 							stringRepr += fmt.Sprintf("_string '%s' ", s)
-							op.Parameters = append(op.Parameters, s)
+							op.AddParameters(s)
 							pos += uint16(l) + 2
 						} else {
 							f := math.Float32frombits(binary.LittleEndian.Uint32(buf[pos+1:]))
 							stringRepr += fmt.Sprintf("_float %v ", f)
-							op.Parameters = append(op.Parameters, f)
+							op.AddParameters(f)
 							pos += 5
 						}
 					}
 				case 0x99:
-					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5)
-					op.Parameters = append(op.Parameters, label)
+					label := jmpOffsetToLabel(binary.LittleEndian.Uint16(buf), 5)
+					op.AddParameters(label)
 					stringRepr = fmt.Sprintf("jump %s", label)
 				case 0x9e:
 					stringRepr = "CallFrame @pop_string"
 				case 0x9d:
-					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 5)
-					op.Parameters = append(op.Parameters, label)
+					label := jmpOffsetToLabel(binary.LittleEndian.Uint16(buf), 5)
+					op.AddParameters(label)
 					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", label)
 				case 0x9f:
-					op.Parameters = append(op.Parameters, int32(buf[0]))
+					op.AddParameters(int32(buf[0]))
 					state := "PLAY"
 					if buf[0] == 0 {
 						state = "STOP"
@@ -137,12 +129,12 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				switch op.Code {
 				case 0x81:
 					target := binary.LittleEndian.Uint16(buf)
-					op.Parameters = append(op.Parameters, int32(target))
+					op.AddParameters(int32(target))
 					stringRepr = fmt.Sprintf("GotoFrame %d", target)
 					opLen = 2
 				case 0x83:
 					s1, s2 := strFromOffset(buf, 0), strFromOffset(buf, 2)
-					op.Parameters = append(op.Parameters, s1, s2)
+					op.AddParameters(s1, s2)
 					stringRepr = fmt.Sprintf("Fs queue '%s' command '%s' or response result", s1, s2)
 					opLen = 4
 				// case 0x8a:
@@ -150,19 +142,19 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 				//	   opLen = 3
 				case 0x8b:
 					s := strFromOffset(buf, 0)
-					op.Parameters = append(op.Parameters, s)
+					op.AddParameters(s)
 					stringRepr = fmt.Sprintf("SetTarget '%s'", s)
 					opLen = 2
 				case 0x8c:
 					s := strFromOffset(buf, 0)
-					op.Parameters = append(op.Parameters, s)
+					op.AddParameters(s)
 					stringRepr = fmt.Sprintf("GotoLabel '%s'", s)
 					opLen = 2
 				case 0x96:
 					if buf[0] == 1 {
 						opLen = 5
 						f := math.Float32frombits(binary.LittleEndian.Uint32(buf[1:]))
-						op.Parameters = append(op.Parameters, f)
+						op.AddParameters(f)
 						stringRepr = fmt.Sprintf("push_float %v ", f)
 					} else {
 						var s string
@@ -173,27 +165,27 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 							s = strFromOffset(buf, 1)
 							opLen = 3
 						}
-						op.Parameters = append(op.Parameters, s)
+						op.AddParameters(s)
 						stringRepr = fmt.Sprintf("push_string '%s'", s)
 					}
 				case 0x99:
-					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3)
-					op.Parameters = append(op.Parameters, label)
+					label := jmpOffsetToLabel(binary.LittleEndian.Uint16(buf), 3)
+					op.AddParameters(label)
 					stringRepr = fmt.Sprintf("jump %s", label)
 					opLen = 2
 				//case 0x9a:
 				//	stringRepr = fmt.Sprintf("unused opcode 0x%x", op.Code)
 				//	opLen = 1
 				case 0x9d:
-					label := jmpOffsetToStr(binary.LittleEndian.Uint16(buf), 3)
-					op.Parameters = append(op.Parameters, label)
+					label := jmpOffsetToLabel(binary.LittleEndian.Uint16(buf), 3)
+					op.AddParameters(label)
 					stringRepr = fmt.Sprintf("jump %s if @pop_bool == true", label)
 					opLen = 2
 				case 0x9e:
 					stringRepr = "CallFrame @pop_string"
 					opLen = 0
 				case 0x9f:
-					op.Parameters = append(op.Parameters, int32(buf[0]))
+					op.AddParameters(int32(buf[0]))
 					state := "PLAY"
 					if buf[0] == 0 {
 						state = "STOP"
@@ -276,50 +268,8 @@ func (s *Script) parseOpcodes(buf []byte, stringsSector []byte) {
 			panic("failed to find label for opcode")
 		}
 
-		index := -1
-		for i, instruction := range s.Data {
-			if op, ok := instruction.(*scriptlang.Opcode); ok {
-				if op == labelOp {
-					index = i
-					break
-				}
-			}
-		}
-		if index < 0 {
-			panic("failed to find opcode for label")
-		}
-
-		// fast insertion via copy
-		s.Data = append(s.Data, nil)
-		copy(s.Data[index+1:], s.Data[index:])
-		s.Data[index] = label
+		s.Data = label.InsertBeforeOpcode(s.Data, labelOp)
 	}
-}
-
-func (s *Script) dissasembleToString() string {
-	var buf bytes.Buffer
-
-	for _, instruction := range s.Data {
-		switch v := instruction.(type) {
-		case *scriptlang.Opcode:
-			buf.WriteString(v.String())
-			if v.Comment != "" {
-				buf.WriteString(" // ")
-				buf.WriteString(v.Comment)
-			}
-		case *scriptlang.Label:
-			buf.WriteString(v.String())
-			if v.Comment != "" {
-				buf.WriteString(" // ")
-				buf.WriteString(v.Comment)
-			}
-		default:
-			panic(instruction)
-		}
-		buf.WriteRune('\n')
-	}
-
-	return buf.String()
 }
 
 // if marshaler == nil, then will not fill string offsets
@@ -483,7 +433,7 @@ func (s *Script) Marshal(fm *FlpMarshaler) []byte {
 }
 
 func (s *Script) FromDecompiled() error {
-	if data, err := scriptlang.ParseScript([]byte(s.Decompiled)); err != nil {
+	if data, err := scriptlang.ParseScript([]byte(strings.Join(s.Decompiled, "\n"))); err != nil {
 		return errors.Wrapf(err, "Failed to decompile script")
 	} else {
 		//log.Printf("\n%v", s.Decompiled)
@@ -496,7 +446,7 @@ func (s *Script) FromDecompiled() error {
 func NewScriptFromData(buf []byte, stringsSector []byte) (s *Script) {
 	s = new(Script)
 	s.parseOpcodes(buf, stringsSector)
-	s.Decompiled = s.dissasembleToString()
+	s.Decompiled = strings.Split(scriptlang.RenderScript(s.Data), "\n")
 
 	// testing of decompiler
 	/*

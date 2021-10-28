@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 
 	//"encoding/binary"
 	"log"
@@ -35,27 +34,35 @@ func parseCheck(rootfs vfs.Directory) {
 					continue
 				}
 
-				if strings.HasPrefix(node.Tag.Name, "ESC_") {
-					//log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
-					_, _, err := wad.GetInstanceFromNode(node.Id)
-					if err != nil {
-						log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)
+				/*
+					if strings.HasPrefix(node.Tag.Name, "ESC_") {
+						//log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
+						_, _, err := wad.GetInstanceFromNode(node.Id)
+						if err != nil {
+							log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)
+						}
+					}
+				*/
+
+				if len(node.Tag.Data) != 0 {
+					for _, onode := range wad.Nodes {
+						if onode.Parent != file_wad.NODE_INVALID || len(onode.Tag.Data) == 0 {
+							continue
+						}
+
+						if onode.Tag.Id >= node.Tag.Id {
+							break
+						}
+
+						if node.Tag.Name == onode.Tag.Name {
+							log.Printf("Conflicting name %q [%d:%q:%d] [%d:%q:%d]",
+								wad.Name(),
+								node.Tag.Id, node.Tag.Name, node.Tag.Size,
+								onode.Tag.Id, onode.Tag.Name, node.Tag.Size)
+							break
+						}
 					}
 				}
-
-				/*for _, onode := range wad.Nodes {
-					if onode.Tag.Id >= node.Tag.Id {
-						break
-					}
-
-					if node.Tag.Name == onode.Tag.Name {
-						log.Printf("Conflicting name %q [%d:%q:%d] [%d:%q:%d]",
-							wad.Name(),
-							node.Tag.Id, node.Tag.Name, node.Tag.Size,
-							onode.Tag.Id, onode.Tag.Name, node.Tag.Size)
-						break
-					}
-				}*/
 			}
 		}
 	}
