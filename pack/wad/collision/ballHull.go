@@ -36,7 +36,7 @@ type BallHullMesh struct {
 	BBox      mgl32.Vec4
 	Vertices  []mgl32.Vec4
 	Materials []int8 // int8 just so json marshal not performs base64
-	Unk1      byte
+	Joint     byte
 	Unk2      byte
 }
 
@@ -124,7 +124,7 @@ func NewBallHull(bs *utils.BufStack, wrtw io.Writer) (*ShapeBallHull, error) {
 		verticesCount := bss[BALLHULL_SECTION_MESHES_VERTICESCOUNT].ReadByte()
 		m.Vertices = make([]mgl32.Vec4, verticesCount)
 		m.Materials = make([]int8, verticesCount)
-		m.Unk1 = bss[BALLHULL_SECTION_MESHES_FLAGSORUNK1].ReadByte()
+		m.Joint = bss[BALLHULL_SECTION_MESHES_FLAGSORUNK1].ReadByte()
 		m.Unk2 = bss[BALLHULL_SECTION_MESHES_FLAGSORUNK2].ReadByte()
 
 		for vi := range m.Vertices {
