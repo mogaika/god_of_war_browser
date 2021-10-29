@@ -235,8 +235,8 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         break;
                     case 0x00010004: // script
                         summaryLoadWadScript(data);
-                        // needMarshalDump = true;
-                        // needHexDump = true;
+                        needMarshalDump = true;
+                        needHexDump = true;
                         break;
                     case 0x0000000c: // gfx pal
                     default:
@@ -921,49 +921,88 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
-function loadCollisionFromAjax(mdl, data, wad, nodeid) {
-    const loaddebug = function(md) {
-        for (let mdMesh of md.Meshes) {
-            let vertices = [];
-            for (let vec of mdMesh.Vertices) {
-                vertices.push(vec[0]);
-                vertices.push(vec[1]);
-                vertices.push(vec[2]);
-            }
-            let indices = mdMesh.Indices;
-            let mesh = new grMesh(vertices, indices);
-            mesh.setMaskBit(8);
-            mesh.setJointIds([0], Array(vertices.length / 3).fill(0));
-            mdl.addMesh(mesh);
+function loadCollisionFromAjax(mdl, data, wad, nodeid, matrices = undefined) {
+    const adddebugmaterial = function(r, g, b, a) {
+        let renderMaterial = new grMaterial();
+        let layer = new grMaterialLayer();
+        renderMaterial.setColor([r, g, b, a]);
+        layer.setColor([1, 1, 1, 1]);
+        layer.setMethodAdditive();
+        renderMaterial.addLayer(layer);
+        mdl.addMaterial(renderMaterial);
+    }
+
+    const loaddebug = function(mdMesh, jointId, uselastmaterial = false) {
+        let vertices = [];
+        for (let vec of mdMesh.Vertices) {
+            vertices.push(vec[0]);
+            vertices.push(vec[1]);
+            vertices.push(vec[2]);
         }
+        let indices = mdMesh.Indices;
+        let mesh = new grMesh(vertices, indices, gl.LINES);
+        mesh.setMaskBit(8);
+        mesh.setJointIds([jointId], Array(vertices.length / 3).fill(0));
+        if (uselastmaterial) {
+            mesh.setMaterialID(mdl.materials.length - 1);
+        }
+        mdl.addMesh(mesh);
     };
 
     if (data.ShapeName == "BallHull") {
         let ball = data.Shape;
-        let vec = ball.Vector;
-
-        // console.log(ball);
-
-        let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3], 7, 7);
-        mdl.addMesh(mesh);
-        mesh.setMaskBit(4);
 
         if (ball.DbgMesh) {
-            loaddebug(ball.DbgMesh);
-        } else {
-            console.log("Empty debug mesh for", data);
+            adddebugmaterial(0.7, 0, 0.7, 0.3);
         }
-    } else if (data.ShapeName == "mCDbgHdr") {
-        let renderMaterial = new grMaterial();
-        renderMaterial.setColor([0.7, 0, 0.7, 1.0]);
-        let layer = new grMaterialLayer();
-        layer.setColor([1, 1, 1, 0.4]);
-        layer.setMethodAdditive();
-        renderMaterial.addLayer(layer);
-        mdl.addMaterial(renderMaterial);
 
-        let md = data.Shape;
-        loaddebug(md);
+        console.log(data.Shape);
+        for (let iMesh in ball.Meshes) {
+            let mesh = ball.Meshes[iMesh];
+            for (let vec of mesh.Vertices) {
+                for (let i = 0; i < 3; i++) {
+                    if (Math.abs(vec[i]) < 0.0001) {
+                        vec[i] = 0;
+                    } else {
+                        vec[i] = -1.0 / (vec[i] / vec[3]);
+                    }
+                }
+                for (let i in vec) {
+                    vec[i] = vec[i].toFixed(3);
+                }
+            }
+            // console.table(mesh.Vertices);
+            // console.table(ball.DbgMesh.Meshes[iMesh].Vertices);
+            // console.table(ball.DbgMesh.Meshes[iMesh].Indices);
+
+            if (ball.DbgMesh) {
+                loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint, true);
+            }
+        }
+
+        for (let iBall in ball.Balls) {
+            let b = ball.Balls[iBall];
+            console.log(b, "ball");
+            //console.table(b.Coord);
+
+            let jointID = matrices ? b.Joint : 0;
+            let vec = [b.Coord[0], b.Coord[1], b.Coord[2]];
+            let size = b.Coord[3];
+            let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], size, 7, 7, jointID);
+
+            mdl.addMesh(mesh);
+            mesh.setMaskBit(4);
+        }
+
+        //let vec = ball.BSphere;
+        //let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], vec[3], 7, 7, ball.BSphereJoint);
+        //mdl.addMesh(mesh);
+        //mesh.setMaskBit(4);
+    } else if (data.ShapeName == "mCDbgHdr") {
+        adddebugmaterial(0.7, 0, 0.7, 0.3);
+        for (let mdMesh of data.Shape.Meshes) {
+            loaddebug(mdMesh, 0, true);
+        }
     } else if (data.ShapeName == "SheetHdr") {
         let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'frommodel') + '" method="post" enctype="multipart/form-data">');
         form.append($('<input type="file" name="model">'));
@@ -1061,9 +1100,9 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
         for (let mdlTable of mdlTables) {
             dataSummary.append(mdlTables);
         }
-    } else if (data.Collision) {
-        // console.log(matrix);
-        loadCollisionFromAjax(mdl, data.Collision);
+    }
+    if (data.Collision) {
+        loadCollisionFromAjax(mdl, data.Collision, null, null, data.Data.Joints);
     }
 
     if (data.Script) {
@@ -1161,6 +1200,9 @@ function summaryLoadWadObj(data, wad, nodeid) {
 
         dataSummary.append($animSelector).append($stopAnim);
     }
+
+    dataSummary.append($("<div>").text("File0x20: " + (data.Data.File0x20 >>> 0).toString(2)));
+    dataSummary.append($("<div>").text("File0x24: " + (data.Data.File0x24 >>> 0).toString(2)));
 
     $.each(data.Data.Joints, function(joint_id, joint) {
         let row = $('<tr>').append($('<td>').attr('style', 'background-color:rgb(' +
@@ -1288,9 +1330,15 @@ function summaryLoadWadCxt(data, wad, nodeid) {
         dataSummary.empty();
         let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
         dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+
+        let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
+        dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
     } else {
         let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
         dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+
+        let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf_all');
+        dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
     }
 
     if ((data.Instances !== null && data.Instances.length) || gw_cxt_group_loading) {
@@ -1437,7 +1485,7 @@ function summaryLoadWadScript(data) {
                         for (let hi in v) {
                             ht.append(
                                 $("<tr>").append($("<td>").append(
-                                    'Variable name #' + (parseInt(hi) + e.VariableOffset)))
+                                    'Variable name #' + (parseInt(hi) + e.PhysicsObjectId)))
                                 .append($("<td>").append(v[hi].Name + " (type " + v[hi].Type + ")")));
                         }
                         break;

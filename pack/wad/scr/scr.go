@@ -4,7 +4,7 @@ import (
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/scr/store"
-	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr/targets"
+	_ "github.com/mogaika/god_of_war_browser/pack/wad/scr/targets/entity"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 

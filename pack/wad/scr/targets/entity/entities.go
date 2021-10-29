@@ -1,11 +1,10 @@
-package targets
+package entity
 
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/go-gl/mathgl/mgl32"
 
@@ -57,11 +56,29 @@ func TypeIdToString(typeid uint8) string {
 type Entity struct {
 	Matrix mgl32.Mat4
 
-	Field_0x40        uint16
-	Size              uint16
-	EntityType        EntityType
-	EntityUniqueID    uint16
-	VariableOffset    uint16
+	Field_0x40      uint16 // in {0, 1, 2, 3, 4, 8, 16, 40}
+	Size            uint16
+	EntityType      EntityType
+	EntityUniqueID  uint16
+	PhysicsObjectId uint16
+
+	// == values used at least once depending on entity type:
+	// et  2: 3 2 1 5 4
+	// et  3: 3 4
+	// et  4: 1 2
+	// et  5: 1 3
+	// et  7: 1 4
+	// et  8: 1 3 4 5 2
+	// et  9: 2 3 1
+	// et 12: used as variables count
+	// et 13: used as variables count
+	// et 15: 3 1 9
+	// other: 1
+	// == entity notice
+	// 2: WarpFrom, MusicGroupStart, Messages
+	// 3: Destruction, Kills, Attack
+	// 4: Player/enemy death volume
+	Field_0x4C      uint16
 	TargetEntitiesIds []uint16
 	Name              string
 	Variables         []entitycontext.Variable
@@ -74,24 +91,20 @@ type Entity struct {
 
 func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, error) {
 	e := &Entity{
-		Field_0x40:     binary.LittleEndian.Uint16(b[0x40:]),
-		Size:           binary.LittleEndian.Uint16(b[0x44:]),
-		EntityType:     EntityType(binary.LittleEndian.Uint16(b[0x46:])),
-		EntityUniqueID: binary.LittleEndian.Uint16(b[0x48:]),
-		VariableOffset: binary.LittleEndian.Uint16(b[0x4a:]),
-		Handlers:       make([]EntityHandler, 0),
+		Field_0x40:      binary.LittleEndian.Uint16(b[0x40:]),
+		Size:            binary.LittleEndian.Uint16(b[0x44:]),
+		EntityType:      EntityType(binary.LittleEndian.Uint16(b[0x46:])),
+		EntityUniqueID:  binary.LittleEndian.Uint16(b[0x48:]),
+		PhysicsObjectId: binary.LittleEndian.Uint16(b[0x4a:]),
+		Field_0x4C:    binary.LittleEndian.Uint16(b[0x4c:]),
+		Handlers:        make([]EntityHandler, 0),
 	}
 
-	variablesCount := binary.LittleEndian.Uint16(b[0x4c:])
 	handlersCount := binary.LittleEndian.Uint16(b[0x4e:])
 	targetEntitiesCount := binary.LittleEndian.Uint16(b[0x50:])
 	opcodesStreamsSize := binary.LittleEndian.Uint16(b[0x52:])
 
 	b = b[:e.Size]
-
-	if false { // e.Field_0x40 != 0 {
-		return nil, errors.Errorf("Field Field_0x40 = %v", e.Field_0x40)
-	}
 
 	textStart := int(0x54 + opcodesStreamsSize + handlersCount*4 + targetEntitiesCount*2)
 	textPos := textStart
@@ -105,7 +118,7 @@ func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, e
 
 	switch e.EntityType {
 	case ENTITY_TYPE_LEVEL_DATA, ENTITY_TYPE_GLOBAL_DATA:
-		e.Variables = make([]entitycontext.Variable, variablesCount)
+		e.Variables = make([]entitycontext.Variable, e.Field_0x4C)
 		for i := range e.Variables {
 			e.Variables[i].Type = b[textPos]
 			textPos++
@@ -116,11 +129,11 @@ func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, e
 	switch e.EntityType {
 	case ENTITY_TYPE_LEVEL_DATA:
 		for i, v := range e.Variables {
-			ec.LevelData[uint16(i)+e.VariableOffset] = v
+			ec.LevelData[uint16(i)+e.PhysicsObjectId] = v
 		}
 	case ENTITY_TYPE_GLOBAL_DATA:
 		for i, v := range e.Variables {
-			ec.GlobalData[uint16(i)+e.VariableOffset] = v
+			ec.GlobalData[uint16(i)+e.PhysicsObjectId] = v
 		}
 	}
 
@@ -148,6 +161,12 @@ func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, e
 		e.Handlers = append(e.Handlers, h)
 
 		//fmt.Printf("============ handler %d ============ \n%s", id, function.Decompiled)
+	}
+
+	if e.EntityType != ENTITY_TYPE_LEVEL_DATA && e.EntityType != ENTITY_TYPE_GLOBAL_DATA {
+		if e.Field_0x40 != 0 {
+			log.Printf("%d %.2d %s %v", e.Field_0x40, e.EntityType, e.Name, e.TargetEntitiesIds)
+		}
 	}
 
 	utils.ReadBytes(&e.Matrix, b[:0x40])

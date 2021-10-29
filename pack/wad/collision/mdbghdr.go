@@ -10,9 +10,10 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
+// Convex Polyhedron
 type DbgMesh struct {
 	Vertices []mgl32.Vec4
-	Indices  []uint16
+	Indices  []uint16 // 2 indexes per edge
 }
 
 type ShapeDbgHdr struct {

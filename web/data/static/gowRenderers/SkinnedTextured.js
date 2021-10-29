@@ -71,6 +71,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
         this.umJoints.push(gl.getUniformLocation(this.program, "umJoints[" + i + "]"));
     }
     this.uUseJoints = gl.getUniformLocation(this.program, "uUseJoints");
+    this.uUseJointsRaw = gl.getUniformLocation(this.program, "uUseJointsRaw");
 
     gl.enableVertexAttribArray(this.aVertexPos);
     gl.enableVertexAttribArray(this.aVertexColor);
@@ -80,6 +81,7 @@ function grRenderChain_SkinnedTextured(ctrl) {
     gl.uniform1i(this.uUseLayerDiffuseSampler, 0);
     gl.uniform1i(this.uUseEnvmapSampler, 0);
     gl.uniform1i(this.uUseJoints, 0);
+    gl.uniform1i(this.uUseJointsRaw, 0);
     gl.uniform1i(this.uUseBlendAttribute, 0);
     gl.uniform1f(this.uBlendWeight, 0.5);
 
@@ -141,6 +143,7 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 
     if (mesh.bufferJointIds1 && hasJoints) {
         gl.uniform1i(this.uUseJoints, 1);
+        gl.uniform1i(this.uUseJointsRaw, mesh.jointsRaw);
 
         gl.enableVertexAttribArray(this.aVertexJointID1);
         gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufferJointIds1);

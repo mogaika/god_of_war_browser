@@ -1,4 +1,4 @@
-package targets
+package entity
 
 import (
 	"encoding/binary"

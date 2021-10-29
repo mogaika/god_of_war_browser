@@ -20,7 +20,7 @@ const (
 	DATATYPE_TEXTURESHEET = 9  // apply to material (changes data_id of gfx palette indexes, like gif frame)
 	DATATYPE_PARTICLES    = 10 // apply to object (particles), probably additive matricies animation?, or physical affect body affect
 	DATATYPE_UNKNOWN11    = 11 // apply to object with sound emitter (? in StonedBRK models and chest model and pushpullblock)
-	DATATYPE_UNKNOWN12    = 12 // apply to object (? in flagGrp) flag wind simulation? first mesh static, second - leather? per-vertice animation?
+	DATATYPE_UNKNOWN12    = 12 // apply to object (? in flagGrp) flag wind simulation? first mesh static, second - leather? per-vertice animation? rotation-only animation?
 	// total - 15 types
 )
 

@@ -195,8 +195,6 @@ func (o *Object) ExportGLTF(wrsrc *wad.WadNodeRsrc, gltfCacher *gltfutils.GLTFCa
 	tfoe.SkinId = uint32(len(doc.Skins))
 	doc.Skins = append(doc.Skins, gltfSkin)
 
-	doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, tfoe.JointNodes[0])
-
 	// find joints created by model (part phase)
 	for _, id := range wrsrc.Node.SubGroupNodes {
 		node := wrsrc.Wad.GetNodeById(id)
@@ -222,4 +220,18 @@ func (o *Object) ExportGLTF(wrsrc *wad.WadNodeRsrc, gltfCacher *gltfutils.GLTFCa
 	}
 
 	return tfoe, nil
+}
+
+func (o *Object) ExportGLTFDefault(wrsrc *wad.WadNodeRsrc) (*gltf.Document, error) {
+	gltfCacher := gltfutils.NewCacher()
+	doc := gltfCacher.Doc
+
+	tfoe, err := o.ExportGLTF(wrsrc, gltfCacher)
+	if err != nil {
+		return nil, err
+	}
+
+	doc.Scenes[0].Nodes = append(doc.Scenes[0].Nodes, tfoe.JointNodes[0])
+
+	return doc, nil
 }

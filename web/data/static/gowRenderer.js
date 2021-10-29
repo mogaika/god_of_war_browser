@@ -13,6 +13,7 @@ function grMesh(vertexArray, indexArray, primitive) {
     this.layer = undefined;
     this.mask = 0;
     this.meta = {};
+    this.jointsRaw = false;
 
     // construct array of unique indexes
     this.usedIndexes = [];
@@ -109,6 +110,10 @@ grMesh.prototype.setJointIds = function(jointMapping, jointIds1, jointIds2, weig
         gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferWeights);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(weights), gl.STATIC_DRAW);
     }
+}
+
+grMesh.prototype.useJointsRaw = function() {
+    this.jointsRaw = true;
 }
 
 grMesh.prototype.setps3static = function(yes) {
@@ -879,7 +884,8 @@ grController.prototype.createShader = function(text, isFragment) {
     gl.shaderSource(shader, text);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.warn(text, gl.getShaderInfoLog(shader));
+        console.error(gl.getShaderInfoLog(shader));
+        console.warn(text);
         return;
     }
     return shader;

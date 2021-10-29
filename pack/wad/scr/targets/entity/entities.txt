@@ -7,6 +7,8 @@ Example: message show on first chest
 #1 = 5
 #4 = show message
 #6 = 1
+on death entry sensor (for enemies)
+#6 = int 3 // zone id
 
 === Type 1 - Trigger Exit Sensor
 
@@ -15,6 +17,10 @@ Example: message show on first chest
 === Type 3 - Destruction Sensor
 
 === Type 4 - EventSensor
+#0 = int event id
+#3 = bool check some value of event
+#7 = int get some value
+#9 = 1
 
 === Type 5 - Animator0
 Example: Play door open anim
@@ -26,13 +32,23 @@ Example: Play door open anim
 === Type 7 - Vis
 PlayerStartZone-VisIdleOn
 #13 = set idle
-PlayerStartZone-VisIdleOff
-#11 = 13 ?
-#13 = remove idle
-PlayerStartZone-VisCheck
-#11 = 13.100
-#13 = CheckPoint 
-
+door VisOff after movie
+#0 = 2
+#3 = 2
+VisOffInit at start of level
+#0 = 2
+#3 = 2
+#16 = 2
+VisOnAfter some event
+#0 = 1
+#3 = 1
+#16 = 1
+VisOff after some time
+#11 = float 9.5
+#4 = 2
+Do something after some time (should be triggered by something)
+#11 = float time in seconds
+#13 = script which doing something
 
 
 === Type 8 - EventTransmitter
@@ -50,8 +66,9 @@ DeathZone1-pCube2-EventTransmitter1
 
 === Type 9 - Start
 Example: Start
-#0 = 'Hero'
+#0 = string 'Hero'
 #1 = 1
+#2 = string sometimes "IdleCam"
 Example: WarpFromAt
 #0 = 'Athn07b'
 #1 = 'entryCam'
@@ -62,6 +79,7 @@ Example: WarpFromOlymp2
 
 
 === Type 10 - Spawn Enemy ?
+
 
 
 === Type 11 - Creator
@@ -112,7 +130,7 @@ EVT_MpegDone = 501
 EVT_Break_or_damage = 1009
 EVT_Reset_usedWhenRestoreChestAndSoOn = 1015
 EVT_FallAnim_or_Die = 1019
-EVT_ChestOpened? = 1023
+EVT_ChestOrDoorOpened? = 1023
 EVT_UseWorld_likeR2 = 1024
 1025
 1029

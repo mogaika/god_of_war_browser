@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/pkg/errors"
 
 	"github.com/mogaika/god_of_war_browser/config"
-
-	"github.com/go-gl/mathgl/mgl32"
-
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )

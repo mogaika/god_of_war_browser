@@ -78,7 +78,8 @@ function grHelper_CubeLines(x, y, z, size_x, size_y, size_z, diaglines = true, j
     ];
 
     let mesh = new grMesh(vertexData, indexData, gl.LINES);
-    mesh.setJointIds([0], Array(vertexData.length / 3).fill(jointid));
+    mesh.useJointsRaw();
+    mesh.setJointIds([jointid], Array(vertexData.length / 3).fill(0));
     return mesh;
 }
 
@@ -88,7 +89,7 @@ function grHelper_Pivot(size) {
     return mdl;
 }
 
-function grHelper_SphereLines(x, y, z, radius, latitudeBands, longitudeBands) {
+function grHelper_SphereLines(x, y, z, radius, latitudeBands, longitudeBands, jointid = 0) {
     let vertexData = [];
     for (let latNumber = 0; latNumber <= latitudeBands; latNumber++) {
         let theta = latNumber * Math.PI / latitudeBands;
@@ -122,6 +123,7 @@ function grHelper_SphereLines(x, y, z, radius, latitudeBands, longitudeBands) {
     }
 
     let mesh = new grMesh(vertexData, indexData, gl.LINES);
-    mesh.setJointIds([0], Array(vertexData.length / 3).fill(0));
+    mesh.useJointsRaw();
+    mesh.setJointIds([jointid], Array(vertexData.length / 3).fill(0));
     return mesh;
 }

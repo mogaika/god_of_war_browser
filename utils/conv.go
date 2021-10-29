@@ -91,6 +91,14 @@ func ReadBytes(out interface{}, raw []byte) {
 	}
 }
 
+func AsBytes(data interface{}) []byte {
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.LittleEndian, data); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
 func Read40bitUint(o binary.ByteOrder, bin []byte) uint64 {
 	var buf [8]byte
 	if o == binary.LittleEndian {
