@@ -422,7 +422,7 @@ func (s *Script) Marshal(fm *FlpMarshaler) []byte {
 	for opOffset, labelName := range labelFills {
 		labelOffset, exists := labelOffsets[labelName]
 		if !exists {
-			log.Panicf("unknown label %v", labelName)
+			log.Panicf("unknown label %q", labelName)
 		}
 
 		opOffAndJmpShift := binary.LittleEndian.Uint16(result[opOffset:])

@@ -40,7 +40,7 @@ func parseCheck(rootfs vfs.Directory) {
 				}
 
 				if strings.HasPrefix(node.Tag.Name, "ESC_") {
-					//log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
+					log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
 					_, _, err := wad.GetInstanceFromNode(node.Id)
 					if err != nil {
 						log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)

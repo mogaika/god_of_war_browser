@@ -234,8 +234,8 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         summaryLoadWadGameObject(data);
                         break;
                     case 0x00010004: // script
-                        summaryLoadWadScript(data);
-                        needMarshalDump = true;
+                        summaryLoadWadScript(data, wad, tagid);
+                        //needMarshalDump = true;
                         needHexDump = true;
                         break;
                     case 0x0000000c: // gfx pal
@@ -1468,12 +1468,25 @@ function summaryLoadWadGeomShape(data) {
     gr_instance.requestRedraw();
 }
 
-function summaryLoadWadScript(data) {
+function summaryLoadWadScript(data, wad, tagid) {
     gr_instance.cleanup();
 
     dataSummary.append($("<h3>").append("Scirpt " + data.TargetName));
 
     if (data.TargetName == 'SCR_Entities') {
+        let asJsonButton = $('<button>').text("Download as json").click(function() {
+            window.open(getActionLinkForWadNode(wad, tagid, 'dataasjson'), '_blank');
+        });
+        dataSummary.append($('<p>').append(asJsonButton));
+
+        let uploadFromJsonButton = $('<button>').text("Upload from json");
+        uploadFromJsonButton.attr("href", getActionLinkForWadNode(wad, tagid, 'datafromjson'));
+        uploadFromJsonButton.click(function() {
+            console.log($(this).attr('href'));
+            uploadAjaxHandler.call(this);
+        });
+        dataSummary.append($('<p>').append(uploadFromJsonButton));
+
         for (let i in data.Data.Array) {
             let e = data.Data.Array[i];
 

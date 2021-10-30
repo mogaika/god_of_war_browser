@@ -39,20 +39,29 @@ func WriteJsonFile(w http.ResponseWriter, v interface{}, fileName string) {
 	}
 }
 
-func ReadJsonFile(r *http.Request, formFileKey string, v interface{}) error {
+func ReadFile(r *http.Request, formFileKey string) ([]byte, error) {
 	if strings.ToUpper(r.Method) != "POST" {
-		return errors.Errorf("Invalid http method %q", r.Method)
+		return nil, errors.Errorf("Invalid http method %q", r.Method)
 	}
 
 	f, _, err := r.FormFile(formFileKey)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get file")
+		return nil, errors.Wrapf(err, "Failed to get file")
 	}
 	defer f.Close()
 
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to read")
+		return nil, errors.Wrapf(err, "Failed to read faile")
+	}
+
+	return data, err
+}
+
+func ReadJsonFile(r *http.Request, formFileKey string, v interface{}) error {
+	data, err := ReadFile(r, formFileKey)
+	if err != nil {
+		return err
 	}
 
 	if err := json.Unmarshal(data, v); err != nil {

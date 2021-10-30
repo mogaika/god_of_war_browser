@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -34,11 +35,11 @@ func ScopeToString(scope uint16) string {
 }
 
 var scopeInernalVariables = map[uint16]entitycontext.Variable{
-	44: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "PlayerHealthShardsCount"},
-	45: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "PlayerMagicShardsCount"},
+	44: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "HealthShardsCount"},
+	45: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "MagicShardsCount"},
 	48: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "DifficultyLevel"},
 	50: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "BladesLevel"},
-	57: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "PlayerSirenPiecesCount"},
+	57: entitycontext.Variable{Type: VAR_TYPE_INT, Name: "SirenPiecesCount"},
 }
 
 func GetEscFunc(scope, fid uint16) string {
@@ -134,6 +135,10 @@ func GetEscFunc(scope, fid uint16) string {
 func argsParseScopeFunc(b []byte) (scope, fid uint16) {
 	args := binary.LittleEndian.Uint16(b)
 	return args >> 12, args & 0xfff
+}
+
+func argsCompileScopeFunc(scope, fid uint16) uint16 {
+	return (scope << 12) | fid
 }
 
 func (eh *EntityHandler) parseOpcodes(b []byte, pointer int, ec *entitycontext.EntityLevelContext) {
@@ -339,4 +344,115 @@ func (eh *EntityHandler) parseOpcodes(b []byte, pointer int, ec *entitycontext.E
 
 	eh.Decompiled = scriptlang.RenderScriptLines(eh.Data)
 
+}
+
+func (s *EntityHandler) Compile(ec *entitycontext.EntityLevelContext) ([]byte, map[int]string) {
+	labelOffsets := make(map[string]int16)
+	labelFills := make(map[int]string)
+	stringsFills := make(map[int]string)
+
+	var buf bytes.Buffer
+	for _, instruction := range s.Data {
+		switch instruction.(type) {
+		case *scriptlang.Label:
+			label := instruction.(*scriptlang.Label)
+			labelOffsets[label.Name] = int16(buf.Len())
+		case *scriptlang.Opcode:
+			op := instruction.(*scriptlang.Opcode)
+			opOffset := int16(buf.Len())
+
+			writeU16 := func(v uint16) {
+				var tmp [2]byte
+				binary.LittleEndian.PutUint16(tmp[:], v)
+				buf.Write(tmp[:])
+			}
+			writeU32 := func(v uint32) {
+				var tmp [4]byte
+				binary.LittleEndian.PutUint32(tmp[:], v)
+				buf.Write(tmp[:])
+			}
+			writeLabelOff := func(labelName string, jmpOpShift int16) {
+				labelFills[buf.Len()] = labelName
+				writeU16(uint16(opOffset + jmpOpShift))
+			}
+
+			buf.WriteByte(op.Code)
+			switch op.Code {
+			case 0x00:
+				var v float32
+				switch i := op.Parameters[0].(type) {
+				case float32:
+					v = i
+				case int32:
+					v = float32(i)
+				default:
+					log.Panicf("Failed to parse type %T as float", op.Parameters[0])
+				}
+				writeU32(math.Float32bits(v))
+			case 0x01:
+				writeU32(uint32(op.Parameters[0].(int32)))
+			case 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09:
+				scope := uint16(op.Parameters[0].(int32))
+
+				var fid uint16
+				switch v := op.Parameters[1].(type) {
+				case int32:
+					fid = uint16(v)
+				case string:
+					var m map[uint16]entitycontext.Variable
+					switch scope {
+					case SCOPE_LEVELDATA:
+						m = ec.LevelData
+					case SCOPE_GLOBALDATA:
+						m = ec.GlobalData
+					case SCOPE_INTERNAL:
+						m = scopeInernalVariables
+					default:
+						log.Panicf("Unknown scope %q", v)
+					}
+
+					ok := false
+					for id, name := range m {
+						if name.Name == v {
+							fid = id
+							ok = true
+							break
+						}
+					}
+					if !ok {
+						log.Panicf("Wasn't able to find variable %q in scope %q", v, ScopeToString(scope))
+					}
+				}
+				writeU16(argsCompileScopeFunc(scope, fid))
+			case 0x0a, 0x0b, 0x0c, 0x0d:
+				writeU16(argsCompileScopeFunc(
+					uint16(op.Parameters[0].(int32)), uint16(op.Parameters[1].(int32))))
+			case 0x0e:
+				stringsFills[buf.Len()] = op.Parameters[0].(string)
+				writeU16(0)
+			case 0x0f:
+				writeLabelOff(op.Parameters[0].(*scriptlang.Label).Name, 3)
+			case 0x10:
+				writeLabelOff(op.Parameters[0].(*scriptlang.Label).Name, 3)
+			default:
+				if op.Code > 0x3a {
+					log.Panicf("Unknown opcode 0x%x", op.Code)
+				}
+			}
+		}
+	}
+
+	result := buf.Bytes()
+	// insert label offsets
+	for opOffset, labelName := range labelFills {
+		labelOffset, exists := labelOffsets[labelName]
+		if !exists {
+			log.Panicf("unknown label %q", labelName)
+		}
+
+		opOffAndJmpShift := binary.LittleEndian.Uint16(result[opOffset:])
+		binary.LittleEndian.PutUint16(result[opOffset:], uint16(labelOffset-int16(opOffAndJmpShift)))
+	}
+
+	return result, stringsFills
 }

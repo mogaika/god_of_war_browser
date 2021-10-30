@@ -4,6 +4,10 @@ import "github.com/mogaika/god_of_war_browser/pack/wad"
 
 type ScriptLoader func([]byte, *wad.WadNodeRsrc) (interface{}, error)
 
+type ScriptContentJsonLoader interface {
+	FromJSON(wrsrc *wad.WadNodeRsrc, data []byte) ([]byte, error)
+}
+
 var gScriptLoaders = make(map[string]ScriptLoader, 0)
 
 func AddScriptLoader(name string, st ScriptLoader) {

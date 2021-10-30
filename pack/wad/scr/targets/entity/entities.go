@@ -1,12 +1,15 @@
 package entity
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/pkg/errors"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/scr/entitycontext"
@@ -57,7 +60,7 @@ type Entity struct {
 	Matrix mgl32.Mat4
 
 	Field_0x40      uint16 // in {0, 1, 2, 3, 4, 8, 16, 40}
-	Size            uint16
+	Field_0x42      uint16 // not used
 	EntityType      EntityType
 	EntityUniqueID  uint16
 	PhysicsObjectId uint16
@@ -78,7 +81,7 @@ type Entity struct {
 	// 2: WarpFrom, MusicGroupStart, Messages
 	// 3: Destruction, Kills, Attack
 	// 4: Player/enemy death volume
-	Field_0x4C      uint16
+	Field_0x4C        uint16
 	TargetEntitiesIds []uint16
 	Name              string
 	Variables         []entitycontext.Variable
@@ -89,32 +92,38 @@ type Entity struct {
 	DebugReferencedByNames   []string
 }
 
-func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, error) {
-	e := &Entity{
-		Field_0x40:      binary.LittleEndian.Uint16(b[0x40:]),
-		Size:            binary.LittleEndian.Uint16(b[0x44:]),
-		EntityType:      EntityType(binary.LittleEndian.Uint16(b[0x46:])),
-		EntityUniqueID:  binary.LittleEndian.Uint16(b[0x48:]),
-		PhysicsObjectId: binary.LittleEndian.Uint16(b[0x4a:]),
-		Field_0x4C:    binary.LittleEndian.Uint16(b[0x4c:]),
-		Handlers:        make([]EntityHandler, 0),
-	}
+func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, int, error) {
+	e := &Entity{Handlers: make([]EntityHandler, 0)}
 
+	utils.ReadBytes(&e.Matrix, b[0x00:0x40])
+	e.Field_0x40 = binary.LittleEndian.Uint16(b[0x40:])
+	e.Field_0x42 = binary.LittleEndian.Uint16(b[0x42:]) // 0x42 - unused
+	b = b[:binary.LittleEndian.Uint16(b[0x44:])]
+	e.EntityType = EntityType(binary.LittleEndian.Uint16(b[0x46:]))
+	e.EntityUniqueID = binary.LittleEndian.Uint16(b[0x48:])
+	e.PhysicsObjectId = binary.LittleEndian.Uint16(b[0x4a:])
+	e.Field_0x4C = binary.LittleEndian.Uint16(b[0x4c:])
 	handlersCount := binary.LittleEndian.Uint16(b[0x4e:])
 	targetEntitiesCount := binary.LittleEndian.Uint16(b[0x50:])
 	opcodesStreamsSize := binary.LittleEndian.Uint16(b[0x52:])
 
-	b = b[:e.Size]
+	const handlersDescrStart = uint16(0x54)
+	targetEntitiesStart := handlersDescrStart + handlersCount*4
+	opcodesStreamStart := int(targetEntitiesStart + targetEntitiesCount*2 + 2)
+	textStart := int(handlersDescrStart + handlersCount*4 + targetEntitiesCount*2 + opcodesStreamsSize)
 
-	textStart := int(0x54 + opcodesStreamsSize + handlersCount*4 + targetEntitiesCount*2)
 	textPos := textStart
-
 	readEntityString := func() string {
 		result := utils.BytesToString(b[textPos:])
 		textPos += utils.BytesStringLength(b[textPos:]) + 1
 		return result
 	}
 	e.Name = readEntityString()
+
+	if v := binary.LittleEndian.Uint16(b[targetEntitiesStart+targetEntitiesCount*2:]); v != 0 {
+		// only happens in PAND05A.WAD:ESC_SNDGrpLeverlPull with value 0x01
+		log.Printf("targetEntitiesStart+targetEntitiesCount*2 = 0x%x %q", v, e.Name)
+	}
 
 	switch e.EntityType {
 	case ENTITY_TYPE_LEVEL_DATA, ENTITY_TYPE_GLOBAL_DATA:
@@ -137,40 +146,38 @@ func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, e
 		}
 	}
 
-	opcodesDescrStart := uint16(0x54)
-
 	e.TargetEntitiesIds = make([]uint16, targetEntitiesCount)
 	e.DebugTargetEntitiesNames = make([]string, targetEntitiesCount)
 	for i := range e.TargetEntitiesIds {
-		id := binary.LittleEndian.Uint16(b[opcodesDescrStart+handlersCount*4+uint16(i*2):])
+		id := binary.LittleEndian.Uint16(b[targetEntitiesStart+uint16(i*2):])
 		e.TargetEntitiesIds[i] = id
 		e.DebugTargetEntitiesNames[i] = ec.EntityIdNameMap[id]
 	}
 
-	opcodesStreamStart := int(opcodesDescrStart + handlersCount*4 + targetEntitiesCount*2 + 2)
-
-	opcodesStream := b[opcodesStreamStart:]
-
 	for i := uint16(0); i < handlersCount; i++ {
-		start := binary.LittleEndian.Uint16(b[opcodesDescrStart+i*4+2:])
-
-		id := binary.LittleEndian.Uint16(b[opcodesDescrStart+i*4:])
+		id := binary.LittleEndian.Uint16(b[handlersDescrStart+i*4:])
+		start := binary.LittleEndian.Uint16(b[handlersDescrStart+i*4+2:])
 
 		h := EntityHandler{Id: id}
-		h.parseOpcodes(opcodesStream, int(start), ec)
+		h.parseOpcodes(b[opcodesStreamStart:], int(start), ec)
 		e.Handlers = append(e.Handlers, h)
-
-		//fmt.Printf("============ handler %d ============ \n%s", id, function.Decompiled)
 	}
 
-	if e.EntityType != ENTITY_TYPE_LEVEL_DATA && e.EntityType != ENTITY_TYPE_GLOBAL_DATA {
-		if e.Field_0x40 != 0 {
-			log.Printf("%d %.2d %s %v", e.Field_0x40, e.EntityType, e.Name, e.TargetEntitiesIds)
+	/*
+		if e.EntityType != ENTITY_TYPE_LEVEL_DATA && e.EntityType != ENTITY_TYPE_GLOBAL_DATA {
+			if e.Field_0x40 != 0 {
+				log.Printf("%d %.2d %s %v", e.Field_0x40, e.EntityType, e.Name, e.TargetEntitiesIds)
+			}
 		}
+	*/
+
+	cmpld := e.marshalBuffer(ec)
+	if bytes.Compare(b, cmpld) != 0 {
+		utils.LogDump(b)
+		utils.LogDump(cmpld)
 	}
 
-	utils.ReadBytes(&e.Matrix, b[:0x40])
-	return e, nil
+	return e, len(b), nil
 }
 
 var globlock sync.Mutex
@@ -187,11 +194,11 @@ func SCR_Entities(b []byte, wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	ec := wrsrc.Wad.GetEntityContext()
 
 	for start := 0; start < len(b); {
-		e, err := EntityFromBytes(b[start:], ec)
+		e, size, err := EntityFromBytes(b[start:], ec)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse entity %d: %v", len(entities.Array), err)
 		}
-		start += int(e.Size)
+		start += size
 
 		/*fmt.Fprintf(efname, "t%.2d id%.3d %q hc%d dc%d\n",
 		e.EntityType, e.EntityUniqueID, e.Name, len(e.Handlers), len(e.TargetEntitiesIds))*/
@@ -215,6 +222,21 @@ func SCR_Entities(b []byte, wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	}
 
 	return entities, nil
+}
+
+func (ents *Entities) FromJSON(wrsrc *wad.WadNodeRsrc, data []byte) ([]byte, error) {
+	ec := wrsrc.Wad.GetEntityContext()
+
+	if err := json.Unmarshal(data, ents); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal")
+	}
+
+	var buf bytes.Buffer
+	for _, e := range ents.Array {
+		buf.Write(e.marshalBuffer(ec))
+	}
+
+	return buf.Bytes(), nil
 }
 
 func init() {

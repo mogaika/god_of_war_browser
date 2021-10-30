@@ -97,11 +97,12 @@ type Vector struct {
 type Mesh struct {
 	Parts   []Part
 	Vectors []Vector
+	// last vector used in mdl
 
 	Unk0c           uint32
 	Unk10           uint32
 	Unk14           uint32
-	Flags0x20       uint32
+	Flags0x20       uint32 // use last and first vectors for some rendering process
 	NameOfRootJoint string
 	Unk28           uint32
 	Unk2c           uint32
