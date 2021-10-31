@@ -69,7 +69,7 @@ func NewFromData(bs *utils.BufStack, wrtr io.Writer) (c *Collision, err error) {
 func (c *Collision) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	if ball, ok := c.Shape.(*ShapeBallHull); ok {
 		nextNode := wrsrc.Wad.Nodes[wrsrc.Node.Id+1]
-		if strings.Split(nextNode.Tag.Name, "_")[1] == strings.Split(wrsrc.Tag.Name, "_")[1] &&
+		if strings.ContainsRune(nextNode.Tag.Name, '_') && strings.Split(nextNode.Tag.Name, "_")[1] == strings.Split(wrsrc.Tag.Name, "_")[1] &&
 			utils.BytesToString(nextNode.Tag.Data[4:12]) == "mCDbgHdr" {
 			var err error
 			ball.DbgMesh, err = NewDbgHdr(utils.NewBufStack("mdbgchild", nextNode.Tag.Data))

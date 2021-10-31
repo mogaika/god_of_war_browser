@@ -20,12 +20,13 @@ func NewFromData(buf []byte) (*Chunk, error) {
 }
 
 type Ajax struct {
+	Name      string
 	Instances []*inst.Ajax
 	Objects   map[string]interface{}
 }
 
 func (cxt *Chunk) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
-	ajax := Ajax{}
+	ajax := Ajax{Name: wrsrc.Name()}
 
 	for _, iSubNode := range wrsrc.Node.SubGroupNodes {
 		instance, _, err := wrsrc.Wad.GetInstanceFromNode(iSubNode)

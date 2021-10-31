@@ -128,7 +128,8 @@ func (fe *FbxExporter) AddMeshPartWithSkinning(o *Object, part *file_mesh.FbxExp
 			}
 
 			transform := utils.FloatArray32to64(o.Joints[jointID].BindToJointMat[:])
-			transformLink := utils.FloatArray32to64(o.Joints[jointID].BindWorldJoint[:])
+			// transformLink := utils.FloatArray32to64(o.Joints[jointID].BindWorldJoint[:])
+			transformLink := utils.FloatArray32to64(o.Joints[jointID].BindToJointMat[:])
 
 			subDeformerId := f.GenerateId()
 			subDeformer := bfbx73.Deformer(subDeformerId, "\x00\x01SubDeformer", "Cluster")
@@ -206,7 +207,7 @@ func (o *Object) ExportFbx(wrsrc *wad.WadNodeRsrc, f *fbxbuilder.FBXBuilder) *Fb
 
 			bindPose.AddNodes(bfbx73.PoseNode().AddNodes(
 				bfbx73.Node(eJoint.FbxLimbNodeId),
-				bfbx73.Matrix(utils.FloatArray32to64(objJoint.BindWorldJoint[:])),
+				bfbx73.Matrix(utils.FloatArray32to64(objJoint.ParentToJoint[:])),
 			))
 
 			if objJoint.Parent == JOINT_CHILD_NONE {

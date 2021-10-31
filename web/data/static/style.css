@@ -249,7 +249,7 @@ a.button-dump {
     right: -7px;
     width: 16px;
     height: 16px;
-    background-image: url('dump-16.png');
+    background-image: url('images/dump-16.png');
     cursor: pointer;
 }
 
@@ -260,7 +260,7 @@ div.button-upload {
     right: 10px;
     width: 16px;
     height: 16px;
-    background-image: url('upload-16.png');
+    background-image: url('images/upload-16.png');
     cursor: pointer;
 }
 

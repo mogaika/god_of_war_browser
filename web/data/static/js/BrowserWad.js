@@ -180,11 +180,14 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                             let pos = data.Position;
                             let color = data.Color;
 
-                            let lightName = new grTextMesh("\x0f" + tag.Name, pos[0], pos[1], pos[2], true);
+                            let lightName = new RenderTextMesh("\x0f" + tag.Name, true);
                             lightName.setColor(color[0], color[1], color[2]);
-                            lightName.setOffset(-0.5, -0.5);
+                            lightName.setOffset(0, -0.5);
                             lightName.setMaskBit(5);
-                            gr_instance.texts.push(lightName);
+
+                            let node = new ObjectTreeNodeModel("lightName", lightName);
+                            node.setLocalMatrix(mat4.fromTranslation(mat4.create(), pos));
+                            gr_instance.addNode(node);
                         } else {
                             needMarshalDump = true;
                             needHexDump = true;
@@ -204,10 +207,8 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                             gr_instance.cleanup();
                             set3dVisible(true);
                         }
-                        let mdl = new grModel();
-                        loadCollisionFromAjax(mdl, data, wad, tagid);
-
-                        gr_instance.models.push(mdl);
+                        let node = loadCollisionFromAjax(data, wad, tagid);
+                        gr_instance.addNode(node);
                         gr_instance.requestRedraw();
                         break;
                     case 0x00000003: // anim
@@ -258,7 +259,7 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
             } else {
                 needHexDump = true;
             }
-            console.log('wad ' + wad + ' file (' + tag.Name + ')' + tag.Id + ' loaded. serverid:' + resp.ServerId);
+            // console.log('wad ' + wad + ' file (' + tag.Name + ')' + tag.Id + ' loaded. serverid:' + resp.ServerId);
         }
 
         if (needMarshalDump) {
@@ -327,7 +328,7 @@ function parseMeshPacket(object, packet, instanceIndex) {
         }
     }
 
-    let mesh = new grMesh(m_vertexes, m_indexes);
+    let mesh = new RenderMesh(m_vertexes, m_indexes);
     mesh.setUseBindToJoin(object.UseInvertedMatrix);
 
     if (packet.Blend.R && packet.Blend.R.length) {
@@ -466,10 +467,7 @@ function summaryLoadWadMesh(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    let mdl = new grModel();
-
-    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+    let mdl = new RenderModel();
 
     let dumplinkobj = getActionLinkForWadNode(wad, nodeid, 'obj');
     dataSummary.append($('<a class="center">').attr('href', dumplinkobj).append('Download .obj'));
@@ -480,7 +478,7 @@ function summaryLoadWadMesh(data, wad, nodeid) {
     let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
 
-    gr_instance.models.push(mdl);
+    gr_instance.addNode(new ObjectTreeNodeModel("mesh", mdl));
     gr_instance.requestRedraw();
 }
 
@@ -515,7 +513,7 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
         m_indexes[i] -= streamStart;
     }
 
-    let mesh = new grMesh(m_vertexes, m_indexes);
+    let mesh = new RenderMesh(m_vertexes, m_indexes);
     if (originalMeshObject) {
         mesh.setUseBindToJoin(originalMeshObject.UseInvertedMatrix);
     }
@@ -637,7 +635,7 @@ function summaryLoadWadGmdl(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    let mdl = new grModel();
+    let mdl = new RenderModel();
 
     let table = loadGmdlFromAjax(mdl, data, undefined, true);
     dataSummary.append(table);
@@ -646,20 +644,22 @@ function summaryLoadWadGmdl(data, wad, nodeid) {
     gr_instance.requestRedraw();
 }
 
-function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
+function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
+    let model = new RenderModel();
+
     let tables = [];
     if (data.Meshes && data.Meshes.length) {
         for (let mesh of data.Meshes) {
             if (!!data.GMDL) {
-                tables.push(loadGmdlFromAjax(mdl, data.GMDL, mesh, needTable));
+                tables.push(loadGmdlFromAjax(model, data.GMDL, mesh, needTable));
             } else {
-                tables.push(loadMeshFromAjax(mdl, mesh, needTable));
+                tables.push(loadMeshFromAjax(model, mesh, needTable));
             }
         }
     }
 
     for (let iMaterial in data.Materials) {
-        let material = new grMaterial();
+        let material = new RenderMaterial();
 
         let textures = data.Materials[iMaterial].Textures;
         let rawMat = data.Materials[iMaterial].Mat;
@@ -667,7 +667,7 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
 
         for (let iLayer in rawMat.Layers) {
             let rawLayer = rawMat.Layers[iLayer];
-            let layer = new grMaterialLayer();
+            let layer = new RenderMaterialLayer();
 
             layer.setColor(rawLayer.BlendColor);
             if (rawLayer.ParsedFlags.RenderingSubstract === true) {
@@ -688,14 +688,14 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
                 let imgs = textures[iLayer].Images;
                 let txrs = [];
                 for (let iImg in imgs) {
-                    txrs.push(new grTexture('data:image/png;base64,' + imgs[iImg].Image));
+                    txrs.push(new RenderTexture('data:image/png;base64,' + imgs[iImg].Image));
                 }
                 layer.setTextures(txrs);
                 layer.setHasAlphaAttribute(textures[iLayer].HaveTransparent);
             }
             material.addLayer(layer);
         }
-        mdl.addMaterial(material);
+        model.addMaterial(material);
 
         let anim = data.Materials[iMaterial].Animations;
         if (anim && anim.Groups && anim.Groups.length) {
@@ -706,12 +706,12 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
                     for (let dt in anim.DataTypes) {
                         switch (anim.DataTypes[dt].TypeId) {
                             case 8:
-                                let animInstance = new gaMatertialLayerAnimation(anim, act, dt, material);
+                                let animInstance = new AnimationMatertialLayer(anim, act, dt, material);
                                 animInstance.enable();
                                 ga_instance.addAnimation(animInstance);
                                 break;
                             case 9:
-                                let animSheetInstance = new gaMatertialSheetAnimation(anim, act, dt, material);
+                                let animSheetInstance = new AnimationMaterialSheet(anim, act, dt, material);
                                 ga_instance.addAnimation(animSheetInstance);
                                 break;
                         }
@@ -721,27 +721,24 @@ function loadMdlFromAjax(mdl, data, parseScripts = false, needTable = false) {
         }
     }
 
-    if (parseScripts) {
-        for (let i in data.Scripts) {
-            let scr = data.Scripts[i];
-            switch (scr.TargetName) {
+    if (parseScripts && data.Scripts) {
+        for (const script of data.Scripts) {
+            switch (script.TargetName) {
                 case "SCR_Sky":
-                    mdl.setType("sky");
+                    model.setType("sky");
                     break;
                 default:
-                    console.warn("Unknown SCR target: " + scr.TargetName, data, mdl, scr);
+                    console.warn("Unknown SCR target: " + script.TargetName, data, model, script);
                     break;
             }
         }
     }
-    return tables;
+    return [model, tables];
 }
 
 function summaryLoadWadMdl(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
-
-    let mdl = new grModel();
 
     let table = $('<table>');
     if (data.Raw) {
@@ -760,18 +757,46 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     }
     dataSummary.append(table);
 
-    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
-
     let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
     dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
 
-    let mdlTables = loadMdlFromAjax(mdl, data, false, true);
+    console.log(data);
+    for (const mesh of data.Meshes) {
+        for (const i in mesh.Vectors) {
+            const vec = mesh.Vectors[i];
+            console.log(i, vec);
+            if (vec.Unk00 === 65494) {
+                continue;   
+            }
+            let pos = vec.Value;
+            pos = [
+                pos[1], pos[2], pos[3],
+                //pos[1], pos[0], pos[3],
+            ]
+            let mat = mat4.fromTranslation(mat4.create(), pos);
+            
+            const jointText = new RenderTextMesh(`${i}`, true, 10);
+            jointText.setOffset(-0.5, -0.5);
+            if (vec.Unk00 === 65535) {
+                jointText.setColor(1.0, 0.0, 1.0, 0.3);
+            } else {
+                jointText.setColor(0.0, 1.0, 1.0, 0.3);
+            }
+            let textNode = new ObjectTreeNodeModel("vectorstrange", jointText);
+            textNode.setLocalMatrix(mat);
+            gr_instance.addNode(textNode);
+        }
+    }
+
+    let [model, mdlTables] = loadMdlFromAjax(data, false, true);
     for (let mdlTable of mdlTables) {
         dataSummary.append(mdlTable);
     }
 
-    gr_instance.models.push(mdl);
+    let node = new ObjectTreeNodeModel("model", model);
+    gr_instance.addNode(node);
+
+    // gr_instance.models.push(mdl);
     gr_instance.requestRedraw();
 }
 
@@ -921,42 +946,44 @@ function summaryLoadWadMat(data) {
     dataSummary.append(table);
 }
 
-function loadCollisionFromAjax(mdl, data, wad, nodeid, matrices = undefined) {
-    const adddebugmaterial = function(r, g, b, a) {
-        let renderMaterial = new grMaterial();
-        let layer = new grMaterialLayer();
+function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
+    let collisionNode = new ObjectTreeNode("collision");
+
+    const adddebugmaterial = function(model, r, g, b, a) {
+        let renderMaterial = new RenderMaterial();
+        let layer = new RenderMaterialLayer();
         renderMaterial.setColor([r, g, b, a]);
         layer.setColor([1, 1, 1, 1]);
         layer.setMethodAdditive();
         renderMaterial.addLayer(layer);
-        mdl.addMaterial(renderMaterial);
+        model.addMaterial(renderMaterial);
     }
 
-    const loaddebug = function(mdMesh, jointId, uselastmaterial = false) {
+    const loaddebug = function(mdMesh, jointId) {
         let vertices = [];
         for (let vec of mdMesh.Vertices) {
             vertices.push(vec[0]);
             vertices.push(vec[1]);
             vertices.push(vec[2]);
         }
-        let indices = mdMesh.Indices;
-        let mesh = new grMesh(vertices, indices, gl.LINES);
+        let mesh = new RenderMesh(vertices, mdMesh.Indices, gl.LINES);
         mesh.setMaskBit(8);
-        mesh.setJointIds([jointId], Array(vertices.length / 3).fill(0));
-        if (uselastmaterial) {
-            mesh.setMaterialID(mdl.materials.length - 1);
+        mesh.setMaterialID(0);
+        let model = new RenderModel(collisionNode)
+        model.addMesh(mesh);
+        adddebugmaterial(model, 0.7, 0, 0.7, 0.3);
+        
+        let node = new ObjectTreeNodeModel(`mdbg`, model);
+        if (parentObject) {
+            parentObject.joints[jointId].addNode(node);
+        } else {
+            collisionNode.addNode(node);
         }
-        mdl.addMesh(mesh);
     };
 
     if (data.ShapeName == "BallHull") {
         let ball = data.Shape;
 
-        if (ball.DbgMesh) {
-            adddebugmaterial(0.7, 0, 0.7, 0.3);
-        }
-
-        console.log(data.Shape);
         for (let iMesh in ball.Meshes) {
             let mesh = ball.Meshes[iMesh];
             for (let vec of mesh.Vertices) {
@@ -971,27 +998,29 @@ function loadCollisionFromAjax(mdl, data, wad, nodeid, matrices = undefined) {
                     vec[i] = vec[i].toFixed(3);
                 }
             }
-            // console.table(mesh.Vertices);
-            // console.table(ball.DbgMesh.Meshes[iMesh].Vertices);
-            // console.table(ball.DbgMesh.Meshes[iMesh].Indices);
 
             if (ball.DbgMesh) {
-                loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint, true);
+                loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint);
             }
         }
 
         for (let iBall in ball.Balls) {
             let b = ball.Balls[iBall];
-            console.log(b, "ball");
-            //console.table(b.Coord);
 
-            let jointID = matrices ? b.Joint : 0;
-            let vec = [b.Coord[0], b.Coord[1], b.Coord[2]];
-            let size = b.Coord[3];
-            let mesh = grHelper_SphereLines(vec[0], vec[1], vec[2], size, 7, 7, jointID);
+            const vec = [b.Coord[0], b.Coord[1], b.Coord[2]];
+            const size = b.Coord[3];
 
-            mdl.addMesh(mesh);
+            let mesh = RenderHelper.SphereLinesMesh(vec[0], vec[1], vec[2], size, 7, 7);
             mesh.setMaskBit(4);
+            let model = new RenderModel();
+            model.addMesh(mesh);
+
+            let node = new ObjectTreeNodeModel(`ball ${iBall}`, model);
+            if (parentObject) {
+                parentObject.joints[b.Joint].addNode(node);
+            } else {
+                collisionNode.addNode(node);
+            }
         }
 
         //let vec = ball.BSphere;
@@ -1001,7 +1030,7 @@ function loadCollisionFromAjax(mdl, data, wad, nodeid, matrices = undefined) {
     } else if (data.ShapeName == "mCDbgHdr") {
         adddebugmaterial(0.7, 0, 0.7, 0.3);
         for (let mdMesh of data.Shape.Meshes) {
-            loaddebug(mdMesh, 0, true);
+            loaddebug(mdMesh, 0);
         }
     } else if (data.ShapeName == "SheetHdr") {
         let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'frommodel') + '" method="post" enctype="multipart/form-data">');
@@ -1074,59 +1103,78 @@ function loadCollisionFromAjax(mdl, data, wad, nodeid, matrices = undefined) {
                 }
             }
 
-            let renderMaterial = new grMaterial();
+            let model = new RenderModel();
+            let renderMaterial = new RenderMaterial();
             renderMaterial.setColor(material.EditorColor);
 
-            let layer = new grMaterialLayer();
+            let layer = new RenderMaterialLayer();
             layer.setColor([1, 1, 1, 0.4]);
             layer.setMethodAdditive();
             renderMaterial.addLayer(layer);
 
-            mdl.addMaterial(renderMaterial);
+            model.addMaterial(renderMaterial);
 
             if (indices.length) {
-                let mesh = new grMesh(vertices, indices);
-                mesh.setMaterialID(materialId);
+                let mesh = new RenderMesh(vertices, indices);
+                mesh.setMaterialID(0);
                 mesh.setMaskBit(7);
-                mdl.addMesh(mesh);
+                model.addMesh(mesh);
             }
+
+            collisionNode.addNode(new ObjectTreeNodeModel("sheet", model));
         }
     }
+    return collisionNode;
 }
 
-function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
-    if (data.Model) {
-        let mdlTables = loadMdlFromAjax(mdl, data.Model, parseScripts, true);
-        for (let mdlTable of mdlTables) {
-            dataSummary.append(mdlTables);
+function loadObjFromAjax(data, parseScripts = false) {
+    const oNode = new ObjectTreeNodeSkinned("object");
+
+    const joints = data.Data.Joints;
+    for (const iJoint in joints) {
+        const joint = joints[iJoint];
+
+        const jNode = new ObjectTreeNodeSkinJoint(joint.Name, joint.BindToJointMat);
+        jNode.setLocalMatrix(joint.ParentToJoint);
+        if (joint.IsSkinned) {
+            jNode.setBindToJointMatrix(joint.BindToJointMat);
         }
+    
+        if (joint.Parent < 0) {
+            oNode.addNode(jNode);
+        } else {
+            oNode.joints[joint.Parent].addNode(jNode);
+        }
+        
+        oNode.addJoint(jNode);
+
+        const jointText = new RenderTextMesh(iJoint, true, 10);
+        jointText.setOffset(-0.5, -0.5);
+        jointText.setColor(1.0, 1.0, 1.0, 0.3);
+        jointText.setMaskBit(1);
+        jNode.addNode(new ObjectTreeNodeModel("label", jointText));
+    }
+
+    if (data.Model) {
+        const [model, mdlTables] = loadMdlFromAjax(data.Model, parseScripts, true);
+        for (const mdlTable of mdlTables) {
+            // dataSummary.append(mdlTables);
+        }
+        oNode.addNode(new ObjectTreeNodeModel("model", model));
     }
     if (data.Collision) {
-        loadCollisionFromAjax(mdl, data.Collision, null, null, data.Data.Joints);
+        loadCollisionFromAjax(data.Collision, null, null, oNode);
     }
 
     if (data.Script) {
         if (data.Script.TargetName == "SCR_Entities") {
             $.each(data.Script.Data.Array, function(entity_id, entity) {
-                let objMat = new Float32Array(data.Data.Joints[0].RenderMat);
-                let entityMat = new Float32Array(entity.Matrix);
+                let entityNode = new ObjectTreeNode();
+                entityNode.setLocalMatrix(new Float32Array(data.Data.Joints[0].RenderMat));
 
-                if (matrix) {
-                    // obj = obj * transformMat
-                    objMat = mat4.mul(mat4.create(), matrix, objMat);
-                }
-                // mat = obj * entity
-                let mat = mat4.mul(mat4.create(), objMat, entityMat);
-
-                let pos = mat4.getTranslation(vec3.create(), mat);
-
-                let radius = entity.Matrix[0];
-                let text3d = new grTextMesh("\x05" + entity.Name, pos[0], pos[1], pos[2], true);
+                let text3d = new RenderTextMesh("\x05" + entity.Name, true);
                 text3d.setOffset(-0.5, -0.5);
                 text3d.setMaskBit(3);
-
-                //let mdl = new grModel();
-                //mdl.addMesh(new grHelper_SphereLines(pos[0], pos[1], pos[2], radius, 6, 6));
 
                 let alpha = 1;
                 switch (entity_id % 3) {
@@ -1140,23 +1188,22 @@ function loadObjFromAjax(mdl, data, matrix = undefined, parseScripts = false) {
                         text3d.setColor(1, 1, 0, alpha);
                         break;
                 }
-                //gr_instance.models.push(mdl);
-                gr_instance.texts.push(text3d);
+
+                oNode.addNode(new ObjectTreeNodeModel("entity", text3d));
             });
         }
     }
+    
+    oNode.addNode(new ObjectTreeNodeModel("tree", RenderHelper.SkeletLines(joints)));
 
-    mdl.loadSkeleton(data.Data.Joints);
-    if (matrix) {
-        mdl.matrix = matrix;
-    }
+    return oNode;
 }
 
 function summaryLoadWadObj(data, wad, nodeid) {
     gr_instance.cleanup();
 
-    let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-    dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
+    set3dVisible(true);
+    const oNode = loadObjFromAjax(data);
 
     let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
     dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
@@ -1177,7 +1224,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
                             case 0:
                                 let $option = $("<option>").text(group.Name + ": " + act.Name);
                                 $option.dblclick([anim, act, dt, data.Data], function(ev) {
-                                    let anim = new gaObjSkeletAnimation(ev.data[0], ev.data[1], ev.data[2], ev.data[3], gr_instance.models[0]);
+                                    let anim = new AnimationObjectSkelet(ev.data[0], ev.data[1], ev.data[2], ev.data[3], oNode);
                                     ga_instance.addAnimation(anim);
                                 });
 
@@ -1209,7 +1256,7 @@ function summaryLoadWadObj(data, wad, nodeid) {
                 parseInt((joint.Id % 8) * 15) + ',' +
                 parseInt(((joint.Id / 8) % 8) * 15) + ',' +
                 parseInt(((joint.Id / 64) % 8) * 15) + ');')
-            .append(joint.Id).attr("rowspan", 20));
+            .append(joint.Id).attr("rowspan", 13));
 
         let firstRow = true;
 
@@ -1254,15 +1301,8 @@ function summaryLoadWadObj(data, wad, nodeid) {
     });
     dataSummary.append(jointsTable);
 
-    if (data.Model || data.Collision) {
-        set3dVisible(true);
-
-        let mdl = new grModel();
-        loadObjFromAjax(mdl, data);
-
-        gr_instance.models.push(mdl);
-        gr_instance.requestRedraw();
-    }
+    gr_instance.addNode(oNode);
+    gr_instance.requestRedraw();
 }
 
 
@@ -1277,6 +1317,8 @@ function summaryLoadWadGameObject(data) {
 }
 
 function loadCxtFromAjax(data, parseScripts = true) {
+    let cxtNode = new ObjectTreeNode(data.Name);
+
     for (let i in data.Instances) {
         let inst = data.Instances[i];
         let obj = data.Objects[inst.Object];
@@ -1291,59 +1333,56 @@ function loadCxtFromAjax(data, parseScripts = true) {
             console.warn("posmulincorrect", inst);
         }
 
-        let pos = inst.Position2;
-        let text3d = new grTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
+        let instNode = new ObjectTreeNode(inst.Name);
+        instNode.setLocalMatrix(instMat);
+        cxtNode.addNode(instNode);
+
+       /* let pos = inst.Position2;
+        let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
         text3d.setOffset(-0.5, -0.5);
         text3d.setMaskBit(6);
-        gr_instance.texts.push(text3d);
+        gr_instance.texts.push(text3d);*/
 
-        //if (obj && (obj.Model || (obj.Collision && inst.Object.includes("deathzone")))) {
-        //if (obj && (obj.Model)) {
-        if (obj && (obj.Model || obj.Collision)) {
-            let mdl = new grModel();
+        const text3d = new RenderTextMesh("\x04" + inst.Name, true);
+        text3d.setOffset(-0.5, -0.5);
+        text3d.setColor(1.0, 1.0, 1.0, 0.8);
+        text3d.setMaskBit(6);
+        instNode.addNode(new ObjectTreeNodeModel("label", text3d));
 
-            dataSummary.append($('<div>').text(inst.Name));
+        if (obj) {
+            let objNode = loadObjFromAjax(obj, parseScripts);
+            instNode.addNode(objNode);
 
-            loadObjFromAjax(mdl, obj, instMat, parseScripts);
-
-            for (let iScript in inst.Scripts) {
-                let scr = inst.Scripts[iScript];
-                switch (scr.TargetName) {
-                    case "SCR_Sky":
-                        // case "SCR_AresSky":
-                        mdl.setType("sky");
-                        break;
+            for (const script of inst.Scripts) {
+                switch (script.TargetName) {
                     default:
-                        console.warn("Unknown SCR target: " + scr.TargetName, data, inst, scr);
+                        console.warn("Unknown SCR target: " + script.TargetName, data, inst, script);
                         break;
                 }
             }
-
-            gr_instance.models.push(mdl);
         }
     }
+
+    return cxtNode;
 }
 
 function summaryLoadWadCxt(data, wad, nodeid) {
     if (!gw_cxt_group_loading) {
         gr_instance.cleanup();
         dataSummary.empty();
-        let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx');
-        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
 
         let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
         dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
     } else {
-        let dumplinkfbx = getActionLinkForWadNode(wad, nodeid, 'fbx_all');
-        dataSummary.append($('<a class="center">').attr('href', dumplinkfbx).append('Download .fbx 2014 bin'));
-
         let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf_all');
         dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
     }
 
     if ((data.Instances !== null && data.Instances.length) || gw_cxt_group_loading) {
         set3dVisible(true);
-        loadCxtFromAjax(data);
+        const node = loadCxtFromAjax(data);
+        gr_instance.addNode(node);
+        gr_instance.flushScene();
         gr_instance.requestRedraw();
     } else {
         set3dVisible(false);
@@ -1461,8 +1500,8 @@ function summaryLoadWadGeomShape(data) {
         m_indexes[j + 2] = v.Indexes[2];
     }
 
-    let mdl = new grModel();
-    mdl.addMesh(new grMesh(m_vertexes, m_indexes));
+    let mdl = new RenderModel();
+    mdl.addMesh(new RenderMesh(m_vertexes, m_indexes));
 
     gr_instance.models.push(mdl);
     gr_instance.requestRedraw();

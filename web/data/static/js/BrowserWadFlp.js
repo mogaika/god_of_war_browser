@@ -106,7 +106,7 @@ gowFlp.prototype.cacheTexture = function(texture_name) {
         let texture;
         if (this.root.Textures[texture_name].Images.length) {
             let img = this.root.Textures[texture_name].Images[0].Image;
-            texture = new grTexture('data:image/png;base64,' + img);
+            texture = new RenderTexture('data:image/png;base64,' + img);
             texture.markAsFontTexture();
         } else {
             texture = gr_instance.emptyTexture;
@@ -121,7 +121,7 @@ gowFlp.prototype.renderData2 = function(o, handler, frameIndex, transform, color
         return [];
     }
 
-    let model = new grModel();
+    let model = new RenderModel();
 
     // console.log("MESH PART INDEX", o.MeshPartIndex);
     meshes = loadMeshPartFromAjax(model, this.root.Model.Meshes[0], o.MeshPartIndex);
@@ -138,8 +138,8 @@ gowFlp.prototype.renderData2 = function(o, handler, frameIndex, transform, color
     if (o.Materials && o.Materials.length !== 0) {
         for (let iMaterial in o.Materials) {
             let flpMaterial = o.Materials[iMaterial];
-            let material = new grMaterial();
-            let layer = new grMaterialLayer();
+            let material = new RenderMaterial();
+            let layer = new RenderMaterialLayer();
             if (flpMaterial.TextureName) {
                 layer.setTextures([this.cacheTexture(flpMaterial.TextureName)]);
             }
@@ -156,10 +156,11 @@ gowFlp.prototype.renderData2 = function(o, handler, frameIndex, transform, color
 
     // console.log("rendered data2 ", o, handler, transform.pos, transform.Matrix, color);
 
-    model.matrix = transform.toMatrix3d();
+    let node = new ObjectTreeNodeModel("flp_data2", model);
+    node.setLocalMatrix(transform.toMatrix3d());
 
     // console.log("MODELS FROM DATA2", [model]);
-    return [model];
+    return [node];
 }
 
 gowFlp.prototype.renderData4 = function(o, handler, frameIndex, transform, color) {
@@ -275,6 +276,8 @@ gowFlp.prototype.renderElementByHandler = function(handler, frameIndex, transfor
             return this.renderData2(o, handler, frameIndex, transform, color);
         case 4:
             return this.renderData4(o, handler, frameIndex, transform, color);
+        case 5:
+            return []; // TODO: render for text
         case 6:
             return this.renderData6sub1(o.Sub1, handler, frameIndex, transform, color);
         case 7:
@@ -734,7 +737,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                     _column("<b>" + obj.MeshPartIndex + "</b><br><sub>You can open related MDL_%flpname% resource and check this object part (mesh that index starts with o_" + obj.MeshPartIndex + "_g0_...) </sub>")));
                 let $materials = [];
                 for (let i in obj.Materials) {
-                    console.log(obj.Materials, obj, flp);
+                    // console.log(obj.Materials, obj, flp);
                     let mat = obj.Materials[i];
                     let $mat = $("<div>");
                     $mat.append("Color: <b>0x" + mat.Color.toString(16) + "</b><br>");
@@ -960,7 +963,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
 
         let charstable = $("<table>");
 
-        let mdl = new grModel();
+        let mdl = new RenderModel();
         let matmap = {};
 
         for (let iFont in flpdata.Fonts) {
@@ -1000,12 +1003,12 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                             flp.Textures[txr_name].Images[0].hasOwnProperty('Image')) {
                             let img = flp.Textures[txr_name].Images[0].Image;
 
-                            let material = new grMaterial();
+                            let material = new RenderMaterial();
 
-                            let texture = new grTexture('data:image/png;base64,' + img);
+                            let texture = new RenderTexture('data:image/png;base64,' + img);
                             texture.markAsFontTexture();
 
-                            let layer = new grMaterialLayer();
+                            let layer = new RenderMaterialLayer();
                             layer.setTextures([texture]);
                             material.addLayer(layer);
 
@@ -1020,7 +1023,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
                 }
 
                 let symbolWidth = font.SymbolWidths[glyphId];
-                let cubemesh = grHelper_CubeLines(symbolWidth / 32, 0, 0, symbolWidth / 32, 500, 5, false);
+                let cubemesh = RenderHelper.CubeLinesMesh(symbolWidth / 32, 0, 0, symbolWidth / 32, 500, 5, false);
                 mdl.addMesh(cubemesh);
                 meshes.push(cubemesh);
 
@@ -1056,7 +1059,7 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         }
 
         dataSummary.append(charstable);
-        gr_instance.models.push(mdl);
+        gr_instance.addNode(new ObjectTreeNodeModel("flp_font", mdl));
         gr_instance.requestRedraw();
     }
 
@@ -1111,7 +1114,9 @@ function summaryLoadWadFlp(flp, wad, tagid) {
             gr_instance.cleanup();
 
             let elementsRenderModels = f.renderElementByHandler(object_renderer_handler, object_renderer_frame);
-            gr_instance.models = gr_instance.models.concat(elementsRenderModels);
+            for (const node of elementsRenderModels) {
+                gr_instance.addNode(node);
+            }
             // console.log("Rendered frame", frame);
 
             gr_instance.flushScene();

@@ -62,11 +62,11 @@ type Joint struct {
 
 	InvId int16
 
-	BindToJointMat    mgl32.Mat4 // bind world joint => local joint
-	BindWorldJoint    mgl32.Mat4 // bind world joint
-	ParentToJoint     mgl32.Mat4 // idle parent local joint => local joint
-	OurJointToIdleMat mgl32.Mat4 // idle world joint
-	RenderMat         mgl32.Mat4 // bind world joint => idle world joint
+	BindToJointMat mgl32.Mat4 // bind world joint => local joint
+	ParentToJoint  mgl32.Mat4 // idle parent local joint => local joint
+	//BindWorldJoint    mgl32.Mat4 // bind world joint
+	//OurJointToIdleMat mgl32.Mat4 // idle world joint
+	//RenderMat         mgl32.Mat4 // bind world joint => idle world joint
 }
 
 const JOINT_CHILD_NONE = -1
@@ -294,31 +294,19 @@ func (obj *Object) FillJoints() {
 		} else {
 			j.BindToJointMat = mgl32.Ident4()
 		}
-
-		j.BindWorldJoint = j.BindToJointMat.Inv()
-
-		if j.Parent != JOINT_CHILD_NONE {
-			j.OurJointToIdleMat = obj.Joints[j.Parent].OurJointToIdleMat.Mul4(j.ParentToJoint)
-			//j.BindGlobalMat = obj.Joints[j.Parent].BindGlobalMat.Mul4(j.BindToJointMat.Inv())
-		} else {
-			j.OurJointToIdleMat = j.ParentToJoint
-			//j.BindGlobalMat = j.BindToJointMat.Inv()
-		}
-
-		if j.IsSkinned {
-			j.RenderMat = j.OurJointToIdleMat.Mul4(j.BindToJointMat)
-		} else {
-			j.RenderMat = j.OurJointToIdleMat
-		}
 	}
 }
 
 type ObjMarshal struct {
-	Data       *Object
-	Model      interface{}
-	Collision  interface{}
-	Script     interface{}
-	Animations interface{}
+	Data             *Object
+	Model            *mdl.Ajax
+	Collision        *collision.Collision
+	Script           *scr.ScriptParams
+	Animations       *anm.Animations
+	Cameras          []interface{}
+	ParticleEmitters []interface{}
+	Particles        []interface{}
+	SoundEmitters    []interface{}
 }
 
 func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
@@ -332,15 +320,15 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 					log.Panicf("Obj %q marshal problem of subobject %q: %v", wrsrc.Tag.Name, n.Tag.Name, err)
 					//continue
 				} else {
-					switch inst.(type) {
-					case *mdl.Model:
-						mrshl.Model = subFileMarshled
+					switch v := subFileMarshled.(type) {
+					case *mdl.Ajax:
+						mrshl.Model = v
 					case *collision.Collision:
-						mrshl.Collision = subFileMarshled
+						mrshl.Collision = v
 					case *scr.ScriptParams:
-						mrshl.Script = subFileMarshled
+						mrshl.Script = v
 					case *anm.Animations:
-						mrshl.Animations = subFileMarshled
+						mrshl.Animations = v
 					}
 				}
 			}

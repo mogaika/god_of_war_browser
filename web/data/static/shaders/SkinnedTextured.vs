@@ -95,8 +95,7 @@ void main(void) {
 		} else {
 			pos = umJoints[int(aVertexJointID1)] * pos;
 		}
-	}
-	if (uUseModelTransform && !uUseRootJointScaleOnly) {
+	} else if (uUseModelTransform && !uUseRootJointScaleOnly) {
 		pos = vec4((umModelTransform * pos).xyz, 1.0);
 	} else {
 		pos = vec4(pos.xyz, 1.0);

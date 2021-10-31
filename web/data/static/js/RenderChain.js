@@ -1,7 +1,7 @@
 var gowBlend = 0.5;
 
-function grRenderChain_SkinnedTexturedFlash(model, mesh) {
-    this.model = model;
+function grRenderChain_SkinnedTexturedFlash(node, mesh) {
+    this.node = node;
     this.mesh = mesh;
     this.meshInstanceId = 0;
     this.material = undefined;
@@ -34,11 +34,12 @@ grRenderChain_SkinnedTexturedFlashesBatch.prototype.addFlash = function(flash, m
 function grRenderChain_SkinnedTextured(ctrl) {
     this.skyBatch = new grRenderChain_SkinnedTexturedFlashesBatch();
     this.normalBatch = new grRenderChain_SkinnedTexturedFlashesBatch();
+    this.textBatch = [];
     this.needRebuildScene = true;
     this.skyBatchMatrix = undefined;
 
-    this.vertexShader = ctrl.downloadShader("/static/gowRenderers/SkinnedTextured.vs", false);
-    this.fragmentShader = ctrl.downloadShader("/static/gowRenderers/SkinnedTextured.fs", true);
+    this.vertexShader = ctrl.downloadShader("/static/shaders/SkinnedTextured.vs", false);
+    this.fragmentShader = ctrl.downloadShader("/static/shaders/SkinnedTextured.fs", true);
     this.program = ctrl.createProgram(this.vertexShader, this.fragmentShader);
 
     gl.useProgram(this.program);
@@ -180,7 +181,7 @@ grRenderChain_SkinnedTextured.prototype.drawMesh = function(mesh, hasTexture = f
 grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flashesBatch, useSkelet) {
     gl.uniform1f(this.uBlendWeight, gowBlend);
 
-    let mdl = -1;
+    let model = -1;
     let material = -1;
     let mesh = -1;
     let layer = -1;
@@ -188,20 +189,19 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
     let texture = -1;
     let mask = ~ctrl.filterMask;
 
-    for (let iFlash in flashesBatch) {
-        let flash = flashesBatch[iFlash];
+    for (const flash of flashesBatch) {
         let hasEnvMap = false;
         let hasSkelet = false;
         let hasTexture = false;
 
-        if (mdl != flash.model) {
-            mdl = flash.model;
-            if (mdl) {
-                gl.uniformMatrix4fv(this.umModelTransform, false, mdl.matrix);
-            }
+        const node = flash.node;
+
+        if (model !== node.model) {
+            model = node.model
+            gl.uniformMatrix4fv(this.umModelTransform, false, node.globalMatrix);
         }
 
-        if (mdl.mask & mask) {
+        if (model.mask & mask) {
             continue;
         }
 
@@ -218,18 +218,22 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
                 gl.disable(gl.DEPTH_TEST);
             }
 
-            if (mesh.jointMapping && useSkelet && mdl && mdl.matrices) {
-                let matrices = mesh.useBindToJoin ? mdl.matricesInverted : mdl.matrices;
-                for (let i in mesh.jointMapping) {
+            const parent = node.parent;
+
+            if (mesh.jointMapping && useSkelet && parent && parent.constructor == ObjectTreeNodeSkinned) {
+                const joints = parent.joints;
+                for (const i in mesh.jointMapping) {
                     if (i >= 12) {
                         console.warn("jointMap array in shader is overflowed", mesh.jointMapping);
                     }
-                    let jointId = mesh.jointMapping[i];
-                    if (jointId >= matrices.length) {
-                        // this warning spams for fpl
-                        // console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + matrices.length);
+                    const jointId = mesh.jointMapping[i];
+                    if (jointId >= joints.length) {
+                        // this warning spams for flp
+                        console.warn("joint mapping out of index. jointMapping[" + i + "]=" + jointId + " >= " + joints.length);
                     } else {
-                        gl.uniformMatrix4fv(this.umJoints[i], false, matrices[jointId]);
+                        const joint = joints[jointId];
+                        const matrix = mesh.useBindToJoin ? joint.renderMatrix : joint.globalMatrix;
+                        gl.uniformMatrix4fv(this.umJoints[i], false, matrix);
                     }
                 }
                 hasSkelet = true;
@@ -246,7 +250,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
 
         if (material != flash.material) {
             material = flash.material;
-            if (material != undefined) {
+            if (material) {
                 gl.uniform4f(this.uMaterialColor, material.color[0], material.color[1], material.color[2], material.color[3]);
             } else {
                 gl.uniform4f(this.uMaterialColor, 1.0, 1.0, 1.0, 1.0);
@@ -255,7 +259,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
 
         if (layer != flash.diffuselayer) {
             layer = flash.diffuselayer;
-            if (layer != undefined) {
+            if (layer) {
                 gl.uniform4f(this.uLayerColor, layer.color[0], layer.color[1], layer.color[2], layer.color[3]);
                 gl.uniform2f(this.uLayerOffset, layer.uvoffset[0], layer.uvoffset[1]);
             } else {
@@ -267,15 +271,15 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             envmaplayer = flash.envmaplayer;
         }
 
-        if (envmaplayer != undefined && envmaplayer.textures && envmaplayer.textures.length && envmaplayer.textures[envmaplayer.textureIndex]) {
+        if (envmaplayer && envmaplayer.textures.length) {
             gl.activeTexture(gl.TEXTURE1);
-            gl.bindTexture(gl.TEXTURE_2D, envmaplayer.textures[envmaplayer.textureIndex].get());
+            gl.bindTexture(gl.TEXTURE_2D, envmaplayer.textures.get(envmaplayer.textureIndex).glTexture);
             hasEnvMap = true;
         }
 
-        if (layer != undefined && layer.textures && layer.textures.length && layer.textures[layer.textureIndex]) {
+        if (layer && layer.textures.length) {
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, layer.textures[layer.textureIndex].get());
+            gl.bindTexture(gl.TEXTURE_2D, layer.textures.get(layer.textureIndex).glTexture);
             hasTexture = true;
         }
         this.drawMesh(mesh, hasTexture, hasSkelet, hasEnvMap);
@@ -320,7 +324,7 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
     gl.uniform1i(this.uUseJoints, 0);
 
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, ctrl.fontTexture.get());
+    gl.bindTexture(gl.TEXTURE_2D, ctrl.fontTexture.glTexture);
     gl.uniform4f(this.uLayerColor, 1.0, 1.0, 1.0, 1.0);
     gl.uniform2f(this.uLayerOffset, 0.0, 0.0);
 
@@ -328,8 +332,9 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
 
     let projViewMat = ctrl.camera.getProjViewMatrix();
 
-    for (let i = 0; i < ctrl.texts.length; i++) {
-        let text = ctrl.texts[i];
+    for (let i = 0; i < this.textBatch.length; i++) {
+        const node = this.textBatch[i];
+        let text = node.model;
 
         if (text.mask & mask) {
             continue;
@@ -344,31 +349,34 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
         gl.vertexAttribPointer(this.aVertexUV, 2, gl.FLOAT, false, 0, 0);
 
         let isVisible = true;
-        let mat = mat4.identity(mat4.create());
+        let mat;
+
         if (text.is3d) {
-            let pos3d = vec3.fromValues(text.position[0], text.position[1], text.position[2]);
-            if (text.ownerModel !== undefined) {
-                pos3d = vec3.transformMat4(vec3.create(), pos3d, text.ownerModel.matrices[text.jointId]);
-            }
+            let pos3d = mat4.getTranslation(vec3.create(), node.globalMatrix);
             let pos2d = vec3.transformMat4(vec3.create(), pos3d, projViewMat);
             if (pos2d[2] < 1) {
-                let pos = [(pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth, (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight, 0];
-                mat = mat4.translate(mat, mat, pos);
+                const pos = [
+                    (pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth,
+                    (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight,
+                    0 ];
+                mat = mat4.fromTranslation(mat4.create(), pos);
             } else {
                 isVisible = false;
             }
         } else {
-            mat = mat4.translate(mat, mat, text.position);
+            mat = node.globalMatrix;
         }
         let globOffset = text.getGlobalOffset();
-        mat = mat4.translate(mat, mat, [globOffset[0], globOffset[1], 0.0]);
-
-        if (isVisible) {
-            gl.uniformMatrix4fv(this.umModelTransform, false, mat);
-            gl.uniform4f(this.uMaterialColor, text.color[0], text.color[1], text.color[2], text.color[3]);
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, text.bufferIndex);
-            gl.drawElements(gl.TRIANGLES, text.indexesCount, text.bufferIndexType, 0);
+        
+        if (!isVisible) {
+            continue;
         }
+
+        mat = mat4.translate(mat, mat, [globOffset[0], globOffset[1], 0.0]);
+        gl.uniformMatrix4fv(this.umModelTransform, false, mat);
+        gl.uniform4f(this.uMaterialColor, text.color[0], text.color[1], text.color[2], text.color[3]);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, text.bufferIndex);
+        gl.drawElements(gl.TRIANGLES, text.indexesCount, text.bufferIndexType, 0);
     }
 }
 
@@ -390,16 +398,17 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
     }
 
     gl.uniformMatrix4fv(this.umProjection, false, ctrl.camera.getProjectionMatrix());
+
     // render sky
-    if (this.skyBatchMatrix) {
+    // if (this.skyBatchMatrix) {
         gl.uniform1i(this.uUseModelTransform, 0);
-        let finalMat = mat4.mul(mat4.create(), ctrl.camera.getViewMatrix(), this.skyBatchMatrix);
-        let rot = mat4.getRotation(quat.create(), finalMat);
-        gl.uniformMatrix4fv(this.umView, false, mat4.fromQuat(mat4.create(), rot));
+       // let finalMat = mat4.mul(mat4.create(), ctrl.camera.getViewMatrix(), this.skyBatchMatrix);
+        //let rot = mat4.getRotation(quat.create(), finalMat);
+        // gl.uniformMatrix4fv(this.umView, false, mat4.fromQuat(mat4.create(), rot));
 
         cnt += this.renderFlashesBatch(ctrl, this.skyBatch, false);
         gl.clear(gl.DEPTH_BUFFER_BIT);
-    }
+    // }
 
     // render models
     gl.uniform1i(this.uUseModelTransform, 1);
@@ -416,33 +425,30 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
     this.renderText(ctrl);
 }
 
-grRenderChain_SkinnedTextured.prototype.createFlash = function(mdl, mesh) {
-    return new grRenderChain_SkinnedTexturedFlash(mdl, mesh);
+grRenderChain_SkinnedTextured.prototype.createFlash = function(node, mesh) {
+    return new grRenderChain_SkinnedTexturedFlash(node, mesh);
 }
 
-grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesBatch, mdl) {
-    if (mdl.visible === false) {
-        return;
-    }
-    let meshes = (mdl.exclusiveMeshes != undefined) ? mdl.exclusiveMeshes : mdl.meshes;
+grRenderChain_SkinnedTextured.prototype.fillFlashesFromModelNode = function(flashesBatch, node) {
+    const model = node.model;
+    const meshes = (model.exclusiveMeshes != undefined) ? model.exclusiveMeshes : model.meshes.list;
 
-    for (let iMesh in meshes) {
-        let mesh = meshes[iMesh];
+    for (const mesh of meshes) {
         if (mesh.isVisible === false) {
             continue;
         }
 
-        if (mesh.materialIndex != undefined && mdl.materials && mesh.materialIndex < mdl.materials.length) {
-            let mat = mdl.materials[mesh.materialIndex];
+        if (mesh.materialIndex !== undefined && mesh.materialIndex < model.materials.length) {
+            let material = model.materials.get(mesh.materialIndex);
 
             let usualLayer = undefined;
             let strangeBlendedLayer = undefined;
             let additiveLayer = undefined;
 
-            let flash = this.createFlash(mdl, mesh);
+            let flash = this.createFlash(node, mesh);
 
-            let parseLayer = function(iLayer) {
-                let layer = mat.layers[iLayer];
+            const parseLayer = function(iLayer) {
+                let layer = material.layers.get(iLayer);
                 if (layer == undefined) {
                     usualLayer = layer;
                     return;
@@ -458,7 +464,7 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
                         strangeBlendedLayer = layer;
                         break;
                     default:
-                        console.warn("unknown layer method " + layer.method, layer, mat);
+                        console.warn("unknown layer method " + layer.method, layer, material);
                         break;
                 }
             }
@@ -468,7 +474,7 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
                 // console.log("layer overrided", mesh.layer);
             } else {
                 // console.log("layer detection");
-                for (let iLayer in mat.layers) {
+                for (let iLayer in material.layers.list) {
                     parseLayer(iLayer);
                 }
             }
@@ -487,30 +493,43 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromModel = function(flashesB
                 flashesBatch.addFlash(flash, 0);
             }
 
-            flash.material = mat;
+            flash.material = material;
         } else {
-            let flash = this.createFlash(mdl, mesh);
+            let flash = this.createFlash(node, mesh);
             flashesBatch.addFlash(flash, 0);
         }
     }
 }
 
-grRenderChain_SkinnedTextured.prototype.fillFlashesFromModels = function(models) {
-    for (let iMdl in models) {
-        let mdl = models[iMdl];
-        if (!mdl.type) {
-            this.fillFlashesFromModel(this.normalBatch, mdl);
-        } else if (mdl.type == "sky") {
-            this.fillFlashesFromModel(this.skyBatch, mdl);
-            this.skyBatchMatrix = mdl.matrix;
+grRenderChain_SkinnedTextured.prototype.fillFlashesFromNode = function(node) {
+    if (!node.isActive) {
+        return;
+    }
+    if (node.constructor === ObjectTreeNode || node.constructor === ObjectTreeNodeSkinned || node.constructor === ObjectTreeNodeSkinJoint) {
+        for (node of node.nodes) {
+            this.fillFlashesFromNode(node);
+        }
+    } else if (node.constructor === ObjectTreeNodeModel) {
+        const model = node.model;
+        if (model.constructor == RenderTextMesh) {
+            this.textBatch.push(node);
+        } else if (!model.type) {
+            this.fillFlashesFromModelNode(this.normalBatch, node);
+        } else if (node.type == "sky") {
+            this.fillFlashesFromModelNode(this.skyBatch, node);
         }
     }
 }
 
 grRenderChain_SkinnedTextured.prototype.rebuildScene = function(ctrl) {
     this.skyBatchMatrix = undefined;
-    this.fillFlashesFromModels(ctrl.models);
-    this.fillFlashesFromModels(ctrl.helpers);
+    for (node of ctrl.nodes) {
+        this.fillFlashesFromNode(node);
+    }
+    for (node of ctrl.persistentNodes) {
+        this.fillFlashesFromNode(node);
+    }
+
     // console.log("flashes rebuilded", this.normalBatch, this.skyBatch);
     needRebuildScene = false;
 }
@@ -518,5 +537,6 @@ grRenderChain_SkinnedTextured.prototype.rebuildScene = function(ctrl) {
 grRenderChain_SkinnedTextured.prototype.flushScene = function(ctrl) {
     this.normalBatch.clear();
     this.skyBatch.clear();
+    this.textBatch.length = 0;
     needRebuildScene = true;
 }
