@@ -14,7 +14,7 @@ class AnimationManager {
     update() {
         let currentTime = window.performance.now() / 1000.0;
         let dt = currentTime - this.lastUpdateTime;
-    
+
         if (this.active) {
             for (let i in this.matLayerAnimations) {
                 this.matLayerAnimations[i].update(dt);
@@ -26,7 +26,7 @@ class AnimationManager {
                 this.objSkeletAnimations[i].update(dt);
             }
         }
-    
+
         this.lastUpdateTime = currentTime;
     }
 
@@ -104,35 +104,35 @@ class AnimationMatertialLayer extends AnimationBase {
         if (!this.enabled) {
             return;
         }
-    
+
         let stateDesc = this.act.StateDescrs[this.stateIndex];
         let dataType = this.anim.DataTypes[this.stateIndex];
-    
+
         if (dataType.TypeId == 8) {
             let layer = this.material.layers.get(dataType.Param1 & 0x7f);
-    
+
             for (let iData in stateDesc.Data) {
                 let data = stateDesc.Data[iData];
-    
+
                 let floatStep = newTime / stateDesc.FrameTime;
-    
+
                 let step = Math.trunc(floatStep) % (data.Stream.Manager.Count - 1);
                 let nextStep = (step + 1) % data.Stream.Manager.Count;
-    
+
                 let blendFactor2 = floatStep - Math.floor(floatStep);
                 let blendFactor1 = (1 - blendFactor2);
-    
+
                 for (let key in data.Stream.Samples) {
                     let stream = data.Stream.Samples[key];
                     layer.uvoffset[key] = stream[step] * blendFactor1 + stream[nextStep] * blendFactor2;
                 }
             }
-    
+
             gr_instance.requireRedraw = true;
         } else {
             log.error("incorrect animation typeid");
         }
-    
+
         this.time = newTime;
     }
 
@@ -168,12 +168,12 @@ class AnimationObjectSkelet extends AnimationBase {
     recalcMatrices() {
         const obj = this.object;
         const treeNode = this.treeNode;
-    
+
         for (let i = 0; i < obj.Joints.length; i++) {
             let joint = obj.Joints[i];
-    
+
             const convv = 1.0 / (1 << 14);
-    
+
             let localQ;
             if ((joint.Flags & 0x8000) != 0) {
                 localQ = vec4.scale(vec4.create(), this.jointLocalRots[i], convv);
@@ -182,28 +182,28 @@ class AnimationObjectSkelet extends AnimationBase {
                 let localE = vec4.scale(vec4.create(), this.jointLocalRots[i], convv * 360.0);
                 localQ = quat.fromEuler(quat.create(), localE[0], localE[1], localE[2]);
             }
-    
+
             let local = this.jointLocalMatrices[i];
             local = mat4.fromRotationTranslationScale(local, localQ, this.jointLocalPos[i], this.jointLocalScale[i]);
-    
+
             //console.log(i, "o", quat.str(vec4.scale(vec4.create(), this.jointLocalRots[i], convv)));
             //console.log(i, "n", quat.str(quat.normalize(quat.create(), vec4.scale(vec4.create(), this.jointLocalRots[i], convv))));
             //console.log(i, "r", quat.str(mat4.getRotation(quat.create(), local)));
             //console.log(i, "strage shit", !!(joint.Flags & 0x8000), joint.Flags, this.jointLocalPos[i],  this.jointLocalScale[i]);
-    
+
             this.jointLocalMatrices[i] = local;
-    
+
             //let global = (joint.Parent >= 0) ? mat4.mul(this.jointGlobalMatrices[i], this.jointGlobalMatrices[joint.Parent], local) : local;
             //this.jointGlobalMatrices[i] = global;
-    
+
             //let result = global;
             //if ((joint.Flags & 0x8) != 0) {
-                // mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
-                // console.warn("joint flags 0x8: ", joint.Name, joint);
-                // console.log(joint.Name, obj.Matrixes2[joint.ExternalId]);
-                // result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
+            // mat4.mul(result, obj.Matrixes2[joint.ExternalId], result);
+            // console.warn("joint flags 0x8: ", joint.Name, joint);
+            // console.log(joint.Name, obj.Matrixes2[joint.ExternalId]);
+            // result = mat4.mul(result, result, obj.Matrixes2[joint.ExternalId]);
             //}
-    
+
             //let resultInverted = result;
             //if (joint.IsSkinned) {
             //    let inverseBindMat = obj.Matrixes3[joint.InvId];
@@ -218,7 +218,7 @@ class AnimationObjectSkelet extends AnimationBase {
     reset() {
         this.time = 0;
         let obj = this.object;
-    
+
         for (let i = 0; i < obj.Joints.length; i++) {
             this.jointLocalRots[i] = obj.Vectors5[i].slice();
             this.jointLocalPos[i] = obj.Vectors4[i].slice();
@@ -230,7 +230,7 @@ class AnimationObjectSkelet extends AnimationBase {
     }
 
     // return first sample index
-    returnStreamDataIndex (manager, globalManager, animNextTime, frameTime) {
+    returnStreamDataIndex(manager, globalManager, animNextTime, frameTime) {
         const eps = 1.0 / (1024.0 * 16.0);
         // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
@@ -252,7 +252,7 @@ class AnimationObjectSkelet extends AnimationBase {
             return streamSampleIdx;
         }
     }
-    
+
     handleSkinningStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l = false) {
         const eps = 1.0 / (1024.0 * 16.0);
         // TODO: parse reverse animation situation if (animNextTime < animPrevTime)

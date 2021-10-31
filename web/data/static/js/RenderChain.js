@@ -358,7 +358,8 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
                 const pos = [
                     (pos2d[0] + 1) * 0.5 * gl.drawingBufferWidth,
                     (pos2d[1] + 1) * 0.5 * gl.drawingBufferHeight,
-                    0 ];
+                    0
+                ];
                 mat = mat4.fromTranslation(mat4.create(), pos);
             } else {
                 isVisible = false;
@@ -367,7 +368,7 @@ grRenderChain_SkinnedTextured.prototype.renderText = function(ctrl) {
             mat = node.globalMatrix;
         }
         let globOffset = text.getGlobalOffset();
-        
+
         if (!isVisible) {
             continue;
         }
@@ -401,13 +402,13 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
 
     // render sky
     // if (this.skyBatchMatrix) {
-        gl.uniform1i(this.uUseModelTransform, 0);
-       // let finalMat = mat4.mul(mat4.create(), ctrl.camera.getViewMatrix(), this.skyBatchMatrix);
-        //let rot = mat4.getRotation(quat.create(), finalMat);
-        // gl.uniformMatrix4fv(this.umView, false, mat4.fromQuat(mat4.create(), rot));
+    gl.uniform1i(this.uUseModelTransform, 0);
+    // let finalMat = mat4.mul(mat4.create(), ctrl.camera.getViewMatrix(), this.skyBatchMatrix);
+    //let rot = mat4.getRotation(quat.create(), finalMat);
+    // gl.uniformMatrix4fv(this.umView, false, mat4.fromQuat(mat4.create(), rot));
 
-        cnt += this.renderFlashesBatch(ctrl, this.skyBatch, false);
-        gl.clear(gl.DEPTH_BUFFER_BIT);
+    cnt += this.renderFlashesBatch(ctrl, this.skyBatch, false);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
     // }
 
     // render models

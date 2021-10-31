@@ -18,9 +18,15 @@ class RenderModel extends Claimable {
         gr_instance.flushScene();
     }
 
-    setType(type) { this.type = type; }
-    addMaterial(material) { this.materials.insert(material); }
-    addMesh(mesh) { this.meshes.insert(mesh); }
+    setType(type) {
+        this.type = type;
+    }
+    addMaterial(material) {
+        this.materials.insert(material);
+    }
+    addMesh(mesh) {
+        this.meshes.insert(mesh);
+    }
     setMaskBit(bitIndex) {
         this.mask |= 1 << bitIndex;
     }
@@ -144,15 +150,25 @@ class RenderMesh extends Claimable {
         }
     }
 
-    useJointsRaw() { this.jointsRaw = true; }
+    useJointsRaw() {
+        this.jointsRaw = true;
+    }
 
-    setps3static(yes = true) {  this.ps3static = !!yes; }
+    setps3static(yes = true) {
+        this.ps3static = !!yes;
+    }
 
-    setUseBindToJoin(yes = true) { this.useBindToJoin = yes; }
+    setUseBindToJoin(yes = true) {
+        this.useBindToJoin = yes;
+    }
 
-    setLayer(layer) { this.layer = layer; }
+    setLayer(layer) {
+        this.layer = layer;
+    }
 
-    setMaskBit(bitIndex) { this.mask |= 1 << bitIndex; }
+    setMaskBit(bitIndex) {
+        this.mask |= 1 << bitIndex;
+    }
 
     _free() {
         if (this.bufferVertex) gl.deleteBuffer(this.bufferVertex);
@@ -185,7 +201,9 @@ class RenderTexture extends Claimable {
         let img = new Image();
         img.src = src;
         let texture = this;
-        img.onload = function() { texture.onImageLoad(this); };
+        img.onload = function() {
+            texture.onImageLoad(this);
+        };
     }
 
     onImageLoad(img) {
@@ -248,8 +266,12 @@ class RenderMaterialLayer extends Claimable {
         this.hasAlpha = false;
     }
 
-    setColor(color) { this.color = color; }
-    setHasAlphaAttribute(alpha = true) { this.hasAlpha = alpha; }
+    setColor(color) {
+        this.color = color;
+    }
+    setHasAlphaAttribute(alpha = true) {
+        this.hasAlpha = alpha;
+    }
     setTextures(textures) {
         this.textures.removeAll();
         for (const txr of textures) {
@@ -262,10 +284,18 @@ class RenderMaterialLayer extends Claimable {
         }
         this.textureIndex = index % this.textures.length;
     }
-    setMethodNormal() { this.method = 0; }
-    setMethodAdditive() { this.method = 1; }
-    setMethodSubstract() { this.method = 2; }
-    setMethodUnknown() { this.method = 3; }
+    setMethodNormal() {
+        this.method = 0;
+    }
+    setMethodAdditive() {
+        this.method = 1;
+    }
+    setMethodSubstract() {
+        this.method = 2;
+    }
+    setMethodUnknown() {
+        this.method = 3;
+    }
 
     _free() {
         this.textures.removeAll();
@@ -280,9 +310,13 @@ class RenderMaterial extends Claimable {
         this.anims = [];
     }
 
-    addLayer(layer) { this.layers.insert(layer); }
-    setColor(color) { this.color = color; }
-    _free () {
+    addLayer(layer) {
+        this.layers.insert(layer);
+    }
+    setColor(color) {
+        this.color = color;
+    }
+    _free() {
         this.layers.removeAll();
         for (let i in this.anims) {
             ga_instance.freeAnimation(this.anims[i]);
@@ -308,13 +342,21 @@ class RenderTextMesh extends Claimable {
 
         this.setText(text);
     }
-    set3d(is3d = true) { this.is3d = is3d; }
-    setColor(r, g, b, a = 1.0) { this.color = [r, g, b, a]; }
-    setOffset(x, y) { this.offset = [x, y]; }
-    getGlobalOffset (x, y, z) {
+    set3d(is3d = true) {
+        this.is3d = is3d;
+    }
+    setColor(r, g, b, a = 1.0) {
+        this.color = [r, g, b, a];
+    }
+    setOffset(x, y) {
+        this.offset = [x, y];
+    }
+    getGlobalOffset(x, y, z) {
         return [this.offset[0] * this.charSize, this.offset[1] * this.charSize];
     }
-    setPosition(x, y, z) { this.position = [x, y, z]; }
+    setPosition(x, y, z) {
+        this.position = [x, y, z];
+    }
     setText(text) {
         let vrtxs = [];
         let uvs = [];
@@ -613,7 +655,7 @@ class RenderController extends ObjectTreeNode {
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
         this.orthoMatrix = mat4.ortho(this.orthoMatrix, 0, this.rectX, 0, this.rectY, -1, 1);
     }
-  _onResize() {
+    _onResize() {
         gr_instance.onResize();
         gr_instance.requestRedraw();
     }
@@ -638,7 +680,9 @@ class RenderController extends ObjectTreeNode {
             this.requireRedraw = false;
         }
     }
-    requestRedraw() { this.requireRedraw = true; }
+    requestRedraw() {
+        this.requireRedraw = true;
+    }
 
     animationFrameCallback() {
         let currentTime = window.performance.now() / 1000.0;

@@ -766,7 +766,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
             const vec = mesh.Vectors[i];
             console.log(i, vec);
             if (vec.Unk00 === 65494) {
-                continue;   
+                continue;
             }
             let pos = vec.Value;
             pos = [
@@ -774,7 +774,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
                 //pos[1], pos[0], pos[3],
             ]
             let mat = mat4.fromTranslation(mat4.create(), pos);
-            
+
             const jointText = new RenderTextMesh(`${i}`, true, 10);
             jointText.setOffset(-0.5, -0.5);
             if (vec.Unk00 === 65535) {
@@ -972,7 +972,7 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
         let model = new RenderModel(collisionNode)
         model.addMesh(mesh);
         adddebugmaterial(model, 0.7, 0, 0.7, 0.3);
-        
+
         let node = new ObjectTreeNodeModel(`mdbg`, model);
         if (parentObject) {
             parentObject.joints[jointId].addNode(node);
@@ -1139,13 +1139,13 @@ function loadObjFromAjax(data, parseScripts = false) {
         if (joint.IsSkinned) {
             jNode.setBindToJointMatrix(joint.BindToJointMat);
         }
-    
+
         if (joint.Parent < 0) {
             oNode.addNode(jNode);
         } else {
             oNode.joints[joint.Parent].addNode(jNode);
         }
-        
+
         oNode.addJoint(jNode);
 
         const jointText = new RenderTextMesh(iJoint, true, 10);
@@ -1193,7 +1193,7 @@ function loadObjFromAjax(data, parseScripts = false) {
             });
         }
     }
-    
+
     oNode.addNode(new ObjectTreeNodeModel("tree", RenderHelper.SkeletLines(joints)));
 
     return oNode;
@@ -1337,11 +1337,11 @@ function loadCxtFromAjax(data, parseScripts = true) {
         instNode.setLocalMatrix(instMat);
         cxtNode.addNode(instNode);
 
-       /* let pos = inst.Position2;
-        let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
-        text3d.setOffset(-0.5, -0.5);
-        text3d.setMaskBit(6);
-        gr_instance.texts.push(text3d);*/
+        /* let pos = inst.Position2;
+         let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
+         text3d.setOffset(-0.5, -0.5);
+         text3d.setMaskBit(6);
+         gr_instance.texts.push(text3d);*/
 
         const text3d = new RenderTextMesh("\x04" + inst.Name, true);
         text3d.setOffset(-0.5, -0.5);

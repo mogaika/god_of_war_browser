@@ -6,7 +6,9 @@ class Claimable {
     _free() {
         throw new Error(`Free method not implemented for ${this.constructor.name}`);
     }
-    claim() { this.refs++; }
+    claim() {
+        this.refs++;
+    }
     unclaim() {
         if (--this.refs <= 0) {
             this._free();
@@ -25,9 +27,15 @@ class ClaimedPool {
         this._pool.push(claimable);
     }
 
-    get(index) { return this._pool[index]; }
-    get list() { return this._pool; }
-    get length() { return this._pool.length; }
+    get(index) {
+        return this._pool[index];
+    }
+    get list() {
+        return this._pool;
+    }
+    get length() {
+        return this._pool.length;
+    }
 
     remove(claimable) {
         let index = this._pool.indexOf(claimable);
@@ -78,14 +86,24 @@ class ObjectTreeNodeBase extends Claimable {
         if (!this._active) {
             return;
         }
-       this._update();
+        this._update();
     }
 
-    get localMatrix() { return this._localMatrix; }
-    get globalMatrix() { return this._globalMatrix; }
-    get isActive() { return this._active; }
-    get parent() { return this._parent; }
-    setActive(active = true) { this._active = active; }
+    get localMatrix() {
+        return this._localMatrix;
+    }
+    get globalMatrix() {
+        return this._globalMatrix;
+    }
+    get isActive() {
+        return this._active;
+    }
+    get parent() {
+        return this._parent;
+    }
+    setActive(active = true) {
+        this._active = active;
+    }
 }
 
 class ObjectTreeNode extends ObjectTreeNodeBase {
@@ -113,7 +131,9 @@ class ObjectTreeNode extends ObjectTreeNodeBase {
         }
     }
 
-    get nodes() { return this._nodes.list; }
+    get nodes() {
+        return this._nodes.list;
+    }
 
     _free() {
         this._nodes.removeAll();
@@ -127,7 +147,9 @@ class ObjectTreeNodeModel extends ObjectTreeNodeBase {
         this._model = model;
     }
 
-    get model() { return this._model; }
+    get model() {
+        return this._model;
+    }
 
     _free() {
         this._model.unclaim();
@@ -143,8 +165,12 @@ class ObjectTreeNodeSkinJoint extends ObjectTreeNode {
         this._bindToJointMatrix = undefined;
         this._renderMatrix = mat4.create();
     }
-    setLocalMatrixWithoutUpdate(matrix) { this._localMatrix = matrix; }
-    setBindToJointMatrix(matrix) { this._bindToJointMatrix = matrix; }
+    setLocalMatrixWithoutUpdate(matrix) {
+        this._localMatrix = matrix;
+    }
+    setBindToJointMatrix(matrix) {
+        this._bindToJointMatrix = matrix;
+    }
 
     _update() {
         super._update();
@@ -155,8 +181,12 @@ class ObjectTreeNodeSkinJoint extends ObjectTreeNode {
         }
     }
 
-    get bindToJointMatrix() { return this._bindToJointMatrix; }
-    get renderMatrix() { return this._renderMatrix; }
+    get bindToJointMatrix() {
+        return this._bindToJointMatrix;
+    }
+    get renderMatrix() {
+        return this._renderMatrix;
+    }
 }
 
 class ObjectTreeNodeSkinned extends ObjectTreeNode {
@@ -166,9 +196,13 @@ class ObjectTreeNodeSkinned extends ObjectTreeNode {
         this._animation = undefined;
     }
 
-    addJoint(jointNode) { this._jonits.insert(jointNode); }
-    get joints() { return this._jonits.list; }
-    
+    addJoint(jointNode) {
+        this._jonits.insert(jointNode);
+    }
+    get joints() {
+        return this._jonits.list;
+    }
+
     assignAnimation(animation) {
         if (this._animation) {
             this._animation.unclaim();

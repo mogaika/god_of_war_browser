@@ -71,7 +71,7 @@ $(document).ready(function() {
 
                     let node = new ObjectTreeNodeModel("glyph", mdl);
                     node.setLocalMatrix(matrix);
-                    
+
                     gr_instance.addNode(node);
                 }
 
