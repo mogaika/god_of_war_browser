@@ -10,14 +10,11 @@ uniform highp mat4 umProjection;
 uniform highp mat4 umView;
 uniform mediump vec2 uLayerOffset;
 uniform mediump mat4 umJoints[12];
-uniform highp float uBlendWeight;
 
 uniform bool uUseJoints;
-uniform bool uUseJointsRaw;
 uniform bool uUseVertexColor;
 uniform bool uUseModelTransform;
 uniform bool uUseEnvmapSampler;
-uniform bool uUseRootJointScaleOnly;
 uniform bool uUseBlendAttribute;
 
 varying lowp vec4 vVertexColor;
@@ -73,32 +70,14 @@ mat4 transpose(mat4 m) {
 }
 
 void main(void) {
+	gl_PointSize = 4.0;
 	vec4 pos = vec4(aVertexPos, 1.0);
-	float weight = 0.5;
 	if (uUseJoints) {
-		if (!uUseJointsRaw) {
-			//pos = umJoints[int(aVertexJointID2)] * pos;
-			if (uUseRootJointScaleOnly) {
-				mat4 joint = umJoints[0];
-				mat4 m = mat4(joint[0][0], 0, 0, 0,
-							  0, joint[1][1], 0, 0,
-							  0, 0, joint[2][2], 0,
-							  0, 0, 0, joint[3][3]);
-				pos = vec4((m * pos).xyz, 1.0);
-			} else {
-				weight = uUseBlendAttribute ? uBlendWeight : aVertexWeight;
-
-				mat4 boneTransform = umJoints[int(aVertexJointID1)] * (weight)
-				                   + umJoints[int(aVertexJointID2)] * (1.0 - weight);
-				pos = boneTransform * pos;
-			}
-		} else {
-			pos = umJoints[int(aVertexJointID1)] * pos;
-		}
-	} else if (uUseModelTransform && !uUseRootJointScaleOnly) {
-		pos = vec4((umModelTransform * pos).xyz, 1.0);
+		mat4 boneTransform = umJoints[int(aVertexJointID1)] * (aVertexWeight)
+							+ umJoints[int(aVertexJointID2)] * (1.0 - aVertexWeight);
+		pos = boneTransform * pos;
 	} else {
-		pos = vec4(pos.xyz, 1.0);
+		pos = vec4((umModelTransform * pos).xyz, 1.0);
 	}
 
 	if (uUseVertexColor) {

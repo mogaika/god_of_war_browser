@@ -307,80 +307,78 @@ function displayResourceHexDump(wad, tagid) {
     });
 }
 
-function parseMeshPacket(object, packet, instanceIndex) {
-    let m_vertexes = [];
+function parseMeshPackets(object, packets, instanceIndex) {
     let m_indexes = [];
-    let m_colors;
-    let m_textures;
-    let m_normals;
-
-    m_vertexes.length = packet.Trias.X.length * 3;
-
-    for (let i in packet.Trias.X) {
-        let j = i * 3;
-        m_vertexes[j] = packet.Trias.X[i];
-        m_vertexes[j + 1] = packet.Trias.Y[i];
-        m_vertexes[j + 2] = packet.Trias.Z[i];
-        if (!packet.Trias.Skip[i]) {
-            m_indexes.push(i - 2);
-            m_indexes.push(i - 1);
-            m_indexes.push(i - 0);
+    let m_vertexes = [];
+    let m_weights = [];
+    let m_colors = [];
+    let m_textures = [];
+    let m_normals = [];
+    let m_joints1 = [];
+    let m_joints2 = [];
+    
+    let offset = 0;
+    for (const packet of packets) {
+        const vertexCount = packet.Trias.X.length;
+       
+        for (const i in packet.Trias.X) {
+            m_vertexes.push(packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i]);
+            if (!packet.Trias.Skip[i]) {
+                m_indexes.push(offset + parseInt(i) - 2, offset + parseInt(i) - 1, offset + parseInt(i) - 0);
+            }
         }
+
+        if (packet.Trias.Weight && packet.Trias.Weight.length) {
+            for (const i in packet.Trias.Weight) {
+                m_weights.push(packet.Trias.Weight[i]);
+            }
+        }
+
+        if (packet.Joints && packet.Joints.length) {
+            const joints1 = packet.Joints;
+            const joints2 = (!!packet.Joints2) ? packet.Joints2 : joints1;
+            for (const i in joints1) {
+                m_joints1.push(joints1[i]);
+                m_joints2.push(joints2[i]);
+            }
+        }
+
+        if (packet.Blend.R && packet.Blend.R.length) {
+            for (const i in packet.Blend.R) {
+                m_colors.push(packet.Blend.R[i], packet.Blend.G[i], packet.Blend.B[i], packet.Blend.A[i]);
+            }
+        }
+
+        if (packet.Uvs.U && packet.Uvs.U.length) {
+            for (const i in packet.Uvs.U) {
+                m_textures.push(packet.Uvs.U[i], packet.Uvs.V[i]);
+            }
+        }
+
+        if (packet.Norms.X && packet.Norms.X.length) {
+            for (const i in packet.Norms.X) {
+                m_normals.push(packet.Norms.X[i], packet.Norms.Y[i], packet.Norms.Z[i]);
+            }
+        }
+
+        offset += vertexCount;
     }
 
     let mesh = new RenderMesh(m_vertexes, m_indexes);
-    mesh.setUseBindToJoin(object.UseInvertedMatrix);
-
-    if (packet.Blend.R && packet.Blend.R.length) {
-        let m_colors = [];
-        m_colors.length = packet.Blend.R.length * 4;
-        for (let i in packet.Blend.R) {
-            let j = i * 4;
-            m_colors[j] = packet.Blend.R[i];
-            m_colors[j + 1] = packet.Blend.G[i];
-            m_colors[j + 2] = packet.Blend.B[i];
-            m_colors[j + 3] = packet.Blend.A[i];
-        }
-
+    if (m_colors.length) {
         mesh.setBlendColors(m_colors);
     }
-
-    mesh.setMaterialID(object.MaterialId);
-
-    if (packet.Uvs.U && packet.Uvs.U.length) {
-        m_textures = [];
-        m_textures.length = packet.Uvs.U.length * 2;
-
-        for (let i in packet.Uvs.U) {
-            let j = i * 2;
-            m_textures[j] = packet.Uvs.U[i];
-            m_textures[j + 1] = packet.Uvs.V[i];
-        }
+    if (m_textures.length) {
         mesh.setUVs(m_textures);
     }
-
-    if (packet.Norms.X && packet.Norms.X.length) {
-        m_normals = [];
-        m_normals.length = packet.Norms.X.length * 3;
-
-        for (let i in packet.Norms.X) {
-            let j = i * 3;
-            m_normals[j] = packet.Norms.X[i];
-            m_normals[j + 1] = packet.Norms.Y[i];
-            m_normals[j + 2] = packet.Norms.Z[i];
-        }
-
+    if (m_normals.length) {
         mesh.setNormals(m_normals);
     }
 
-    if (packet.Joints && packet.Joints.length && object.JointMappers && object.JointMappers.length) {
-        let jm = object.JointMappers[instanceIndex];
-        if (jm && jm.length) {
-            //console.log(packet.Joints, packet.Joints2, object.JointMappers);
-            let joints1 = packet.Joints;
-            let joints2 = (!!packet.Joints2) ? packet.Joints2 : undefined;
-
-            mesh.setJointIds(jm, joints1, joints2, packet.Trias.Weight);
+    if (object.JointMappers && object.JointMappers.length) {
+        const jm = object.JointMappers[instanceIndex];
+        if (jm && jm.length && m_joints1.length && m_weights.length) {
+            mesh.setJointIds(jm, m_joints1, m_joints2, m_weights);
         }
     }
 
@@ -408,36 +406,28 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         objName += "_l" + iLayer;
                     }
 
-                    let meshes = [];
-
-                    for (let iPacket in dmaPackets) {
-                        let dmaPacket = dmaPackets[iPacket];
-                        let mesh = parseMeshPacket(object, dmaPacket, iInstance);
-
-                        if (object.TextureLayersCount != 1) {
-                            mesh.setLayer(iLayer);
-                        }
-
-                        meshes.push(mesh);
-                        mesh.meta['part'] = iPart;
-                        mesh.meta['group'] = iGroup;
-                        mesh.meta['object'] = iObject;
-                        totalMeshes.push(mesh);
-                        model.addMesh(mesh);
+                    const mesh = parseMeshPackets(object, dmaPackets, iInstance);
+                    mesh.meta['part'] = iPart;
+                    mesh.meta['group'] = iGroup;
+                    mesh.meta['object'] = iObject;
+                    mesh.setUseBindToJoin(object.UseInvertedMatrix);
+                    mesh.setMaterialID(object.MaterialId);
+                    if (object.TextureLayersCount != 1) {
+                        mesh.setLayer(iLayer);
                     }
+                    totalMeshes.push(mesh);
+                    model.addMesh(mesh);
 
-                    if (table) {
+                    /*if (table) {
                         let label = $('<label>');
                         let chbox = $('<input type="checkbox" checked>');
                         let td = $('<td>').append(label);
-                        chbox.click(meshes, function(ev) {
-                            for (let i in ev.data) {
-                                ev.data[i].setVisible(this.checked);
-                            }
+                        chbox.click(mesh, function(ev) {
+                            ev.data.setVisible(this.checked);
                             gr_instance.requestRedraw();
                         });
-                        td.mouseenter([model, meshes], function(ev) {
-                            ev.data[0].showExclusiveMeshes(ev.data[1]);
+                        td.mouseenter([model, mesh], function(ev) {
+                            ev.data[0].showExclusiveMeshes([ev.data[1]]);
                             gr_instance.requestRedraw();
                         }).mouseleave(model, function(ev, a) {
                             ev.data.showExclusiveMeshes();
@@ -446,7 +436,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         label.append(chbox);
                         label.append("o_" + objName);
                         table.append($('<tr>').append(td));
-                    }
+                    }*/
                 }
             }
         }
@@ -650,11 +640,13 @@ function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
     let tables = [];
     if (data.Meshes && data.Meshes.length) {
         for (let mesh of data.Meshes) {
+            let mdlTables;
             if (!!data.GMDL) {
-                tables.push(loadGmdlFromAjax(model, data.GMDL, mesh, needTable));
+                mdlTables = loadGmdlFromAjax(model, data.GMDL, mesh, needTable);
             } else {
-                tables.push(loadMeshFromAjax(model, mesh, needTable));
+                mdlTables = loadMeshFromAjax(model, mesh, needTable);
             }
+            tables.push(mdlTables);
         }
     }
 
@@ -695,6 +687,7 @@ function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
             }
             material.addLayer(layer);
         }
+
         model.addMaterial(material);
 
         let anim = data.Materials[iMaterial].Animations;
@@ -760,33 +753,41 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     let dumplinkgltf = getActionLinkForWadNode(wad, nodeid, 'gltf');
     dataSummary.append($('<a class="center">').attr('href', dumplinkgltf).append('Download .glb bin glTF 2.0'));
 
-    console.log(data);
-    for (const mesh of data.Meshes) {
-        for (const i in mesh.Vectors) {
-            const vec = mesh.Vectors[i];
-            console.log(i, vec);
-            if (vec.Unk00 === 65494) {
-                continue;
-            }
-            let pos = vec.Value;
-            pos = [
-                pos[1], pos[2], pos[3],
-                //pos[1], pos[0], pos[3],
-            ]
-            let mat = mat4.fromTranslation(mat4.create(), pos);
+    // console.log(data);
+    // for (const mesh of data.Meshes) {
+    //     for (const i in mesh.Vectors) {
+    //         const vec = mesh.Vectors[i];
+    //         console.log(i, vec, vec.Value);
+    //         //if (vec.Unk00 > 100) {
+    //         if (!(i === 0 || i === mesh.Vectors.length - 1)) {
+    //         //if (vec.Unk00 === 65494) {
+    //             continue;   
+    //         }
+    //         let pos = vec.Value;
+    //         let size = pos[0];
+    //         pos = [
+    //             pos[1], pos[2], pos[3],
+    //             //pos[1], pos[0], pos[3],
+    //         ]
+    //         let mat = mat4.fromTranslation(mat4.create(), pos);
+            
+    //         let model = new RenderModel();
+    //         model.addMesh(RenderHelper.SphereLinesMesh(pos[0], pos[1], pos[2], size, 15, 15));
+    //         //model.addMesh(RenderHelper.CubeLinesMesh(pos[0], pos[1], pos[2], size, size, size, true));
+    //         gr_instance.addNode(new ObjectTreeNodeModel("wtfmesh", model));
 
-            const jointText = new RenderTextMesh(`${i}`, true, 10);
-            jointText.setOffset(-0.5, -0.5);
-            if (vec.Unk00 === 65535) {
-                jointText.setColor(1.0, 0.0, 1.0, 0.3);
-            } else {
-                jointText.setColor(0.0, 1.0, 1.0, 0.3);
-            }
-            let textNode = new ObjectTreeNodeModel("vectorstrange", jointText);
-            textNode.setLocalMatrix(mat);
-            gr_instance.addNode(textNode);
-        }
-    }
+    //         const jointText = new RenderTextMesh(`${i}`, true, 10);
+    //         jointText.setOffset(-0.5, -0.5);
+    //         if (vec.Unk00 === 65535) {
+    //             jointText.setColor(1.0, 0.0, 1.0, 0.3);
+    //         } else {
+    //             jointText.setColor(0.0, 1.0, 1.0, 0.3);
+    //         }
+    //         let textNode = new ObjectTreeNodeModel("vectorstrange", jointText);
+    //         textNode.setLocalMatrix(mat);
+    //         gr_instance.addNode(textNode);
+    //     }
+    // }
 
     let [model, mdlTables] = loadMdlFromAjax(data, false, true);
     for (let mdlTable of mdlTables) {
@@ -962,9 +963,7 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
     const loaddebug = function(mdMesh, jointId) {
         let vertices = [];
         for (let vec of mdMesh.Vertices) {
-            vertices.push(vec[0]);
-            vertices.push(vec[1]);
-            vertices.push(vec[2]);
+            vertices.push(vec[0], vec[1], vec[2]);
         }
         let mesh = new RenderMesh(vertices, mdMesh.Indices, gl.LINES);
         mesh.setMaskBit(8);
@@ -972,7 +971,6 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
         let model = new RenderModel(collisionNode)
         model.addMesh(mesh);
         adddebugmaterial(model, 0.7, 0, 0.7, 0.3);
-
         let node = new ObjectTreeNodeModel(`mdbg`, model);
         if (parentObject) {
             parentObject.joints[jointId].addNode(node);
@@ -984,23 +982,60 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
     if (data.ShapeName == "BallHull") {
         let ball = data.Shape;
 
+        let color = [1.0, 1.0, 1.0];
+        switch (ball.Type) {
+            case 0: color = [1.0, 0.0, 0.0]; break;
+            case 1: color = [0.0, 0.0, 1.0]; break;
+            case 2: color = [0.0, 1.0, 1.0]; break;
+            case 3: color = [0.0, 1.0, 0.0]; break;
+        }
+
         for (let iMesh in ball.Meshes) {
             let mesh = ball.Meshes[iMesh];
-            for (let vec of mesh.Vertices) {
-                for (let i = 0; i < 3; i++) {
-                    if (Math.abs(vec[i]) < 0.0001) {
-                        vec[i] = 0;
-                    } else {
-                        vec[i] = -1.0 / (vec[i] / vec[3]);
-                    }
+
+            let calculatedVertices = [];
+            let calculatedIndices = [];
+            let pointIndices = [];
+            {
+                let planes = [];
+                for (let vec of mesh.Planes) {
+                    planes.push(new Plane([vec[0], vec[1], vec[2]], vec[3]));
                 }
-                for (let i in vec) {
-                    vec[i] = vec[i].toFixed(3);
+                
+                const [intersections, indices] = Plane.planesIntersectionsEdjes(planes);
+                for (const v of intersections) {
+                    calculatedVertices.push(v[0], v[1], v[2]);
                 }
+                for (const i in intersections) {
+                    pointIndices.push(i);
+                }
+                calculatedIndices = indices;
+            }
+            let calculatedMesh = new RenderMesh(calculatedVertices, calculatedIndices, gl.LINES);
+            calculatedMesh.setMaskBit(4);
+            calculatedMesh.setMaterialID(0);
+            let calculatedPointsMesh = new RenderMesh(calculatedVertices, pointIndices, gl.POINTS);
+            calculatedPointsMesh.setMaskBit(4);
+            calculatedPointsMesh.setMaterialID(0);
+
+            let calculatedModel = new RenderModel(collisionNode)
+            calculatedModel.addMesh(calculatedMesh);
+            calculatedModel.addMesh(calculatedPointsMesh);
+            adddebugmaterial(calculatedModel, color[0], color[1], color[2], 0.3);
+
+            let node = new ObjectTreeNodeModel(`calculated`, calculatedModel);
+            if (parentObject) {
+                parentObject.joints[mesh.Joint].addNode(node);
+            } else {
+                collisionNode.addNode(node);
             }
 
             if (ball.DbgMesh) {
-                loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint);
+                if (iMesh < ball.DbgMesh.Meshes.length) {
+                    loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint);
+                } else {
+                    console.error("Failed to get dbgmesh for mesh", nodeid, iMesh, ball);
+                }
             }
         }
 
@@ -1012,8 +1047,10 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
 
             let mesh = RenderHelper.SphereLinesMesh(vec[0], vec[1], vec[2], size, 7, 7);
             mesh.setMaskBit(4);
+            mesh.setMaterialID(0);
             let model = new RenderModel();
             model.addMesh(mesh);
+            adddebugmaterial(model, color[0], color[1], color[2], 0.3);
 
             let node = new ObjectTreeNodeModel(`ball ${iBall}`, model);
             if (parentObject) {
@@ -1028,7 +1065,6 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
         //mdl.addMesh(mesh);
         //mesh.setMaskBit(4);
     } else if (data.ShapeName == "mCDbgHdr") {
-        adddebugmaterial(0.7, 0, 0.7, 0.3);
         for (let mdMesh of data.Shape.Meshes) {
             loaddebug(mdMesh, 0);
         }
@@ -1079,27 +1115,19 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
             let indices = [];
             let vertices = [];
             for (let i = 0; i < rib.Some9Points.length; i++) {
-                vertices.push(rib.Some9Points[i][0]);
-                vertices.push(rib.Some9Points[i][1]);
-                vertices.push(rib.Some9Points[i][2]);
+                vertices.push(rib.Some9Points[i][0], rib.Some9Points[i][1], rib.Some9Points[i][2]);
             }
             for (let i = 0; i < rib.Some8QuadsIndex.length; i++) {
                 let quad = rib.Some8QuadsIndex[i];
                 if (quad.MaterialIndex == materialId) {
-                    indices.push(quad.Indexes[0]);
-                    indices.push(quad.Indexes[1]);
-                    indices.push(quad.Indexes[2]);
-                    indices.push(quad.Indexes[3]);
-                    indices.push(quad.Indexes[0]);
-                    indices.push(quad.Indexes[2]);
+                    indices.push(quad.Indexes[0], quad.Indexes[1], quad.Indexes[2]);
+                    indices.push(quad.Indexes[3], quad.Indexes[0], quad.Indexes[2]);
                 }
             }
             for (let i = 0; i < rib.Some7TrianglesIndex.length; i++) {
                 let triangle = rib.Some7TrianglesIndex[i];
                 if (triangle.MaterialIndex == materialId) {
-                    indices.push(triangle.Indexes[0]);
-                    indices.push(triangle.Indexes[1]);
-                    indices.push(triangle.Indexes[2]);
+                    indices.push(triangle.Indexes[0], triangle.Indexes[1], triangle.Indexes[2]);
                 }
             }
 
@@ -1139,13 +1167,13 @@ function loadObjFromAjax(data, parseScripts = false) {
         if (joint.IsSkinned) {
             jNode.setBindToJointMatrix(joint.BindToJointMat);
         }
-
+    
         if (joint.Parent < 0) {
             oNode.addNode(jNode);
         } else {
             oNode.joints[joint.Parent].addNode(jNode);
         }
-
+        
         oNode.addJoint(jNode);
 
         const jointText = new RenderTextMesh(iJoint, true, 10);
@@ -1156,14 +1184,16 @@ function loadObjFromAjax(data, parseScripts = false) {
     }
 
     if (data.Model) {
-        const [model, mdlTables] = loadMdlFromAjax(data.Model, parseScripts, true);
+        const [model, mdlTables] = loadMdlFromAjax(data.Model, true, true);
         for (const mdlTable of mdlTables) {
             // dataSummary.append(mdlTables);
         }
         oNode.addNode(new ObjectTreeNodeModel("model", model));
     }
-    if (data.Collision) {
-        loadCollisionFromAjax(data.Collision, null, null, oNode);
+    if (data.Collisions) {
+        for (const collision of data.Collisions) {
+            loadCollisionFromAjax(collision, null, null, oNode);
+        }
     }
 
     if (data.Script) {
@@ -1193,7 +1223,7 @@ function loadObjFromAjax(data, parseScripts = false) {
             });
         }
     }
-
+    
     oNode.addNode(new ObjectTreeNodeModel("tree", RenderHelper.SkeletLines(joints)));
 
     return oNode;
@@ -1337,11 +1367,11 @@ function loadCxtFromAjax(data, parseScripts = true) {
         instNode.setLocalMatrix(instMat);
         cxtNode.addNode(instNode);
 
-        /* let pos = inst.Position2;
-         let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
-         text3d.setOffset(-0.5, -0.5);
-         text3d.setMaskBit(6);
-         gr_instance.texts.push(text3d);*/
+       /* let pos = inst.Position2;
+        let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
+        text3d.setOffset(-0.5, -0.5);
+        text3d.setMaskBit(6);
+        gr_instance.texts.push(text3d);*/
 
         const text3d = new RenderTextMesh("\x04" + inst.Name, true);
         text3d.setOffset(-0.5, -0.5);

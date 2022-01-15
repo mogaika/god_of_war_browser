@@ -12,17 +12,17 @@ import (
 const BALLHULL_HEADER_SIZE = 0x68
 
 const (
-	BALLHULL_SECTION_MATERIAL             = 0  // 0x3c []material
-	BALLHULL_SECTION_BALLS_JOINTS         = 1  // 0x40 []byte
-	BALLHULL_SECTION_BALLS_SCRIPTMARK     = 2  // 0x44 []byte
-	BALLHULL_SECTION_BALLS_MAPMATERIAL    = 3  // 0x48 []byte
-	BALLHULL_SECTION_BALLS_COORDS         = 4  // 0x4c []vec4
-	BALLHULL_SECTION_MESHES_VERTICESCOUNT = 5  // 0x50 []byte
-	BALLHULL_SECTION_MESHES_JOINTS        = 6  // 0x54 []byte
-	BALLHULL_SECTION_MESHES_SCRIPTMARK    = 7  // 0x58 []byte
-	BALLHULL_SECTION_MESHES_BBOXES        = 8  // 0x5c []vec4
-	BALLHULL_SECTION_MESHES_MAPMATERIAL   = 9  // 0x60 []byte
-	BALLHULL_SECTION_MESHES_VERTICES      = 10 // 0x64 []vec4
+	BALLHULL_SECTION_MATERIAL           = 0  // 0x3c []material
+	BALLHULL_SECTION_BALLS_JOINTS       = 1  // 0x40 []byte
+	BALLHULL_SECTION_BALLS_SCRIPTMARK   = 2  // 0x44 []byte
+	BALLHULL_SECTION_BALLS_MAPMATERIAL  = 3  // 0x48 []byte
+	BALLHULL_SECTION_BALLS_COORDS       = 4  // 0x4c []vec4
+	BALLHULL_SECTION_MESHES_PLANESCOUNT = 5  // 0x50 []byte
+	BALLHULL_SECTION_MESHES_JOINTS      = 6  // 0x54 []byte
+	BALLHULL_SECTION_MESHES_SCRIPTMARK  = 7  // 0x58 []byte
+	BALLHULL_SECTION_MESHES_BBOXES      = 8  // 0x5c []vec4
+	BALLHULL_SECTION_MESHES_MAPMATERIAL = 9  // 0x60 []byte
+	BALLHULL_SECTION_MESHES_PLANES      = 10 // 0x64 []vec4
 )
 
 type BallHullBall struct {
@@ -34,7 +34,7 @@ type BallHullBall struct {
 
 type BallHullMesh struct {
 	BBox       mgl32.Vec4
-	Vertices   []mgl32.Vec4 // Hesse normal form of plane representation
+	Planes     []mgl32.Vec4 // Hesse normal form of plane representation
 	Materials  []int8       // int8 just so json marshal not performs base64
 	Joint      byte
 	ScriptMark byte
@@ -115,15 +115,15 @@ func NewBallHull(bs *utils.BufStack, wrtw io.Writer) (*ShapeBallHull, error) {
 		m := &BallHullMesh{}
 		readVec4(bss[BALLHULL_SECTION_MESHES_BBOXES], &m.BBox)
 
-		verticesCount := bss[BALLHULL_SECTION_MESHES_VERTICESCOUNT].ReadByte()
-		m.Vertices = make([]mgl32.Vec4, verticesCount)
-		m.Materials = make([]int8, verticesCount)
+		planesCount := bss[BALLHULL_SECTION_MESHES_PLANESCOUNT].ReadByte()
+		m.Planes = make([]mgl32.Vec4, planesCount)
+		m.Materials = make([]int8, planesCount)
 		m.Joint = bss[BALLHULL_SECTION_MESHES_JOINTS].ReadByte()
 		m.ScriptMark = bss[BALLHULL_SECTION_MESHES_SCRIPTMARK].ReadByte()
 
-		for vi := range m.Vertices {
+		for vi := range m.Planes {
 			m.Materials[vi] = int8(bss[BALLHULL_SECTION_MESHES_MAPMATERIAL].ReadByte())
-			readVec4(bss[BALLHULL_SECTION_MESHES_VERTICES], &m.Vertices[vi])
+			readVec4(bss[BALLHULL_SECTION_MESHES_PLANES], &m.Planes[vi])
 		}
 
 		bh.Meshes[i] = m

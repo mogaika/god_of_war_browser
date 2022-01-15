@@ -445,7 +445,7 @@ class AnimationMaterialSheet extends AnimationBase {
             var step = Math.trunc(floatStep) % stateDesc.Data.length;
             if (step != this.step) {
                 gr_instance.requireRedraw = true;
-                this.material.layers.get()[0].setTextureIndex(stateDesc.Data[step]);
+                this.material.layers.get(0).setTextureIndex(stateDesc.Data[step]);
             }
         } else {
             log.error("incorrect animation typeid");

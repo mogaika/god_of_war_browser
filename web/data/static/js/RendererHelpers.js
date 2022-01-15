@@ -42,7 +42,7 @@ class RenderHelper {
         return new RenderMesh(vertexData, indexData, gl.TRIANGLES)
     }
 
-    static CubeLinesMesh(x, y, z, size_x, size_y, size_z, diaglines = true, jointid = 0) {
+    static CubeLinesMesh(x, y, z, size_x, size_y, size_z, diaglines = true) {
         if (size_x == undefined) {
             size_x = 50;
         }
@@ -73,8 +73,6 @@ class RenderHelper {
         ];
 
         let mesh = new RenderMesh(vertexData, indexData, gl.LINES);
-        mesh.useJointsRaw();
-        mesh.setJointIds([jointid], Array(vertexData.length / 3).fill(0));
         return mesh;
     }
 
@@ -84,7 +82,7 @@ class RenderHelper {
         return mdl;
     }
 
-    static SphereLinesMesh(x, y, z, radius, latitudeBands, longitudeBands, jointid = 0) {
+    static SphereLinesMesh(x, y, z, radius, latitudeBands, longitudeBands) {
         let vertexData = [];
         for (let latNumber = 0; latNumber <= latitudeBands; latNumber++) {
             let theta = latNumber * Math.PI / latitudeBands;
@@ -118,8 +116,6 @@ class RenderHelper {
         }
 
         let mesh = new RenderMesh(vertexData, indexData, gl.LINES);
-        mesh.useJointsRaw();
-        mesh.setJointIds([jointid], Array(vertexData.length / 3).fill(0));
         return mesh;
     }
 

@@ -39,10 +39,10 @@ class RenderModel extends Claimable {
 }
 
 class RenderMesh extends Claimable {
-    constructor(vertexArray, indexArray, primitive) {
+    constructor(vertexArray, indexArray, primitive = gl.TRIANGLES) {
         super();
         this.indexesCount = indexArray.length;
-        this.primitive = (!!primitive) ? primitive : gl.TRIANGLES;
+        this.primitive = primitive;
         this.isDepthTested = true;
         this.hasAlpha = false;
         this.isVisible = true;
@@ -51,7 +51,6 @@ class RenderMesh extends Claimable {
         this.layer = undefined;
         this.mask = 0;
         this.meta = {};
-        this.jointsRaw = false;
 
         // construct array of unique indexes
         this.usedIndexes = [];
@@ -148,10 +147,6 @@ class RenderMesh extends Claimable {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferWeights);
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(weights), gl.STATIC_DRAW);
         }
-    }
-
-    useJointsRaw() {
-        this.jointsRaw = true;
     }
 
     setps3static(yes = true) {

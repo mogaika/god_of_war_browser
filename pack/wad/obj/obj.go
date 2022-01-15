@@ -300,7 +300,7 @@ func (obj *Object) FillJoints() {
 type ObjMarshal struct {
 	Data             *Object
 	Model            *mdl.Ajax
-	Collision        *collision.Collision
+	Collisions       []*collision.Collision
 	Script           *scr.ScriptParams
 	Animations       *anm.Animations
 	Cameras          []interface{}
@@ -324,7 +324,7 @@ func (obj *Object) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 					case *mdl.Ajax:
 						mrshl.Model = v
 					case *collision.Collision:
-						mrshl.Collision = v
+						mrshl.Collisions = append(mrshl.Collisions, v)
 					case *scr.ScriptParams:
 						mrshl.Script = v
 					case *anm.Animations:

@@ -1,5 +1,5 @@
 === Type 0 - Trigger Entry Sensor
-#1 =  -1 to trigger once?)
+#1 =  -1 to trigger once?
 #4 = on trigger handler
 #6 = variable id to store triggered object???
 Example: message show on first chest

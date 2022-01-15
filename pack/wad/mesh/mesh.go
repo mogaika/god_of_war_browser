@@ -52,7 +52,7 @@ type Object struct {
 	// new dma program per each instance.
 	// uses same buffers except rgba lighting, own jointmapper per instance
 	InstancesCount uint32
-	Flags          uint32 // if & 0x40 - then we get broken joints and diff between type 0x1D and others
+	Flags          uint32 // if & 0x40 - UseInvertedMatrix
 	FlagsMask      uint32
 
 	// new dma program per texture layer
