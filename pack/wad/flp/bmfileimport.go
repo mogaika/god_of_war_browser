@@ -131,6 +131,8 @@ func bmFontNewMeshPartReferenceFromChar(bmf *bmfont.Font, char *bmfont.Char, mes
 		mesh.Parts = append(mesh.Parts, file_mesh.Part{})
 	}
 
+	// for part index 125 material id 129 joint mapper [127] part joint 127
+
 	part := &mesh.Parts[meshPartIndex]
 	part.Unk00 = 1
 	part.JointId = uint16(meshPartIndex + 2)

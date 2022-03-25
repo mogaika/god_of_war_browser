@@ -316,11 +316,11 @@ function parseMeshPackets(object, packets, instanceIndex) {
     let m_normals = [];
     let m_joints1 = [];
     let m_joints2 = [];
-    
+
     let offset = 0;
     for (const packet of packets) {
         const vertexCount = packet.Trias.X.length;
-       
+
         for (const i in packet.Trias.X) {
             m_vertexes.push(packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i]);
             if (!packet.Trias.Skip[i]) {
@@ -418,7 +418,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                     totalMeshes.push(mesh);
                     model.addMesh(mesh);
 
-                    /*if (table) {
+                    if (table) {
                         let label = $('<label>');
                         let chbox = $('<input type="checkbox" checked>');
                         let td = $('<td>').append(label);
@@ -436,7 +436,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         label.append(chbox);
                         label.append("o_" + objName);
                         table.append($('<tr>').append(td));
-                    }*/
+                    }
                 }
             }
         }
@@ -770,7 +770,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     //             //pos[1], pos[0], pos[3],
     //         ]
     //         let mat = mat4.fromTranslation(mat4.create(), pos);
-            
+
     //         let model = new RenderModel();
     //         model.addMesh(RenderHelper.SphereLinesMesh(pos[0], pos[1], pos[2], size, 15, 15));
     //         //model.addMesh(RenderHelper.CubeLinesMesh(pos[0], pos[1], pos[2], size, size, size, true));
@@ -984,10 +984,18 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
 
         let color = [1.0, 1.0, 1.0];
         switch (ball.Type) {
-            case 0: color = [1.0, 0.0, 0.0]; break;
-            case 1: color = [0.0, 0.0, 1.0]; break;
-            case 2: color = [0.0, 1.0, 1.0]; break;
-            case 3: color = [0.0, 1.0, 0.0]; break;
+            case 0:
+                color = [1.0, 0.0, 0.0];
+                break;
+            case 1:
+                color = [0.0, 0.0, 1.0];
+                break;
+            case 2:
+                color = [0.0, 1.0, 1.0];
+                break;
+            case 3:
+                color = [0.0, 1.0, 0.0];
+                break;
         }
 
         for (let iMesh in ball.Meshes) {
@@ -995,13 +1003,12 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
 
             let calculatedVertices = [];
             let calculatedIndices = [];
-            let pointIndices = [];
-            {
+            let pointIndices = []; {
                 let planes = [];
                 for (let vec of mesh.Planes) {
                     planes.push(new Plane([vec[0], vec[1], vec[2]], vec[3]));
                 }
-                
+
                 const [intersections, indices] = Plane.planesIntersectionsEdjes(planes);
                 for (const v of intersections) {
                     calculatedVertices.push(v[0], v[1], v[2]);
@@ -1167,13 +1174,13 @@ function loadObjFromAjax(data, parseScripts = false) {
         if (joint.IsSkinned) {
             jNode.setBindToJointMatrix(joint.BindToJointMat);
         }
-    
+
         if (joint.Parent < 0) {
             oNode.addNode(jNode);
         } else {
             oNode.joints[joint.Parent].addNode(jNode);
         }
-        
+
         oNode.addJoint(jNode);
 
         const jointText = new RenderTextMesh(iJoint, true, 10);
@@ -1223,7 +1230,7 @@ function loadObjFromAjax(data, parseScripts = false) {
             });
         }
     }
-    
+
     oNode.addNode(new ObjectTreeNodeModel("tree", RenderHelper.SkeletLines(joints)));
 
     return oNode;
@@ -1367,11 +1374,11 @@ function loadCxtFromAjax(data, parseScripts = true) {
         instNode.setLocalMatrix(instMat);
         cxtNode.addNode(instNode);
 
-       /* let pos = inst.Position2;
-        let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
-        text3d.setOffset(-0.5, -0.5);
-        text3d.setMaskBit(6);
-        gr_instance.texts.push(text3d);*/
+        /* let pos = inst.Position2;
+         let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
+         text3d.setOffset(-0.5, -0.5);
+         text3d.setMaskBit(6);
+         gr_instance.texts.push(text3d);*/
 
         const text3d = new RenderTextMesh("\x04" + inst.Name, true);
         text3d.setOffset(-0.5, -0.5);

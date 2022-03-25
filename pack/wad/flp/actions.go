@@ -98,6 +98,37 @@ func (f *FLP) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *http.
 		wrsrc.Wad.UpdateTagsData(map[wad.TagId][]byte{
 			wrsrc.Tag.Id: f.marshalBufferWithHeader().Bytes(),
 		})
+	case "exportfont":
+		if fnt, err := f.actionExportFont(wrsrc); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to export font"))
+			return
+		} else {
+			webutils.WriteJsonFile(w, fnt, wrsrc.Name()+"_font")
+			return
+		}
+	case "replacefont":
+		if strings.ToUpper(r.Method) != "POST" {
+			return
+		}
+
+		eff, _, err := r.FormFile("data")
+		if err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to open file"))
+			return
+		}
+
+		defer eff.Close()
+
+		var ef ExportedFont
+		if err := json.NewDecoder(eff).Decode(&ef); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to unmarshal"))
+			return
+		}
+
+		if err := f.actionReplaceFont(wrsrc, &ef); err != nil {
+			webutils.WriteError(w, errors.Wrapf(err, "Failed to replace font"))
+			return
+		}
 	case "asjson":
 		webutils.WriteJsonFile(w, f, wrsrc.Name())
 	case "fromjson":
