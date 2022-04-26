@@ -1662,14 +1662,41 @@ function summaryLoadWadTWK(data, wad, nodeid) {
     let table = $("<table>");
     let twk = data;
 
+    let dumpYamlLink = getActionLinkForWadNode(wad, nodeid, 'asyaml');
+
     let info = $("<ul>");
     info.append($("<li>").append("Name: " + twk.Name));
     info.append($("<li>").append("MagicHeaderPresened: " + twk.MagicHeaderPresened));
     info.append($("<li>").append("HeaderStrangeMagicUid: " + twk.HeaderStrangeMagicUid));
+    info.append($("<li>").append($("<a>").attr('href', dumpYamlLink).append("Download yaml")));
     dataSummary.append(info);
 
+    let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'fromyaml') + '" method="post" enctype="multipart/form-data">');
+    form.append($('<input type="file" name="data">'));
+    let replaceBtn = $('<input type="button" value="Upload from yaml">')
+    replaceBtn.click(function() {
+        let form = $(this).parent();
+        $.ajax({
+            url: form.attr('action'),
+            type: 'post',
+            data: new FormData(form[0]),
+            processData: false,
+            contentType: false,
+            success: function(a1) {
+                if (a1 !== "") {
+                    alert('Error: ' + a1);
+                } else {
+                    alert('Success!');
+                    window.location.reload();
+                }
+            }
+        });
+    });
+    form.append(replaceBtn);
+    dataSummary.append(form);
+
     let valueView = function(value) {
-        let bytes = hexStringToBytes(value.Hex);
+        let bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
         let view = new DataView(bytes.buffer, 0);
         let asString = '';
         for (let c of bytes) {
@@ -1682,35 +1709,35 @@ function summaryLoadWadTWK(data, wad, nodeid) {
         let s = "int32: " + view.getInt32(0, true) + " uint32: " + view.getUint32(0, true) +
             " float: " + view.getFloat32(0, true) +
             "</br>string: " + asString +
-            "</br>hex: " + value.Hex +
-            "</br>offset: " + value.Offset;
+            "</br>hex: " + bytesToHexString(bytes);
         return s;
     }
 
     let directoryToTable;
     directoryToTable = function(directory) {
         let table = $("<table>");
-        for (let value of directory.Values) {
-            table.append($("<tr>").append(
-                $("<td>").append(value.Name),
-                $("<td>").append(valueView(value))
-            ));
-        }
 
-        console.log(directory);
-        if (directory.Directories) {
-            for (let subdir of directory.Directories) {
-                table.append($("<tr>").append(
-                    $("<td>").append(subdir.Name),
-                    $("<td>").append(directoryToTable(subdir))
-                ));
+        // console.log(directory);
+        if (directory.Fields) {
+            for (let subdir of directory.Fields) {
+                if (subdir.Value) {
+                    table.append($("<tr>").append(
+                        $("<td>").append(subdir.Name),
+                        $("<td>").append(valueView(subdir.Value))
+                    ));
+                } else {
+                    table.append($("<tr>").append(
+                        $("<td style='vertical-align: top;'>").append(subdir.Name),
+                        $("<td>").append(directoryToTable(subdir))
+                    ));
+                }
             }
         }
 
         return table;
     };
 
-    dataSummary.append(directoryToTable(twk));
+    dataSummary.append(directoryToTable(twk.Tree));
     console.log(twk);
 }
 
