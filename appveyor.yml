@@ -9,6 +9,8 @@ environment:
   GOARCH: 386
   GOOS: windows
 
+image: Visual Studio 2022 # use latest go version
+
 install:
   - echo %PATH%
   - echo %GOPATH%
