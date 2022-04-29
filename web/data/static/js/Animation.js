@@ -83,6 +83,7 @@ class AnimationManager {
 class AnimationBase extends Claimable {
     _free() {
         ga_instance.freeAnimation(this);
+        super._free();
     }
 }
 

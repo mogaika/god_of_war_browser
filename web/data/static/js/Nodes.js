@@ -2,9 +2,15 @@
 class Claimable {
     constructor() {
         this.refs = 0;
+        this.__been_freed = false;
     }
     _free() {
-        throw new Error(`Free method not implemented for ${this.constructor.name}`);
+        // throw new Error(`Free method not implemented for ${this.constructor.name}`);
+        // console.log(`called free on ${this.constructor.name} ${this._name}`);
+        if (this.__been_freed) {
+            console.error(`double free on ${this.constructor.name} ${this._name}`);
+        }
+        this.__been_freed = true;
     }
     claim() {
         this.refs++;
@@ -137,6 +143,7 @@ class ObjectTreeNode extends ObjectTreeNodeBase {
 
     _free() {
         this._nodes.removeAll();
+        super._free();
     }
 }
 
@@ -153,6 +160,7 @@ class ObjectTreeNodeModel extends ObjectTreeNodeBase {
 
     _free() {
         this._model.unclaim();
+        super._free();
     }
 }
 
@@ -216,5 +224,6 @@ class ObjectTreeNodeSkinned extends ObjectTreeNode {
             this._animation.unclaim();
         }
         this._jonits.removeAll();
+        super._free();
     }
 }

@@ -625,12 +625,14 @@ function summaryLoadWadGmdl(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    let mdl = new RenderModel();
+    let model = new RenderModel();
 
-    let table = loadGmdlFromAjax(mdl, data, undefined, true);
+    let table = loadGmdlFromAjax(model, data, undefined, true);
     dataSummary.append(table);
 
-    gr_instance.models.push(mdl);
+    let node = new ObjectTreeNodeModel("gmdl", model);
+    gr_instance.addNode(node);
+
     gr_instance.requestRedraw();
 }
 
@@ -641,7 +643,8 @@ function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
     if (data.Meshes && data.Meshes.length) {
         for (let mesh of data.Meshes) {
             let mdlTables;
-            if (!!data.GMDL) {
+            if (false) { // (!!data.GMDL) {
+                // GMDL static meshes already translated to position?
                 mdlTables = loadGmdlFromAjax(model, data.GMDL, mesh, needTable);
             } else {
                 mdlTables = loadMeshFromAjax(model, mesh, needTable);
@@ -1000,43 +1003,43 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
 
         for (let iMesh in ball.Meshes) {
             let mesh = ball.Meshes[iMesh];
+            /*
+                        let calculatedVertices = [];
+                        let calculatedIndices = [];
+                        let pointIndices = []; {
+                            let planes = [];
+                            for (let vec of mesh.Planes) {
+                                planes.push(new Plane([vec[0], vec[1], vec[2]], vec[3]));
+                            }
 
-            let calculatedVertices = [];
-            let calculatedIndices = [];
-            let pointIndices = []; {
-                let planes = [];
-                for (let vec of mesh.Planes) {
-                    planes.push(new Plane([vec[0], vec[1], vec[2]], vec[3]));
-                }
+                            const [intersections, indices] = Plane.planesIntersectionsEdjes(planes);
+                            for (const v of intersections) {
+                                calculatedVertices.push(v[0], v[1], v[2]);
+                            }
+                            for (const i in intersections) {
+                                pointIndices.push(i);
+                            }
+                            calculatedIndices = indices;
+                        }
+                        let calculatedMesh = new RenderMesh(calculatedVertices, calculatedIndices, gl.LINES);
+                        calculatedMesh.setMaskBit(4);
+                        calculatedMesh.setMaterialID(0);
+                        let calculatedPointsMesh = new RenderMesh(calculatedVertices, pointIndices, gl.POINTS);
+                        calculatedPointsMesh.setMaskBit(4);
+                        calculatedPointsMesh.setMaterialID(0);
 
-                const [intersections, indices] = Plane.planesIntersectionsEdjes(planes);
-                for (const v of intersections) {
-                    calculatedVertices.push(v[0], v[1], v[2]);
-                }
-                for (const i in intersections) {
-                    pointIndices.push(i);
-                }
-                calculatedIndices = indices;
-            }
-            let calculatedMesh = new RenderMesh(calculatedVertices, calculatedIndices, gl.LINES);
-            calculatedMesh.setMaskBit(4);
-            calculatedMesh.setMaterialID(0);
-            let calculatedPointsMesh = new RenderMesh(calculatedVertices, pointIndices, gl.POINTS);
-            calculatedPointsMesh.setMaskBit(4);
-            calculatedPointsMesh.setMaterialID(0);
+                        let calculatedModel = new RenderModel(collisionNode)
+                        calculatedModel.addMesh(calculatedMesh);
+                        calculatedModel.addMesh(calculatedPointsMesh);
+                        adddebugmaterial(calculatedModel, color[0], color[1], color[2], 0.3);
 
-            let calculatedModel = new RenderModel(collisionNode)
-            calculatedModel.addMesh(calculatedMesh);
-            calculatedModel.addMesh(calculatedPointsMesh);
-            adddebugmaterial(calculatedModel, color[0], color[1], color[2], 0.3);
-
-            let node = new ObjectTreeNodeModel(`calculated`, calculatedModel);
-            if (parentObject) {
-                parentObject.joints[mesh.Joint].addNode(node);
-            } else {
-                collisionNode.addNode(node);
-            }
-
+                        let node = new ObjectTreeNodeModel(`calculated`, calculatedModel);
+                        if (parentObject) {
+                            parentObject.joints[mesh.Joint].addNode(node);
+                        } else {
+                            collisionNode.addNode(node);
+                        }
+            */
             if (ball.DbgMesh) {
                 if (iMesh < ball.DbgMesh.Meshes.length) {
                     loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint);
