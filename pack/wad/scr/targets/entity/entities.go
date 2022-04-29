@@ -172,9 +172,15 @@ func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, i
 	*/
 
 	cmpld := e.marshalBuffer(ec)
-	if bytes.Compare(b, cmpld) != 0 {
-		utils.LogDump(b)
-		utils.LogDump(cmpld)
+
+	const PERFORM_MARSHAL_CHECK = false
+
+	if PERFORM_MARSHAL_CHECK {
+		if bytes.Compare(b, cmpld) != 0 {
+			log.Printf("entity parse-marshal inconsistency")
+			utils.LogDump(b)
+			utils.LogDump(cmpld)
+		}
 	}
 
 	return e, len(b), nil

@@ -33,12 +33,12 @@ type VFSNode struct {
 var _ yaml.Marshaler = (*VFSAbstractNode)(nil)
 
 type yamlNodeTypeCommenter struct {
-	val interface{}
+	convVal interface{}
 }
 
 func (tc *yamlNodeTypeCommenter) MarshalYAML() (interface{}, error) {
-	log.Printf("tc %T", tc.val)
-	switch val := tc.val.(type) {
+	log.Printf("tc %T", tc.convVal)
+	switch val := tc.convVal.(type) {
 	case int8, int16, int32, int, float32:
 		return yaml.Node{
 			Kind:        yaml.ScalarNode,
@@ -66,17 +66,17 @@ type abstractNodeYAMLType struct {
 func (an *VFSAbstractNode) MarshalYAML() (interface{}, error) {
 	value := an.Value
 	if value != nil {
-		switch val := value.(type) {
+		switch convVal := value.(type) {
 		case int8, uint8, int16, uint16, int32, uint32, int, uint, float32, float64:
 			value = &yaml.Node{
 				Kind:        yaml.ScalarNode,
-				Value:       fmt.Sprint(val),
-				LineComment: fmt.Sprintf("%T", val),
+				Value:       fmt.Sprint(convVal),
+				LineComment: fmt.Sprintf("%T", convVal),
 			}
 		case string:
 			value = &yaml.Node{
 				Kind:        yaml.ScalarNode,
-				Value:       val,
+				Value:       convVal,
 				LineComment: fmt.Sprintf("char[%d]", an.Declaration.(*VFSFieldDeclaration).Size),
 			}
 		}
@@ -132,34 +132,39 @@ func (fd *VFSFieldDeclaration) MarshalTWK(an *VFSAbstractNode) (*VFSNode, error)
 
 	buf := make([]byte, 4)
 
-	log.Printf("GOT %T %v", an.Value, an.Value)
-
-	val := an.Value
+	convVal := an.Value
 	// normalize numbers
-	switch newVal := val.(type) {
-	case int8:
-		val = uint32(uint8(newVal))
-	case uint8:
-		val = uint32(uint8(newVal))
-	case int16:
-		val = uint32(uint16(newVal))
-	case uint16:
-		val = uint32(uint16(newVal))
-	case int32:
-		val = uint32(uint32(newVal))
-	case uint32:
-		val = uint32(uint32(newVal))
-	case int:
-		val = uint32(newVal)
-	case uint:
-		val = uint32(newVal)
-	case float64:
-		val = float32(newVal)
+
+	convToNum := func(num int64) interface{} {
+		if fd.Type == FILE_TYPE_FLOAT {
+			return float32(num)
+		} else {
+			return int32(num)
+		}
 	}
 
-	log.Printf("Conv %T %v", an.Value, an.Value)
+	switch val := convVal.(type) {
+	case int8:
+		convVal = convToNum(int64(int8(val)))
+	case uint8:
+		convVal = convToNum(int64(int8(val)))
+	case int16:
+		convVal = convToNum(int64(int16(val)))
+	case uint16:
+		convVal = convToNum(int64(int16(val)))
+	case int32:
+		convVal = convToNum(int64(int32(val)))
+	case uint32:
+		convVal = convToNum(int64(int32(val)))
+	case int:
+		convVal = convToNum(int64(int(val)))
+	case uint:
+		convVal = convToNum(int64(int(val)))
+	case float64:
+		convVal = float32(val)
+	}
 
-	switch val := val.(type) {
+	switch val := convVal.(type) {
 	case bool:
 		if fd.Type != FILE_TYPE_BOOL {
 			return nil, errors.Errorf("Expected bool")
@@ -167,19 +172,19 @@ func (fd *VFSFieldDeclaration) MarshalTWK(an *VFSAbstractNode) (*VFSNode, error)
 		if val {
 			buf[0] = 1
 		}
-	case uint32:
+	case int32:
 		if fd.Type != FILE_TYPE_INT8 && fd.Type != FILE_TYPE_INT16 && fd.Type != FILE_TYPE_INT32 {
-			return nil, errors.Errorf("Expected int")
+			return nil, errors.Errorf("Expected int, got %T", val)
 		}
-		binary.LittleEndian.PutUint32(buf, val)
+		binary.LittleEndian.PutUint32(buf, uint32(val))
 	case float32:
 		if fd.Type != FILE_TYPE_FLOAT {
-			return nil, errors.Errorf("Expected float")
+			return nil, errors.Errorf("Expected float, got %T", val)
 		}
 		binary.LittleEndian.PutUint32(buf[:], math.Float32bits(val))
 	case string:
 		if fd.Type != FILE_TYPE_STRING {
-			return nil, errors.Errorf("Expected string")
+			return nil, errors.Errorf("Expected string, got %T", val)
 		}
 		if len(val) > fd.Size {
 			return nil, errors.Errorf("String too long (%d > %d)", len(val), fd.Size)
@@ -187,7 +192,7 @@ func (fd *VFSFieldDeclaration) MarshalTWK(an *VFSAbstractNode) (*VFSNode, error)
 		buf = utils.StringToBytes(val, true)
 	case []byte:
 		if fd.Type != FILE_TYPE_BYTES {
-			return nil, errors.Errorf("Expected byte array")
+			return nil, errors.Errorf("Expected byte array, got %T", val)
 		}
 		if len(val) > fd.Size {
 			return nil, errors.Errorf("Byte array too long (%d > %d)", len(val), fd.Size)
@@ -201,7 +206,7 @@ func (fd *VFSFieldDeclaration) MarshalTWK(an *VFSAbstractNode) (*VFSNode, error)
 			return nil, errors.Errorf("Got nil")
 		}
 	default:
-		return nil, errors.Errorf("Unknown type %T for field declaration", val)
+		return nil, errors.Errorf("Unknown type %T for field declaration %d", val, fd.Type)
 	}
 	n.Value = buf
 	return n, nil

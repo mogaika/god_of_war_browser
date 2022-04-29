@@ -71,6 +71,9 @@ func loadHashes(filename string) error {
 }
 
 func GameStringHashRemember(s string) {
+	if strings.HasPrefix(s, "@hash(") {
+		return
+	}
 	hashesMap.Store(GameStringHashNodes(s, 0), s)
 }
 
