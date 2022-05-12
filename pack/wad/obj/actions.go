@@ -27,5 +27,8 @@ func (obj *Object) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r *
 		if err := obj.ExportFbxDefault(wrsrc).Write(w); err != nil {
 			log.Printf("Error when exporting object as fbx: %v", err)
 		}
+	case "import":
+		panic("TODO")
+
 	}
 }

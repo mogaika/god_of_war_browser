@@ -302,4 +302,9 @@ func init() {
 		// log.Printf("\n%v", bs.StringTree())
 		return g, err
 	})
+	wad.SetHandler(config.GOW2018, GOW2018_MODEL_GEOMETRY_GPU_DATA_TAG, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
+		m, err := NewGOW2018Mesh(bs)
+		return m, err
+	})
 }
