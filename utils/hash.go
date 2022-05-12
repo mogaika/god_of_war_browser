@@ -11,6 +11,15 @@ import (
 )
 
 func GameStringHashNodes(str string, initial uint32) uint32 {
+	if initial == 0 && strings.HasPrefix(str, "@hash(") && strings.HasSuffix(str, ")") {
+		var hash uint32
+		if n, err := fmt.Sscanf(str, "@hash(%x)", &hash); err != nil {
+			log.Panicf("invalid string with @hash prefix %q unhash error: %v", str, err)
+		} else if n != 1 {
+			log.Panicf("invalid string with @hash prefix %q n count: %v", str, n)
+		}
+		return hash
+	}
 	hash := initial
 	for _, c := range str {
 		hash = hash*127 + uint32(byte(c))
@@ -56,10 +65,16 @@ func loadHashes(filename string) error {
 		}
 
 		if init == 0 {
-			// TODO: store init != 0 too
-			hashesMap.Store(hash, input)
+			GameStringHashRemember(input)
 		}
 	}
+}
+
+func GameStringHashRemember(s string) {
+	if strings.HasPrefix(s, "@hash(") {
+		return
+	}
+	hashesMap.Store(GameStringHashNodes(s, 0), s)
 }
 
 func loadStringHashes(filename string) error {
@@ -82,8 +97,8 @@ func loadStringHashes(filename string) error {
 
 		line = strings.TrimSuffix(line, "\n")
 		line = strings.TrimSuffix(line, "\r")
-		hashesMap.Store(GameStringHashNodes(line, 0), line)
-		hashesMap.Store(GameStringHashNodes(strings.ToUpper(line), 0), strings.ToUpper(line))
+		GameStringHashRemember(line)
+		GameStringHashRemember(strings.ToUpper(line))
 	}
 }
 

@@ -316,11 +316,11 @@ function parseMeshPackets(object, packets, instanceIndex) {
     let m_normals = [];
     let m_joints1 = [];
     let m_joints2 = [];
-    
+
     let offset = 0;
     for (const packet of packets) {
         const vertexCount = packet.Trias.X.length;
-       
+
         for (const i in packet.Trias.X) {
             m_vertexes.push(packet.Trias.X[i], packet.Trias.Y[i], packet.Trias.Z[i]);
             if (!packet.Trias.Skip[i]) {
@@ -418,7 +418,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                     totalMeshes.push(mesh);
                     model.addMesh(mesh);
 
-                    /*if (table) {
+                    if (table) {
                         let label = $('<label>');
                         let chbox = $('<input type="checkbox" checked>');
                         let td = $('<td>').append(label);
@@ -436,7 +436,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         label.append(chbox);
                         label.append("o_" + objName);
                         table.append($('<tr>').append(td));
-                    }*/
+                    }
                 }
             }
         }
@@ -625,12 +625,14 @@ function summaryLoadWadGmdl(data, wad, nodeid) {
     gr_instance.cleanup();
     set3dVisible(true);
 
-    let mdl = new RenderModel();
+    let model = new RenderModel();
 
-    let table = loadGmdlFromAjax(mdl, data, undefined, true);
+    let table = loadGmdlFromAjax(model, data, undefined, true);
     dataSummary.append(table);
 
-    gr_instance.models.push(mdl);
+    let node = new ObjectTreeNodeModel("gmdl", model);
+    gr_instance.addNode(node);
+
     gr_instance.requestRedraw();
 }
 
@@ -641,7 +643,8 @@ function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
     if (data.Meshes && data.Meshes.length) {
         for (let mesh of data.Meshes) {
             let mdlTables;
-            if (!!data.GMDL) {
+            if (false) { // (!!data.GMDL) {
+                // GMDL static meshes already translated to position?
                 mdlTables = loadGmdlFromAjax(model, data.GMDL, mesh, needTable);
             } else {
                 mdlTables = loadMeshFromAjax(model, mesh, needTable);
@@ -770,7 +773,7 @@ function summaryLoadWadMdl(data, wad, nodeid) {
     //             //pos[1], pos[0], pos[3],
     //         ]
     //         let mat = mat4.fromTranslation(mat4.create(), pos);
-            
+
     //         let model = new RenderModel();
     //         model.addMesh(RenderHelper.SphereLinesMesh(pos[0], pos[1], pos[2], size, 15, 15));
     //         //model.addMesh(RenderHelper.CubeLinesMesh(pos[0], pos[1], pos[2], size, size, size, true));
@@ -984,52 +987,59 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
 
         let color = [1.0, 1.0, 1.0];
         switch (ball.Type) {
-            case 0: color = [1.0, 0.0, 0.0]; break;
-            case 1: color = [0.0, 0.0, 1.0]; break;
-            case 2: color = [0.0, 1.0, 1.0]; break;
-            case 3: color = [0.0, 1.0, 0.0]; break;
+            case 0:
+                color = [1.0, 0.0, 0.0];
+                break;
+            case 1:
+                color = [0.0, 0.0, 1.0];
+                break;
+            case 2:
+                color = [0.0, 1.0, 1.0];
+                break;
+            case 3:
+                color = [0.0, 1.0, 0.0];
+                break;
         }
 
         for (let iMesh in ball.Meshes) {
             let mesh = ball.Meshes[iMesh];
+            /*
+                        let calculatedVertices = [];
+                        let calculatedIndices = [];
+                        let pointIndices = []; {
+                            let planes = [];
+                            for (let vec of mesh.Planes) {
+                                planes.push(new Plane([vec[0], vec[1], vec[2]], vec[3]));
+                            }
 
-            let calculatedVertices = [];
-            let calculatedIndices = [];
-            let pointIndices = [];
-            {
-                let planes = [];
-                for (let vec of mesh.Planes) {
-                    planes.push(new Plane([vec[0], vec[1], vec[2]], vec[3]));
-                }
-                
-                const [intersections, indices] = Plane.planesIntersectionsEdjes(planes);
-                for (const v of intersections) {
-                    calculatedVertices.push(v[0], v[1], v[2]);
-                }
-                for (const i in intersections) {
-                    pointIndices.push(i);
-                }
-                calculatedIndices = indices;
-            }
-            let calculatedMesh = new RenderMesh(calculatedVertices, calculatedIndices, gl.LINES);
-            calculatedMesh.setMaskBit(4);
-            calculatedMesh.setMaterialID(0);
-            let calculatedPointsMesh = new RenderMesh(calculatedVertices, pointIndices, gl.POINTS);
-            calculatedPointsMesh.setMaskBit(4);
-            calculatedPointsMesh.setMaterialID(0);
+                            const [intersections, indices] = Plane.planesIntersectionsEdjes(planes);
+                            for (const v of intersections) {
+                                calculatedVertices.push(v[0], v[1], v[2]);
+                            }
+                            for (const i in intersections) {
+                                pointIndices.push(i);
+                            }
+                            calculatedIndices = indices;
+                        }
+                        let calculatedMesh = new RenderMesh(calculatedVertices, calculatedIndices, gl.LINES);
+                        calculatedMesh.setMaskBit(4);
+                        calculatedMesh.setMaterialID(0);
+                        let calculatedPointsMesh = new RenderMesh(calculatedVertices, pointIndices, gl.POINTS);
+                        calculatedPointsMesh.setMaskBit(4);
+                        calculatedPointsMesh.setMaterialID(0);
 
-            let calculatedModel = new RenderModel(collisionNode)
-            calculatedModel.addMesh(calculatedMesh);
-            calculatedModel.addMesh(calculatedPointsMesh);
-            adddebugmaterial(calculatedModel, color[0], color[1], color[2], 0.3);
+                        let calculatedModel = new RenderModel(collisionNode)
+                        calculatedModel.addMesh(calculatedMesh);
+                        calculatedModel.addMesh(calculatedPointsMesh);
+                        adddebugmaterial(calculatedModel, color[0], color[1], color[2], 0.3);
 
-            let node = new ObjectTreeNodeModel(`calculated`, calculatedModel);
-            if (parentObject) {
-                parentObject.joints[mesh.Joint].addNode(node);
-            } else {
-                collisionNode.addNode(node);
-            }
-
+                        let node = new ObjectTreeNodeModel(`calculated`, calculatedModel);
+                        if (parentObject) {
+                            parentObject.joints[mesh.Joint].addNode(node);
+                        } else {
+                            collisionNode.addNode(node);
+                        }
+            */
             if (ball.DbgMesh) {
                 if (iMesh < ball.DbgMesh.Meshes.length) {
                     loaddebug(ball.DbgMesh.Meshes[iMesh], mesh.Joint);
@@ -1167,13 +1177,13 @@ function loadObjFromAjax(data, parseScripts = false) {
         if (joint.IsSkinned) {
             jNode.setBindToJointMatrix(joint.BindToJointMat);
         }
-    
+
         if (joint.Parent < 0) {
             oNode.addNode(jNode);
         } else {
             oNode.joints[joint.Parent].addNode(jNode);
         }
-        
+
         oNode.addJoint(jNode);
 
         const jointText = new RenderTextMesh(iJoint, true, 10);
@@ -1223,7 +1233,7 @@ function loadObjFromAjax(data, parseScripts = false) {
             });
         }
     }
-    
+
     oNode.addNode(new ObjectTreeNodeModel("tree", RenderHelper.SkeletLines(joints)));
 
     return oNode;
@@ -1367,11 +1377,11 @@ function loadCxtFromAjax(data, parseScripts = true) {
         instNode.setLocalMatrix(instMat);
         cxtNode.addNode(instNode);
 
-       /* let pos = inst.Position2;
-        let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
-        text3d.setOffset(-0.5, -0.5);
-        text3d.setMaskBit(6);
-        gr_instance.texts.push(text3d);*/
+        /* let pos = inst.Position2;
+         let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
+         text3d.setOffset(-0.5, -0.5);
+         text3d.setMaskBit(6);
+         gr_instance.texts.push(text3d);*/
 
         const text3d = new RenderTextMesh("\x04" + inst.Name, true);
         text3d.setOffset(-0.5, -0.5);
@@ -1655,14 +1665,41 @@ function summaryLoadWadTWK(data, wad, nodeid) {
     let table = $("<table>");
     let twk = data;
 
+    let dumpYamlLink = getActionLinkForWadNode(wad, nodeid, 'asyaml');
+
     let info = $("<ul>");
     info.append($("<li>").append("Name: " + twk.Name));
     info.append($("<li>").append("MagicHeaderPresened: " + twk.MagicHeaderPresened));
     info.append($("<li>").append("HeaderStrangeMagicUid: " + twk.HeaderStrangeMagicUid));
+    info.append($("<li>").append($("<a>").attr('href', dumpYamlLink).append("Download yaml")));
     dataSummary.append(info);
 
+    let form = $('<form action="' + getActionLinkForWadNode(wad, nodeid, 'fromyaml') + '" method="post" enctype="multipart/form-data">');
+    form.append($('<input type="file" name="data">'));
+    let replaceBtn = $('<input type="button" value="Upload from yaml">')
+    replaceBtn.click(function() {
+        let form = $(this).parent();
+        $.ajax({
+            url: form.attr('action'),
+            type: 'post',
+            data: new FormData(form[0]),
+            processData: false,
+            contentType: false,
+            success: function(a1) {
+                if (a1 !== "") {
+                    alert('Error: ' + a1);
+                } else {
+                    alert('Success!');
+                    window.location.reload();
+                }
+            }
+        });
+    });
+    form.append(replaceBtn);
+    dataSummary.append(form);
+
     let valueView = function(value) {
-        let bytes = hexStringToBytes(value.Hex);
+        let bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
         let view = new DataView(bytes.buffer, 0);
         let asString = '';
         for (let c of bytes) {
@@ -1675,35 +1712,35 @@ function summaryLoadWadTWK(data, wad, nodeid) {
         let s = "int32: " + view.getInt32(0, true) + " uint32: " + view.getUint32(0, true) +
             " float: " + view.getFloat32(0, true) +
             "</br>string: " + asString +
-            "</br>hex: " + value.Hex +
-            "</br>offset: " + value.Offset;
+            "</br>hex: " + bytesToHexString(bytes);
         return s;
     }
 
     let directoryToTable;
     directoryToTable = function(directory) {
         let table = $("<table>");
-        for (let value of directory.Values) {
-            table.append($("<tr>").append(
-                $("<td>").append(value.Name),
-                $("<td>").append(valueView(value))
-            ));
-        }
 
-        console.log(directory);
-        if (directory.Directories) {
-            for (let subdir of directory.Directories) {
-                table.append($("<tr>").append(
-                    $("<td>").append(subdir.Name),
-                    $("<td>").append(directoryToTable(subdir))
-                ));
+        // console.log(directory);
+        if (directory.Fields) {
+            for (let subdir of directory.Fields) {
+                if (subdir.Value) {
+                    table.append($("<tr>").append(
+                        $("<td>").append(subdir.Name),
+                        $("<td>").append(valueView(subdir.Value))
+                    ));
+                } else {
+                    table.append($("<tr>").append(
+                        $("<td style='vertical-align: top;'>").append(subdir.Name),
+                        $("<td>").append(directoryToTable(subdir))
+                    ));
+                }
             }
         }
 
         return table;
     };
 
-    dataSummary.append(directoryToTable(twk));
+    dataSummary.append(directoryToTable(twk.Tree));
     console.log(twk);
 }
 

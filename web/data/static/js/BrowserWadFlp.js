@@ -314,6 +314,20 @@ function summaryLoadWadFlp(flp, wad, tagid) {
         });
         dataSummary.append($('<p>').append(uploadJSON));
 
+        let downloadFontJSON = $('<button>').text("Download font as json").click(function() {
+            window.open(getActionLinkForWadNode(wad, tagid, 'exportfont'), '_blank');
+        });
+        dataSummary.append($('<p>').append(downloadFontJSON));
+
+
+        let replaceFontJSON = $('<button>').text("Replace font from json");
+        replaceFontJSON.attr("href", getActionLinkForWadNode(wad, tagid, 'replacefont'));
+        replaceFontJSON.click(function() {
+            console.log($(this).attr('href'));
+            uploadAjaxHandler.call(this);
+        });
+        dataSummary.append($('<p>').append(replaceFontJSON));
+
         let showDump = $('<button>').text("Expand dump").click(function() {
             $(this).attr("disabled", true);
             dataSummary.append($("<pre>").append(JSON.stringify(flpdata, null, "  ").replaceAll('\n', '<br>')));

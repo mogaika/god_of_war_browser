@@ -37,6 +37,8 @@ func NewFromDataGow2(buf []byte, objName string) (*Object, error) {
 
 	// called := false
 
+	log.Printf("mat1 %d mat2 %d mat3 %d", mat1count, mat2count, mat3count)
+
 	invid := int16(0)
 	for i := range obj.Joints {
 		jointBufStart := 0x14 + i*0x10
@@ -87,7 +89,7 @@ func NewFromDataGow2(buf []byte, objName string) (*Object, error) {
 			)
 			//}
 		*/
-
+		_ = joint
 		if joint.IsSkinned {
 			invid++
 		}

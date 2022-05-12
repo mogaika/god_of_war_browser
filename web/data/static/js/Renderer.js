@@ -35,6 +35,7 @@ class RenderModel extends Claimable {
         this.meshes.removeAll();
         this.materials.removeAll();
         gr_instance.flushScene();
+        super._free();
     }
 }
 
@@ -175,6 +176,7 @@ class RenderMesh extends Claimable {
         if (this.bufferJointIds2) gl.deleteBuffer(this.bufferJointIds2);
         if (this.bufferWeights) gl.deleteBuffer(this.bufferWeights);
         gr_instance.flushScene();
+        super._free();
     }
 }
 
@@ -243,6 +245,7 @@ class RenderTexture extends Claimable {
         if (this.txr) {
             gl.deleteTexture(this.txr);
         }
+        super._free();
     }
 
     get glTexture() {
@@ -294,6 +297,7 @@ class RenderMaterialLayer extends Claimable {
 
     _free() {
         this.textures.removeAll();
+        super._free();
     }
 }
 
@@ -317,6 +321,7 @@ class RenderMaterial extends Claimable {
             ga_instance.freeAnimation(this.anims[i]);
         }
         gr_instance.flushScene();
+        super._free();
     }
 }
 
@@ -418,6 +423,7 @@ class RenderTextMesh extends Claimable {
         gl.deleteBuffer(this.bufferIndex);
         gl.deleteBuffer(this.bufferUV);
         gr_instance.flushScene();
+        super._free();
     }
 }
 

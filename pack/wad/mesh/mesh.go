@@ -307,4 +307,10 @@ func init() {
 		m, err := NewGOW2018Mesh(bs)
 		return m, err
 	})
+	wad.SetHandler(config.GOW2, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
+		g, err := gmdl.NewGMDL(bs.SubBuf("gmdl", 4).Expand().SetName(wrsrc.Name()))
+		// log.Printf("\n%v", bs.StringTree())
+		return g, err
+	})
 }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/mogaika/god_of_war_browser/pack/wad/twk"
+	"github.com/mogaika/god_of_war_browser/pack/wad/twk/twktree"
 
 	//"encoding/binary"
 	"log"
@@ -23,7 +25,7 @@ func parseCheck(rootfs vfs.Directory) {
 	sort.Sort(sort.Reverse(sort.StringSlice(packList)))
 
 	for _, fname := range packList {
-		if !strings.HasSuffix(fname, ".WAD") {
+		if !strings.HasSuffix(fname, ".WAD") && !strings.HasSuffix(fname, ".wad_psp2") {
 			continue
 		}
 		log.Printf("Parsecheck %q", fname)
@@ -39,13 +41,30 @@ func parseCheck(rootfs vfs.Directory) {
 					continue
 				}
 
-				if strings.HasPrefix(node.Tag.Name, "ESC_") {
-					log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
-					_, _, err := wad.GetInstanceFromNode(node.Id)
+				if strings.HasPrefix(node.Tag.Name, "TWK_") {
+					// log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
+					fi, _, err := wad.GetInstanceFromNode(node.Id)
 					if err != nil {
-						log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)
+						// log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)
+					} else if tw, ok := fi.(*twk.TWK); !ok {
+						log.Printf("Failed to get twk from %s:%s", wad.Name(), node.Tag.Name)
+					} else {
+						if _, err := twktree.Root().UnmarshalTWK(tw.Tree); err != nil {
+							log.Printf("Failed to parse abstarct tree for %s:%s: %v", wad.Name(), node.Tag.Name, err)
+						}
 					}
+
 				}
+
+				/*
+					if strings.HasPrefix(node.Tag.Name, "ESC_") {
+						log.Printf("Parsing %s:%s: %v", wad.Name(), node.Tag.Name, err)
+						_, _, err := wad.GetInstanceFromNode(node.Id)
+						if err != nil {
+							log.Printf("Failed to parse %s:%s: %v", wad.Name(), node.Tag.Name, err)
+						}
+					}
+				*/
 
 				/*
 					if len(node.Tag.Data) != 0 {

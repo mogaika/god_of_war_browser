@@ -85,7 +85,7 @@ Example: WarpFromOlymp2
 === Type 11 - Creator
 Example: chest first in game
 #0 = 'chest'
-#5 = 42
+#5 = 42    TWK_CSM_XXX id for chest
 #6 = 1
 #8 = TRUE
 Example: chest in desert 1

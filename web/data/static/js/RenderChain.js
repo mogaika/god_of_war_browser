@@ -393,8 +393,8 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
 
     gl.uniformMatrix4fv(this.umProjection, false, ctrl.camera.getProjectionMatrix());
     gl.uniformMatrix4fv(this.umView, false, mat4.fromQuat(mat4.create(), mat4.getRotation(quat.create(), ctrl.camera.getViewMatrix())));
-    
-    this.isSkyRendering = true;    
+
+    this.isSkyRendering = true;
     cnt += this.renderFlashesBatch(ctrl, this.skyBatch, false);
     this.isSkyRendering = false;
 
@@ -403,13 +403,13 @@ grRenderChain_SkinnedTextured.prototype.render = function(ctrl) {
     // render models
     gl.uniformMatrix4fv(this.umView, false, ctrl.camera.getViewMatrix());
     cnt += this.renderFlashesBatch(ctrl, this.normalBatch, true);
-    
-	// console.info("total", cnt,
+
+    // console.info("total", cnt,
     //     "sky", this.skyBatch.normalFlashes.length + this.skyBatch.additiveFlashes.length,
     //     "normal", this.skyBatch.normalFlashes.length + this.normalBatch.normalFlashes.length,
     //     "additive", this.skyBatch.additiveFlashes.length + this.normalBatch.additiveFlashes.length,
     //     "was rebuilded", wasRebuilded);
-	
+
     gl.disable(gl.CULL_FACE);
     this.renderText(ctrl);
 }
@@ -506,10 +506,12 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromNode = function(node) {
             switch (model.type) {
                 default: {
                     this.fillFlashesFromModelNode(this.normalBatch, node);
-                } break;
-                case "sky": {
-                    this.fillFlashesFromModelNode(this.skyBatch, node);
-                } break;
+                }
+                break;
+            case "sky": {
+                this.fillFlashesFromModelNode(this.skyBatch, node);
+            }
+            break;
             }
         }
     }

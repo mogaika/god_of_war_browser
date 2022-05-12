@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/mogaika/god_of_war_browser/config"
 
 	"github.com/mogaika/god_of_war_browser/vfs"
@@ -109,5 +111,9 @@ func (f *File) Reader() (*io.SectionReader, error) {
 func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	return copy(b, f.buf.Bytes()[off:]), nil
 }
-func (f *File) Copy(src io.Reader) error                       { panic("read-only") }
-func (f *File) WriteAt(b []byte, off int64) (n int, err error) { panic("read-only") }
+func (f *File) Copy(src io.Reader) error {
+	return errors.Errorf("PSARC read-only")
+}
+func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+	return 0, errors.Errorf("PSARC read-only")
+}
