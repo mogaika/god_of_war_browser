@@ -2,7 +2,6 @@ package mesh
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -52,7 +51,7 @@ type Object struct {
 	// new dma program per each instance.
 	// uses same buffers except rgba lighting, own jointmapper per instance
 	InstancesCount uint32
-	Flags          uint32 // if & 0x40 - UseInvertedMatrix
+	Flags          uint32 // if & 0x40 - UseInvertedMatrix, & 0x10 - 3d, not gui
 	FlagsMask      uint32
 
 	// new dma program per texture layer
@@ -279,9 +278,9 @@ func init() {
 		//logger := utils.Logger{ioutil.Discard}
 
 		mesh, err := NewFromData(wrsrc.Tag.Data, &logger)
-		if mesh.BaseBoneIndex != 0 {
-			log.Printf("bbi: %d mesh: %s:%s j: %q",
-				mesh.BaseBoneIndex, wrsrc.Wad.Name(), wrsrc.Tag.Name, mesh.NameOfRootJoint)
+		if err == nil && mesh.BaseBoneIndex != 0 {
+			//log.Printf("bbi: %d mesh: %s:%s j: %q",
+			//	mesh.BaseBoneIndex, wrsrc.Wad.Name(), wrsrc.Tag.Name, mesh.NameOfRootJoint)
 		}
 
 		return mesh, err

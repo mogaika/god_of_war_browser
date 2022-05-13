@@ -2,8 +2,8 @@ package mat
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/config"
@@ -119,6 +119,9 @@ func NewFromData(buf []byte) (*Material, error) {
 		}
 
 		mat.Layers[iTex].FloatUnk = math.Float32frombits(binary.LittleEndian.Uint32(tbuf[56:60]))
+		if mat.Layers[iTex].FloatUnk != 1.0 {
+			// Transparency of layer when using multi-layer?
+		}
 
 		mat.Layers[iTex].GameFlags = binary.LittleEndian.Uint32(tbuf[60:64])
 

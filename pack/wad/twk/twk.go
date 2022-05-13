@@ -13,13 +13,15 @@ import (
 )
 
 const (
-	TWK_Tag = 0x71
+	TWK_Tag           = 0x71
+	TWK_TagCombatFile = 0x72 // or TWK_Object_Tag
 )
 
 type TWK struct {
 	Name                  string
 	MagicHeaderPresened   bool
 	HeaderStrangeMagicUid uint32
+	IsCombatFile          bool
 
 	Tree         *twktree.VFSNode
 	AbstractTree *twktree.VFSAbstractNode
@@ -35,19 +37,7 @@ func (t *TWK) getPathNode(root *twktree.VFSNode, path string) *twktree.VFSNode {
 
 	// log.Printf("Path parts %+#v", parts)
 	for _, pathPart := range parts {
-		found := false
-		for _, subNode := range node.Fields {
-			if subNode.Name == pathPart {
-				node = subNode
-				found = true
-				break
-			}
-		}
-		if !found {
-			newNode := twktree.NewVFSNode(pathPart)
-			node.Fields = append(node.Fields, newNode)
-			node = newNode
-		}
+		node = node.GetFieldOrCreate(pathPart)
 	}
 
 	return node
@@ -56,7 +46,6 @@ func (t *TWK) getPathNode(root *twktree.VFSNode, path string) *twktree.VFSNode {
 func (t *TWK) Parse(bsdata *utils.BufStack) error {
 	createdNode := false
 
-	t.Tree = twktree.NewVFSNode("/")
 	directory := t.Tree
 	dirStack := make([]*twktree.VFSNode, 0)
 
@@ -113,7 +102,7 @@ cmdLoop:
 
 			unhashedName := utils.GameStringUnhashNodes(nameHash)
 
-			node := twktree.NewVFSNode(unhashedName)
+			node := &twktree.VFSNode{Name: unhashedName}
 			node.Value = cmdData
 			directory.Fields = append(directory.Fields, node)
 
@@ -183,6 +172,7 @@ func (t *TWK) Produce(w io.Writer) error {
 
 func NewTwkFromData(twkrootbs *utils.BufStack) (*TWK, error) {
 	t := &TWK{}
+	t.Tree = &twktree.VFSNode{Name: "/"}
 
 	var bsdata *utils.BufStack
 
@@ -200,6 +190,22 @@ func NewTwkFromData(twkrootbs *utils.BufStack) (*TWK, error) {
 	return t, err
 }
 
+func NewTwkFromCombatFile(bs *utils.BufStack) (*TWK, error) {
+	t := &TWK{IsCombatFile: true}
+	t.Tree = &twktree.VFSNode{Name: "/"}
+
+	t.HeaderStrangeMagicUid = bs.ReadLU32()
+	if t.HeaderStrangeMagicUid != 1 {
+		return nil, errors.Errorf("Magic != 1")
+	}
+	t.Name = bs.ReadZString(128)
+
+	field := t.getPathNode(t.Tree, t.Name)
+	field.Value = bs.SubBuf("body", bs.Pos()).Raw()
+
+	return t, nil
+}
+
 func (twk *TWK) Marshal(rsrc *wad.WadNodeRsrc) (interface{}, error) {
 	return twk, nil
 }
@@ -207,5 +213,8 @@ func (twk *TWK) Marshal(rsrc *wad.WadNodeRsrc) (interface{}, error) {
 func init() {
 	wad.SetTagHandler(TWK_Tag, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewTwkFromData(utils.NewBufStack("twk", wrsrc.Tag.Data))
+	})
+	wad.SetTagHandler(TWK_TagCombatFile, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewTwkFromCombatFile(utils.NewBufStack("twkcb", wrsrc.Tag.Data))
 	})
 }

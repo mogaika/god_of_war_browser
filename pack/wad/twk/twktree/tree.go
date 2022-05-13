@@ -1,6 +1,7 @@
 package twktree
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -26,7 +27,7 @@ const (
 
 type VFSNode struct {
 	Name   string
-	Value  []byte
+	Value  []byte `yaml:",flow"`
 	Fields []*VFSNode
 }
 
@@ -92,14 +93,6 @@ func (an *VFSAbstractNode) MarshalYAML() (interface{}, error) {
 	}, nil
 }
 
-func NewVFSNode(name string) *VFSNode {
-	return &VFSNode{
-		Name:   name,
-		Fields: nil,
-		Value:  nil,
-	}
-}
-
 type Marshaler interface {
 	MarshalTWK(*VFSAbstractNode) (*VFSNode, error)
 }
@@ -128,7 +121,7 @@ func (fd *VFSFieldDeclaration) MarshalTWK(an *VFSAbstractNode) (*VFSNode, error)
 	}
 
 	an.Declaration = fd
-	n := NewVFSNode(an.Name)
+	n := &VFSNode{Name: an.Name}
 
 	buf := make([]byte, 4)
 
@@ -378,4 +371,40 @@ func (id *VFSIndexedDirectoryDeclaration) UnmarshalTWK(n *VFSNode) (*VFSAbstract
 	}
 
 	return &VFSAbstractNode{Name: n.Name, Fields: result, Declaration: id}, nil
+}
+
+func (n *VFSNode) GetField(name string) *VFSNode {
+	for _, field := range n.Fields {
+		if field.Name == name {
+			return field
+		}
+	}
+	return nil
+}
+
+func (n *VFSNode) GetFieldOrCreate(name string) *VFSNode {
+	field := n.GetField(name)
+	if field == nil {
+		field = &VFSNode{
+			Name: name,
+		}
+		n.Fields = append(n.Fields, field)
+	}
+	return field
+}
+
+func (n *VFSNode) MergeWith(what *VFSNode) error {
+	if n.Value != nil && what.Value != nil {
+		if bytes.Compare(n.Value, what.Value) != 0 {
+			return errors.Errorf("Override of value")
+		}
+	}
+	n.Value = what.Value
+	for _, whatField := range what.Fields {
+		field := n.GetFieldOrCreate(whatField.Name)
+		if err := field.MergeWith(whatField); err != nil {
+			return errors.Wrapf(err, "Failed ot merge field %q", field.Name)
+		}
+	}
+	return nil
 }

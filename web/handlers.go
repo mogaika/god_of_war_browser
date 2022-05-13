@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"fmt"
+	"github.com/mogaika/god_of_war_browser/pack/archive"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,6 +22,16 @@ import (
 	"github.com/mogaika/god_of_war_browser/vfs"
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
+
+func HandleArchive(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	ar, err := archive.LoadArchive(&archive.ProviderPS2{Dir: ServerDirectory}, name)
+	if err != nil {
+		webutils.WriteError(w, err)
+	} else {
+		webutils.WriteJson(w, ar)
+	}
+}
 
 func handleVfsDirList(w http.ResponseWriter, r *http.Request, d vfs.Directory) {
 	if files, err := d.List(); err != nil {

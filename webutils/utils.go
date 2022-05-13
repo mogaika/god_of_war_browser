@@ -3,6 +3,7 @@ package webutils
 import (
 	"bytes"
 	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"io"
 	"io/ioutil"
 	"log"
@@ -36,6 +37,23 @@ func WriteJsonFile(w http.ResponseWriter, v interface{}, fileName string) {
 		WriteError(w, errors.Wrapf(err, "Failed to marshal"))
 	} else {
 		WriteFile(w, bytes.NewReader(data), fileName+".json")
+	}
+}
+
+func WriteYaml(w http.ResponseWriter, data interface{}) {
+	res, err := yaml.Marshal(data)
+	if err != nil {
+		WriteError(w, err)
+	} else {
+		WriteResult(w, res)
+	}
+}
+
+func WriteYamlFile(w http.ResponseWriter, v interface{}, fileName string) {
+	if data, err := yaml.Marshal(v); err != nil {
+		WriteError(w, errors.Wrapf(err, "Failed to marshal"))
+	} else {
+		WriteFile(w, bytes.NewReader(data), fileName+".yaml")
 	}
 }
 

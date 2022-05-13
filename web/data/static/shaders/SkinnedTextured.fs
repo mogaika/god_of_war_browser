@@ -1,3 +1,5 @@
+#extension GL_OES_standard_derivatives : enable
+
 uniform sampler2D uLayerDiffuseSampler;
 uniform sampler2D uLayerEnvmapSampler;
 
@@ -16,11 +18,13 @@ void main(void) {
 		clr = texture2D(uLayerDiffuseSampler, vVertexUV);
 	}
 	if (uUseEnvmapSampler) {
-		//clr = vec4(clr.rgb, 1.0);
 		clr = vec4(clr.rgb*(1.0-clr.a) + texture2D(uLayerEnvmapSampler, vEnvmapUV).xyz*(clr.a), 1.0);
-		//clr = vec4(1.0, 0.0, 1.0, 1.0);
 	}
-	gl_FragColor = clr * vVertexColor * uMaterialColor * uLayerColor;
-	// gl_FragColor = vec4(mod(vVertexUV.xy, 1.0), 0.0, vVertexColor.a);
-	// gl_FragColor = vVertexColor * 0.8 + 0.2 * clr * uMaterialColor * uLayerColor;
+	clr = clr * vVertexColor * uMaterialColor * uLayerColor;
+	if (clr.a < 0.001) {
+	    discard;
+	}
+	gl_FragColor = clr;
+	//gl_FragColor = vec4(1.0 - clr.a, 0.0, clr.a, clr.a);
+	//gl_FragColor = vec4(mod(vVertexUV.xy, 1.0), 0.0, vVertexColor.a);
 }

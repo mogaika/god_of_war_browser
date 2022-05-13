@@ -226,18 +226,15 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 		for iBlock, block := range blocks {
 			blockVersCount := int(block[0])
 
-			/*
-				debugColor := func(r, g, b uint16) {
-					for j := 0; j < blockVersCount; j++ {
-						packet.Blend.R[vertnum+j] = r
-						packet.Blend.G[vertnum+j] = g
-						packet.Blend.B[vertnum+j] = b
-						packet.Blend.A[vertnum+j] = 0xffff
-					}
+			debugColor := func(r, g, b uint16) {
+				for j := 0; j < blockVersCount; j++ {
+					packet.Blend.R[vertnum+j] = r
+					packet.Blend.G[vertnum+j] = g
+					packet.Blend.B[vertnum+j] = b
+					packet.Blend.A[vertnum+j] = 0xffff
 				}
-				_ = debugColor
-
-			*/
+			}
+			_ = debugColor
 
 			// block[0] = affected vertex count
 			// block[1] = 0x80 if last block, else 0
@@ -248,7 +245,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 			//       8:12 - 0
 			//      12:16 - flags: |0x4 - first block, |0x3 - push joint swap stack? |0x2 - use joint swap stack?
 			//      16:20 - 0xe - have texture (have rgb?), 0x6 - no texture, 0x2 - no texture (have rgb?), shadow layer (no rgb?)
-			//      20:24 - 0x2 || 0x4;
+			//      20:24 - 0x2 - almost all meshes || 0x4 - flags on ATHN02B,PAND04G, wood lift/bridge parts on PAND04F and other PAND levels, sripes on OLYMP01;
 			//      24:28 - 0
 			//      28:32 - count of matbit flags
 			// block[8:12] = 4bit matflags, stacked in particular order

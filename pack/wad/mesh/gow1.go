@@ -3,6 +3,7 @@ package mesh
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/pkg/errors"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -24,10 +25,13 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	o.Type = binary.LittleEndian.Uint16(b[0:])
 	if o.Type != 0xe && o.Type != 0x1d {
 		// 0xe - dynamic
-		// 0x1d - static (ignores 0 joint?)
+		// 0x1d - static (some joint magic)
 		return fmt.Errorf("Unknown type %x", o.Type)
 	}
 	o.Unk02 = binary.LittleEndian.Uint16(b[2:])
+	if o.Unk02 != 0 {
+		return errors.Errorf("Unk02 != 0")
+	}
 
 	o.DmaTagsCountPerPacket = binary.LittleEndian.Uint32(b[4:])
 	o.MaterialId = binary.LittleEndian.Uint16(b[8:])
@@ -42,8 +46,13 @@ func (o *Object) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	}
 
 	o.Flags = binary.LittleEndian.Uint32(b[0x10:])
+	if o.Flags != 0 && o.Flags != 0x10 && o.Flags != 0x50 {
+		return errors.Errorf("Unknown flags value 0x%.8x", o.Flags)
+	}
+
 	o.UseInvertedMatrix = o.Flags&0x40 != 0
 	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
+	// log.Printf("Flags 0x%.8x Mask 0x%.8x", o.Flags, o.FlagsMask)
 	o.TextureLayersCount = b[0x18]
 	o.TotalDmaProgramsCount = b[0x19]
 
