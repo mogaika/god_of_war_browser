@@ -3,8 +3,12 @@ module github.com/mogaika/god_of_war_browser
 go 1.18
 
 require (
+	github.com/32bitkid/mpeg v0.0.0-20180611234327-533afb480bd7
 	github.com/Pallinder/go-randomdata v1.2.0
+	github.com/carterjones/gouzuru v0.0.0-20160725130400-95320cbb0110
 	github.com/davecgh/go-spew v1.1.1
+	github.com/go-gl/gl v0.0.0-20211210172815-726fda9656d6
+	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20220516021902-eb3e265c7661
 	github.com/go-gl/mathgl v1.0.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -21,8 +25,10 @@ require (
 )
 
 require (
+	github.com/32bitkid/bitreader v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/mogaika/binrw v0.1.0 // indirect
 	github.com/timtadh/data-structures v0.5.3 // indirect
 	golang.org/x/image v0.0.0-20190321063152-3fc05d484e9f // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 )

@@ -3,7 +3,6 @@ package mesh
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -37,6 +36,8 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 	}
 
 	o.Flags = binary.LittleEndian.Uint32(b[0x10:])
+	o.UseInvertedMatrix = o.Flags&0x40 != 0
+
 	o.FlagsMask = binary.LittleEndian.Uint32(b[0x14:])
 	o.TextureLayersCount = b[0x18]
 	o.TotalDmaProgramsCount = b[0x19]
@@ -76,11 +77,7 @@ func (o *Object) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Lo
 			trias, trias, verts, verts)
 		o.Packets[iDmaChain] = ds.Packets
 	}
-	if len(o.Packets) == 0 || o.Packets[0] == nil {
-		log.Printf(" object have %d packets", len(o.Packets))
-	} else {
-		exlog.Printf("%v\n", utils.SDump(o.Packets[0]))
-	}
+
 	if o.JointMappers[0] != nil {
 		// right after dma calls
 		jointMapOffset := OBJECT_GOW1_HEADER_SIZE + dmaCalls*0x10*o.DmaTagsCountPerPacket
@@ -99,6 +96,11 @@ func (g *Group) parseGow2(allb []byte, pos uint32, size uint32, exlog *utils.Log
 
 	g.HideDistance = math.Float32frombits(binary.LittleEndian.Uint32(b[0:]))
 	g.Objects = make([]Object, binary.LittleEndian.Uint16(b[4:]))
+	if len(g.Objects) == 0 {
+		exlog.Printf("      | unk00: 0x%.8x objects count: %v", g.HideDistance, len(g.Objects))
+		return nil
+	}
+
 	g.HasBbox = binary.LittleEndian.Uint32(b[8:])
 	exlog.Printf("      | unk00: 0x%.8x unk08: 0x%.8x objects count: %v", g.HideDistance, g.HasBbox, len(g.Objects))
 
