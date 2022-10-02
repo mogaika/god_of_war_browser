@@ -39,18 +39,6 @@ artifacts:
   - path: god_of_war_browser.%APPVEYOR_BUILD_VERSION%.zip
     name: archive
 
-deploy:
-- provider: GitHub
-  name: github
-  release: god_of_war_browser.$(APPVEYOR_BUILD_VERSION)
-  description: Automatic relase $(APPVEYOR_BUILD_VERSION)
-  artifact: archive
-  on:
-    branch: master
-  auth_token:
-    # encrypted with appveyor key
-    secure: $env:GITHUB_KEY
-
 on_success:
   - ps: Invoke-RestMethod https://raw.githubusercontent.com/DiscordHooks/appveyor-discord-webhook/master/send.ps1 -o send.ps1
   - ps: ./send.ps1 success $env:WEBHOOK_URL
