@@ -104,13 +104,9 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 				}
 
 				// utils.LogDump(input, output)
-
-				inputAccesor := modeler.WriteAccessor(doc, gltf.TargetNone, input)
-				outputAccesor := modeler.WriteAccessor(doc, gltf.TargetNone, output)
-
 				gltfAnim.Samplers = append(gltfAnim.Samplers, &gltf.AnimationSampler{
-					Input:         &inputAccesor,
-					Output:        &outputAccesor,
+					Input:         modeler.WriteAccessor(doc, gltf.TargetNone, input),
+					Output:        modeler.WriteAccessor(doc, gltf.TargetNone, output),
 					Interpolation: gltf.InterpolationLinear,
 				})
 				gltfAnim.Channels = append(gltfAnim.Channels, &gltf.Channel{
@@ -128,12 +124,9 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 					input = append(input, float32(frame)*descr.FrameTime)
 				}
 
-				inputAccesor := modeler.WriteAccessor(doc, gltf.TargetNone, input)
-				outputAccesor := modeler.WriteAccessor(doc, gltf.TargetNone, stream.Values)
-
 				gltfAnim.Samplers = append(gltfAnim.Samplers, &gltf.AnimationSampler{
-					Input:         &inputAccesor,
-					Output:        &outputAccesor,
+					Input:         modeler.WriteAccessor(doc, gltf.TargetNone, input),
+					Output:        modeler.WriteAccessor(doc, gltf.TargetNone, stream.Values),
 					Interpolation: gltf.InterpolationLinear,
 				})
 				gltfAnim.Channels = append(gltfAnim.Channels, &gltf.Channel{

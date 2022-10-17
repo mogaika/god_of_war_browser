@@ -22,7 +22,6 @@ func StartServer(addr string, packsDir vfs.Directory, driver vfs.Directory, webP
 	DriverDirectory = driver
 
 	r := mux.NewRouter()
-	r.HandleFunc("/archive/get/{name}", HandleArchive)
 	r.HandleFunc("/action/{file}/{param}/{action}", HandlerActionPackFileParam)
 	r.HandleFunc("/json/pack/{file}/{param}", HandlerAjaxPackFileParam)
 	r.HandleFunc("/json/pack/{file}", HandlerAjaxPackFile)

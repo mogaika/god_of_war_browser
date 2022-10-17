@@ -36,7 +36,7 @@ type Light struct {
 	Unk54    float32 // == 0 ?
 }
 
-func (l *Light) FromWad(data []byte) error {
+func (l *Light) FromWad(data []byte, gow2 bool) error {
 	l.Unk04 = binary.LittleEndian.Uint32(data[0x04:])
 	l.Flags = binary.LittleEndian.Uint32(data[0x08:])
 
@@ -56,7 +56,9 @@ func (l *Light) FromWad(data []byte) error {
 	l.Unk48 = binary.LittleEndian.Uint32(data[0x48:])
 	l.Unk4c = math.Float32frombits(binary.LittleEndian.Uint32(data[0x4c:]))
 	l.Unk50 = math.Float32frombits(binary.LittleEndian.Uint32(data[0x50:]))
-	l.Unk54 = math.Float32frombits(binary.LittleEndian.Uint32(data[0x54:]))
+	if !gow2 {
+		l.Unk54 = math.Float32frombits(binary.LittleEndian.Uint32(data[0x54:]))
+	}
 
 	return nil
 }
@@ -66,10 +68,12 @@ func (l *Light) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetHandler(config.GOW1, LIGHT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		light := &Light{}
-		return light, light.FromWad(wrsrc.Tag.Data)
-	}
-
-	wad.SetHandler(config.GOW1, LIGHT_MAGIC, h)
+		return light, light.FromWad(wrsrc.Tag.Data, false)
+	})
+	wad.SetHandler(config.GOW2, LIGHT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		light := &Light{}
+		return light, light.FromWad(wrsrc.Tag.Data, true)
+	})
 }

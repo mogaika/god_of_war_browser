@@ -61,6 +61,7 @@ function treeLoadWadAsNodes(wadName, data) {
     $('#view-tree ol li label').click(function(ev) {
         let node_element = $(this).parent();
         let node_id = parseInt(node_element.attr('nodeid'));
+        console.log(node_id);
         if (node_id !== 0) {
             gw_cxt_group_loading = false;
             treeLoadWadNode(wadName, node_id);
@@ -74,7 +75,7 @@ function treeLoadWadAsNodes(wadName, data) {
 
             $("#view-tree ol li").each(function(i, node) {
                 let $node = $(node);
-                if ($node.attr("nodetag") == "30") {
+                if ($node.attr("nodetag") == "30" || $node.attr("nodetag") == "1") {
                     const nn = $node.attr("nodename");
                     if (nn.startsWith("PS")) {
                         treeLoadWadNode(wadName, $node.attr("nodeid"), 0x6);
@@ -232,6 +233,9 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                         summaryLoadWadCxt(data, wad, tagid);
                         break;
                     case 0x00020001: // gameObject
+                        summaryLoadWadGameObject(data);
+                        break;
+                    case 0x00030001: // gameObject gow2
                         summaryLoadWadGameObject(data);
                         break;
                     case 0x00010004: // script
@@ -1348,24 +1352,23 @@ function summaryLoadWadObj(data, wad, nodeid) {
     gr_instance.requestRedraw();
 }
 
+function loadGameObjectFromAjax(inst, parseScripts = true) {
+    let instNode = new ObjectTreeNode(inst.Name);
 
-function summaryLoadWadGameObject(data) {
-    gr_instance.cleanup();
-    set3dVisible(false);
-    let table = $('<table>');
-    for (let k in data) {
-        table.append($('<tr>').append($('<td>').text(k)).append($('<td>').text(JSON.stringify(data[k]))));
-    }
-    dataSummary.append(table);
-}
+    const text3d = new RenderTextMesh("\x04" + inst.Name, true);
+    text3d.setOffset(-0.5, -0.5);
+    text3d.setColor(1.0, 1.0, 1.0, 0.8);
+    text3d.setMaskBit(6);
 
-function loadCxtFromAjax(data, parseScripts = true) {
-    let cxtNode = new ObjectTreeNode(data.Name);
+    if (inst.IsGow2) {
+        let instMat = mat4.fromTranslation(mat4.create(), inst.Position);
+        // instNode.setLocalMatrix(instMat);
 
-    for (let i in data.Instances) {
-        let inst = data.Instances[i];
-        let obj = data.Objects[inst.Object];
+        let text = new ObjectTreeNodeModel("label", text3d);
+        text.setLocalMatrix(instMat);
+        instNode.addNode(text);
 
+    } else {
         const rs = (180.0 / Math.PI);
         let rot = quat.fromEuler(quat.create(), inst.Rotation[0] * rs, inst.Rotation[1] * rs, inst.Rotation[2] * rs);
         const scale = inst.Rotation[3];
@@ -1375,35 +1378,47 @@ function loadCxtFromAjax(data, parseScripts = true) {
         if (inst.Position1[3] != 1.0) {
             console.warn("posmulincorrect", inst);
         }
-
-        let instNode = new ObjectTreeNode(inst.Name);
-        instNode.setLocalMatrix(instMat);
-        cxtNode.addNode(instNode);
-
-        /* let pos = inst.Position2;
-         let text3d = new RenderTextMesh("\x04" + inst.Name, pos[0], pos[1], pos[2], true);
-         text3d.setOffset(-0.5, -0.5);
-         text3d.setMaskBit(6);
-         gr_instance.texts.push(text3d);*/
-
-        const text3d = new RenderTextMesh("\x04" + inst.Name, true);
-        text3d.setOffset(-0.5, -0.5);
-        text3d.setColor(1.0, 1.0, 1.0, 0.8);
-        text3d.setMaskBit(6);
+        
         instNode.addNode(new ObjectTreeNodeModel("label", text3d));
+        instNode.setLocalMatrix(instMat);
+    }
 
-        if (obj) {
-            let objNode = loadObjFromAjax(obj, parseScripts);
-            instNode.addNode(objNode);
+    if (inst.Object) {
+        const oNode = loadObjFromAjax(inst.Object, parseScripts);
+        instNode.addNode(oNode);
+    }
 
-            for (const script of inst.Scripts) {
-                switch (script.TargetName) {
-                    default:
-                        console.warn("Unknown SCR target: " + script.TargetName, data, inst, script);
-                        break;
-                }
-            }
+    return instNode;
+}
+
+
+function summaryLoadWadGameObject(data, parseScripts = true) {
+    gr_instance.cleanup();
+    dataSummary.empty();
+    set3dVisible(true);
+
+    const node = loadGameObjectFromAjax(data, parseScripts);
+
+    let table = $('<table>');
+    for (let k in data) {
+        if (k != "Object") {
+            table.append($('<tr>').append($('<td>').text(k)).append($('<td>').text(JSON.stringify(data[k]))));
         }
+    }
+    dataSummary.append(table);
+
+    gr_instance.addNode(node);
+    gr_instance.flushScene();
+    gr_instance.requestRedraw();
+}
+
+function loadCxtFromAjax(data, parseScripts = true) {
+    let cxtNode = new ObjectTreeNode(data.Name);
+
+    for (let i in data.Instances) {
+        let inst = data.Instances[i];
+        let instNode = loadGameObjectFromAjax(inst, false, parseScripts);
+        cxtNode.addNode(instNode);
     }
 
     return cxtNode;

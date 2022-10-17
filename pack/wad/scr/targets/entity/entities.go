@@ -8,6 +8,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/pkg/errors"
 
@@ -125,24 +127,26 @@ func EntityFromBytes(b []byte, ec *entitycontext.EntityLevelContext) (*Entity, i
 		log.Printf("targetEntitiesStart+targetEntitiesCount*2 = 0x%x %q", v, e.Name)
 	}
 
-	switch e.EntityType {
-	case ENTITY_TYPE_LEVEL_DATA, ENTITY_TYPE_GLOBAL_DATA:
-		e.Variables = make([]entitycontext.Variable, e.Field_0x4C)
-		for i := range e.Variables {
-			e.Variables[i].Type = b[textPos]
-			textPos++
-			e.Variables[i].Name = readEntityString()
+	if config.GetGOWVersion() == config.GOW1 {
+		switch e.EntityType {
+		case ENTITY_TYPE_LEVEL_DATA, ENTITY_TYPE_GLOBAL_DATA:
+			e.Variables = make([]entitycontext.Variable, e.Field_0x4C)
+			for i := range e.Variables {
+				e.Variables[i].Type = b[textPos]
+				textPos++
+				e.Variables[i].Name = readEntityString()
+			}
 		}
-	}
 
-	switch e.EntityType {
-	case ENTITY_TYPE_LEVEL_DATA:
-		for i, v := range e.Variables {
-			ec.LevelData[uint16(i)+e.PhysicsObjectId] = v
-		}
-	case ENTITY_TYPE_GLOBAL_DATA:
-		for i, v := range e.Variables {
-			ec.GlobalData[uint16(i)+e.PhysicsObjectId] = v
+		switch e.EntityType {
+		case ENTITY_TYPE_LEVEL_DATA:
+			for i, v := range e.Variables {
+				ec.LevelData[uint16(i)+e.PhysicsObjectId] = v
+			}
+		case ENTITY_TYPE_GLOBAL_DATA:
+			for i, v := range e.Variables {
+				ec.GlobalData[uint16(i)+e.PhysicsObjectId] = v
+			}
 		}
 	}
 

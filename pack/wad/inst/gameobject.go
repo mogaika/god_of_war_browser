@@ -50,10 +50,25 @@ type Ajax struct {
 	Instance
 	Scripts []interface{}
 	Name    string
+	Object  interface{}
 }
 
 func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 	scripts := make([]interface{}, 0)
+
+	objNode := wrsrc.Wad.GetNodeByName(inst.Object, wrsrc.Node.Id-1, false)
+	var obj any
+	if objNode != nil {
+		parsedObj, _, err := wrsrc.Wad.GetInstanceFromNode(objNode.Id)
+		if err != nil {
+			return nil, fmt.Errorf("Error when parsing object for game obj info: %v", err)
+		}
+
+		obj, err = parsedObj.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(objNode.Id))
+		if err != nil {
+			return nil, fmt.Errorf("Error when marshaling '%s'", objNode.Tag.Name)
+		}
+	}
 
 	for _, i := range wrsrc.Node.SubGroupNodes {
 		n := wrsrc.Wad.GetNodeById(i)
@@ -65,7 +80,7 @@ func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		} else {
 			switch sn.(type) {
 			case *file_scr.ScriptParams:
-				scr, err := sn.(*file_scr.ScriptParams).Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id))
+				scr, err := sn.Marshal(wrsrc.Wad.GetNodeResourceByNodeId(n.Id))
 				if err != nil {
 					return nil, fmt.Errorf("Error when getting script info %d-'%s': %v", i, name, err)
 				}
@@ -78,6 +93,7 @@ func (inst *Instance) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 		Name:     wrsrc.Name(),
 		Instance: *inst,
 		Scripts:  scripts,
+		Object:   obj,
 	}, nil
 }
 
