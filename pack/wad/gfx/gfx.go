@@ -254,6 +254,6 @@ func init() {
 		return gfx, err
 	}
 
-	wad.SetHandler(config.GOW1, GFX_MAGIC, h)
-	wad.SetHandler(config.GOW2, GFX_MAGIC, h)
+	wad.SetServerHandler(config.GOW1, GFX_MAGIC, h)
+	wad.SetServerHandler(config.GOW2, GFX_MAGIC, h)
 }

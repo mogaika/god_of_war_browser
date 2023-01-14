@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/twk/twktree"
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -211,10 +212,10 @@ func (twk *TWK) Marshal(rsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetTagHandler(TWK_Tag, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetTagHandler(config.GOW1, TWK_Tag, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewTwkFromData(utils.NewBufStack("twk", wrsrc.Tag.Data))
 	})
-	wad.SetTagHandler(TWK_TagCombatFile, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetTagHandler(config.GOW1, TWK_TagCombatFile, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewTwkFromCombatFile(utils.NewBufStack("twkcb", wrsrc.Tag.Data))
 	})
 }

@@ -381,7 +381,7 @@ func (o *Object) GetEulerLocalRotationForJoint(jointId int) mgl32.Vec3 {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, OBJECT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, OBJECT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data, wrsrc.Wad.Name()+":"+wrsrc.Tag.Name)
 	})
 }

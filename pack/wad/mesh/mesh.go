@@ -268,7 +268,7 @@ func (m *Mesh) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
@@ -285,7 +285,7 @@ func init() {
 
 		return mesh, err
 	})
-	wad.SetHandler(config.GOW2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, MESH_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		fpath := filepath.Join("logs_gow2", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.mesh.log", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
@@ -295,18 +295,18 @@ func init() {
 
 		return NewFromData(wrsrc.Tag.Data, &logger)
 	})
-	wad.SetHandler(config.GOW1, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
 		g, err := gmdl.NewGMDL(bs.SubBuf("gmdl", 4).Expand().SetName(wrsrc.Name()))
 		// log.Printf("\n%v", bs.StringTree())
 		return g, err
 	})
-	wad.SetHandler(config.GOW2018, GOW2018_MODEL_GEOMETRY_GPU_DATA_TAG, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2018, GOW2018_MODEL_GEOMETRY_GPU_DATA_TAG, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
 		m, err := NewGOW2018Mesh(bs)
 		return m, err
 	})
-	wad.SetHandler(config.GOW2, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, GMDL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		bs := utils.NewBufStack("resource", wrsrc.Tag.Data[:]).SetSize(int(wrsrc.Size()))
 		g, err := gmdl.NewGMDL(bs.SubBuf("gmdl", 4).Expand().SetName(wrsrc.Name()))
 		// log.Printf("\n%v", bs.StringTree())

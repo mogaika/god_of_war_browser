@@ -115,7 +115,7 @@ func (mdl *Model) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		mdl, err := NewFromData(wrsrc.Tag.Data)
 		if err == nil {
 			/*
@@ -146,7 +146,7 @@ func init() {
 		return mdl, err
 	})
 
-	wad.SetHandler(config.GOW2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, MODEL_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }

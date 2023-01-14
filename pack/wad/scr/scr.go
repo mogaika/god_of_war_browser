@@ -90,10 +90,10 @@ func (sp *ScriptParams) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data, wrsrc)
 	})
-	wad.SetHandler(config.GOW2, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, SCRIPT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data, wrsrc)
 	})
 }

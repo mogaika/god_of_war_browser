@@ -129,7 +129,7 @@ func (c *Collision) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, COLLISION_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, COLLISION_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		fpath := filepath.Join("logs", wrsrc.Wad.Name(), fmt.Sprintf("%.4d-%s.enz.obj", wrsrc.Tag.Id, wrsrc.Tag.Name))
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)

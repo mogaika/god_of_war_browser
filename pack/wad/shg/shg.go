@@ -74,7 +74,7 @@ func (sl *ShadowLod) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, SHG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, SHG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		sl := &ShadowLod{}
 		return sl, sl.Parse(wrsrc.Tag.Data)
 	})

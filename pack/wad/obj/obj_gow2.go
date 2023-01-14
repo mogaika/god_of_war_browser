@@ -164,7 +164,7 @@ func NewFromDataGow2(buf []byte, objName string) (*Object, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW2, OBJECT_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, OBJECT_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromDataGow2(wrsrc.Tag.Data, wrsrc.Wad.Name()+":"+wrsrc.Tag.Name)
 	})
 }

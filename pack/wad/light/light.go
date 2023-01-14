@@ -68,11 +68,11 @@ func (l *Light) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, LIGHT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, LIGHT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		light := &Light{}
 		return light, light.FromWad(wrsrc.Tag.Data, false)
 	})
-	wad.SetHandler(config.GOW2, LIGHT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, LIGHT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		light := &Light{}
 		return light, light.FromWad(wrsrc.Tag.Data, true)
 	})

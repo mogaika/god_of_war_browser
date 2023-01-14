@@ -246,8 +246,8 @@ func init() {
 	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	}
-	wad.SetHandler(config.GOW1, TXR_MAGIC, h)
-	wad.SetHandler(config.GOW2, TXR_MAGIC, h)
+	wad.SetServerHandler(config.GOW1, TXR_MAGIC, h)
+	wad.SetServerHandler(config.GOW2, TXR_MAGIC, h)
 
 	hRemaster := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		switch config.GetPlayStationVersion() {
@@ -259,7 +259,7 @@ func init() {
 			return nil, errors.Errorf("playstation version is not supported")
 		}
 	}
-	wad.SetHandler(config.GOW1, PS3_VITA_TEXTURE_MAGIC, hRemaster)
+	wad.SetServerHandler(config.GOW1, PS3_VITA_TEXTURE_MAGIC, hRemaster)
 	// TODO: not sure about this (gow2 ps3): check
-	wad.SetHandler(config.GOW2, PS3_VITA_TEXTURE_MAGIC, hRemaster)
+	wad.SetServerHandler(config.GOW2, PS3_VITA_TEXTURE_MAGIC, hRemaster)
 }

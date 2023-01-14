@@ -78,7 +78,7 @@ func (inst *InstanceGow2) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW2, INSTANCE_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, INSTANCE_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewGow2FromData(wrsrc.Tag.Data)
 	})
 }

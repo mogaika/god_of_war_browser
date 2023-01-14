@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/mogaika/god_of_war_browser/config"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -58,7 +60,10 @@ func (rsrcs *RSRCS) HttpAction(wrsrc *wad.WadNodeRsrc, w http.ResponseWriter, r 
 }
 
 func init() {
-	wad.SetTagHandler(RSRCS_Tag, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetTagHandler(config.GOW1, RSRCS_Tag, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewRSRCSFromData(utils.NewBufStack("rsrcs", wrsrc.Tag.Data))
+	})
+	wad.SetTagHandler(config.GOW2, RSRCS_Tag, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewRSRCSFromData(utils.NewBufStack("rsrcs", wrsrc.Tag.Data))
 	})
 }

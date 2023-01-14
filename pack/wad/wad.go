@@ -23,24 +23,26 @@ type File interface {
 
 type FileLoader func(rsrc *WadNodeRsrc) (File, error)
 
-var gHandlers map[uint64]FileLoader = make(map[uint64]FileLoader, 0)
+var gServerHandlers = make(map[uint64]FileLoader)
 
-func SetHandler(version config.GOWVersion, serverId uint32, ldr FileLoader) {
+func SetServerHandler(version config.GOWVersion, serverId uint32, ldr FileLoader) {
 	key := (uint64(version) << 32) | uint64(serverId)
-	if _, ok := gHandlers[key]; ok {
+	if _, ok := gServerHandlers[key]; ok {
 		log.Panicf("Trying to override handler %d(0x%.x) for %v version",
 			serverId, serverId, version)
 	}
-	gHandlers[key] = ldr
+	gServerHandlers[key] = ldr
 }
 
-var gTagHandlers map[uint16]FileLoader = make(map[uint16]FileLoader, 0)
+var gTagHandlers = make(map[uint32]FileLoader)
 
-func SetTagHandler(tag uint16, ldr FileLoader) {
-	if _, ok := gTagHandlers[tag]; ok {
-		log.Panicf("Trying to override tag handler %d(0x%.x)", tag, tag)
+func SetTagHandler(version config.GOWVersion, tag uint16, ldr FileLoader) {
+	key := (uint32(version) << 16) | uint32(tag)
+	if _, ok := gTagHandlers[key]; ok {
+		log.Panicf("Trying to override tag handler %d(0x%.x) for %v version",
+			tag, tag, version)
 	}
-	gTagHandlers[tag] = ldr
+	gTagHandlers[key] = ldr
 }
 
 type NodeId int
@@ -85,12 +87,12 @@ func (w *Wad) CallHandler(id NodeId) (File, uint32, error) {
 	var serverId uint32
 
 	n := w.GetNodeById(id)
-	if han, ex := gTagHandlers[n.Tag.Tag]; ex {
+	if han, ex := gTagHandlers[(uint32(config.GetGOWVersion())<<16)|uint32(n.Tag.Tag)]; ex {
 		h = han
 	} else if n.Tag.Tag == GetServerInstanceTag() {
 		if n.Tag.Data != nil && len(n.Tag.Data) >= 4 {
 			serverId = binary.LittleEndian.Uint32(n.Tag.Data)
-			if han, ex := gHandlers[(uint64(config.GetGOWVersion())<<32)|uint64(serverId)]; ex {
+			if han, ex := gServerHandlers[(uint64(config.GetGOWVersion())<<32)|uint64(serverId)]; ex {
 				h = han
 			}
 		}

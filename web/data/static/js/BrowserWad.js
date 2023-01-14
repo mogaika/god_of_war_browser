@@ -61,7 +61,7 @@ function treeLoadWadAsNodes(wadName, data) {
     $('#view-tree ol li label').click(function(ev) {
         let node_element = $(this).parent();
         let node_id = parseInt(node_element.attr('nodeid'));
-        console.log(node_id);
+
         if (node_id !== 0) {
             gw_cxt_group_loading = false;
             treeLoadWadNode(wadName, node_id);
@@ -158,7 +158,6 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                 setTitle(viewSummary, tag.Name);
                 setLocation(wad + " => " + tag.Name, '#/' + wad + '/' + tagid);
             }
-
             if (tag.Tag == 0x1e || tag.Tag == 1) {
                 if (filterServerId) {
                     if (resp.ServerId != filterServerId) {
@@ -260,9 +259,13 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
                 summaryLoadWadRSRCS(data, wad, tagid);
                 needMarshalDump = false;
                 needHexDump = false;
+            } else if (tag.Tag == 12 || tag.Tag == 13 || tag.Tag == 14 || tag.Tag == 15 || tag.Tag == 16) {
+                needMarshalDump = true;
+                needHexDump = true;
             } else {
                 needHexDump = true;
             }
+            
             // console.log('wad ' + wad + ' file (' + tag.Name + ')' + tag.Id + ' loaded. serverid:' + resp.ServerId);
         }
 

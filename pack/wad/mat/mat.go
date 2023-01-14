@@ -3,8 +3,9 @@ package mat
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/pkg/errors"
 	"math"
+
+	"github.com/pkg/errors"
 
 	"github.com/mogaika/god_of_war_browser/config"
 
@@ -196,6 +197,6 @@ func init() {
 	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	}
-	wad.SetHandler(config.GOW1, MAT_MAGIC, h)
-	wad.SetHandler(config.GOW2, MAT_MAGIC, h)
+	wad.SetServerHandler(config.GOW1, MAT_MAGIC, h)
+	wad.SetServerHandler(config.GOW2, MAT_MAGIC, h)
 }

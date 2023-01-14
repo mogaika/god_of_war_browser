@@ -309,7 +309,7 @@ func (f *FLP) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, FLP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err
@@ -317,7 +317,7 @@ func init() {
 
 		return inst, nil
 	})
-	wad.SetHandler(config.GOW2, FLP_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, FLP_MAGIC_GOW2, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		inst, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return nil, err

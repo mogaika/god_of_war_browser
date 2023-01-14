@@ -383,14 +383,14 @@ func (sbk *SBK) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 }
 
 func init() {
-	wad.SetHandler(config.GOW1, SBK_SBLK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, SBK_SBLK_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(utils.NewBufStack("sblk", wrsrc.Tag.Data), true)
 	})
-	wad.SetHandler(config.GOW1, SBK_VAG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW1, SBK_VAG_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(utils.NewBufStack("sbk_vag", wrsrc.Tag.Data), false)
 	})
 
-	wad.SetHandler(config.GOW2, GOW2_SBP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+	wad.SetServerHandler(config.GOW2, GOW2_SBP_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(utils.NewBufStack("sbp_vag", wrsrc.Tag.Data), true)
 	})
 }
