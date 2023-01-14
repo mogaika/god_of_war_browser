@@ -1,10 +1,11 @@
 package archive
 
 import (
+	"strings"
+
 	"github.com/mogaika/god_of_war_browser/pack"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/vfs"
-	"strings"
 )
 
 type Provider interface {
@@ -24,14 +25,14 @@ func (ap *ProviderPS2) ListArchives() ([]string, error) {
 	}
 	for _, name := range dirList {
 		if strings.HasSuffix(name, ".WAD") {
-			list = append(list, name)
+			list = append(list, strings.TrimSuffix(name, ".WAD"))
 		}
 	}
 	return list, nil
 }
 
 func (ap *ProviderPS2) GetArchive(name string) (*wad.Wad, error) {
-	data, err := pack.GetInstanceHandler(ap.Dir, strings.ToUpper(name)+".WAD")
+	data, err := pack.GetInstanceHandler(ap.Dir, name+".WAD")
 	if err != nil {
 		return nil, err
 	}

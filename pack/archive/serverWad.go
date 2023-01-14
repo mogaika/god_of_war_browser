@@ -1,7 +1,6 @@
 package archive
 
 type ServerWad struct {
-	PlaceholderName
 	PlaceholderInstancesHolder
 	PlaceholderReferencesHolder
 }

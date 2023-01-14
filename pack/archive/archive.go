@@ -2,13 +2,14 @@ package archive
 
 import (
 	"encoding/binary"
+	"log"
+	"strings"
+
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/rsrcs"
 	"github.com/mogaika/god_of_war_browser/pack/wad/twk"
 	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/pkg/errors"
-	"log"
-	"strings"
 )
 
 type Archive struct {
@@ -30,7 +31,7 @@ func (ar *Archive) initServers() {
 	ar.Servers = make(map[ServerId]Server)
 	ar.Servers[SERVER_ID_CXT] = &ServerGo{}
 	ar.Servers[SERVER_ID_ANMX] = createPlaceholderServer("ANMX")
-	ar.Servers[SERVER_ID_SCRX] = createPlaceholderServer("SCRX")
+	ar.Servers[SERVER_ID_SCRX] = &ServerScript{}
 	ar.Servers[SERVER_ID_LGTX] = createPlaceholderServer("LGTX")
 	ar.Servers[SERVER_ID_TXRX] = createPlaceholderServer("TXRX")
 	ar.Servers[SERVER_ID_MATX] = createPlaceholderServer("MATX")
@@ -40,10 +41,10 @@ func (ar *Archive) initServers() {
 	ar.Servers[SERVER_ID_COLX] = createPlaceholderServer("COLX")
 	ar.Servers[SERVER_ID_PRTX] = createPlaceholderServer("PRTX")
 	ar.Servers[SERVER_ID_WYPX] = createPlaceholderServer("WYPX")
-	ar.Servers[SERVER_ID_BHVX] = createPlaceholderServer("BHVX")
+	ar.Servers[SERVER_ID_BHVX] = &ServerBehavior{}
 	ar.Servers[SERVER_ID_SNDX] = createPlaceholderServer("SNDX")
 	ar.Servers[SERVER_ID_EMTX] = createPlaceholderServer("EMTX")
-	ar.Servers[SERVER_ID_WAD] = &ServerWad{PlaceholderName: PlaceholderName{Name: "WAD"}}
+	ar.Servers[SERVER_ID_WAD] = &ServerWad{}
 	ar.Servers[SERVER_ID_EEPR] = createPlaceholderServer("EEPR")
 	ar.Servers[SERVER_ID_FX] = createPlaceholderServer("FX")
 	ar.Servers[SERVER_ID_FLPX] = createPlaceholderServer("FLPX")
@@ -130,7 +131,9 @@ func (ar *Archive) loadPs2(p Provider, wd *wad.Wad) error {
 			// log.Printf("pop %+#v", groupStack)
 			pos := len(groupStack) - 1
 			group := groupStack[pos]
-			group[0].Instance.AfterGroupEnd(loader, group[1:])
+			if err := group[0].Instance.AfterGroupEnd(loader, group[1:]); err != nil {
+				return errors.Wrapf(err, "Failed to perform after group end for %q", group[0].Name)
+			}
 			groupStack = groupStack[:pos]
 			if pos != 0 {
 				pos--

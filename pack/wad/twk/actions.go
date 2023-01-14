@@ -7,13 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mogaika/god_of_war_browser/utils"
-
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	"github.com/mogaika/god_of_war_browser/pack/wad/twk/twktree"
+	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/god_of_war_browser/webutils"
 )
 

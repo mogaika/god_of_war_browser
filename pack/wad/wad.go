@@ -428,7 +428,7 @@ func (w *Wad) GetEntityContext() *entitycontext.EntityLevelContext {
 	return &w.entityContext
 }
 
-func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {
+func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource, initLevel bool) (*Wad, error) {
 	w := &Wad{
 		Source:        rsrc,
 		entityContext: entitycontext.NewContext(),
@@ -442,14 +442,16 @@ func NewWad(r io.ReadSeeker, rsrc utils.ResourceSource) (*Wad, error) {
 		return nil, fmt.Errorf("Error when parsing tags: %v", err)
 	}
 
-	if config.GetGOWVersion() == config.GOW1 {
-		// load scripts so we have filled variables
-		for _, n := range w.Nodes {
-			if len(n.Tag.Data) > 40 && binary.LittleEndian.Uint32(n.Tag.Data) == 0x00010004 {
-				if _, _, err := w.GetInstanceFromNode(n.Id); err != nil {
-					log.Printf("[levelinit] Failed to load script %q: %v", n.Tag.Name, err)
+	if initLevel {
+		if config.GetGOWVersion() == config.GOW1 {
+			// load scripts so we have filled variables
+			for _, n := range w.Nodes {
+				if len(n.Tag.Data) > 40 && binary.LittleEndian.Uint32(n.Tag.Data) == 0x00010004 {
+					if _, _, err := w.GetInstanceFromNode(n.Id); err != nil {
+						log.Printf("[levelinit] Failed to load script %q: %v", n.Tag.Name, err)
+					}
+					n.Cache = nil
 				}
-				n.Cache = nil
 			}
 		}
 	}
@@ -473,12 +475,12 @@ func (r *WadNodeRsrc) Size() int64 {
 
 func init() {
 	pack.SetHandler(".WAD", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
-		return NewWad(r, p)
+		return NewWad(r, p, true)
 	})
 	pack.SetHandler(".wad_ps3", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
-		return NewWad(r, p)
+		return NewWad(r, p, true)
 	})
 	pack.SetHandler(".wad_psp2", func(p utils.ResourceSource, r *io.SectionReader) (interface{}, error) {
-		return NewWad(r, p)
+		return NewWad(r, p, true)
 	})
 }

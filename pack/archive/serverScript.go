@@ -1,7 +1,9 @@
 package archive
 
-import "github.com/mogaika/god_of_war_browser/pack/wad"
-import "github.com/pkg/errors"
+import (
+	"github.com/mogaika/god_of_war_browser/pack/wad"
+	"github.com/pkg/errors"
+)
 
 type ServerScript struct {
 	PlaceholderReferencesHolder
@@ -21,8 +23,11 @@ func (ss *ServerScript) OpenWadTag(ldr *Loader, tag *wad.Tag, instanceType Insta
 	switch instanceType {
 	case 1:
 		inst := &ServerScriptInstance{
-			Flags:           tag.Flags,
-			PlaceholderName: PlaceholderName{Name: tag.Name},
+			PlaceholderName: PlaceholderName{
+				Name: tag.Name,
+			},
+			Flags: tag.Flags,
+			Data:  tag.Data,
 		}
 		ss.Scripts = append(ss.Scripts, inst)
 		return inst, nil

@@ -1,6 +1,8 @@
 package archive
 
 import (
+	"log"
+
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_obj "github.com/mogaika/god_of_war_browser/pack/wad/obj"
@@ -28,7 +30,8 @@ type ServerGoInstanceGO struct {
 	CenterProbably mgl32.Vec4
 	Unk            [3]uint32
 
-	Scripts []*ServerScriptInstance
+	Scripts   []*ServerScriptInstance
+	Behaviors []*ServerBehaviorInstance
 }
 
 type ServerGoInstanceObject struct {
@@ -94,10 +97,13 @@ func (inst *ServerGoInstanceGO) FromData(ldr *Loader, tag *wad.Tag) {
 }
 
 func (inst *ServerGoInstanceGO) AfterGroupEnd(ldr *Loader, group []GroupStackElement) error {
+	log.Printf("after group end %v", group)
 	for _, grel := range group {
 		switch child := grel.Instance.(type) {
 		case *ServerScriptInstance:
 			inst.Scripts = append(inst.Scripts, child)
+		case *ServerBehaviorInstance:
+			inst.Behaviors = append(inst.Behaviors, child)
 		default:
 			return errors.Errorf("Unknown child %T", grel.Instance)
 		}
