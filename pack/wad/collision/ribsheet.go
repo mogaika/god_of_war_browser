@@ -404,7 +404,7 @@ func NewRibSheet(bs *utils.BufStack, wrtw io.Writer) (*ShapeRibSheet, error) {
 		}
 	}
 
-	// rib.PrintKDTree()
+	rib.PrintKDTree()
 	/*
 		log.Printf("rib1count %d", len(rib.Some1))
 		log.Printf("rib2count %d", len(rib.Some2.Zones))
@@ -536,6 +536,7 @@ func (rib *ShapeRibSheet) PrintKDTree() {
 	deepCount := 0
 	polyCountSum := 0
 	polyCountCount := 0
+	vertexCountSum := 0
 	polyCountMax := uint16(0)
 	var printNode func(id uint16, tab string, deep int)
 	printNode = func(id uint16, tab string, deep int) {
@@ -553,6 +554,15 @@ func (rib *ShapeRibSheet) PrintKDTree() {
 			}
 			polyCountSum += int(n.PolygonsCount)
 			polyCountCount++
+
+			for i := uint32(0); i < uint32(n.PolygonsCount); i++ {
+				polygonId := n.PolygonIndex + i
+				if rib.Some6[polygonId].IsQuad {
+					vertexCountSum += 2
+				} else {
+					vertexCountSum += 1
+				}
+			}
 		} else {
 			log.Printf("%s = [%.4d] plane %d %f", tab, id, n.PlaneAxis, n.PlaneCoordinate)
 			tab += "  "
@@ -564,8 +574,10 @@ func (rib *ShapeRibSheet) PrintKDTree() {
 	printNode(0, " ", 0)
 	log.Printf("Avg deep of kdtree %d/%d = %f",
 		deepSum, deepCount, float32(deepSum)/float32(deepCount))
-	log.Printf("Max poly per node %d. Avg poly per node %d/%d = %f",
-		polyCountMax, polyCountSum, polyCountCount, float32(polyCountSum)/float32(polyCountCount))
+	log.Printf("Max poly per node %d. Avg poly per node %d/%d = %.3f. Avg vert per node %d/%d = %.3f",
+		polyCountMax, polyCountSum,
+		polyCountCount, float32(polyCountSum)/float32(polyCountCount),
+		vertexCountSum, polyCountCount, float32(vertexCountSum)/float32(polyCountCount))
 }
 
 func (rib *ShapeRibSheet) WriteDebugObject(wrtw io.Writer) {
