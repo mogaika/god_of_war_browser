@@ -103,10 +103,10 @@ type Mesh struct {
 	Unk14           uint32
 	Flags0x20       uint32 // use last and first vectors for some rendering process
 	NameOfRootJoint string
-	Unk28           uint32
-	Unk2c           uint32
+	Unk28           uint32 // skelet joints count?
+	Unk2c           uint32 // used additional joints over skelet????
 	Unk30           uint32
-	BaseBoneIndex   uint32
+	BaseBoneIndex   uint32 // index of mesh joint?
 }
 
 const (

@@ -9,11 +9,12 @@ class AnimationManager {
         this.matLayerAnimations = [];
         this.matSheetAnimations = [];
         this.objSkeletAnimations = [];
+        this.speed = 1.0;
     }
 
     update() {
         let currentTime = window.performance.now() / 1000.0;
-        let dt = currentTime - this.lastUpdateTime;
+        let dt = (currentTime - this.lastUpdateTime) * this.speed;
 
         if (this.active) {
             for (let i in this.matLayerAnimations) {

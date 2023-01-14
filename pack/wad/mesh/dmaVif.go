@@ -208,6 +208,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 		}
 	}
 
+	var verifyError error
+
 	if state.VertexMeta != nil {
 		blocks := make([][]byte, len(state.VertexMeta)/0x10)
 		for iBlock := range blocks {
@@ -258,12 +260,12 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 			// block[14] = 0
 			// block[15] = 0x80 if jointids == 0, but not limited??? / flags ?
 			if true { //verification
-				for iBlock, v := range block {
+				for iByte, v := range block {
 					ok := true
 					lo := v & 0xf
 					hi := v >> 4
 
-					switch iBlock {
+					switch iByte {
 					case 1:
 						ok = v == 0 || v == 0x80
 					case 2:
@@ -274,7 +276,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 						ok = (lo != 0 && lo <= 4) &&
 							((hi != 0) == (block[5]&0x30 == 0x30))
 					case 5:
-						ok = v&0x8f == 0
+						ok = (v&0x8f == 0) &&
+							(((iBlock == 0) == (hi&4 == 4)) || ((iBlock == 1) == (hi&6 == 6))) // first block, or in case of stich fist and second
 					case 6:
 						/*
 							if hi == 0x2 {
@@ -297,8 +300,11 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 					case 15:
 						ok = v == 0 || v == 0x80
 					}
-					if ok == false {
-						return nil, fmt.Errorf("Incorrect block[%d]: 0x%x", iBlock, block[iBlock])
+
+					if !ok {
+						if verifyError == nil {
+							verifyError = fmt.Errorf("Incorrect block[%d][%d]: 0x%x", iBlock, iByte, block[iByte])
+						}
 					}
 				}
 			}
@@ -379,7 +385,7 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 		exlog.Printf("         Boundaries: %v", packet.Boundaries)
 	}
 
-	return packet, nil
+	return packet, verifyError
 }
 
 func (ms *MeshParserStream) ParseVif(packetDataStart, packetDataEnd uint32) error {

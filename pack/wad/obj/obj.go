@@ -270,7 +270,7 @@ func NewFromData(buf []byte, objName string) (*Object, error) {
 		}
 	}
 
-	//utils.LogDump(obj)
+	utils.LogDump(obj)
 
 	obj.FillJoints()
 

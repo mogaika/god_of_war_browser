@@ -1199,7 +1199,8 @@ function loadObjFromAjax(data, parseScripts = false) {
     if (data.Model) {
         const [model, mdlTables] = loadMdlFromAjax(data.Model, true, true);
         for (const mdlTable of mdlTables) {
-            // dataSummary.append(mdlTables);
+            dataSummary.append(mdlTable);
+            console.log(mdlTable);
         }
         oNode.addNode(new ObjectTreeNodeModel("model", model));
     }
