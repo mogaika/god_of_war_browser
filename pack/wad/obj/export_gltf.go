@@ -3,15 +3,12 @@ package obj
 import (
 	"log"
 
-	"github.com/go-gl/mathgl/mgl32"
-
 	"github.com/qmuntal/gltf"
 	"github.com/qmuntal/gltf/modeler"
 
 	"github.com/mogaika/god_of_war_browser/pack/wad"
 	file_anm "github.com/mogaika/god_of_war_browser/pack/wad/anm"
 	file_mdl "github.com/mogaika/god_of_war_browser/pack/wad/mdl"
-	"github.com/mogaika/god_of_war_browser/utils"
 	"github.com/mogaika/god_of_war_browser/utils/gltfutils"
 )
 
@@ -32,6 +29,7 @@ func (tfoe *GLTFObjectExported) addModel(doc *gltf.Document, gmdle *file_mdl.GLT
 	}
 }
 
+/*
 func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, ganim *file_anm.Animations) error {
 	dataTypeIndex := -1
 	for dti, dt := range ganim.DataTypes {
@@ -43,6 +41,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 	if dataTypeIndex == -1 {
 		return nil
 	}
+
 
 	var skinInit file_anm.RenderSkinningInit
 	skinInit.Rotation = make([][4]float32, 0, len(o.Joints))
@@ -56,6 +55,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 		skinInit.Position = append(skinInit.Position, vec)
 	}
 
+
 	for iGroup := range ganim.Groups {
 		group := &ganim.Groups[iGroup]
 
@@ -63,7 +63,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 			act := &group.Acts[iAct]
 			descr := &act.StateDescrs[dataTypeIndex]
 
-			data := descr.Data.([]*file_anm.AnimState0Skinning)
+			data := descr.Data.([]*file_anm.AnimStateSkinningAttributeTrack)
 			if data == nil || len(data) == 0 {
 				continue
 			}
@@ -142,6 +142,7 @@ func (tfoe *GLTFObjectExported) addAnimation(o *Object, doc *gltf.Document, gani
 
 	return nil
 }
+*/
 
 func (o *Object) ExportGLTF(wrsrc *wad.WadNodeRsrc, gltfCacher *gltfutils.GLTFCacher) (*GLTFObjectExported, error) {
 	doc := gltfCacher.Doc
@@ -205,9 +206,11 @@ func (o *Object) ExportGLTF(wrsrc *wad.WadNodeRsrc, gltfCacher *gltfutils.GLTFCa
 				tfoe.addModel(doc, gmdle)
 
 			case *file_anm.Animations:
-				if err := tfoe.addAnimation(o, doc, inst); err != nil {
-					log.Panicf("Failed to export animations: %v", err)
-				}
+				/*
+					if err := tfoe.addAnimation(o, doc, inst); err != nil {
+						log.Panicf("Failed to export animations: %v", err)
+					}
+				*/
 			}
 		}
 	}

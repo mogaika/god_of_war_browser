@@ -10,9 +10,7 @@ type AnimState8Texturepos struct {
 	DataBitMap DataBitMap
 }
 
-func AnimState8TextureposFromBuf(dtype *AnimDatatype, buf []byte, index int) *AnimState8Texturepos {
-	stateBuf := buf[index*0xc:]
-
+func AnimState8TextureposFromBuf(stateBuf []byte) *AnimState8Texturepos {
 	a := &AnimState8Texturepos{
 		Stream: AnimStateSubstream{
 			Samples: make(map[int]interface{}),

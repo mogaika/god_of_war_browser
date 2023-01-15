@@ -126,32 +126,41 @@ func (bs *BufStack) stringTree(pad int) string {
 	}
 	s := sPad + bs.String() + "\n"
 	pos := 0
-	if bs.childs != nil {
-		for i, child := range bs.childs {
-			if pos >= 0 && child.relativeOffset > pos {
-				s += fmt.Sprintf("%s.  gap [o:0x%x,s:0x%x,ao:0x%x,ae:0x%x]\n",
-					sPad, pos, child.relativeOffset-pos, bs.absoluteOffset+pos, child.absoluteOffset)
-			}
-			s += child.stringTree(pad + 1)
-			if child.size != 0 {
-				pos = child.relativeOffset + child.size
+	if len(bs.childs) == 0 {
+		return s
+	}
+
+	for i, child := range bs.childs {
+		if pos >= 0 && child.relativeOffset > pos {
+			s += fmt.Sprintf("%s.  gap [o:0x%x,s:0x%x,ao:0x%x,ae:0x%x]\n",
+				sPad, pos, child.relativeOffset-pos, bs.absoluteOffset+pos, child.absoluteOffset)
+		}
+		s += child.stringTree(pad + 1)
+		if child.size != 0 {
+			pos = child.relativeOffset + child.size
+		} else {
+			s += fmt.Sprintf("%s.  !! no size child broke flow\n", sPad)
+			pos = -1
+		}
+		if child.size > 0 {
+			end := child.relativeOffset + child.size
+			if i == len(bs.childs)-1 {
+				if bs.size > 0 && end > bs.size {
+					s += fmt.Sprintf("%s. [OVERGROW]\n", sPad)
+				}
 			} else {
-				pos = -1
-			}
-			if child.size > 0 {
-				end := child.relativeOffset + child.size
-				if i == len(bs.childs)-1 {
-					if bs.size > 0 && end > bs.size {
-						s += fmt.Sprintf("%s. [OVERGROW]\n", sPad)
-					}
-				} else {
-					if end > bs.childs[i+1].relativeOffset {
-						s += fmt.Sprintf("%s. [OVERLAP]\n", sPad)
-					}
+				if end > bs.childs[i+1].relativeOffset {
+					s += fmt.Sprintf("%s. [OVERLAP]\n", sPad)
 				}
 			}
 		}
 	}
+
+	if pos >= 0 && pos < bs.size {
+		s += fmt.Sprintf("%s.  gap [o:0x%x,s:0x%x,ao:0x%x,ae:0x%x]\n",
+			sPad, pos, bs.size-pos, bs.absoluteOffset+pos, bs.absoluteOffset+bs.size)
+	}
+
 	return s
 }
 

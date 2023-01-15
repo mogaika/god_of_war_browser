@@ -9,6 +9,7 @@ class AnimationManager {
         this.matLayerAnimations = [];
         this.matSheetAnimations = [];
         this.objSkeletAnimations = [];
+        this.zeroMove = true; // TODO: disable
         this.speed = 1.0;
     }
 
@@ -60,23 +61,23 @@ class AnimationManager {
                 }
             }
             break;
-        case 8: {
-            let id = this.matLayerAnimations.indexOf(anim);
-            if (id >= 0) {
-                this.matLayerAnimations.splice(id, 1);
+            case 8: {
+                let id = this.matLayerAnimations.indexOf(anim);
+                if (id >= 0) {
+                    this.matLayerAnimations.splice(id, 1);
+                }
             }
-        }
-        break;
-        case 9: {
-            let id = this.matSheetAnimations.indexOf(anim);
-            if (id >= 0) {
-                this.matSheetAnimations.splice(id, 1);
-            }
-        }
-        break;
-        default:
-            console.error("Unknown animation type ", anim);
             break;
+            case 9: {
+                let id = this.matSheetAnimations.indexOf(anim);
+                if (id >= 0) {
+                    this.matSheetAnimations.splice(id, 1);
+                }
+            }
+            break;
+            default:
+                console.error("Unknown animation type ", anim);
+                break;
         }
     }
 };
@@ -89,13 +90,13 @@ class AnimationBase extends Claimable {
 }
 
 class AnimationMatertialLayer extends AnimationBase {
-    constructor(anim, act, stateIndex, material) {
+    constructor(anim, clip, dataTypeIndex, material) {
         super();
         this.type = 8;
         this.enabled = false;
         this.anim = anim;
-        this.act = act;
-        this.stateIndex = stateIndex;
+        this.clip = clip;
+        this.dataTypeIndex = dataTypeIndex;
         this.material = material;
         this.time = 0.0;
         material.anims.push(this);
@@ -107,16 +108,17 @@ class AnimationMatertialLayer extends AnimationBase {
             return;
         }
 
-        let stateDesc = this.act.StateDescrs[this.stateIndex];
-        let dataType = this.anim.DataTypes[this.stateIndex];
+        const dataType = this.anim.DataTypes[this.dataTypeIndex];
+        const trackTyped = this.clip.TrackTyped[this.dataTypeIndex];
+        const trackSpec = this.clip.TrackSpecs[dataType.TrackSpecsStartIndex];
 
         if (dataType.TypeId == 8) {
             let layer = this.material.layers.get(dataType.Param1 & 0x7f);
 
-            for (let iData in stateDesc.Data) {
-                let data = stateDesc.Data[iData];
+            for (let iData in trackTyped) {
+                let data = trackTyped[iData];
 
-                let floatStep = newTime / stateDesc.FrameTime;
+                let floatStep = newTime / trackSpec.FrameTime;
 
                 let step = Math.trunc(floatStep) % (data.Stream.Manager.Count - 1);
                 let nextStep = (step + 1) % data.Stream.Manager.Count;
@@ -144,12 +146,12 @@ class AnimationMatertialLayer extends AnimationBase {
 }
 
 class AnimationObjectSkelet extends AnimationBase {
-    constructor(anim, act, stateIndex, obj, treeNode) {
+    constructor(anim, clip, dataTypeIndex, obj, treeNode) {
         super();
         this.type = 0;
         this.anim = anim;
-        this.stateIndex = stateIndex;
-        this.act = act;
+        this.dataTypeIndex = dataTypeIndex;
+        this.clip = clip;
         this.object = obj;
         this.time = 0;
         this.enabled = true;
@@ -162,6 +164,8 @@ class AnimationObjectSkelet extends AnimationBase {
 
         treeNode.assignAnimation(this);
         this.treeNode = treeNode;
+
+        this.treeNode.setLocalMatrix(mat4.create());
 
         this.reset();
         this.recalcMatrices();
@@ -236,37 +240,48 @@ class AnimationObjectSkelet extends AnimationBase {
         const eps = 1.0 / (1024.0 * 16.0);
         // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
-        let globalFramesCount = globalManager.Count + globalManager.Offset + globalManager.DatasCount3 - 1;
+        let globalFramesCount = globalManager.Offset + globalManager.Count + globalManager.DatasCount3 - 1;
         let animFrame = animNextTime / frameTime;
         if ((animFrame + eps) > globalFramesCount ||
             (animFrame - eps) < manager.Offset) {
             return undefined;
         }
 
-        let streamSampleIdx = animFrame - manager.Offset;
-        if (streamSampleIdx >= manager.Count + manager.DatasCount3) {
+        let streamSamplePos = animFrame - manager.Offset;
+        if (streamSamplePos >= manager.Count + manager.DatasCount3) {
             return undefined;
-        } else if (streamSampleIdx > manager.Count - 1) {
-            return manager.Count - 1;
-        } else if (streamSampleIdx < 0) {
+            /*} else if (streamSampleIdx > manager.Count - 1) {
+                return manager.Count - 1;
+            */
+        } else if (streamSamplePos < 0) {
             return 0;
         } else {
-            return streamSampleIdx;
+            return streamSamplePos;
         }
     }
 
-    handleSkinningStream(stream, globalManager, prevTime, newTime, frameTime, jointLocalRots, l = false) {
+    getSampleIndexFromPos(pos, manager) {
+        const index = Math.floor(pos);
+        const lastSample = manager.Count - 1;
+        if (index > lastSample) {
+            return lastSample;
+        } else {
+            return index;
+        }
+    }
+
+    handleSkinningStream(stream, globalManager, prevTime, newTime, stateDesc, targetJointsVector) {
         const eps = 1.0 / (1024.0 * 16.0);
         // TODO: parse reverse animation situation if (animNextTime < animPrevTime)
 
-        let newSamplePos = this.returnStreamDataIndex(stream.Manager, globalManager, newTime, frameTime);
+        let newSamplePos = this.returnStreamDataIndex(stream.Manager, globalManager, newTime, stateDesc.FrameTime);
         if (newSamplePos === undefined) {
             return false;
         }
-        let newSampleIndex = Math.floor(newSamplePos);
+        let newSampleIndex = this.getSampleIndexFromPos(newSamplePos, stream.Manager);
         let newSampleOffset = newSamplePos - newSampleIndex;
 
-        let changed = false;
+        let changed = 0;
 
         //console.info(newSamplePos, stream.Samples.hasOwnProperty(-100));
         if (stream.Samples.hasOwnProperty(-100)) {
@@ -275,10 +290,10 @@ class AnimationObjectSkelet extends AnimationBase {
 
             let prevValueMultiplyer, prevSampleIndex;
             let prevSampleOffset;
-            let prevSamplePos = this.returnStreamDataIndex(stream.Manager, globalManager, prevTime, frameTime);
+            let prevSamplePos = this.returnStreamDataIndex(stream.Manager, globalManager, prevTime, stateDesc.FrameTime);
             if (prevSamplePos !== undefined) {
                 // if not first frame in batch
-                prevSampleIndex = Math.floor(prevSamplePos);
+                prevSampleIndex = this.getSampleIndexFromPos(prevSamplePos, stream.Manager);
                 prevSampleOffset = prevSamplePos - prevSampleIndex;
                 if (prevSampleIndex == newSampleIndex) {
                     // we in the same sample, compensate prev time this sample was played
@@ -296,11 +311,11 @@ class AnimationObjectSkelet extends AnimationBase {
                 if (iStream < 0) {
                     continue;
                 }
-                changed = true;
+
                 let jointId = parseInt(iStream / 4);
                 let coord = parseInt(iStream) % 4;
 
-                let value = jointLocalRots[jointId][coord];
+                let value = targetJointsVector[jointId][coord];
                 let prevSampleValue;
 
                 if (prevValueMultiplyer !== undefined) {
@@ -312,17 +327,19 @@ class AnimationObjectSkelet extends AnimationBase {
                 let newSampleValue = stream.Samples[iStream][newSampleIndex];
                 value += newSampleValue * newValueMultiplyer;
 
-                let prevVal = jointLocalRots[jointId][coord];
-                jointLocalRots[jointId][coord] = value;
+                let prevVal = targetJointsVector[jointId][coord];
+                targetJointsVector[jointId][coord] = value;
+
+                changed++;
 
                 //if (!l) jointLocalRots[jointId][coord] = value;
                 //if (l) console.log("add", prevVal, coord, value);
             }
         } else {
             // exact change
-            let nextSampleIndex = newSampleIndex + 1;
+            // let nextSampleIndex = newSampleIndex + 1;
+            let nextSampleIndex = this.getSampleIndexFromPos(newSampleIndex + 1, stream.Manager);
             for (let iStream in stream.Samples) {
-                changed = true;
                 let jointId = parseInt(iStream / 4);
                 let coord = parseInt(iStream) % 4;
 
@@ -334,13 +351,48 @@ class AnimationObjectSkelet extends AnimationBase {
                     let nextSampleValue = stream.Samples[iStream][nextSampleIndex];
                     value = newSampleValue + (nextSampleValue - newSampleValue) * newSampleOffset;
                 }
-                let prevVal = jointLocalRots[jointId][coord];
-                jointLocalRots[jointId][coord] = value;
+                let prevVal = targetJointsVector[jointId][coord];
+                targetJointsVector[jointId][coord] = value;
+
+                changed++;
+
                 //if (l) { console.log("raw", prevVal, coord); }
                 //console.log(jointId, coord,
                 //		"pv", prevVal, "nv", value, "rnv", jointLocalRots[jointId][coord]);	
             }
         }
+        return changed;
+    }
+
+    handleUpdateTrackTyped(attrTrack, newTime, stateDesc, targetJointsVector) {
+        if (!attrTrack) {
+            return 0;
+        }
+        let changed = 0;
+
+        for (const track of attrTrack) {
+            const globalStream = track.Stream;
+
+            if (globalStream.Manager.Count) {
+                changed += this.handleSkinningStream(
+                    globalStream, globalStream.Manager, this.time, newTime, stateDesc, targetJointsVector);
+            } else {
+                if (track.SubStreamsAdd) {
+                    for (const stream of track.SubStreamsAdd) {
+                        changed += this.handleSkinningStream(
+                            stream, globalStream.Manager, this.time, newTime, stateDesc, targetJointsVector);
+                    }
+                }
+
+                if (track.SubStreamsRough) {
+                    for (const stream of track.SubStreamsRough) {
+                        changed += this.handleSkinningStream(
+                            stream, globalStream.Manager, this.time, newTime, stateDesc, targetJointsVector);
+                    }
+                }
+            }
+        }
+
         return changed;
     }
 
@@ -350,86 +402,33 @@ class AnimationObjectSkelet extends AnimationBase {
             return;
         }
 
-        let stateDesc = this.act.StateDescrs[this.stateIndex];
-        let dataType = this.anim.DataTypes[this.stateIndex];
+        const dataType = this.anim.DataTypes[this.dataTypeIndex];
+        const trackTyped = this.clip.TrackTyped[this.dataTypeIndex];
 
         if (dataType.TypeId == 0) {
-            let skeleton = this.object.Joints;
-            let changed = false;
+            const trackSpecRotation = this.clip.TrackSpecs[dataType.TrackSpecsStartIndex + 0];
+            const trackSpecPosition = this.clip.TrackSpecs[dataType.TrackSpecsStartIndex + 1];
+            const trackSpecScale = this.clip.TrackSpecs[dataType.TrackSpecsStartIndex + 2];
 
-            for (let iData in stateDesc.Data) {
-                let data = stateDesc.Data[iData];
-                let globalRotationStream = data.RotationStream;
-                let globalPositionStream = data.PositionStream;
-                let globalScaleStream = data.ScaleStream;
+            let changed = 0;
+            changed += this.handleUpdateTrackTyped(trackTyped.Rotation, newTime, trackSpecRotation, this.jointLocalRots);
+            changed += this.handleUpdateTrackTyped(trackTyped.Position, newTime, trackSpecPosition, this.jointLocalPos);
+            changed += this.handleUpdateTrackTyped(trackTyped.Scale, newTime, trackSpecScale, this.jointLocalScale);
 
-                if (globalRotationStream.Manager.Count) {
-                    let stream = globalRotationStream;
-                    if (this.handleSkinningStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
-                        changed = true;
-                    }
-                } else {
-                    for (let iAdditiveSample in data.RotationSubStreamsAdd) {
-                        let stream = data.RotationSubStreamsAdd[iAdditiveSample];
-                        if (this.handleSkinningStream(stream, globalRotationStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
-                            changed = true;
-                        }
-                    }
-
-                    for (let iRoughSample in data.RotationSubStreamsRough) {
-                        let stream = data.RotationSubStreamsRough[iRoughSample];
-                        if (this.handleSkinningStream(stream, globalRotationStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalRots)) {
-                            changed = true;
-                        }
-                    }
-                }
-
-                if (globalPositionStream.Manager.Count) {
-                    let stream = globalPositionStream;
-                    if (this.handleSkinningStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
-                        changed = true;
-                    }
-                } else {
-                    for (let iAdditiveSample in data.PositionSubStreamsAdd) {
-                        let stream = data.PositionSubStreamsAdd[iAdditiveSample];
-                        if (this.handleSkinningStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
-                            changed = true;
-                        }
-                    }
-
-                    for (let iRoughSample in data.PositionSubStreamsRough) {
-                        let stream = data.PositionSubStreamsRough[iRoughSample];
-                        if (this.handleSkinningStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
-                            changed = true;
-                        }
-                    }
-                }
-
-                if (globalScaleStream.Manager.Count) {
-                    let stream = globalScaleStream;
-                    if (this.handleSkinningStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalScale, true)) {
-                        changed = true;
-                    }
-                } else {
-                    
-                    for (let iAdditiveSample in data.ScaleSubStreamsAdd) {
-                        let stream = data.ScaleSubStreamsAdd[iAdditiveSample];
-                        if (this.handleSkinningStream(stream, globalScaleStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
-                            changed = true;
-                        }
-                    }
-                    
-
-                    for (let iRoughSample in data.ScaleSubStreamsRough) {
-                        let stream = data.ScaleSubStreamsRough[iRoughSample];
-                        if (this.handleSkinningStream(stream, globalScaleStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalScale, true)) {
-                            changed = true;
-                        }
-                    }
-                }
-            }
             if (changed) {
                 this.recalcMatrices();
+
+                if (ga_instance.zeroMove) {
+                    const zeroJointIndex = this.treeNode.getJointIndexByName("zeroJoint");
+                    if (zeroJointIndex !== undefined) {
+                        this.treeNode.setLocalMatrix(this.treeNode.joints[zeroJointIndex].localMatrix);
+                    }
+                } else {
+                    this.treeNode.setLocalMatrix(mat4.create());
+                }
+            }
+
+            if (changed) {
                 gr_instance.requireRedraw = true;
             }
         } else {
@@ -437,19 +436,19 @@ class AnimationObjectSkelet extends AnimationBase {
         }
 
         this.time = newTime;
-        if (this.time >= this.act.Duration) {
+        if (this.time >= this.clip.Duration) {
             this.reset();
         }
     }
 }
 
 class AnimationMaterialSheet extends AnimationBase {
-    constructor(anim, act, stateIndex, material) {
+    constructor(anim, clip, dataTypeIndex, material) {
         super();
         this.type = 9;
         this.anim = anim;
-        this.act = act;
-        this.stateIndex = stateIndex;
+        this.clip = clip;
+        this.dataTypeIndex = dataTypeIndex;
         this.material = material;
         this.time = 0.0;
         this.step = 0;
@@ -458,15 +457,17 @@ class AnimationMaterialSheet extends AnimationBase {
 
     update(dt) {
         var newTime = this.time + dt * 0.5;
-        var stateDesc = this.act.StateDescrs[this.stateIndex];
-        var dataType = this.anim.DataTypes[this.stateIndex];
+
+        const dataType = this.anim.DataTypes[this.dataTypeIndex];
+        const trackTyped = this.clip.TrackTyped[this.dataTypeIndex];
+        const trackSpec = this.clip.TrackSpecs[dataType.TrackSpecsStartIndex];
 
         if (dataType.TypeId == 9) {
-            var floatStep = newTime / stateDesc.FrameTime;
-            var step = Math.trunc(floatStep) % stateDesc.Data.length;
+            var floatStep = newTime / trackSpec.FrameTime;
+            var step = Math.trunc(floatStep) % trackTyped.length;
             if (step != this.step) {
                 gr_instance.requireRedraw = true;
-                this.material.layers.get(0).setTextureIndex(stateDesc.Data[step]);
+                this.material.layers.get(0).setTextureIndex(trackTyped[step]);
             }
         } else {
             log.error("incorrect animation typeid");

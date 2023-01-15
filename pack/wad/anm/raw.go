@@ -4,6 +4,9 @@ import (
 	"math/bits"
 )
 
+type AnimInstanceHeader struct {
+}
+
 type DataBitMap struct {
 	PairedElementsCount uint8    // count of 1 bits in entire words array
 	DataOffset          uint16   // offset to element

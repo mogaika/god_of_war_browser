@@ -265,7 +265,7 @@ function treeLoadWadNode(wad, tagid, filterServerId = undefined) {
             } else {
                 needHexDump = true;
             }
-            
+
             // console.log('wad ' + wad + ' file (' + tag.Name + ')' + tag.Id + ' loaded. serverid:' + resp.ServerId);
         }
 
@@ -410,7 +410,7 @@ function parseMeshPackets(data, object, packets, instanceIndex) {
 
                             for (const i in blend.Weights) {
                                 // console.log("000", m_jointsIds, m_weights, blend.JointIds[i], blend.Weights[i] * weight);
-                                insertSingleJointAttribute(blend.JointIds[i], blend.Weights[i] * weight);    
+                                insertSingleJointAttribute(blend.JointIds[i], blend.Weights[i] * weight);
                             }
                         } else {
                             insertSingleJointAttribute(joint, weight);
@@ -786,21 +786,21 @@ function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
 
         model.addMaterial(material);
 
-        let anim = data.Materials[iMaterial].Animations;
+        const anim = data.Materials[iMaterial].Animations;
         if (anim && anim.Groups && anim.Groups.length) {
-            let group = anim.Groups[0];
-            if (!group.IsExternal && group.Acts && group.Acts.length) {
-                for (let iAct in group.Acts) {
-                    let act = group.Acts[iAct];
-                    for (let dt in anim.DataTypes) {
-                        switch (anim.DataTypes[dt].TypeId) {
+            const group = anim.Groups[0];
+            if (!group.IsExternal && group.Clips && group.Clips.length) {
+                for (const iClip in group.Clips) {
+                    const clip = group.Clips[iClip];
+                    for (const iDataType in anim.DataTypes) {
+                        switch (anim.DataTypes[iDataType].TypeId) {
                             case 8:
-                                let animInstance = new AnimationMatertialLayer(anim, act, dt, material);
+                                const animInstance = new AnimationMatertialLayer(anim, clip, iDataType, material);
                                 animInstance.enable();
                                 ga_instance.addAnimation(animInstance);
                                 break;
                             case 9:
-                                let animSheetInstance = new AnimationMaterialSheet(anim, act, dt, material);
+                                const animSheetInstance = new AnimationMaterialSheet(anim, clip, iDataType, material);
                                 ga_instance.addAnimation(animSheetInstance);
                                 break;
                         }
@@ -1096,7 +1096,7 @@ function loadCollisionFromAjax(data, wad, nodeid, parentObject = null) {
 
         for (let iMesh in ball.Meshes) {
             let mesh = ball.Meshes[iMesh];
-            
+
             let calculatedVertices = [];
             let calculatedIndices = [];
             let pointIndices = []; {
@@ -1349,17 +1349,17 @@ function summaryLoadWadObj(data, wad, nodeid) {
     if (data.Animations) {
         let $animSelector = $("<select>").attr("size", 6).addClass("animation");
 
-        let anim = data.Animations;
+        const anim = data.Animations;
         if (anim && anim.Groups && anim.Groups.length) {
-            for (let iGroup in anim.Groups) {
-                let group = anim.Groups[iGroup];
-                for (let iAct in group.Acts) {
-                    let act = group.Acts[iAct];
-                    for (let dt in anim.DataTypes) {
-                        switch (anim.DataTypes[dt].TypeId) {
+            for (const iGroup in anim.Groups) {
+                const group = anim.Groups[iGroup];
+                for (const iClip in group.Clips) {
+                    const clip = group.Clips[iClip];
+                    for (const iDataType in anim.DataTypes) {
+                        switch (anim.DataTypes[iDataType].TypeId) {
                             case 0:
-                                let $option = $("<option>").text(group.Name + ": " + act.Name);
-                                $option.dblclick([anim, act, dt, data.Data], function(ev) {
+                                let $option = $("<option>").text(group.Name + ": " + clip.Name);
+                                $option.dblclick([anim, clip, iDataType, data.Data], function(ev) {
                                     let anim = new AnimationObjectSkelet(ev.data[0], ev.data[1], ev.data[2], ev.data[3], oNode);
                                     ga_instance.addAnimation(anim);
                                 });
@@ -1467,7 +1467,7 @@ function loadGameObjectFromAjax(inst, parseScripts = true) {
         if (inst.Position1[3] != 1.0) {
             console.warn("posmulincorrect", inst);
         }
-        
+
         instNode.addNode(new ObjectTreeNodeModel("label", text3d));
         instNode.setLocalMatrix(instMat);
     }

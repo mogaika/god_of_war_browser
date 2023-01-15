@@ -492,10 +492,10 @@ grRenderChain_SkinnedTextured.prototype.fillFlashesFromNode = function(node) {
                     this.fillFlashesFromModelNode(this.normalBatch, node);
                 }
                 break;
-            case "sky": {
-                this.fillFlashesFromModelNode(this.skyBatch, node);
-            }
-            break;
+                case "sky": {
+                    this.fillFlashesFromModelNode(this.skyBatch, node);
+                }
+                break;
             }
         }
     }

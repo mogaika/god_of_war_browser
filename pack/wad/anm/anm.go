@@ -2,6 +2,8 @@ package anm
 
 import (
 	"encoding/binary"
+	"fmt"
+	"log"
 	"math"
 	"os"
 
@@ -32,36 +34,6 @@ const (
 	// total - 15 types
 )
 
-type AnimDatatype struct {
-	TypeId uint16
-	Param1 uint8
-	Param2 uint8
-}
-
-type AnimActStateDescr struct {
-	Unk0             uint16
-	OffsetToData     uint32
-	CountOfSomething uint16
-	FrameTime        float32
-	Data             interface{}
-}
-
-type AnimAct struct {
-	Offset      uint32
-	UnkFloat0x4 float32
-	UnkFloat0xc float32
-	Duration    float32
-	Name        string
-	StateDescrs []AnimActStateDescr
-}
-
-type AnimGroup struct {
-	Offset     uint32
-	Name       string
-	IsExternal bool // when true, then HaventActs in this file
-	Acts       []AnimAct
-}
-
 type Animations struct {
 	ParsedFlags struct {
 		Flag0AutoplayProbably bool
@@ -74,6 +46,53 @@ type Animations struct {
 	Groups    []AnimGroup
 }
 
+type AnimDatatype struct {
+	TypeId          uint16
+	Param1          uint8
+	TrackSpecsCount uint8
+
+	TrackSpecsStartIndex int
+}
+
+type AnimGroup struct {
+	Name       string
+	IsExternal bool // when true, then Clips located outside of this file
+	Clips      []AnimClip
+
+	offset uint32
+}
+
+type AnimClip struct {
+	// 0x0001 - looped
+	// 0x0002 - not looped
+	// 0x2000 - more then one frame
+	Flags         uint32
+	flagsProbably string
+	Unk0x4        float32
+	Unk0xc        float32
+	Unk0x10       int32
+	Unk0x20       int32
+	Duration      float32
+	Name          string
+
+	TrackSpecs []AnimTrackSpec
+	TrackTyped []any
+
+	offset uint32
+}
+
+type AnimTrackSpec struct {
+	Unk0             uint8
+	Unk1             uint8
+	CountOfSomething uint16
+	Unk4             uint16
+	Unk6             uint8
+	Unk7             uint8
+	OffsetToData     uint32
+	FrameTime        float32
+	Unk16            uint32
+}
+
 func u32(d []byte, off uint32) uint32 {
 	return binary.LittleEndian.Uint32(d[off : off+4])
 }
@@ -81,10 +100,14 @@ func u16(d []byte, off uint32) uint16 {
 	return binary.LittleEndian.Uint16(d[off : off+2])
 }
 
-func NewFromData(data []byte) (*Animations, error) {
+func NewFromData(animInstanceRawData []byte) (*Animations, error) {
+	bs := utils.NewBufStack("anm", animInstanceRawData).SetSize(len(animInstanceRawData))
+
+	bsHeader := bs.SubBuf("header", 0).SetSize(0x18)
+
 	a := &Animations{
-		DataTypes: make([]AnimDatatype, u16(data, 0x10)),
-		Groups:    make([]AnimGroup, u16(data, 0x12)),
+		DataTypes: make([]AnimDatatype, bsHeader.LU16(0x10)),
+		Groups:    make([]AnimGroup, bsHeader.LU16(0x12)),
 	}
 
 	defer func() {
@@ -93,7 +116,11 @@ func NewFromData(data []byte) (*Animations, error) {
 		}*/
 	}()
 
-	flags := u32(data, 8)
+	defer func() {
+		log.Printf("\n%s", bs.StringTree())
+	}()
+
+	flags := bsHeader.LU16(8)
 	a.ParsedFlags.Flag0AutoplayProbably = flags&0x1 != 0
 	a.ParsedFlags.JointRotationAnimated = flags&0x1000 != 0
 	a.ParsedFlags.JointPositionAnimated = flags&0x2000 != 0
@@ -103,105 +130,179 @@ func NewFromData(data []byte) (*Animations, error) {
 	var fff *os.File
 	defer fff.Close()
 
-	rawFormats := data[0x18+len(a.Groups)*4:]
-	for i := range a.DataTypes {
-		dt := &a.DataTypes[i]
-		rawFmt := rawFormats[i*4 : i*4+4]
+	bsGroupPointers := bsHeader.SubBufFollowing("groups pointers").SetSize(len(a.Groups) * 4)
+	bsTrackTypes := bsGroupPointers.SubBufFollowing("track types").SetSize(len(a.DataTypes) * 4)
 
-		dt.TypeId = u16(rawFmt, 0)
-		dt.Param1 = rawFmt[2]
-		dt.Param2 = rawFmt[3]
+	trackSpecsCount := 0
+	for iTrackType := range a.DataTypes {
+		dt := &a.DataTypes[iTrackType]
+		bsTrackType := bsTrackTypes.SubBuf("track type", iTrackType*4).SetSize(4)
 
-		if dt.TypeId == 0 {
+		dt.TypeId = bsTrackType.LU16(0)
+		dt.Param1 = bsTrackType.Byte(2)
+		dt.TrackSpecsCount = bsTrackType.Byte(3)
+
+		dt.TrackSpecsStartIndex = trackSpecsCount
+		trackSpecsCount += int(dt.TrackSpecsCount)
+
+		bsTrackType.SetName(fmt.Sprintf("%d %d-%d", dt.TypeId, dt.Param1, dt.TrackSpecsCount))
+
+		if dt.TypeId == DATATYPE_SKINNING {
+			if iTrackType != 0 {
+				log.Panicf("Animation datatype skinning requirerd to be first because of gow engine internals (static offsets). Happend on %d", iTrackType)
+			}
+			if dt.TrackSpecsCount < 3 {
+				log.Panicf("Animation datatype skinning expected at least 3 tracks for pos/rot/scale. Got %v", dt.TrackSpecsCount)
+			}
 			fff, _ = os.Create(`currentanim.log`)
 			_l = &utils.Logger{fff}
 		}
 	}
 
-	rawGroupsPointers := data[0x18:]
-	for i := range a.Groups {
-		g := &a.Groups[i]
-		g.Offset = u32(rawGroupsPointers, uint32(i*4))
-		rawGroup := data[g.Offset:]
+	for iGroup := range a.Groups {
+		a.Groups[iGroup].offset = bsGroupPointers.LU32(iGroup * 4)
+	}
 
-		g.Name = utils.BytesToString(rawGroup[0x14:0x2c])
-		g.IsExternal = u32(rawGroup, 8)&0x20000 != 0
+	for iGroup := range a.Groups {
+		g := &a.Groups[iGroup]
 
-		_l.Printf("++++++++++++++ GROUP '%s' +++++++++++++++++++++++++++++++++++++++++++++++++++++",
-			g.Name)
+		bsGroup := bs.SubBuf("group", int(g.offset))
+		if iGroup == len(a.Groups)-1 {
+			bsGroup.Expand()
+		} else {
+			bsGroup.SetSize(int(a.Groups[iGroup+1].offset - g.offset))
+		}
+
+		bsGroupHeader := bsGroup.SubBuf("header", 0).SetSize(0x30)
+
+		g.Name = utils.BytesToString(bsGroupHeader.Raw()[0x14:0x2c])
+		bsGroup.SetName(g.Name)
+
+		g.IsExternal = bsGroupHeader.LU32(8)&0x20000 != 0
+
+		_l.Printf("++++++++++++++ GROUP '%s' +++++++++++++++++++++++++++++++++++++++++++++++++++++", g.Name)
 
 		if !g.IsExternal {
-			g.Acts = make([]AnimAct, u32(rawGroup, 0xc))
-			for j := range g.Acts {
-				act := &g.Acts[j]
-				act.Offset = u32(rawGroup, uint32(0x30+j*4))
+			g.Clips = make([]AnimClip, bsGroupHeader.LU32(0xc))
 
-				rawAct := rawGroup[act.Offset:]
+			bsClipPointers := bsGroupHeader.SubBufFollowing("clip pointers").SetSize(len(g.Clips) * 4)
 
-				act.UnkFloat0x4 = math.Float32frombits(u32(rawAct, 0x4))
-				act.UnkFloat0xc = math.Float32frombits(u32(rawAct, 0xc))
-				act.Duration = math.Float32frombits(u32(rawAct, 0x1c))
-				act.Name = utils.BytesToString(rawAct[0x24:0x3c])
+			for iClip := range g.Clips {
+				g.Clips[iClip].offset = bsClipPointers.LU32(iClip * 4)
+			}
 
-				_l.Printf("======= ACT '%s'  (datatypes cnt: %d   f0x4: %f   f0xc: %f    duration: %f) ======================================================",
-					act.Name, len(a.DataTypes), act.UnkFloat0x4, act.UnkFloat0xc, act.Duration)
-				_l.Printf("---- SDUMP: %s", utils.SDump(rawAct[:0x64]))
+			for iClip := range g.Clips {
+				clip := &g.Clips[iClip]
 
-				act.StateDescrs = make([]AnimActStateDescr, len(a.DataTypes))
-				for iStateDescr := range act.StateDescrs {
-					sd := &act.StateDescrs[iStateDescr]
-					rawActStateDescr := rawAct[0x64+iStateDescr*0x14:]
+				bsClip := bsGroup.SubBuf("clip", int(clip.offset))
+				if iClip == len(g.Clips)-1 {
+					bsClip.Expand()
+				} else {
+					bsClip.SetSize(int(g.Clips[iClip+1].offset - clip.offset))
+				}
 
-					sd.Unk0 = u16(rawActStateDescr, 0)
-					sd.CountOfSomething = u16(rawActStateDescr, 2)
-					sd.OffsetToData = u32(rawActStateDescr, 8)
-					sd.FrameTime = math.Float32frombits(u32(rawActStateDescr, 0xc))
+				bsClipHeader := bsClip.SubBuf("header", 0).SetSize(0x64)
 
-					_l.Printf("   . . . . . . . . . . STATE '%d'  FrameTime: %f  unk0: 0x%x  unk4: 0x%x . . . . . . . . . . . . . . . . . . . . . . . . . . . ",
-						iStateDescr, sd.FrameTime, sd.Unk0, u32(rawActStateDescr, 4))
+				clip.Flags = bsClipHeader.LU32(0x0)
+				clip.flagsProbably = fmt.Sprintf("%.32b", clip.Flags)
+				clip.Unk0x4 = math.Float32frombits(bsClipHeader.LU32(0x4))
+				clip.Unk0xc = math.Float32frombits(bsClipHeader.LU32(0xc))
+				clip.Unk0x10 = int32(bsClipHeader.LU32(0xc))
+				clip.Unk0x20 = int32(bsClipHeader.LU32(0xc))
+				clip.Duration = math.Float32frombits(bsClipHeader.LU32(0x1c))
+				clip.Name = utils.BytesToString(bsClipHeader.Raw()[0x24:0x3c])
+				bsClip.SetName(clip.Name)
 
-					//log.Println(iStateDescr, a.DataTypes, a.DataTypes[iStateDescr].TypeId)
-					switch a.DataTypes[iStateDescr].TypeId {
-					case DATATYPE_TEXUREPOS:
-						data := make([]*AnimState8Texturepos, sd.CountOfSomething)
-						for i := 0; i < int(sd.CountOfSomething); i++ {
-							data[i] = AnimState8TextureposFromBuf(&a.DataTypes[iStateDescr], rawAct[sd.OffsetToData:], i)
-						}
-						sd.Data = data
+				_l.Printf("======= CLIP '%s'  (datatypes cnt: %d  duration: %f) ======================================================",
+					clip.Name, trackSpecsCount, clip.Duration)
+				_l.Printf("---- SDUMP: %s", utils.SDump(bsClipHeader.Raw()))
+				_l.Printf("---- SDUMP: %s", utils.SDump(clip))
+
+				clip.TrackSpecs = make([]AnimTrackSpec, trackSpecsCount)
+				bsTrackSpecs := bsClipHeader.SubBufFollowing("track specs").SetSize(len(clip.TrackSpecs) * 0x14)
+
+				for iTrackSpec := range clip.TrackSpecs {
+					trackSpec := &clip.TrackSpecs[iTrackSpec]
+
+					bsTargetSpec := bsTrackSpecs.SubBuf("track spec", iTrackSpec*0x14).SetSize(0x14)
+
+					trackSpec.Unk0 = bsTargetSpec.Byte(0)
+					trackSpec.Unk1 = bsTargetSpec.Byte(1)
+					trackSpec.CountOfSomething = bsTargetSpec.LU16(2)
+					trackSpec.Unk4 = bsTargetSpec.LU16(4)
+					trackSpec.Unk6 = bsTargetSpec.Byte(6)
+					trackSpec.Unk7 = bsTargetSpec.Byte(7)
+					trackSpec.OffsetToData = bsTargetSpec.LU32(8)
+					trackSpec.FrameTime = bsTargetSpec.LF(0xc)
+					trackSpec.Unk16 = bsTargetSpec.LU32(0x10)
+				}
+
+				_l.Printf("---- track specs:\n%s", utils.SDump(clip.TrackSpecs))
+				_l.Printf("---- track specs:\n%s", utils.SDump(bsTrackSpecs.Raw()))
+
+				bsTracksData := bsTrackSpecs.SubBufFollowing("tracks data").Expand()
+				bsTracksDataOffset := uint32(bsTracksData.RelativeOffset())
+
+				for iDataType := range a.DataTypes {
+					dt := &a.DataTypes[iDataType]
+
+					var trackTypeData any
+
+					switch dt.TypeId {
 					case DATATYPE_SKINNING:
-						_l.Printf("ROTATION ANIMATIONS COUNT: %v", int(sd.CountOfSomething))
-						_l.Printf("POSITION ANIMATIONS COUNT: %v", int(u16(rawAct, 0x7a)))
-						_l.Printf("SIZE ANIMATIONS COUNT: %v", int(u16(rawAct, 0x8e)))
-						_l.Printf("descr: %+#v", a.DataTypes[iStateDescr])
-						_l.Printf("SUBELEMENT UPDATES OR OFFETS OR STATES COUNT(0xA2): %v", int(u16(rawAct, 0xa2)))
+						skinningTracks := &AnimStateSkinningTracks{}
 
-						data := make([]*AnimState0Skinning, 0, sd.CountOfSomething)
-						for i := 0; i < int(sd.CountOfSomething); i++ {
-							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
-							skinAnim.ParseRotations(rawAct[sd.OffsetToData:], i, _l)
-							data = append(data, skinAnim)
+						trackSpecRotation := &clip.TrackSpecs[dt.TrackSpecsStartIndex+0]
+						for i := 0; i < int(trackSpecRotation.CountOfSomething); i++ {
+							skinningTracks.Rotation = append(skinningTracks.Rotation,
+								ParseSkinningAttributeTrackRotation(bsTracksData.Raw()[trackSpecRotation.OffsetToData-bsTracksDataOffset:][i*0xc:], _l))
 						}
-						for i := 0; i < int(u16(rawAct, 0x7a)); i++ {
-							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
-							skinAnim.ParsePositions(rawAct[sd.OffsetToData:], i, _l, rawAct)
-							data = append(data, skinAnim)
+
+						trackSpecPosition := &clip.TrackSpecs[dt.TrackSpecsStartIndex+1]
+						for i := 0; i < int(trackSpecPosition.CountOfSomething); i++ {
+							skinningTracks.Position = append(skinningTracks.Position,
+								ParseSkinningAttributeTrackPosition(bsTracksData.Raw()[trackSpecPosition.OffsetToData-bsTracksDataOffset:][i*0xc:], _l),
+							)
 						}
-						for i := 0; i < int(u16(rawAct, 0x8e)); i++ {
-							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
-							skinAnim.ParseScales(rawAct[sd.OffsetToData:], i, _l, rawAct)
-							data = append(data, skinAnim)
+
+						trackSpecScale := &clip.TrackSpecs[dt.TrackSpecsStartIndex+2]
+						for i := 0; i < int(trackSpecScale.CountOfSomething); i++ {
+							skinningTracks.Scale = append(skinningTracks.Scale,
+								ParseSkinningAttributeTrackScale(bsTracksData.Raw()[trackSpecScale.OffsetToData-bsTracksDataOffset:][i*0xc:], _l),
+							)
 						}
-						sd.Data = data
+
+						if dt.TrackSpecsCount > 3 {
+							trackSpecAttachments := &clip.TrackSpecs[dt.TrackSpecsStartIndex+3]
+							for i := 0; i < int(trackSpecAttachments.CountOfSomething); i++ {
+								skinningTracks.Attachments = append(skinningTracks.Attachments,
+									ParseSkinningAttributeTrackAttachments(bsTracksData.Raw()[trackSpecAttachments.OffsetToData-bsTracksDataOffset:][i*0xc:], _l))
+							}
+						}
+						//_l.Printf("---- track spec position:\n%s", utils.SDump(trackSpecPosition))
+						//_l.Printf("---- tracks position:\n%s", utils.SDump(skinningTracks.Position))
+						trackTypeData = skinningTracks
+					case DATATYPE_TEXUREPOS:
+						trackSpecTexsturePos := &clip.TrackSpecs[dt.TrackSpecsStartIndex]
+
+						data := make([]*AnimState8Texturepos, trackSpecTexsturePos.CountOfSomething)
+						for i := 0; i < int(trackSpecTexsturePos.CountOfSomething); i++ {
+							data[i] = AnimState8TextureposFromBuf(bsTracksData.Raw()[trackSpecTexsturePos.OffsetToData-bsTracksDataOffset:][i*0xc:])
+						}
+						trackTypeData = data
 					case DATATYPE_TEXTURESHEET:
-						buf := rawAct[sd.OffsetToData:]
+						trackSpecTexstureSheet := &clip.TrackSpecs[dt.TrackSpecsStartIndex]
+
+						buf := bsTracksData.Raw()[trackSpecTexstureSheet.OffsetToData-bsTracksDataOffset:]
 						data := make([]uint32, u16(buf, 4))
 						dataBuf := buf[u16(buf, 0xa):]
 						for i := range data {
 							data[i] = u32(dataBuf, uint32(i*4))
 						}
-						sd.Data = data
+						trackTypeData = data
 					}
 
+					clip.TrackTyped = append(clip.TrackTyped, trackTypeData)
 				}
 			}
 		}

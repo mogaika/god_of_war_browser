@@ -9,26 +9,21 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
-type AnimState0Skinning struct {
-	// Every anim act hold its own copy of encoded quaterion array for every joint
+type AnimStateSkinningTracks struct {
+	Position    []*AnimStateSkinningAttributeTrack
+	Rotation    []*AnimStateSkinningAttributeTrack
+	Scale       []*AnimStateSkinningAttributeTrack
+	Attachments []*AnimStateSkinningAttributeTrack
+}
+
+type AnimStateSkinningAttributeTrack struct {
+	// Every anim clip hold its own copy of encoded quaterion array for every joint
 	// Then they blended together
-	PositionDescr           AnimStateDescrHeader
-	PositionStream          AnimStateSubstream
-	PositionSubStreamsRough []AnimStateSubstream
-	PositionSubStreamsAdd   []AnimStateSubstream
-	PositionDataBitMap      DataBitMap
-
-	RotationDescr           AnimStateDescrHeader
-	RotationStream          AnimStateSubstream
-	RotationSubStreamsRough []AnimStateSubstream
-	RotationSubStreamsAdd   []AnimStateSubstream
-	RotationDataBitMap      DataBitMap
-
-	ScaleDescr           AnimStateDescrHeader
-	ScaleStream          AnimStateSubstream
-	ScaleSubStreamsRough []AnimStateSubstream
-	ScaleSubStreamsAdd   []AnimStateSubstream
-	ScaleDataBitMap      DataBitMap
+	Descr           AnimStateDescrHeader
+	Stream          AnimStateSubstream
+	SubStreamsRough []AnimStateSubstream
+	SubStreamsAdd   []AnimStateSubstream
+	DataBitMap      DataBitMap
 }
 
 func bitmaskZeroBitsShift(bitmask uint16) uint16 {
@@ -36,7 +31,7 @@ func bitmaskZeroBitsShift(bitmask uint16) uint16 {
 	return uint16(((bitmaski32 ^ (bitmaski32 & (-bitmaski32))) << 16) >> 16)
 }
 
-func (a *AnimState0Skinning) getDataBitMapOffset(descr *AnimStateDescrHeader, stateData []byte) []byte {
+func (a *AnimStateSkinningAttributeTrack) getDataBitMapOffset(descr *AnimStateDescrHeader, stateData []byte) []byte {
 	dataBitMap := defaultDataBitMap
 	if descr.FlagsProbably&2 != 0 {
 		dataBitMap = stateData
@@ -44,11 +39,11 @@ func (a *AnimState0Skinning) getDataBitMapOffset(descr *AnimStateDescrHeader, st
 	return dataBitMap
 }
 
-func (a *AnimState0Skinning) GetDataBitMap(descr *AnimStateDescrHeader, stateData []byte) DataBitMap {
+func (a *AnimStateSkinningAttributeTrack) GetDataBitMap(descr *AnimStateDescrHeader, stateData []byte) DataBitMap {
 	return NewDataBitMapFromBuf(a.getDataBitMapOffset(descr, stateData))
 }
 
-func (a *AnimState0Skinning) GetShiftsArray(descr *AnimStateDescrHeader, stateData []byte) []int8 {
+func (a *AnimStateSkinningAttributeTrack) GetShiftsArray(descr *AnimStateDescrHeader, stateData []byte) []int8 {
 	dataBitMap := a.GetDataBitMap(descr, stateData)
 	shifts := make([]int8, dataBitMap.PairedElementsCount)
 	if dataBitMap.PairedElementsCount == 1 {
@@ -60,10 +55,6 @@ func (a *AnimState0Skinning) GetShiftsArray(descr *AnimStateDescrHeader, stateDa
 		}
 	}
 	return shifts
-}
-
-func AnimState0SkinningFromBuf(buf []byte, stateIndex int, _l *utils.Logger) *AnimState0Skinning {
-	return &AnimState0Skinning{}
 }
 
 func shiftToCoeff(shift int8) float32 {
@@ -78,130 +69,131 @@ func shiftToCoeff(shift int8) float32 {
 	}
 }
 
-func (a *AnimState0Skinning) ParseRotations(buf []byte, stateIndex int, _l *utils.Logger) {
-	stateBuf := buf[stateIndex*0xc:]
+func ParseSkinningAttributeTrackRotation(stateBuf []byte, _l *utils.Logger) *AnimStateSkinningAttributeTrack {
+	track := &AnimStateSkinningAttributeTrack{}
+	track.Descr.FromBuf(stateBuf)
+	track.Stream.Manager.FromBuf(stateBuf[4:])
 
-	a.RotationDescr.FromBuf(stateBuf)
-	a.RotationStream.Manager.FromBuf(stateBuf[4:])
-
-	stateData := stateBuf[(uint32(a.RotationDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.RotationStream.Manager.OffsetToData):]
-	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
-		stateIndex, a.RotationDescr.BaseTargetDataIndex, a.RotationDescr.FlagsProbably, a.RotationStream.Manager)
+	stateData := stateBuf[(uint32(track.Descr.HowMany64kbWeNeedSkip)<<16)+uint32(track.Stream.Manager.OffsetToData):]
+	_l.Printf(">>>>>>>> STATE (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
+		track.Descr.BaseTargetDataIndex, track.Descr.FlagsProbably, track.Stream.Manager)
 
 	// Parse rotations
-	if a.RotationStream.Manager.Count == 0 {
+	if track.Stream.Manager.Count == 0 {
 		stateDataFirstByte := stateData[0]
 		stateDataSecondByte := stateData[1]
 		stateDataArrayBuf := stateData[2:]
 
 		bitMapOffset := stateData[2+int(stateDataSecondByte)*8:]
-		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, bitMapOffset)
+		track.DataBitMap = track.GetDataBitMap(&track.Descr, bitMapOffset)
 
 		_l.Printf("   ! DATA: state (fb: %d, subs count) (sb: %d, total subs)", stateDataFirstByte, stateDataSecondByte)
-		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", a.RotationDescr.FlagsProbably&2 == 0, a.RotationDataBitMap)
+		_l.Printf("   ! INTERPOLATION (default: %v)  %+v", track.Descr.FlagsProbably&2 == 0, track.DataBitMap)
 
-		a.RotationSubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
+		track.SubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
 		for iAddSubDm := 0; iAddSubDm < int(stateDataFirstByte); iAddSubDm++ {
-			subStream := &a.RotationSubStreamsAdd[iAddSubDm]
+			subStream := &track.SubStreamsAdd[iAddSubDm]
 			subStream.Manager.FromBuf(stateDataArrayBuf[iAddSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
 
-			shifts := a.GetShiftsArray(&a.RotationDescr, bitMapOffset)
+			shifts := track.GetShiftsArray(&track.Descr, bitMapOffset)
 			_l.Printf("      - SDFB %d: %+v,  s5Array: %v", iAddSubDm, subStream.Manager, shifts)
-			parseFramesRotationAdd(stateBuf, subStream, &a.RotationDataBitMap, &a.RotationDescr, true, shifts)
+			parseFramesRotationAdd(stateBuf, subStream, &track.DataBitMap, &track.Descr, true, shifts)
 		}
 
-		a.RotationSubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
+		track.SubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
 		for iRawSubDm := int(stateDataFirstByte); iRawSubDm < int(stateDataSecondByte); iRawSubDm++ {
-			subStream := &a.RotationSubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
+			subStream := &track.SubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
 			subStream.Manager.FromBuf(stateDataArrayBuf[iRawSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
 
 			_l.Printf("      - halfs %d: %+v", iRawSubDm, subStream.Manager)
-			parseFramesRotationRaw(stateBuf, subStream, &a.RotationDataBitMap, &a.RotationDescr, true)
+			parseFramesRotationRaw(stateBuf, subStream, &track.DataBitMap, &track.Descr, true)
 		}
 	} else {
-		a.RotationDataBitMap = a.GetDataBitMap(&a.RotationDescr, stateData)
-		a.RotationStream.Samples = make(map[int]interface{})
+		track.DataBitMap = track.GetDataBitMap(&track.Descr, stateData)
+		track.Stream.Samples = make(map[int]interface{})
 
-		_l.Printf("       RAW %+v  flag %v", a.RotationDataBitMap, a.RotationDescr.FlagsProbably&1 != 0)
-		if a.RotationDescr.FlagsProbably&1 == 0 {
-			_l.Printf("       RAW RAW %+v", a.RotationDataBitMap)
-			parseFramesRotationRaw(stateData, &a.RotationStream, &a.RotationDataBitMap, &a.RotationDescr, false)
+		_l.Printf("       RAW %+v  flag %v", track.DataBitMap, track.Descr.FlagsProbably&1 != 0)
+		if track.Descr.FlagsProbably&1 == 0 {
+			_l.Printf("       RAW RAW %+v", track.DataBitMap)
+			parseFramesRotationRaw(stateData, &track.Stream, &track.DataBitMap, &track.Descr, false)
 		} else {
-			shifts := a.GetShiftsArray(&a.RotationDescr, stateData)
-			_l.Printf("       RAW ADDITIVE %+v shifts: %v", a.RotationDataBitMap, shifts)
-			parseFramesRotationAdd(stateData, &a.RotationStream, &a.RotationDataBitMap, &a.RotationDescr, false, shifts)
+			shifts := track.GetShiftsArray(&track.Descr, stateData)
+			_l.Printf("       RAW ADDITIVE %+v shifts: %v", track.DataBitMap, shifts)
+			parseFramesRotationAdd(stateData, &track.Stream, &track.DataBitMap, &track.Descr, false, shifts)
 		}
 	}
+
+	return track
 }
 
-// POOSIIIIIIIITIIIIIIIIIOOOOOOONNNNNNNSSSSS
-func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *utils.Logger, rawAct []byte) {
-	stateBuf := rawAct[binary.LittleEndian.Uint32(rawAct[0x80:])+uint32(stateIndex*0xc):]
-	a.PositionDescr.FromBuf(stateBuf)
-	a.PositionStream.Manager.FromBuf(stateBuf[4:])
-	stateData := stateBuf[(uint32(a.PositionDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.PositionStream.Manager.OffsetToData):]
+func ParseSkinningAttributeTrackPosition(stateBuf []byte, _l *utils.Logger) *AnimStateSkinningAttributeTrack {
+	track := &AnimStateSkinningAttributeTrack{}
+	track.Descr.FromBuf(stateBuf)
+	track.Stream.Manager.FromBuf(stateBuf[4:])
+	stateData := stateBuf[(uint32(track.Descr.HowMany64kbWeNeedSkip)<<16)+uint32(track.Stream.Manager.OffsetToData):]
 
 	_l.Printf(">>>>>>>> POSITION PARSING >>>>>>>>>>>>>>>>>>>>> POSITION PARSING >>>>>>>>>>>>>>>>")
-	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
-		stateIndex, a.PositionDescr.BaseTargetDataIndex, a.PositionDescr.FlagsProbably, a.PositionStream.Manager)
+	_l.Printf(">>>>>>>> STATE (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
+		track.Descr.BaseTargetDataIndex, track.Descr.FlagsProbably, track.Stream.Manager)
 
 	_ = stateData
-	if a.PositionStream.Manager.Count == 0 {
+	if track.Stream.Manager.Count == 0 {
 		stateDataFirstByte := stateData[0]
 		stateDataSecondByte := stateData[1]
 		stateDataArrayBuf := stateData[2:]
 
 		bitMapOffset := stateData[2+int(stateDataSecondByte)*8:]
-		a.PositionDataBitMap = a.GetDataBitMap(&a.PositionDescr, bitMapOffset)
+		track.DataBitMap = track.GetDataBitMap(&track.Descr, bitMapOffset)
 
-		a.PositionSubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
+		track.SubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
 		for iAddSubDm := 0; iAddSubDm < int(stateDataFirstByte); iAddSubDm++ {
-			subStream := &a.PositionSubStreamsAdd[iAddSubDm]
+			subStream := &track.SubStreamsAdd[iAddSubDm]
 			subStream.Manager.FromBuf(stateDataArrayBuf[iAddSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
-			shifts := a.GetShiftsArray(&a.PositionDescr, bitMapOffset)
-			parseFramesPositionAdd(stateBuf, subStream, &a.PositionDataBitMap, &a.PositionDescr, true, shifts)
+			shifts := track.GetShiftsArray(&track.Descr, bitMapOffset)
+			parseFramesPositionAdd(stateBuf, subStream, &track.DataBitMap, &track.Descr, true, shifts)
 			//utils.LogDump(subStream)
 		}
 
-		a.PositionSubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
+		track.SubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
 		for iRawSubDm := int(stateDataFirstByte); iRawSubDm < int(stateDataSecondByte); iRawSubDm++ {
-			subStream := &a.PositionSubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
+			subStream := &track.SubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
 			subStream.Manager.FromBuf(stateDataArrayBuf[iRawSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
-			parseFramesPositionRaw(stateBuf, subStream, &a.PositionDataBitMap, &a.PositionDescr, true)
+			parseFramesPositionRaw(stateBuf, subStream, &track.DataBitMap, &track.Descr, true)
 			//utils.LogDump(subStream)
 		}
 
 	} else {
-		a.PositionDataBitMap = a.GetDataBitMap(&a.PositionDescr, stateData)
-		a.PositionStream.Samples = make(map[int]interface{})
+		track.DataBitMap = track.GetDataBitMap(&track.Descr, stateData)
+		track.Stream.Samples = make(map[int]interface{})
 
-		_l.Printf("       RAW %+v  flag %v", a.PositionDataBitMap, a.PositionDescr.FlagsProbably&1 != 0)
-		if a.PositionDescr.FlagsProbably&1 == 0 {
-			parseFramesPositionRaw(stateData, &a.PositionStream, &a.PositionDataBitMap, &a.PositionDescr, false)
+		_l.Printf("       RAW %+v  flag %v", track.DataBitMap, track.Descr.FlagsProbably&1 != 0)
+		if track.Descr.FlagsProbably&1 == 0 {
+			parseFramesPositionRaw(stateData, &track.Stream, &track.DataBitMap, &track.Descr, false)
 		} else {
-			shifts := a.GetShiftsArray(&a.PositionDescr, stateData)
-			parseFramesPositionAdd(stateData, &a.PositionStream, &a.PositionDataBitMap, &a.PositionDescr, false, shifts)
+			shifts := track.GetShiftsArray(&track.Descr, stateData)
+			parseFramesPositionAdd(stateData, &track.Stream, &track.DataBitMap, &track.Descr, false, shifts)
 		}
 	}
+
+	return track
 }
 
-// SCALLLEE
-func (a *AnimState0Skinning) ParseScales(buf []byte, stateIndex int, _l *utils.Logger, rawAct []byte) {
-	stateBuf := rawAct[binary.LittleEndian.Uint32(rawAct[0x94:])+uint32(stateIndex*0xc):]
-	a.ScaleDescr.FromBuf(stateBuf)
-	a.ScaleStream.Manager.FromBuf(stateBuf[4:])
-	stateData := stateBuf[(uint32(a.ScaleDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.ScaleStream.Manager.OffsetToData):]
+func ParseSkinningAttributeTrackScale(stateBuf []byte, _l *utils.Logger) *AnimStateSkinningAttributeTrack {
+	track := &AnimStateSkinningAttributeTrack{}
+	track.Descr.FromBuf(stateBuf)
+	track.Stream.Manager.FromBuf(stateBuf[4:])
+	stateData := stateBuf[(uint32(track.Descr.HowMany64kbWeNeedSkip)<<16)+uint32(track.Stream.Manager.OffsetToData):]
 
 	_l.Printf(">>>>>>>> SCALE PARSING >>>>>>>>>>>>>>>>>>>>> SCALE PARSING >>>>>>>>>>>>>>>>")
-	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
-		stateIndex, a.ScaleDescr.BaseTargetDataIndex, a.ScaleDescr.FlagsProbably, a.ScaleStream.Manager)
+	_l.Printf(">>>>>>>> STATE (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
+		track.Descr.BaseTargetDataIndex, track.Descr.FlagsProbably, track.Stream.Manager)
 
 	_ = stateData
-	if a.ScaleStream.Manager.Count == 0 {
+	if track.Stream.Manager.Count == 0 {
 		// green
 		log.Printf("Got stream consisting of multiple entries")
 
@@ -214,7 +206,7 @@ func (a *AnimState0Skinning) ParseScales(buf []byte, stateIndex int, _l *utils.L
 		}
 
 		bitMapOffset := stateData[2+int(stateDataSecondByte)*8:]
-		a.ScaleDataBitMap = a.GetDataBitMap(&a.ScaleDescr, bitMapOffset)
+		track.DataBitMap = track.GetDataBitMap(&track.Descr, bitMapOffset)
 		/*
 			a.ScaleSubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
 			for iAddSubDm := 0; iAddSubDm < int(stateDataFirstByte); iAddSubDm++ {
@@ -226,29 +218,41 @@ func (a *AnimState0Skinning) ParseScales(buf []byte, stateIndex int, _l *utils.L
 				//utils.LogDump(subStream)
 			}*/
 
-		a.ScaleSubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
+		track.SubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
 		for iRawSubDm := int(stateDataFirstByte); iRawSubDm < int(stateDataSecondByte); iRawSubDm++ {
-			subStream := &a.ScaleSubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
+			subStream := &track.SubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
 			subStream.Manager.FromBuf(stateDataArrayBuf[iRawSubDm*8:])
 			subStream.Samples = make(map[int]interface{})
-			parseFramesScaleRaw(stateBuf, subStream, &a.ScaleDataBitMap, &a.ScaleDescr, true)
+			parseFramesScaleRaw(stateBuf, subStream, &track.DataBitMap, &track.Descr, true)
 			//utils.LogDump(subStream)
 		}
 
 	} else {
 		// blue
-		a.ScaleDataBitMap = a.GetDataBitMap(&a.ScaleDescr, stateData)
-		a.ScaleStream.Samples = make(map[int]interface{})
+		track.DataBitMap = track.GetDataBitMap(&track.Descr, stateData)
+		track.Stream.Samples = make(map[int]interface{})
 
-		_l.Printf("       RAW %+v  flag %v", a.ScaleDataBitMap, a.ScaleDescr.FlagsProbably&1 != 0)
+		_l.Printf("       RAW %+v  flag %v", track.DataBitMap, track.Descr.FlagsProbably&1 != 0)
 
 		//if a.ScaleDescr.FlagsProbably&1 == 0 {
-		parseFramesScaleRaw(stateData, &a.ScaleStream, &a.ScaleDataBitMap, &a.ScaleDescr, false)
+		parseFramesScaleRaw(stateData, &track.Stream, &track.DataBitMap, &track.Descr, false)
 		/*} else {
 			shifts := a.GetShiftsArray(&a.ScaleDescr, stateData)
 			parseFramesScaleAdd(stateData, &a.ScaleStream, &a.ScaleDataBitMap, &a.ScaleDescr, false, shifts)
 		}*/
 	}
+
+	return track
+}
+
+func ParseSkinningAttributeTrackAttachments(stateBuf []byte, _l *utils.Logger) *AnimStateSkinningAttributeTrack {
+	track := &AnimStateSkinningAttributeTrack{}
+	track.Descr.FromBuf(stateBuf)
+	track.Stream.Manager.FromBuf(stateBuf[4:])
+
+	_l.Printf("---- trackAttachments: %s", utils.SDump(track))
+
+	return track
 }
 
 func parseFramesRotationRaw(buf []byte, subStream *AnimStateSubstream, bitMap *DataBitMap,

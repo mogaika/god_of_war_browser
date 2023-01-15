@@ -5,7 +5,7 @@ class Plane {
     constructor(normal, constant) {
         // normalize
         const len = vec3.length(normal);
-        this.normal = vec3.scale(this.normal, normal, 1/vec3.length(normal));
+        this.normal = vec3.scale(this.normal, normal, 1 / vec3.length(normal));
         this.constant = constant / len;
     }
 
@@ -14,13 +14,13 @@ class Plane {
         return result;
     }
 
-	distanceToPoint(point) {
-		return vec3.dot(this.normal, point) + this.constant;
-	}
+    distanceToPoint(point) {
+        return vec3.dot(this.normal, point) + this.constant;
+    }
 
-	projectPoint(target, point) {
+    projectPoint(target, point) {
         return vec3.add(target, vec3.scale(target, this.normal, -this.distanceToPoint(point)), point);
-	}
+    }
 
     isPointInside(point) {
         const vec = vec3.scale(vec3.create(), this.normal, -this.distanceToPoint(point))
@@ -29,15 +29,17 @@ class Plane {
     }
 
     static intersect3planes(p1, p2, p3) {
-        const n1 = p1.normal, n2 = p2.normal, n3 = p3.normal;
+        const n1 = p1.normal,
+            n2 = p2.normal,
+            n3 = p3.normal;
 
         const m = mat3.fromValues(n1[0], n1[1], n1[2], n2[0], n2[1], n2[2], n3[0], n3[1], n3[2]);
         const det = mat3.determinant(m);
-        
+
         if (glMatrix.equals(Math.abs(det), 0)) {
             return;
         }
-        
+
         const x1 = p1.coplanarPoint();
         const x2 = p2.coplanarPoint();
         const x3 = p3.coplanarPoint();
@@ -45,9 +47,9 @@ class Plane {
         const f1 = vec3.scale(vec3.create(), vec3.cross(vec3.create(), n2, n3), vec3.dot(x1, n1));
         const f2 = vec3.scale(vec3.create(), vec3.cross(vec3.create(), n3, n1), vec3.dot(x2, n2));
         const f3 = vec3.scale(vec3.create(), vec3.cross(vec3.create(), n1, n2), vec3.dot(x3, n3));
-        
-        const vectorSum  = vec3.add(vec3.create(), vec3.add(vec3.create(), f1, f2), f3);
-        const intersection = vec3.scale(vec3.create(), vectorSum, (1/det));
+
+        const vectorSum = vec3.add(vec3.create(), vec3.add(vec3.create(), f1, f2), f3);
+        const intersection = vec3.scale(vec3.create(), vectorSum, (1 / det));
 
         return intersection;
     }
@@ -59,7 +61,7 @@ class Plane {
         let planesIndices = [];
         let planesVectors = [];
         for (let i in planes) {
-            planesIndices.push(i);       
+            planesIndices.push(i);
             planesVectors.push([]);
         }
 
@@ -115,7 +117,7 @@ class Plane {
             for (const vi of vectorIndices) {
                 center = vec3.add(center, center, vectors[vi]);
             }
-            center = vec3.scale(center, center, 1/vectorIndices.length);
+            center = vec3.scale(center, center, 1 / vectorIndices.length);
 
             let rotations = [];
 
@@ -142,7 +144,7 @@ class Plane {
             })
 
             for (let i = 0; i < rotations.length; i++) {
-                indices.push(rotations[i].index, rotations[(i+1) % rotations.length].index);
+                indices.push(rotations[i].index, rotations[(i + 1) % rotations.length].index);
             }
         }
 

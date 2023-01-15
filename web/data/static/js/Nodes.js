@@ -95,6 +95,9 @@ class ObjectTreeNodeBase extends Claimable {
         this._update();
     }
 
+    get name() {
+        return this._name;
+    }
     get localMatrix() {
         return this._localMatrix;
     }
@@ -209,6 +212,15 @@ class ObjectTreeNodeSkinned extends ObjectTreeNode {
     }
     get joints() {
         return this._jonits.list;
+    }
+
+    getJointIndexByName(name) {
+        for (const iJoint in this.joints) {
+            if (this.joints[iJoint].name === name) {
+                return iJoint;
+            }
+        }
+        return undefined;
     }
 
     assignAnimation(animation) {

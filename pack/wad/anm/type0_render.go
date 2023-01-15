@@ -1,5 +1,7 @@
 package anm
 
+/*
+
 type RenderSkinningInit struct {
 	Rotation [][4]float32
 	Position [][4]float32
@@ -81,7 +83,7 @@ func (rs *RenderedSkinningStream) getValuesIndexForFrame(frame int, init [4]floa
 	return len(rs.Index) - 1
 }
 
-func RenderSkinningData(frames int, states []*AnimState0Skinning, init RenderSkinningInit) *RenderedSkinningState {
+func RenderSkinningData(frames int, states []*AnimStateSkinningAttributeTrack, init RenderSkinningInit) *RenderedSkinningState {
 	rss := &RenderedSkinningState{
 		Rotation: make(map[int]*RenderedSkinningStream),
 		Position: make(map[int]*RenderedSkinningStream),
@@ -115,3 +117,5 @@ func RenderSkinningData(frames int, states []*AnimState0Skinning, init RenderSki
 
 	return rss
 }
+
+*/
