@@ -35,11 +35,13 @@ gowTransform2d.prototype.scale = function(scale) {
 gowTransform2d.prototype.toMatrix3d = function() {
     // console.log(this);
     return this.matrix;
+    /*
     return mat4.fromValues(
         this.matrix[0], this.matrix[1], 0, 0,
         this.matrix[2], this.matrix[3], 0, 0,
         0, 0, 1, 0,
         this.pos[0], this.pos[1], 0, 1);
+    */
 }
 
 function gowFlp(flp) {

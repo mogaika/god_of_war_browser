@@ -27,8 +27,7 @@ type Packet struct {
 	Blend struct {
 		R, G, B, A []uint16 // actually uint8, only for marshaling (not base64-encode)
 	}
-	Joints                 []uint16
-	Joints2                []uint16
+	Joints                 [2][]uint16
 	Offset                 uint32
 	VertexMeta             []byte
 	Boundaries             [4]float32 // center pose (xyz) and radius (w)
@@ -93,18 +92,23 @@ type Vector struct {
 	Value [4]float32
 }
 
+type BlendJoints struct {
+	JointIds []uint32
+	Weights  []float32
+}
+
 type Mesh struct {
 	Parts   []Part
 	Vectors []Vector
 	// last vector used in mdl
+	BlendJoints []BlendJoints
 
 	Unk0c           uint32
 	Unk10           uint32
 	Unk14           uint32
 	Flags0x20       uint32 // use last and first vectors for some rendering process
 	NameOfRootJoint string
-	Unk28           uint32 // skelet joints count?
-	Unk2c           uint32 // used additional joints over skelet????
+	SkeletJoints    uint32 // skelet joints count?
 	Unk30           uint32
 	BaseBoneIndex   uint32 // index of mesh joint?
 }
@@ -209,8 +213,8 @@ func (m *Mesh) AsCommonMesh() *common.Mesh {
 											},
 											Weight: packet.Trias.Weight[iVertex],
 											JointsIndexes: [2]uint16{
-												packet.Joints[iVertex],
-												packet.Joints2[iVertex]},
+												packet.Joints[0][iVertex],
+												packet.Joints[1][iVertex]},
 										})
 
 									if !packet.Trias.Skip[iVertex] {

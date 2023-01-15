@@ -121,12 +121,11 @@ class RenderHelper {
 
     static SkeletLines(skelet) {
         let model = new RenderModel();
-        let meshes = [];
         let vrtxs = [];
         let indxs = [];
         let clrs = [];
         let joints = [];
-        let jointsMap = [];
+        let weights = [];
 
         for (const i in skelet) {
             const currentJoint = skelet[i];
@@ -143,29 +142,17 @@ class RenderHelper {
                 clrs.push(((i / 8) % 8) * 15);
                 clrs.push(((i / 64) % 8) * 15);
                 clrs.push(127);
-                let idx = jointsMap.indexOf(joint.Id);
-                if (idx < 0) {
-                    joints.push(jointsMap.length);
-                    jointsMap.push(joint.Id);
-                } else {
-                    joints.push(idx);
-                }
-            }
-
-            if (jointsMap.length > 10 || (i == skelet.length - 1 && indxs.length > 0)) {
-                let sklMesh = new RenderMesh(vrtxs, indxs, gl.LINES);
-                sklMesh.setDepthTest(false);
-                sklMesh.setBlendColors(clrs);
-                sklMesh.setJointIds(jointsMap, joints, joints);
-                sklMesh.setMaskBit(2);
-                model.addMesh(sklMesh);
-                vrtxs = [];
-                indxs = [];
-                clrs = [];
-                joints = [];
-                jointsMap = [];
+                joints.push(joint.Id);
+                weights.push(1.0);
             }
         }
+
+        let sklMesh = new RenderMesh(vrtxs, indxs, gl.LINES);
+        sklMesh.setDepthTest(false);
+        sklMesh.setBlendColors(clrs);
+        sklMesh.setJointIds(1, joints, weights);
+        sklMesh.setMaskBit(2);
+        model.addMesh(sklMesh);
 
         return model;
     }

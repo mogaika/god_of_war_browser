@@ -353,11 +353,6 @@ class AnimationObjectSkelet extends AnimationBase {
         let stateDesc = this.act.StateDescrs[this.stateIndex];
         let dataType = this.anim.DataTypes[this.stateIndex];
 
-        let statAnimRotRaw = 0;
-        let statAnimRotAdd = 0;
-        let statAnimRotRough = 0;
-        let statAnimPosRaw = 0;
-
         if (dataType.TypeId == 0) {
             let skeleton = this.object.Joints;
             let changed = false;
@@ -366,6 +361,7 @@ class AnimationObjectSkelet extends AnimationBase {
                 let data = stateDesc.Data[iData];
                 let globalRotationStream = data.RotationStream;
                 let globalPositionStream = data.PositionStream;
+                let globalScaleStream = data.ScaleStream;
 
                 if (globalRotationStream.Manager.Count) {
                     let stream = globalRotationStream;
@@ -404,6 +400,29 @@ class AnimationObjectSkelet extends AnimationBase {
                     for (let iRoughSample in data.PositionSubStreamsRough) {
                         let stream = data.PositionSubStreamsRough[iRoughSample];
                         if (this.handleSkinningStream(stream, globalPositionStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (globalScaleStream.Manager.Count) {
+                    let stream = globalScaleStream;
+                    if (this.handleSkinningStream(stream, stream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalScale, true)) {
+                        changed = true;
+                    }
+                } else {
+                    
+                    for (let iAdditiveSample in data.ScaleSubStreamsAdd) {
+                        let stream = data.ScaleSubStreamsAdd[iAdditiveSample];
+                        if (this.handleSkinningStream(stream, globalScaleStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalPos, true)) {
+                            changed = true;
+                        }
+                    }
+                    
+
+                    for (let iRoughSample in data.ScaleSubStreamsRough) {
+                        let stream = data.ScaleSubStreamsRough[iRoughSample];
+                        if (this.handleSkinningStream(stream, globalScaleStream.Manager, this.time, newTime, stateDesc.FrameTime, this.jointLocalScale, true)) {
                             changed = true;
                         }
                     }

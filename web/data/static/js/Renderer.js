@@ -1,7 +1,6 @@
 let gr_instance;
 let gl;
 
-
 class RenderModel extends Claimable {
     constructor() {
         super();
@@ -73,10 +72,9 @@ class RenderMesh extends Claimable {
         this.bufferBlendColor = undefined;
         this.bufferUV = undefined;
         this.bufferNormals = undefined;
-        this.bufferJointIds1 = undefined;
-        this.bufferJointIds2 = undefined;
+        this.jointWidth = undefined;
+        this.bufferJointIds = undefined;
         this.bufferWeights = undefined;
-        this.jointMapping = undefined;
         this.materialIndex = undefined;
     }
 
@@ -92,8 +90,8 @@ class RenderMesh extends Claimable {
         if (!this.bufferBlendColor) {
             this.bufferBlendColor = gl.createBuffer();
         }
-        this.hasAlpha = false;
 
+        this.hasAlpha = false;
         for (let i in this.usedIndexes) {
             if (data[this.usedIndexes[i] * 4 + 3] < 127) {
                 this.hasAlpha = true;
@@ -125,29 +123,20 @@ class RenderMesh extends Claimable {
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
     }
 
-    setJointIds(jointMapping, jointIds1, jointIds2, weights) {
-        this.jointMapping = jointMapping;
-        if (!this.bufferJointIds1) {
-            this.bufferJointIds1 = gl.createBuffer();
-        }
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds1);
-        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds1), gl.STATIC_DRAW);
+    setJointIds(width, jointIds, weights) {
+        this.jointWidth = width;
 
-        if (jointIds2 !== undefined) {
-            if (!this.bufferJointIds2) {
-                this.bufferJointIds2 = gl.createBuffer();
-            }
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds2);
-            gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds2), gl.STATIC_DRAW);
+        if (!this.bufferJointIds) {
+            this.bufferJointIds = gl.createBuffer();
         }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferJointIds);
+        gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(jointIds), gl.STATIC_DRAW);
 
-        if (weights !== undefined) {
-            if (!this.bufferWeights) {
-                this.bufferWeights = gl.createBuffer();
-            }
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferWeights);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(weights), gl.STATIC_DRAW);
+        if (!this.bufferWeights) {
+            this.bufferWeights = gl.createBuffer();
         }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.bufferWeights);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(weights), gl.STATIC_DRAW);
     }
 
     setps3static(yes = true) {
@@ -172,8 +161,7 @@ class RenderMesh extends Claimable {
         if (this.bufferBlendColor) gl.deleteBuffer(this.bufferBlendColor);
         if (this.bufferUV) gl.deleteBuffer(this.bufferUV);
         if (this.bufferNormals) gl.deleteBuffer(this.bufferNormals);
-        if (this.bufferJointIds1) gl.deleteBuffer(this.bufferJointIds1);
-        if (this.bufferJointIds2) gl.deleteBuffer(this.bufferJointIds2);
+        if (this.bufferJointIds) gl.deleteBuffer(this.bufferJointIds);
         if (this.bufferWeights) gl.deleteBuffer(this.bufferWeights);
         gr_instance.flushScene();
         super._free();
@@ -529,6 +517,7 @@ class RenderController extends ObjectTreeNode {
         }
         gr_instance = this;
 
+        this.frameNumber = 0;
         this.frameChecker = 0;
         this.requireRedraw = false;
         this.renderChain = undefined;
@@ -674,6 +663,8 @@ class RenderController extends ObjectTreeNode {
             }
 
             this.renderChain.render(this);
+
+            this.frameNumber += 1;
 
             if ((glError = gl.getError()) !== gl.NONE) {
                 console.warn("post-draw gl.getError()", glError);

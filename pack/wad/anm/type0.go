@@ -3,6 +3,7 @@ package anm
 import (
 	"bytes"
 	"encoding/binary"
+	"log"
 	"math"
 
 	"github.com/mogaika/god_of_war_browser/utils"
@@ -22,6 +23,12 @@ type AnimState0Skinning struct {
 	RotationSubStreamsRough []AnimStateSubstream
 	RotationSubStreamsAdd   []AnimStateSubstream
 	RotationDataBitMap      DataBitMap
+
+	ScaleDescr           AnimStateDescrHeader
+	ScaleStream          AnimStateSubstream
+	ScaleSubStreamsRough []AnimStateSubstream
+	ScaleSubStreamsAdd   []AnimStateSubstream
+	ScaleDataBitMap      DataBitMap
 }
 
 func bitmaskZeroBitsShift(bitmask uint16) uint16 {
@@ -182,6 +189,68 @@ func (a *AnimState0Skinning) ParsePositions(buf []byte, stateIndex int, _l *util
 	}
 }
 
+// SCALLLEE
+func (a *AnimState0Skinning) ParseScales(buf []byte, stateIndex int, _l *utils.Logger, rawAct []byte) {
+	stateBuf := rawAct[binary.LittleEndian.Uint32(rawAct[0x94:])+uint32(stateIndex*0xc):]
+	a.ScaleDescr.FromBuf(stateBuf)
+	a.ScaleStream.Manager.FromBuf(stateBuf[4:])
+	stateData := stateBuf[(uint32(a.ScaleDescr.HowMany64kbWeNeedSkip)<<16)+uint32(a.ScaleStream.Manager.OffsetToData):]
+
+	_l.Printf(">>>>>>>> SCALE PARSING >>>>>>>>>>>>>>>>>>>>> SCALE PARSING >>>>>>>>>>>>>>>>")
+	_l.Printf(">>>>>>>> STATE %d (baseDataIndex: %d, flags 0x%.2x, sm: %+v) >>>>>>>>>>>>>>>",
+		stateIndex, a.ScaleDescr.BaseTargetDataIndex, a.ScaleDescr.FlagsProbably, a.ScaleStream.Manager)
+
+	_ = stateData
+	if a.ScaleStream.Manager.Count == 0 {
+		// green
+		log.Printf("Got stream consisting of multiple entries")
+
+		stateDataFirstByte := stateData[0]
+		stateDataSecondByte := stateData[1]
+		stateDataArrayBuf := stateData[2:]
+
+		if stateDataFirstByte != 0 {
+			panic(stateDataFirstByte)
+		}
+
+		bitMapOffset := stateData[2+int(stateDataSecondByte)*8:]
+		a.ScaleDataBitMap = a.GetDataBitMap(&a.ScaleDescr, bitMapOffset)
+		/*
+			a.ScaleSubStreamsAdd = make([]AnimStateSubstream, stateDataFirstByte)
+			for iAddSubDm := 0; iAddSubDm < int(stateDataFirstByte); iAddSubDm++ {
+				subStream := &a.ScaleSubStreamsAdd[iAddSubDm]
+				subStream.Manager.FromBuf(stateDataArrayBuf[iAddSubDm*8:])
+				subStream.Samples = make(map[int]interface{})
+				shifts := a.GetShiftsArray(&a.ScaleDescr, bitMapOffset)
+				parseFramesScaleAdd(stateBuf, subStream, &a.ScaleDataBitMap, &a.ScaleDescr, true, shifts)
+				//utils.LogDump(subStream)
+			}*/
+
+		a.ScaleSubStreamsRough = make([]AnimStateSubstream, stateDataSecondByte-stateDataFirstByte)
+		for iRawSubDm := int(stateDataFirstByte); iRawSubDm < int(stateDataSecondByte); iRawSubDm++ {
+			subStream := &a.ScaleSubStreamsRough[iRawSubDm-int(stateDataFirstByte)]
+			subStream.Manager.FromBuf(stateDataArrayBuf[iRawSubDm*8:])
+			subStream.Samples = make(map[int]interface{})
+			parseFramesScaleRaw(stateBuf, subStream, &a.ScaleDataBitMap, &a.ScaleDescr, true)
+			//utils.LogDump(subStream)
+		}
+
+	} else {
+		// blue
+		a.ScaleDataBitMap = a.GetDataBitMap(&a.ScaleDescr, stateData)
+		a.ScaleStream.Samples = make(map[int]interface{})
+
+		_l.Printf("       RAW %+v  flag %v", a.ScaleDataBitMap, a.ScaleDescr.FlagsProbably&1 != 0)
+
+		//if a.ScaleDescr.FlagsProbably&1 == 0 {
+		parseFramesScaleRaw(stateData, &a.ScaleStream, &a.ScaleDataBitMap, &a.ScaleDescr, false)
+		/*} else {
+			shifts := a.GetShiftsArray(&a.ScaleDescr, stateData)
+			parseFramesScaleAdd(stateData, &a.ScaleStream, &a.ScaleDataBitMap, &a.ScaleDescr, false, shifts)
+		}*/
+	}
+}
+
 func parseFramesRotationRaw(buf []byte, subStream *AnimStateSubstream, bitMap *DataBitMap,
 	descr *AnimStateDescrHeader, useAdditionalOffset bool) {
 	additionalOffset := 0
@@ -255,4 +324,25 @@ func parseFramesPositionAdd(buf []byte, subStream *AnimStateSubstream, bitMap *D
 		subStream.Samples[int(descr.BaseTargetDataIndex)+bitIndex] = frames
 	})
 	subStream.Samples[-100] = true
+}
+
+var scaleRawMultiplicator = math.Float32frombits(0x39C90FD8)
+
+func parseFramesScaleRaw(buf []byte, subStream *AnimStateSubstream, bitMap *DataBitMap,
+	descr *AnimStateDescrHeader, useAdditionalOffset bool) {
+
+	additionalOffset := 0
+	if useAdditionalOffset {
+		additionalOffset = (int(descr.HowMany64kbWeNeedSkip) << 16) + int(subStream.Manager.OffsetToData)
+	}
+	const elementSize = 2
+	bitMap.Iterate(func(bitIndex, iteration int) {
+		frames := make([]float32, subStream.Manager.Count)
+		frameStep := int(bitMap.PairedElementsCount) * elementSize
+		for iFrame := range frames {
+			offset := frameStep*iFrame + int(bitMap.DataOffset) + iteration*elementSize + additionalOffset
+			frames[iFrame] = float32(uint32(binary.LittleEndian.Uint16(buf[offset:]))) * scaleRawMultiplicator
+		}
+		subStream.Samples[int(descr.BaseTargetDataIndex)+bitIndex] = frames
+	})
 }

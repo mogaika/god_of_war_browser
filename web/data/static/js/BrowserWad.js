@@ -314,15 +314,16 @@ function displayResourceHexDump(wad, tagid) {
     });
 }
 
-function parseMeshPackets(object, packets, instanceIndex) {
+function parseMeshPackets(data, object, packets, instanceIndex) {
     let m_indexes = [];
     let m_vertexes = [];
-    let m_weights = [];
     let m_colors = [];
     let m_textures = [];
     let m_normals = [];
-    let m_joints1 = [];
-    let m_joints2 = [];
+    let m_jointsIds = [];
+    let m_weights = [];
+    let m_jointsWidth = 2;
+    const jm = object.JointMappers[instanceIndex];
 
     let offset = 0;
     for (const packet of packets) {
@@ -335,18 +336,95 @@ function parseMeshPackets(object, packets, instanceIndex) {
             }
         }
 
-        if (packet.Trias.Weight && packet.Trias.Weight.length) {
-            for (const i in packet.Trias.Weight) {
-                m_weights.push(packet.Trias.Weight[i]);
-            }
-        }
+        if (packet.Trias.Weight && packet.Trias.Weight.length && packet.Joints && packet.Joints.length) {
+            const joints1 = packet.Joints[0];
+            const joints2 = packet.Joints[1];
+            const weights = packet.Trias.Weight;
 
-        if (packet.Joints && packet.Joints.length) {
-            const joints1 = packet.Joints;
-            const joints2 = (!!packet.Joints2) ? packet.Joints2 : joints1;
-            for (const i in joints1) {
-                m_joints1.push(joints1[i]);
-                m_joints2.push(joints2[i]);
+            if (joints1.length !== joints2.length || joints1.length !== weights.length) {
+                log.error("inconsistent joints/weights length", packet);
+            } else {
+                for (const i in weights) {
+                    const weight = weights[i];
+
+                    let addedJointAttributes = 0;
+                    const insertSingleJointAttribute = function(joint, weight) {
+                        // expand array and insert empty spaces if needed
+                        if (addedJointAttributes >= m_jointsWidth) {
+                            if (m_jointsWidth === 4) {
+                                log.error("Over limit for joint width", addedJointAttributes, m_jointsWidth, data.BlendJoints);
+                                return
+                            }
+                            const oldWidth = m_jointsWidth;
+                            const oldJointsIds = m_jointsIds;
+
+                            const completedVertexesCount = (m_jointsIds.length - addedJointAttributes) / m_jointsWidth;
+                            const oldWeights = m_weights;
+
+                            m_jointsWidth += 1;
+
+                            console.log("expanding additional blends from", oldWidth, "to", m_jointsWidth, "cvc", completedVertexesCount);
+
+                            m_jointsIds = [];
+                            m_jointsIds.length = completedVertexesCount * m_jointsWidth;
+                            m_weights = [];
+                            m_weights.length = m_jointsIds.length;
+
+                            for (let iVert = 0; iVert < completedVertexesCount; iVert++) {
+                                const pos = iVert * m_jointsWidth;
+                                const oldpos = iVert * oldWidth;
+
+                                for (let j = 0; j < oldWidth; j++) {
+                                    m_jointsIds[pos + j] = oldJointsIds[oldpos + j];
+                                    m_weights[pos + j] = oldWeights[oldpos + j];
+                                }
+                                m_jointsIds[pos + oldWidth] = 0;
+                                m_weights[pos + oldWidth] = 0;
+                            }
+
+                            for (let i = 0; i < addedJointAttributes; i++) {
+                                const oldpos = completedVertexesCount * oldWidth + i;
+                                m_jointsIds.push(oldJointsIds[oldpos]);
+                                m_weights.push(oldWeights[oldpos]);
+                            }
+
+                            /*
+                            console.log("old j", oldJointsIds, "new j", m_jointsIds);
+                            console.log("old w", oldWeights, "new w", m_weights);
+                            */
+
+                            if (m_jointsIds[0] === undefined) {
+                                console.error("wtf");
+                            }
+                        }
+                        addedJointAttributes += 1;
+
+                        m_jointsIds.push(joint);
+                        m_weights.push(weight);
+                    }
+
+                    const addJoint = function(joint, weight) {
+                        if (joint >= data.SkeletJoints) {
+                            const blend = data.BlendJoints[joint - data.SkeletJoints];
+                            // console.warn("multiple joints blend", blend);
+
+                            for (const i in blend.Weights) {
+                                // console.log("000", m_jointsIds, m_weights, blend.JointIds[i], blend.Weights[i] * weight);
+                                insertSingleJointAttribute(blend.JointIds[i], blend.Weights[i] * weight);    
+                            }
+                        } else {
+                            insertSingleJointAttribute(joint, weight);
+                        }
+                    }
+
+                    addJoint(jm[joints1[i]], weight);
+                    addJoint(jm[joints2[i]], 1.0 - weight);
+
+                    for (let i = addedJointAttributes; i < m_jointsWidth; i++) {
+                        m_jointsIds.push(0);
+                        m_weights.push(0);
+                    }
+                }
             }
         }
 
@@ -383,9 +461,14 @@ function parseMeshPackets(object, packets, instanceIndex) {
     }
 
     if (object.JointMappers && object.JointMappers.length) {
-        const jm = object.JointMappers[instanceIndex];
-        if (jm && jm.length && m_joints1.length && m_weights.length) {
-            mesh.setJointIds(jm, m_joints1, m_joints2, m_weights);
+        if (jm && jm.length && m_jointsWidth && m_jointsIds.length && m_weights.length) {
+            if ((m_jointsIds.length / m_jointsWidth) != m_vertexes.length / 3) {
+                log.error("joints ids array not matching vertexes length array");
+            }
+            if ((m_weights.length / m_jointsWidth) != m_vertexes.length / 3) {
+                log.error("joints weights array not matching vertexes length array");
+            }
+            mesh.setJointIds(m_jointsWidth, m_jointsIds, m_weights);
         }
     }
 
@@ -413,7 +496,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                         objName += "_l" + iLayer;
                     }
 
-                    const mesh = parseMeshPackets(object, dmaPackets, iInstance);
+                    const mesh = parseMeshPackets(data, object, dmaPackets, iInstance);
                     mesh.meta['part'] = iPart;
                     mesh.meta['group'] = iGroup;
                     mesh.meta['object'] = iObject;
@@ -475,8 +558,8 @@ function summaryLoadWadMesh(data, wad, nodeid) {
     let table = loadMeshFromAjax(mdl, data, true);
     dataSummary.append(table);
 
-    console.log(data.Vectors);
-    console.log(data);
+    //console.log(data.Vectors);
+    //console.log(data);
 
     gr_instance.addNode(new ObjectTreeNodeModel("mesh", mdl));
     gr_instance.requestRedraw();
@@ -498,7 +581,7 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
     let m_vertexes = [];
     m_vertexes.length = sPos.length * 3;
     let m_weights = [];
-    m_weights.length = sPos.length;
+    m_weights.length = sPos.length * 2;
 
     for (let i in sPos) {
         let j = i * 3;
@@ -506,7 +589,8 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
         m_vertexes[j + 0] = pos[0];
         m_vertexes[j + 1] = pos[1];
         m_vertexes[j + 2] = pos[2];
-        m_weights[i] = pos[3];
+        m_weights[i * 2 + 0] = pos[3];
+        m_weights[i * 2 + 1] = 1.0 - pos[3];
     }
 
     for (let i in m_indexes) {
@@ -551,16 +635,15 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
     }
 
     if ("BONI" in streams) {
-        let joints1 = [];
-        let joints2 = [];
+        let joints = [];
+        let jm = object.JointsMap;
         let sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
-        joints1.length = sBoni.length;
-        joints2.length = sBoni.length;
+        joints.length = sBoni.length * 2;
         for (let i in sBoni) {
-            joints1[i] = sBoni[i][0];
-            joints2[i] = sBoni[i][1];
+            joints[i * 2 + 0] = jm[sBoni[i][0]];
+            joints[i * 2 + 1] = jm[sBoni[i][1]];
         }
-        mesh.setJointIds(object.JointsMap, joints1, joints2, m_weights);
+        mesh.setJointIds(jm, joints, m_weights);
     }
 
     //console.log(originalMeshObject.Type, originalMeshObject);	
@@ -1205,10 +1288,12 @@ function loadObjFromAjax(data, parseScripts = false) {
 
     if (data.Model) {
         const [model, mdlTables] = loadMdlFromAjax(data.Model, true, true);
+        /*
         for (const mdlTable of mdlTables) {
             dataSummary.append(mdlTable);
             console.log(mdlTable);
         }
+        */
         oNode.addNode(new ObjectTreeNodeModel("model", model));
     }
     if (data.Collisions) {

@@ -270,14 +270,16 @@ func NewFromData(buf []byte, objName string) (*Object, error) {
 		}
 	}
 
-	utils.LogDump(obj)
+	// utils.LogDump(obj)
 
 	obj.FillJoints()
 
-	s := ""
-	for i, m := range obj.Matrixes3 {
-		s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
-	}
+	/*
+		s := ""
+		for i, m := range obj.Matrixes3 {
+			s += fmt.Sprintf("\n   m3[%.2x]: %f %f %f", i, m[12], m[13], m[14])
+		}
+	*/
 
 	// log.Printf("%s\n%s", s, obj.StringTree())
 

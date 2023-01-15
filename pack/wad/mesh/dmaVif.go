@@ -219,8 +219,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 		packet.VertexMeta = state.VertexMeta
 		vertexes := len(packet.Trias.X)
 
-		packet.Joints = make([]uint16, vertexes)
-		packet.Joints2 = make([]uint16, vertexes)
+		packet.Joints[0] = make([]uint16, vertexes)
+		packet.Joints[1] = make([]uint16, vertexes)
 
 		stichPushIndex := 0
 
@@ -334,8 +334,8 @@ func (state *MeshParserState) ToPacket(exlog *utils.Logger, debugPos uint32, ooo
 					}
 				}
 
-				packet.Joints[t] = uint16(currentVertexJointIndexes[0])
-				packet.Joints2[t] = uint16(currentVertexJointIndexes[1])
+				packet.Joints[0][t] = uint16(currentVertexJointIndexes[0])
+				packet.Joints[1][t] = uint16(currentVertexJointIndexes[1])
 
 				exlog.Printf("   b5=%.3b v %.3d bv %.2d j[%.2d %.2d] x %f y %f z %f skip %v jw %f",
 					block[5]>>4, t, j,

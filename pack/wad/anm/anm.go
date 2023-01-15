@@ -10,6 +10,14 @@ import (
 	"github.com/mogaika/god_of_war_browser/utils"
 )
 
+/*
+TODO: Rework so it looks like
+Clip => Track => Frame
+
+Clip - colleciton of tracks
+
+*/
+
 const ANIMATIONS_MAGIC = 0x00000003
 
 const (
@@ -104,12 +112,10 @@ func NewFromData(data []byte) (*Animations, error) {
 		dt.Param1 = rawFmt[2]
 		dt.Param2 = rawFmt[3]
 
-		/*
-			if dt.TypeId == 0 {
-				fff, _ = os.Create(`currentanim.log`)
-				_l = &utils.Logger{fff}
-			}
-		*/
+		if dt.TypeId == 0 {
+			fff, _ = os.Create(`currentanim.log`)
+			_l = &utils.Logger{fff}
+		}
 	}
 
 	rawGroupsPointers := data[0x18:]
@@ -163,21 +169,26 @@ func NewFromData(data []byte) (*Animations, error) {
 						}
 						sd.Data = data
 					case DATATYPE_SKINNING:
-						_l.Printf("ROTATION ANIMATIONS COUNT: %v", int(u16(rawAct, 0x8e)))
-						_l.Printf("SIZE ANIMATIONS COUNT: %v", int(u16(rawAct, 0x8e)))
+						_l.Printf("ROTATION ANIMATIONS COUNT: %v", int(sd.CountOfSomething))
 						_l.Printf("POSITION ANIMATIONS COUNT: %v", int(u16(rawAct, 0x7a)))
+						_l.Printf("SIZE ANIMATIONS COUNT: %v", int(u16(rawAct, 0x8e)))
 						_l.Printf("descr: %+#v", a.DataTypes[iStateDescr])
 						_l.Printf("SUBELEMENT UPDATES OR OFFETS OR STATES COUNT(0xA2): %v", int(u16(rawAct, 0xa2)))
 
-						data := make([]*AnimState0Skinning, sd.CountOfSomething)
+						data := make([]*AnimState0Skinning, 0, sd.CountOfSomething)
 						for i := 0; i < int(sd.CountOfSomething); i++ {
 							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
 							skinAnim.ParseRotations(rawAct[sd.OffsetToData:], i, _l)
-							data[i] = skinAnim
+							data = append(data, skinAnim)
 						}
 						for i := 0; i < int(u16(rawAct, 0x7a)); i++ {
 							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
 							skinAnim.ParsePositions(rawAct[sd.OffsetToData:], i, _l, rawAct)
+							data = append(data, skinAnim)
+						}
+						for i := 0; i < int(u16(rawAct, 0x8e)); i++ {
+							skinAnim := AnimState0SkinningFromBuf(rawAct[sd.OffsetToData:], i, _l)
+							skinAnim.ParseScales(rawAct[sd.OffsetToData:], i, _l, rawAct)
 							data = append(data, skinAnim)
 						}
 						sd.Data = data

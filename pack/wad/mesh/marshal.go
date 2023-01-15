@@ -106,39 +106,51 @@ func (v *Vector) Marshal() []byte {
 }
 
 func (m *Mesh) MarshalBuffer() *bytes.Buffer {
-	offsetsBuf := make([]byte, uint32(len(m.Parts)*4))
-	partsOffset := uint32(len(offsetsBuf) + len(m.Vectors)*MESH_GOW1_VECTOR_SIZE)
-	var partsStream bytes.Buffer
-	for i := range m.Parts {
-		partOffset := MESH_GOW1_HEADER_SIZE + partsOffset + uint32(partsStream.Len())
-		binary.LittleEndian.PutUint32(offsetsBuf[i*4:], partOffset)
-		partsStream.Write(m.Parts[i].Marshal(partOffset).Bytes())
-	}
-
 	var vectorsBuf bytes.Buffer
 	for i := range m.Vectors {
 		vectorsBuf.Write(m.Vectors[i].Marshal())
 	}
 
+	var blendJointsBuf bytes.Buffer
+	for i := range m.BlendJoints {
+		bJoint := &m.BlendJoints[i]
+		binary.Write(&blendJointsBuf, binary.LittleEndian, uint32(len(bJoint.JointIds)))
+		for i := range bJoint.JointIds {
+			binary.Write(&blendJointsBuf, binary.LittleEndian, uint32(bJoint.JointIds[i]))
+			binary.Write(&blendJointsBuf, binary.LittleEndian, float32(bJoint.Weights[i]))
+		}
+	}
+
+	partOffsetsBuf := make([]byte, uint32(len(m.Parts)*4))
+	partsOffset := MESH_GOW1_HEADER_SIZE + uint32(len(partOffsetsBuf)+vectorsBuf.Len()+blendJointsBuf.Len())
+
+	var partsStream bytes.Buffer
+	for i := range m.Parts {
+		partOffset := partsOffset + uint32(partsStream.Len())
+		binary.LittleEndian.PutUint32(partOffsetsBuf[i*4:], partOffset)
+		partsStream.Write(m.Parts[i].Marshal(partOffset).Bytes())
+	}
+
 	var buf [MESH_GOW1_HEADER_SIZE]byte
 	binary.LittleEndian.PutUint32(buf[0:], MESH_MAGIC)
-	binary.LittleEndian.PutUint32(buf[4:], MESH_GOW1_HEADER_SIZE+partsOffset+uint32(partsStream.Len()))
+	binary.LittleEndian.PutUint32(buf[4:], partsOffset+uint32(partsStream.Len()))
 	binary.LittleEndian.PutUint32(buf[8:], uint32(len(m.Parts)))
 	binary.LittleEndian.PutUint32(buf[0xc:], m.Unk0c)
 	binary.LittleEndian.PutUint32(buf[0x10:], m.Unk10)
 	binary.LittleEndian.PutUint32(buf[0x14:], m.Unk14)
 	binary.LittleEndian.PutUint32(buf[0x18:], uint32(len(m.Vectors)))
 	binary.LittleEndian.PutUint32(buf[0x20:], m.Flags0x20)
-	binary.LittleEndian.PutUint32(buf[0x28:], m.Unk28)
-	binary.LittleEndian.PutUint32(buf[0x2c:], m.Unk2c)
+	binary.LittleEndian.PutUint32(buf[0x28:], m.SkeletJoints)
+	binary.LittleEndian.PutUint32(buf[0x2c:], uint32(len(m.BlendJoints)))
 	binary.LittleEndian.PutUint32(buf[0x30:], m.Unk30)
 	binary.LittleEndian.PutUint32(buf[0x34:], m.BaseBoneIndex)
 	copy(buf[0x38:0x50], utils.StringToBytesBuffer(m.NameOfRootJoint, 0x50-0x38, true))
 
 	var result bytes.Buffer
 	result.Write(buf[:])
-	result.Write(offsetsBuf)
+	result.Write(partOffsetsBuf)
 	result.Write(vectorsBuf.Bytes())
+	result.Write(blendJointsBuf.Bytes())
 	result.Write(partsStream.Bytes())
 	return &result
 }

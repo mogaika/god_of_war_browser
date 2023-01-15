@@ -1,17 +1,16 @@
 attribute highp vec3 aVertexPos;
 attribute lowp vec4 aVertexColor;
 attribute mediump vec2 aVertexUV;
-attribute mediump float aVertexJointID1;
-attribute mediump float aVertexJointID2;
-attribute highp float aVertexWeight;
+attribute mediump vec4 aVertexJointID;
+attribute highp vec4 aVertexWeight;
 
 uniform highp mat4 umModelTransform;
 uniform highp mat4 umProjection;
 uniform highp mat4 umView;
 uniform mediump vec2 uLayerOffset;
-uniform mediump mat4 umJoints[12];
+uniform mediump mat4 umJoints[180];
 
-uniform bool uUseJoints;
+uniform int uJointsWidth;
 uniform bool uUseVertexColor;
 uniform bool uUseModelTransform;
 uniform bool uUseEnvmapSampler;
@@ -71,14 +70,29 @@ mat4 transpose(mat4 m) {
 
 void main(void) {
 	gl_PointSize = 4.0;
+
 	vec4 pos = vec4(aVertexPos, 1.0);
-	if (uUseJoints) {
-		mat4 boneTransform = umJoints[int(aVertexJointID1)] * (aVertexWeight)
-							+ umJoints[int(aVertexJointID2)] * (1.0 - aVertexWeight);
-		pos = boneTransform * pos;
-	} else {
-		pos = vec4((umModelTransform * pos).xyz, 1.0);
-	}
+	if (uJointsWidth != 0) {
+    mat4 boneTransform;
+    if (uJointsWidth == 4) {
+      boneTransform = (
+        (umJoints[int(aVertexJointID.x)] * aVertexWeight.x) +
+        (umJoints[int(aVertexJointID.y)] * aVertexWeight.y) +
+        (umJoints[int(aVertexJointID.z)] * aVertexWeight.z) +
+        (umJoints[int(aVertexJointID.w)] * aVertexWeight.w)
+      );
+    } else { // 1, 2, 3
+      boneTransform = (
+        (umJoints[int(aVertexJointID.x)] * aVertexWeight.x) +
+        (umJoints[int(aVertexJointID.y)] * aVertexWeight.y) +
+        (umJoints[int(aVertexJointID.z)] * aVertexWeight.z)
+        // aVertexWeight.z always 1.0 in such case
+      );
+    }
+    pos = boneTransform * pos;
+  } else {
+    pos = vec4((umModelTransform * pos).xyz, 1.0);
+  }
 
 	if (uUseVertexColor) {
 		vVertexColor = aVertexColor * (256.0 / 128.0);

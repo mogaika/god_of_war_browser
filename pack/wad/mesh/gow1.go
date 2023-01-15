@@ -3,8 +3,9 @@ package mesh
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/pkg/errors"
 	"math"
+
+	"github.com/pkg/errors"
 
 	"github.com/mogaika/god_of_war_browser/utils"
 )
@@ -210,21 +211,42 @@ func (m *Mesh) parseGow1(b []byte, exlog *utils.Logger) error {
 	m.Unk10 = binary.LittleEndian.Uint32(b[0x10:])
 	m.Unk14 = binary.LittleEndian.Uint32(b[0x14:])
 	m.Vectors = make([]Vector, binary.LittleEndian.Uint32(b[0x18:]))
+
 	m.Flags0x20 = binary.LittleEndian.Uint32(b[0x20:])
-	m.Unk28 = binary.LittleEndian.Uint32(b[0x28:])
-	m.Unk2c = binary.LittleEndian.Uint32(b[0x2c:])
+	m.SkeletJoints = binary.LittleEndian.Uint32(b[0x28:])
 	m.Unk30 = binary.LittleEndian.Uint32(b[0x30:])
 	m.BaseBoneIndex = binary.LittleEndian.Uint32(b[0x34:])
 	m.NameOfRootJoint = utils.BytesToString(b[0x38:0x50])
 
 	exlog.Printf("unk0c 0x%.8x  unk10 0x%.8x  unk14 0x%.8x", m.Unk0c, m.Unk10, m.Unk14)
 	exlog.Printf("root joint '%s' flags 0x%.8x", m.NameOfRootJoint, m.Flags0x20)
-	exlog.Printf("unk28 0x%.8x  unk2c 0x%.8x  unk30 0x%.8x  BaseBoneIndex 0x%.8x", m.Unk28, m.Unk2c, m.Unk30, m.BaseBoneIndex)
+	exlog.Printf("skelet joints 0x%.8x unk30 0x%.8x  BaseBoneIndex 0x%.8x", m.SkeletJoints, m.Unk30, m.BaseBoneIndex)
 
 	vectorsStart := len(m.Parts)*4 + MESH_GOW1_HEADER_SIZE
 	exlog.Printf(" - strange vectors starting at 0x%.8x count %d", vectorsStart, len(m.Vectors))
 	for i := range m.Vectors {
 		m.Vectors[i].parseGow1(b, uint32(vectorsStart+i*MESH_GOW1_VECTOR_SIZE), exlog)
+	}
+
+	m.BlendJoints = make([]BlendJoints, binary.LittleEndian.Uint32(b[0x2c:]))
+	bjointsStart := vectorsStart + len(m.Vectors)*MESH_GOW1_VECTOR_SIZE
+	bjointsParsePos := bjointsStart
+	for i := range m.BlendJoints {
+		bJoint := &m.BlendJoints[i]
+
+		count := binary.LittleEndian.Uint32(b[bjointsParsePos:])
+		bjointsParsePos += 4
+
+		bJoint.JointIds = make([]uint32, count)
+		bJoint.Weights = make([]float32, count)
+		for i := range bJoint.JointIds {
+			bJoint.JointIds[i] = binary.LittleEndian.Uint32(b[bjointsParsePos:])
+			bjointsParsePos += 4
+			bJoint.Weights[i] = math.Float32frombits(binary.LittleEndian.Uint32(b[bjointsParsePos:]))
+			bjointsParsePos += 4
+		}
+
+		exlog.Printf(" mmod %d: %#+v", i, bJoint)
 	}
 
 	for i := range m.Parts {

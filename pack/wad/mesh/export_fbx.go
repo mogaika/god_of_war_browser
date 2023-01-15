@@ -94,8 +94,8 @@ func (fe *FbxExporter) exportObject(f *fbxbuilder.FBXBuilder, feo *FbxExportObje
 				flip = !flip
 			}
 
-			joint1 := uint16(o.JointMappers[0][packet.Joints[iVertex]])
-			joint2 := uint16(o.JointMappers[0][packet.Joints2[iVertex]])
+			joint1 := uint16(o.JointMappers[0][packet.Joints[0][iVertex]])
+			joint2 := uint16(o.JointMappers[0][packet.Joints[1][iVertex]])
 			weight := packet.Trias.Weight[iVertex]
 
 			vertices = append(vertices,
