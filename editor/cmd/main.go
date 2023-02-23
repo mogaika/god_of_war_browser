@@ -20,7 +20,7 @@ func main() {
 	defer context.Destroy()
 
 	io := imgui.CurrentIO()
-	io.Fonts().AddFontFromFileTTF("fonts/Cousine-Regular.ttf", 20)
+	io.Fonts().AddFontFromFileTTF("editor/fonts/Cousine-Regular.ttf", 20)
 
 	back, err := uibackend.NewGLFW(io)
 	if err != nil {

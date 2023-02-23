@@ -21,6 +21,7 @@ Clip - colleciton of tracks
 */
 
 const ANIMATIONS_MAGIC = 0x00000003
+const ANIMATIONS_EXT_MAGIC = 0x00010003
 
 const (
 	DATATYPE_SKINNING     = 0  // apply to object (matrices)
@@ -36,11 +37,13 @@ const (
 
 type Animations struct {
 	ParsedFlags struct {
-		Flag0AutoplayProbably bool
+		Flag0AutoplayProbably bool // Or isNotExternal
+		IsExternal            bool
 		JointRotationAnimated bool
 		JointPositionAnimated bool
 		JointScaleAnimated    bool
 	}
+	Flags uint32
 
 	DataTypes []AnimDatatype
 	Groups    []AnimGroup
@@ -105,11 +108,6 @@ func NewFromData(animInstanceRawData []byte) (*Animations, error) {
 
 	bsHeader := bs.SubBuf("header", 0).SetSize(0x18)
 
-	a := &Animations{
-		DataTypes: make([]AnimDatatype, bsHeader.LU16(0x10)),
-		Groups:    make([]AnimGroup, bsHeader.LU16(0x12)),
-	}
-
 	defer func() {
 		/*if r := recover(); r != nil {
 			utils.LogDump("Animation parsing panic: %v", r)
@@ -120,11 +118,18 @@ func NewFromData(animInstanceRawData []byte) (*Animations, error) {
 		log.Printf("\n%s", bs.StringTree())
 	}()
 
-	flags := bsHeader.LU16(8)
-	a.ParsedFlags.Flag0AutoplayProbably = flags&0x1 != 0
-	a.ParsedFlags.JointRotationAnimated = flags&0x1000 != 0
-	a.ParsedFlags.JointPositionAnimated = flags&0x2000 != 0
-	a.ParsedFlags.JointScaleAnimated = flags&0x4000 != 0
+	a := &Animations{}
+	a.Flags = bsHeader.LU32(8)
+	a.ParsedFlags.Flag0AutoplayProbably = a.Flags&0x0001 != 0 // Or isNotExternal
+	a.ParsedFlags.IsExternal = a.Flags&0x0002 != 0
+	a.ParsedFlags.JointRotationAnimated = a.Flags&0x1000 != 0
+	a.ParsedFlags.JointPositionAnimated = a.Flags&0x2000 != 0
+	a.ParsedFlags.JointScaleAnimated = a.Flags&0x4000 != 0
+	if int(bsHeader.LU32(0xc)) != len(animInstanceRawData) {
+		panic("size check failed")
+	}
+	a.DataTypes = make([]AnimDatatype, bsHeader.LU16(0x10))
+	a.Groups = make([]AnimGroup, bsHeader.LU16(0x12))
 
 	var _l *utils.Logger
 	var fff *os.File
@@ -175,10 +180,9 @@ func NewFromData(animInstanceRawData []byte) (*Animations, error) {
 
 		bsGroupHeader := bsGroup.SubBuf("header", 0).SetSize(0x30)
 
+		g.IsExternal = bsGroupHeader.LU32(8)&0x20000 != 0
 		g.Name = utils.BytesToString(bsGroupHeader.Raw()[0x14:0x2c])
 		bsGroup.SetName(g.Name)
-
-		g.IsExternal = bsGroupHeader.LU32(8)&0x20000 != 0
 
 		_l.Printf("++++++++++++++ GROUP '%s' +++++++++++++++++++++++++++++++++++++++++++++++++++++", g.Name)
 
@@ -317,6 +321,9 @@ func (anm *Animations) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	wad.SetServerHandler(config.GOW1, ANIMATIONS_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
+		return NewFromData(wrsrc.Tag.Data)
+	})
+	wad.SetServerHandler(config.GOW1, ANIMATIONS_EXT_MAGIC, func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
 		return NewFromData(wrsrc.Tag.Data)
 	})
 }

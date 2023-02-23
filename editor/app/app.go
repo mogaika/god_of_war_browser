@@ -4,9 +4,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/mogaika/god_of_war_browser/config"
+	"github.com/mogaika/god_of_war_browser/editor/core"
+	"github.com/mogaika/god_of_war_browser/editor/gow"
 	"github.com/mogaika/god_of_war_browser/editor/model"
+	"github.com/mogaika/god_of_war_browser/editor/view"
+	"github.com/mogaika/god_of_war_browser/vfs"
 
 	"github.com/inkyblackness/imgui-go/v4"
 	"github.com/sqweek/dialog"
@@ -15,10 +20,10 @@ import (
 var app = application{}
 
 func init() {
-	if project, err := model.NewProject(""); err != nil {
+	if project, err := core.NewProject(""); err != nil {
 		panic(err)
 	} else {
-		app.project = project
+		// app.project = project
 		project.AddResource("game", &model.Texture{})
 		project.AddResource("tweak_templates/animation/goHero", &model.Texture{})
 		project.AddResource("tweak_templates/mfx/502", &model.Texture{})
@@ -32,8 +37,8 @@ func init() {
 }
 
 type application struct {
-	project     *model.Project
-	projectView model.ProjectEditorView
+	project     *core.Project
+	projectView view.ProjectEditorView
 	size        [2]float32
 }
 
@@ -58,46 +63,55 @@ func (app *application) renderUIProjectSelect() {
 	}
 	imgui.Separator()
 	if imgui.Button("New temporary project") {
-		if project, err := model.NewProject(""); err != nil {
+		if project, err := core.NewProject(""); err != nil {
 			panic(err)
 		} else {
 			app.project = project
 		}
 	}
 
-	wadPath := `/home/mogaika/gow/`
-	debugWADS := []string{
-		"R_PERMU.WAD",
-		"R_SHELL.WAD",
-		"ATHN01B.WAD",
-		"ATHN05A.WAD",
-		"DEST00.WAD",
-		"OLYMP04.WAD",
-		"PAND01C.WAD",
-		"R_HERO1.WAD",
-		"R_BRSRK0.WAD",
-		"R_HERO0.WAD",
+	wadPath := `./editor/cmd/testwads/`
+	var debugWADS []string
+	if files, err := os.ReadDir(wadPath); err == nil {
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(strings.ToLower(file.Name()), ".wad") {
+				debugWADS = append(debugWADS, file.Name())
+			}
+		}
+	} else {
+		imgui.Textf("Failed to load wads list: %v", err)
 	}
+
 	imgui.Separator()
 	for _, wadName := range debugWADS {
 		if imgui.Button(fmt.Sprintf("Open wad %q debug", wadName)) {
-			config.SetGOWVersion(config.GOW1)
-			f, err := os.Open(wadPath + wadName)
-			if err != nil {
-				log.Printf("Failed to open wad: %v", err)
-			}
-			defer f.Close()
+			dir := vfs.NewDirectoryDriver(wadPath)
+			wadFile, _ := vfs.DirectoryGetFile(dir, wadName)
+			project, _ := core.NewProject("./editor/cmd/testprojects/importtest")
 
-			/*
-				app.project = model.NewProject("")
-				w, _ := resources.LoadWadFromReader(app.project, f, wadName)
-				app.project.OpenResource(w)
-			*/
+			config.SetGOWVersion(config.GOW1)
+			if err := gow.LoadWadFromReader(project, wadFile); err != nil {
+				log.Printf("Failed to import wad %q: %v", wadFile.Name(), err)
+			}
+			app.project = project
 		}
 	}
 	imgui.Separator()
 	if imgui.Button("Open all debug wads") {
+		dir := vfs.NewDirectoryDriver(wadPath)
+		project, _ := core.NewProject("./editor/cmd/testprojects/importtest")
+
 		config.SetGOWVersion(config.GOW1)
+		for _, wadName := range debugWADS {
+			wadFile, _ := vfs.DirectoryGetFile(dir, wadName)
+			if err := gow.LoadWadFromReader(project, wadFile); err != nil {
+				log.Printf("Failed to import wad %q: %v", wadFile.Name(), err)
+			}
+		}
+		app.project = project
 
 		/*
 			app.project = project.NewProject("")

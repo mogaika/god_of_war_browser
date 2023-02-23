@@ -34,7 +34,6 @@ func NewGLFW(io imgui.IO) (*GLFW, error) {
 
 	window, err := glfw.CreateWindow(1024, 768, "gow editor", nil, nil)
 	if err != nil {
-		glfw.Terminate()
 		return nil, fmt.Errorf("failed to create window: %w", err)
 	}
 	window.MakeContextCurrent()

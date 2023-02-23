@@ -580,6 +580,7 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
 
     let m_vertexes = [];
     m_vertexes.length = sPos.length * 3;
+
     let m_weights = [];
     m_weights.length = sPos.length * 2;
 
@@ -635,21 +636,30 @@ function parseGmdlObjectMesh(part, object, originalMeshObject) {
     }
 
     if ("BONI" in streams) {
+        const jm = object.JointsMap;
+        const sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
+        const width = 2;
+
+        // console.log(sBoni);
+        
         let joints = [];
-        let jm = object.JointsMap;
-        let sBoni = streams["BONI"].Values.slice(streamStart, streamStart + streamCount);
-        joints.length = sBoni.length * 2;
-        for (let i in sBoni) {
-            joints[i * 2 + 0] = jm[sBoni[i][0]];
-            joints[i * 2 + 1] = jm[sBoni[i][1]];
+        joints.length = sBoni.length * width;
+
+        for (const i in sBoni) {
+            for (let j = 0; j < width; j++) {
+                joints[i * width + j] = jm[sBoni[i][j]];
+            }
         }
-        mesh.setJointIds(jm, joints, m_weights);
+        mesh.setJointIds(width, joints, m_weights);
     }
 
     //console.log(originalMeshObject.Type, originalMeshObject);	
     if (originalMeshObject) {
         if (originalMeshObject.Type == 0x1d) {
             mesh.setps3static(true);
+            if (object.JointsMap.length !== 1 || object.JointsMap[0] !== 0) {
+                console.warn("ps3 static jm unexpected", object.JointsMap);
+            }
         }
     }
 
@@ -736,7 +746,8 @@ function loadMdlFromAjax(data, parseScripts = false, needTable = false) {
     if (data.Meshes && data.Meshes.length) {
         for (let mesh of data.Meshes) {
             let mdlTables;
-            if (false) { // (!!data.GMDL) {
+            //if (false) { // (!!data.GMDL) {
+            if (!!data.GMDL) {                
                 // GMDL static meshes already translated to position?
                 mdlTables = loadGmdlFromAjax(model, data.GMDL, mesh, needTable);
             } else {

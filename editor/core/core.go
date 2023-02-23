@@ -1,12 +1,12 @@
-package model
+package core
 
 import (
 	"io"
+	"log"
 	"path"
 	"sort"
 
 	"github.com/google/uuid"
-	"github.com/inkyblackness/imgui-go/v4"
 )
 
 type Loader struct {
@@ -77,7 +77,7 @@ type Project struct {
 	resourcesByUUID map[uuid.UUID]*ResourceMeta
 	loadedResources map[uuid.UUID]*ResourceMeta
 
-	presenter ProjectPresenter
+	Presenter ProjectPresenter
 }
 
 type Controller interface {
@@ -93,7 +93,7 @@ func NewProject(path string) (*Project, error) {
 }
 
 func (p *Project) AddResource(path string, r any) uuid.UUID {
-	p.presenter.Set()
+	p.Presenter.Set()
 
 	uid, err := uuid.NewRandom()
 	if err != nil {
@@ -119,100 +119,66 @@ func (p *Project) Save() error {
 	panic("not implemented")
 }
 
-type projectViewDirectory struct {
-	name      string
-	resources []string
-	dirs      []*projectViewDirectory
+type ProjectDirectory struct {
+	Name      string
+	Resources []string
+	Sub       []*ProjectDirectory
 }
 
 type ProjectPresenter struct {
 	Dirty
-	root projectViewDirectory
+	Root ProjectDirectory
 }
 
 func (pp *ProjectPresenter) UpdateIfNeeded(p *Project) {
 	if !pp.Dirty.NeedUpdate() {
 		return
 	}
-	pathMapping := make(map[string]*projectViewDirectory)
-	var getDirectory func(p string) *projectViewDirectory
-	getDirectory = func(p string) *projectViewDirectory {
-		if p == "" || p == "." {
-			return &pp.root
+
+	pathMapping := make(map[string]*ProjectDirectory)
+	var getDirectory func(p string) *ProjectDirectory
+	getDirectory = func(p string) *ProjectDirectory {
+		if p == "" || p == "." || p == "/" {
+			return &pp.Root
 		}
 
 		if dir := pathMapping[p]; dir != nil {
 			return dir
 		}
 
-		newDir := &projectViewDirectory{
-			name: path.Base(p),
+		newDir := &ProjectDirectory{
+			Name: path.Base(p),
 		}
 		pathMapping[p] = newDir
 
 		parent := getDirectory(path.Dir(p))
-		parent.dirs = append(parent.dirs, newDir)
+		parent.Sub = append(parent.Sub, newDir)
 
 		return newDir
 	}
 
-	pp.root = projectViewDirectory{}
+	pp.Root = ProjectDirectory{}
 	for _, m := range p.resourcesByUUID {
 		pDir, name := path.Split(m.path)
 		pDir = path.Clean(pDir)
 		dir := getDirectory(pDir)
-		dir.resources = append(dir.resources, name)
+		dir.Resources = append(dir.Resources, name)
+		// log.Printf("adding %q at %q (%q)", name, dir.Name, pDir)
 	}
 
-	var sortDir func(*projectViewDirectory)
-	sortDir = func(dir *projectViewDirectory) {
-		sort.Slice(dir.dirs, func(i, j int) bool {
-			return dir.dirs[i].name < dir.dirs[j].name
+	var sortDir func(*ProjectDirectory)
+	sortDir = func(dir *ProjectDirectory) {
+		sort.Slice(dir.Sub, func(i, j int) bool {
+			return dir.Sub[i].Name < dir.Sub[j].Name
 		})
-		sort.Strings(dir.resources)
-		for _, subDir := range dir.dirs {
+		sort.Strings(dir.Resources)
+		for _, subDir := range dir.Sub {
 			sortDir(subDir)
 		}
 	}
-	sortDir(&pp.root)
-}
+	sortDir(&pp.Root)
 
-type ProjectEditorView struct {
-	ProjectTreeView
-}
-
-func (v *ProjectEditorView) RenderUI(p *Project, framebufferSize [2]float32) {
-	p.presenter.UpdateIfNeeded(p)
-
-	imgui.SetNextWindowPos(imgui.Vec2{0, 0})
-	imgui.SetNextWindowSizeConstraints(imgui.Vec2{64, framebufferSize[1]}, imgui.Vec2{1000, framebufferSize[1]})
-
-	imgui.BeginV("Project view", nil, imgui.WindowFlagsNoCollapse)
-	{
-		v.ProjectTreeView.RenderUI(p, framebufferSize)
-	}
-	imgui.End()
-}
-
-type ProjectTreeView struct{}
-
-func (v *ProjectTreeView) RenderUI(p *Project, framebufferSize [2]float32) {
-	p.presenter.UpdateIfNeeded(p)
-
-	var recursiveRender func(dir *projectViewDirectory)
-	recursiveRender = func(dir *projectViewDirectory) {
-		for _, subDir := range dir.dirs {
-			if imgui.TreeNodeV(subDir.name, imgui.TreeNodeFlagsNone) {
-				recursiveRender(subDir)
-				imgui.TreePop()
-			}
-		}
-		// imgui.Separator()
-		for _, name := range dir.resources {
-			imgui.Selectable(name)
-		}
-	}
-	recursiveRender(&p.presenter.root)
+	log.Printf("Presenter updated %+#v", pp.Root)
 }
 
 // Inverse logic, so by default we always dirty

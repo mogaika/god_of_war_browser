@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/mogaika/god_of_war_browser/editor/core"
 )
 
 type Image struct {
@@ -9,29 +10,40 @@ type Image struct {
 }
 
 type Texture struct {
-	Animation Ref[Animation]
+	Animation core.Ref[Animation]
 }
 
-type MaterialLayer struct {
-	mgl32.Vec4
+type RenMaterialLayer struct {
+	Color   mgl32.Vec4
+	Texture *Texture
 }
 
-type Material struct {
-	Animation Ref[Animation]
+type RenMaterial struct {
+	Animation core.Ref[Animation]
 
-	Layers []MaterialLayer
+	Layers []RenMaterialLayer
 }
 
-type Animation struct {
-}
+type RenGeometry struct{}
 
-type SoundBank struct {
-}
+type RenModel struct{}
+
+type PhyMaterial struct{}
+
+type PhyGeometry struct{}
+
+type PhyStaticGeometry struct{}
+
+type GameObject struct{}
+
+type Animation struct{}
+
+type SoundBank struct{}
 
 type WadArchive struct {
-	Variables map[string]uint32
-	Animation map[string]Ref[Animation]
-	Textures  map[string]Ref[Texture]
-	Materials map[string]Ref[Material]
-	SoundBank map[string]Ref[SoundBank]
+	Variables    map[string]uint32
+	Animation    map[string]core.Ref[Animation]
+	Textures     map[string]core.Ref[Texture]
+	RenMaterials map[string]core.Ref[RenMaterial]
+	SoundBank    map[string]core.Ref[SoundBank]
 }

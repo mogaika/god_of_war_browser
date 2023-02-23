@@ -166,7 +166,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
 
     for (const flash of flashesBatch) {
         let hasEnvMap = false;
-        let hasSkelet = false;
+        let hasJoints = false;
         let hasTexture = false;
 
         const node = flash.node;
@@ -214,12 +214,24 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
 
                     gl.uniformMatrix4fv(this.umJoints[jointId], false, matrix);
                 }
-                hasSkelet = true;
+                hasJoints = true;
                 if (mesh.ps3static) {
                     //if (mesh.jointMapping.length > 1) {
-                    log.error("type ps3static problem with joint mapping", mesh);
+                    // console.error("type ps3static problem with joint mapping", mesh);
                     //}
                     // gl.uniform1i(this.uUseRootJointScaleOnly, 1);
+                    //gl.uniformMatrix4fv(this.umModelTransform, false, node.parent.globalMatrix);
+
+                    hasJoints = false;
+                    
+                    if (joints) {
+                        const thisJointRoot = joints[0];
+                        const scaleVec = mat4.getScaling(vec3.create(), thisJointRoot.globalMatrix);
+                        const scaleMat = mat4.fromScaling(mat4.create(), scaleVec);
+                        gl.uniformMatrix4fv(this.umModelTransform, false, scaleMat);
+
+                        // console.log(node, scaleVec);
+                    }
                 }
             } else {
                 gl.uniformMatrix4fv(this.umModelTransform, false, node.globalMatrix);
@@ -260,7 +272,7 @@ grRenderChain_SkinnedTextured.prototype.renderFlashesArray = function(ctrl, flas
             hasEnvMap = true;
         }
 
-        this.drawMesh(mesh, hasTexture, hasSkelet, hasEnvMap);
+        this.drawMesh(mesh, hasTexture, hasJoints, hasEnvMap);
     }
     return flashesBatch.length;
 }
