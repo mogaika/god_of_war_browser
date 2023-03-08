@@ -32,7 +32,7 @@ func NewGLFW(io imgui.IO) (*GLFW, error) {
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.OpenGLDebugContext, glfw.True)
 
-	window, err := glfw.CreateWindow(1024, 768, "gow editor", nil, nil)
+	window, err := glfw.CreateWindow(1600, 900, "gow editor", nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create window: %w", err)
 	}

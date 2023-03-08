@@ -2,11 +2,11 @@ package core
 
 import (
 	"io"
-	"log"
 	"path"
 	"sort"
 
 	"github.com/google/uuid"
+	"github.com/inkyblackness/imgui-go/v4"
 )
 
 type Loader struct {
@@ -30,32 +30,53 @@ func (s *Saver) SaveBinary(stream string) (io.WriteCloser, error) {
 	panic("not implemented")
 }
 
-type Ref[T any] struct {
-	UUID uuid.UUID
+type RefI interface {
+	Uid() uuid.UUID
+	Exists() bool
+	ResolveAny(p *Project) any
 }
 
-func (ref Ref[T]) IsEmpty() bool {
-	return ref.UUID == uuid.UUID{}
+type Ref[T Resource] struct {
+	uuid uuid.UUID
 }
 
-func (ref Ref[T]) Get(p *Project) *T {
-	if ref.IsEmpty() {
+func NewRef[T Resource](target uuid.UUID) Ref[T] {
+	return Ref[T]{uuid: target}
+}
+
+func (ref Ref[T]) Uid() uuid.UUID {
+	return ref.uuid
+}
+
+func (ref Ref[T]) Exists() bool {
+	return ref.uuid != uuid.UUID{}
+}
+
+func (ref Ref[T]) ResolveAny(p *Project) any {
+	if !ref.Exists() {
 		return nil
 	}
 
-	meta, exists := p.resourcesByUUID[ref.UUID]
+	meta, exists := p.resourcesByUUID[ref.uuid]
 	if !exists {
-		ref.UUID = uuid.UUID{}
 		return nil
 	}
 
 	p.ensureLoaded(meta)
+	return meta.loaded
+}
 
-	if r := meta.loaded; r != nil {
-		return r.(*T)
+func (ref Ref[T]) Resolve(p *Project) T {
+	if casted, ok := ref.ResolveAny(p).(T); ok {
+		return casted
 	} else {
-		return nil
+		var nilT T
+		return nilT
 	}
+}
+
+func (ref Ref[T]) Meta(p *Project) *ResourceMeta {
+	return p.resourcesByUUID[ref.uuid]
 }
 
 func (p *Project) ensureLoaded(meta *ResourceMeta) {
@@ -65,11 +86,29 @@ func (p *Project) ensureLoaded(meta *ResourceMeta) {
 	panic("not implemented")
 }
 
+type Resource interface {
+	RenderUI(*Project)
+}
+
+type ResourceWithTooltip interface {
+	Resource
+	RenderTooltip(*Project)
+}
+
+type ResourceWith3D interface {
+	Resource
+	Render3D(p *Project, fbSize imgui.Vec2)
+}
+
 type ResourceMeta struct {
 	uid    uuid.UUID
 	path   string
-	loaded any
+	loaded Resource
 }
+
+func (rm *ResourceMeta) Uid() uuid.UUID { return rm.uid }
+
+func (rm *ResourceMeta) Path() string { return rm.path }
 
 type Project struct {
 	path string
@@ -80,10 +119,6 @@ type Project struct {
 	Presenter ProjectPresenter
 }
 
-type Controller interface {
-	Load(Loader) (any, error)
-}
-
 func NewProject(path string) (*Project, error) {
 	return &Project{
 		path:            path,
@@ -92,7 +127,7 @@ func NewProject(path string) (*Project, error) {
 	}, nil
 }
 
-func (p *Project) AddResource(path string, r any) uuid.UUID {
+func (p *Project) AddResource(path string, r Resource) uuid.UUID {
 	p.Presenter.Set()
 
 	uid, err := uuid.NewRandom()
@@ -111,6 +146,15 @@ func (p *Project) AddResource(path string, r any) uuid.UUID {
 	return uid
 }
 
+func (p *Project) GetResourceByPath(path string) (uuid.UUID, bool) {
+	for _, meta := range p.resourcesByUUID {
+		if meta.path == path {
+			return meta.uid, true
+		}
+	}
+	return uuid.Nil, false
+}
+
 func OpenProject(path string) (*Project, error) {
 	panic("not implemented")
 }
@@ -119,9 +163,14 @@ func (p *Project) Save() error {
 	panic("not implemented")
 }
 
+type ProjectDirectoryResource struct {
+	Name string
+	UID  uuid.UUID
+}
+
 type ProjectDirectory struct {
 	Name      string
-	Resources []string
+	Resources []ProjectDirectoryResource
 	Sub       []*ProjectDirectory
 }
 
@@ -162,7 +211,10 @@ func (pp *ProjectPresenter) UpdateIfNeeded(p *Project) {
 		pDir, name := path.Split(m.path)
 		pDir = path.Clean(pDir)
 		dir := getDirectory(pDir)
-		dir.Resources = append(dir.Resources, name)
+		dir.Resources = append(dir.Resources, ProjectDirectoryResource{
+			Name: name,
+			UID:  m.uid,
+		})
 		// log.Printf("adding %q at %q (%q)", name, dir.Name, pDir)
 	}
 
@@ -171,14 +223,16 @@ func (pp *ProjectPresenter) UpdateIfNeeded(p *Project) {
 		sort.Slice(dir.Sub, func(i, j int) bool {
 			return dir.Sub[i].Name < dir.Sub[j].Name
 		})
-		sort.Strings(dir.Resources)
+		sort.Slice(dir.Resources, func(i, j int) bool {
+			return dir.Resources[i].Name < dir.Resources[j].Name
+		})
 		for _, subDir := range dir.Sub {
 			sortDir(subDir)
 		}
 	}
 	sortDir(&pp.Root)
 
-	log.Printf("Presenter updated %+#v", pp.Root)
+	// log.Printf("Presenter updated %+#v", pp.Root)
 }
 
 // Inverse logic, so by default we always dirty

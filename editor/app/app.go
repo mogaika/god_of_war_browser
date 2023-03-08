@@ -6,51 +6,51 @@ import (
 	"os"
 	"strings"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/mogaika/god_of_war_browser/config"
 	"github.com/mogaika/god_of_war_browser/editor/core"
 	"github.com/mogaika/god_of_war_browser/editor/gow"
-	"github.com/mogaika/god_of_war_browser/editor/model"
-	"github.com/mogaika/god_of_war_browser/editor/view"
 	"github.com/mogaika/god_of_war_browser/vfs"
 
 	"github.com/inkyblackness/imgui-go/v4"
 	"github.com/sqweek/dialog"
 )
 
-var app = application{}
+const (
+	DEFAULT_OPEN_DEBUG_WADS = true
+	DEFAULT_OPEN_INSTANCE   = "R_PERM.WAD/objects/go/gochest" // basic skinning
+	// DEFAULT_OPEN_INSTANCE = "OLYMP01.WAD/objects/go/gosparkles300" // mesh instansing
+	DEBUG_GC_EVERY_FRAME = false
+)
 
+// go tool pprof -http=:8080 http://localhost:6060/debug/pprof/profile?seconds=10
+// go tool pprof -http=:8080 http://localhost:6060/debug/pprof/heap?seconds=10
 func init() {
-	if project, err := core.NewProject(""); err != nil {
-		panic(err)
-	} else {
-		// app.project = project
-		project.AddResource("game", &model.Texture{})
-		project.AddResource("tweak_templates/animation/goHero", &model.Texture{})
-		project.AddResource("tweak_templates/mfx/502", &model.Texture{})
-		project.AddResource("tweak_templates/mfx/501", &model.Texture{})
-		project.AddResource("tweak_templates/cloth/195", &model.Texture{})
-		project.AddResource("textures/zopa", &model.Texture{})
-		project.AddResource("archive/heh/level", &model.WadArchive{})
-		project.AddResource("archive/heh/textures/test", &model.Texture{})
-		project.AddResource("archive/heh/textures/test2", &model.Texture{})
-	}
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 }
+
+var app = application{}
 
 type application struct {
 	project     *core.Project
-	projectView view.ProjectEditorView
-	size        [2]float32
+	projectView ProjectEditorView
+	size        imgui.Vec2
 }
 
-func SetFramebufferSize(size [2]float32) { app.size = size }
+func SetFramebufferSize(size [2]float32) { app.size = imgui.Vec2{X: size[0], Y: size[1]} }
 
 func (app *application) renderUIProjectSelect() {
-	imgui.SetNextWindowPos(imgui.Vec2{0, 0})
-	imgui.SetNextWindowSize(imgui.Vec2{app.size[0], app.size[1]})
+	// imgui.SetNextWindowPos(imgui.Vec2{X: 0, Y: 0})
+	// imgui.SetNextWindowSize(app.size)
 
 	imgui.PushStyleVarFloat(imgui.StyleVarWindowRounding, 0.0)
 
-	imgui.BeginV("Project select", nil, imgui.WindowFlagsNoDecoration|imgui.WindowFlagsNoResize)
+	//imgui.BeginV("Project select", nil, imgui.WindowFlagsNoDecoration|imgui.WindowFlagsNoResize)
+	imgui.BeginV("Project select", nil, 0)
 
 	imgui.Text("Hello, please create project to store parsed game files")
 	if imgui.Button("Create new project") {
@@ -100,31 +100,34 @@ func (app *application) renderUIProjectSelect() {
 		}
 	}
 	imgui.Separator()
-	if imgui.Button("Open all debug wads") {
-		dir := vfs.NewDirectoryDriver(wadPath)
-		project, _ := core.NewProject("./editor/cmd/testprojects/importtest")
 
-		config.SetGOWVersion(config.GOW1)
-		for _, wadName := range debugWADS {
-			wadFile, _ := vfs.DirectoryGetFile(dir, wadName)
-			if err := gow.LoadWadFromReader(project, wadFile); err != nil {
-				log.Printf("Failed to import wad %q: %v", wadFile.Name(), err)
-			}
-		}
-		app.project = project
+	if DEFAULT_OPEN_DEBUG_WADS || imgui.Button("Open all debug wads") {
+		if app.project == nil {
+			dir := vfs.NewDirectoryDriver(wadPath)
+			project, _ := core.NewProject("./editor/cmd/testprojects/importtest")
 
-		/*
-			app.project = project.NewProject("")
+			config.SetGOWVersion(config.GOW1)
 			for _, wadName := range debugWADS {
-				f, err := os.Open(wadPath + wadName)
-				if err != nil {
-					log.Printf("Failed to open wad: %v", err)
+				wadFile, _ := vfs.DirectoryGetFile(dir, wadName)
+				if err := gow.LoadWadFromReader(project, wadFile); err != nil {
+					log.Printf("Failed to import wad %q: %v", wadFile.Name(), err)
 				}
-				defer f.Close()
-				w, _ := resources.LoadWadFromReader(app.project, f, wadName)
-				app.project.OpenResource(w)
 			}
-		*/
+			app.project = project
+
+			app.projectView.selectedResource, _ = project.GetResourceByPath(DEFAULT_OPEN_INSTANCE) /*
+				app.project = project.NewProject("")
+				for _, wadName := range debugWADS {
+					f, err := os.Open(wadPath + wadName)
+					if err != nil {
+						log.Printf("Failed to open wad: %v", err)
+					}
+					defer f.Close()
+					w, _ := resources.LoadWadFromReader(app.project, f, wadName)
+					app.project.OpenResource(w)
+				}
+			*/
+		}
 	}
 
 	imgui.End()
@@ -162,8 +165,9 @@ func renderDebug() {
 func RenderUI() {
 	if app.project == nil {
 		app.renderUIProjectSelect()
+		imgui.ShowDemoWindow(nil)
 	} else {
-		app.projectView.RenderUI(app.project, app.size)
+		app.projectView.RenderUI(app.project, imgui.Vec2{}, app.size)
 	}
 }
 

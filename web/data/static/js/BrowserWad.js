@@ -502,6 +502,7 @@ function loadMeshPartFromAjax(model, data, iPart, table = undefined) {
                     mesh.meta['object'] = iObject;
                     mesh.setUseBindToJoin(object.UseInvertedMatrix);
                     mesh.setMaterialID(object.MaterialId);
+                    mesh.setLayerIdUVMapping(group.ObjectLayerMappings[iObject])
                     if (object.TextureLayersCount != 1) {
                         mesh.setLayer(iLayer);
                     }

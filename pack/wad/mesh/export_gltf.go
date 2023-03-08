@@ -44,8 +44,8 @@ func (m *Mesh) ExportGLTF(wrsrc *wad.WadNodeRsrc, gltfCacher *gltfutils.GLTFCach
 						positions[iVertex] = object.Vertices[iVertex].Position
 
 						weights[iVertex] = [4]float32{
-							object.Vertices[iVertex].Weight,
-							1.0 - object.Vertices[iVertex].Weight,
+							object.Vertices[iVertex].JointWeights[0],
+							object.Vertices[iVertex].JointWeights[1],
 							0, 0}
 					}
 					positionAccessor = modeler.WritePosition(doc, positions)
@@ -139,12 +139,10 @@ func (m *Mesh) ExportGLTF(wrsrc *wad.WadNodeRsrc, gltfCacher *gltfutils.GLTFCach
 
 					gltfMesh := &gltf.Mesh{
 						Name: fmt.Sprintf("p%d_lod%d_o%d_i%d", iPart, iLodGroup, iObject, iInstance),
-						Primitives: []*gltf.Primitive{
-							&gltf.Primitive{
-								Indices:    &indicesAccessor,
-								Attributes: attributes,
-							},
-						},
+						Primitives: []*gltf.Primitive{{
+							Indices:    &indicesAccessor,
+							Attributes: attributes,
+						}},
 					}
 
 					doc.Meshes = append(doc.Meshes, gltfMesh)

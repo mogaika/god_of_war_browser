@@ -97,8 +97,8 @@ func (p *Part) Marshal(off uint32) *bytes.Buffer {
 
 func (v *Vector) Marshal() []byte {
 	var buf [MESH_GOW1_VECTOR_SIZE]byte
-	binary.LittleEndian.PutUint16(buf[0:], v.Unk00)
-	binary.LittleEndian.PutUint16(buf[2:], v.Unk02)
+	binary.LittleEndian.PutUint16(buf[0:], uint16(v.Unk00))
+	binary.LittleEndian.PutUint16(buf[2:], uint16(v.Unk02))
 	for i, f := range v.Value {
 		binary.LittleEndian.PutUint32(buf[4+i*4:], math.Float32bits(f))
 	}

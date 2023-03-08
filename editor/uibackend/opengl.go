@@ -8,23 +8,22 @@ import (
 
 	"github.com/go-gl/gl/v4.3-core/gl"
 	"github.com/inkyblackness/imgui-go/v4"
+	"github.com/mogaika/god_of_war_browser/editor/r3d"
 )
 
 //go:embed shaders/main.vert
-var unversionedVertexShader string
+var textVertexShader string
 
 //go:embed shaders/main.frag
-var unversionedFragmentShader string
+var textFragmentShader string
 
-// OpenGL3 implements a renderer based on github.com/go-gl/gl (v3.2-core).
-type OpenGL3 struct {
+// OpenGL4 implements a renderer based on github.com/go-gl/gl (v4.3-core).
+type OpenGL4 struct {
 	imguiIO imgui.IO
 
-	glslVersion            string
+	program r3d.Program
+
 	fontTexture            uint32
-	shaderHandle           uint32
-	vertHandle             uint32
-	fragHandle             uint32
 	attribLocationTex      int32
 	attribLocationProjMtx  int32
 	attribLocationPosition int32
@@ -34,17 +33,14 @@ type OpenGL3 struct {
 	elementsHandle         uint32
 }
 
-// NewOpenGL3 attempts to initialize a renderer.
+// NewOpenGL4 attempts to initialize a renderer.
 // An OpenGL context has to be established before calling this function.
-func NewOpenGL3(io imgui.IO) (*OpenGL3, error) {
+func NewOpenGL4(io imgui.IO) (*OpenGL4, error) {
 	err := gl.Init()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize OpenGL: %w", err)
 	}
-	r := &OpenGL3{
-		imguiIO:     io,
-		glslVersion: "#version 150",
-	}
+	r := &OpenGL4{imguiIO: io}
 
 	gl.Enable(gl.DEBUG_OUTPUT_SYNCHRONOUS)
 	gl.Enable(gl.DEBUG_OUTPUT)
@@ -58,18 +54,18 @@ func NewOpenGL3(io imgui.IO) (*OpenGL3, error) {
 }
 
 // Dispose cleans up the resources.
-func (r *OpenGL3) Destroy() {
+func (r *OpenGL4) Destroy() {
 	r.invalidateDeviceObjects()
 }
 
 // PreRender clears the framebuffer.
-func (r *OpenGL3) PreRender(clearColor [3]float32) {
+func (r *OpenGL4) PreRender(clearColor [3]float32) {
 	gl.ClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 }
 
 // Render translates the ImGui draw data to OpenGL3 commands.
-func (r *OpenGL3) Render(displaySize [2]float32, framebufferSize [2]float32, drawData imgui.DrawData) {
+func (r *OpenGL4) Render(displaySize [2]float32, framebufferSize [2]float32, drawData imgui.DrawData) {
 	// Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
 	displayWidth, displayHeight := displaySize[0], displaySize[1]
 	fbWidth, fbHeight := framebufferSize[0], framebufferSize[1]
@@ -139,7 +135,7 @@ func (r *OpenGL3) Render(displaySize [2]float32, framebufferSize [2]float32, dra
 		{0.0, 0.0, -1.0, 0.0},
 		{-1.0, 1.0, 0.0, 1.0},
 	}
-	gl.UseProgram(r.shaderHandle)
+	gl.UseProgram(r.program.Id)
 	gl.Uniform1i(r.attribLocationTex, 0)
 	gl.UniformMatrix4fv(r.attribLocationProjMtx, 1, false, &orthoProjection[0][0])
 	gl.BindSampler(0, 0) // Rely on combined texture/sampler state.
@@ -224,7 +220,7 @@ func (r *OpenGL3) Render(displaySize [2]float32, framebufferSize [2]float32, dra
 	gl.Scissor(lastScissorBox[0], lastScissorBox[1], lastScissorBox[2], lastScissorBox[3])
 }
 
-func (r *OpenGL3) createDeviceObjects() {
+func (r *OpenGL4) createDeviceObjects() {
 	// Backup GL state
 	var lastTexture int32
 	var lastArrayBuffer int32
@@ -233,33 +229,13 @@ func (r *OpenGL3) createDeviceObjects() {
 	gl.GetIntegerv(gl.ARRAY_BUFFER_BINDING, &lastArrayBuffer)
 	gl.GetIntegerv(gl.VERTEX_ARRAY_BINDING, &lastVertexArray)
 
-	vertexShader := r.glslVersion + "\n" + unversionedVertexShader
-	fragmentShader := r.glslVersion + "\n" + unversionedFragmentShader
+	r.program = *r3d.MustLoadProgram(textVertexShader, textFragmentShader)
 
-	r.shaderHandle = gl.CreateProgram()
-	r.vertHandle = gl.CreateShader(gl.VERTEX_SHADER)
-	r.fragHandle = gl.CreateShader(gl.FRAGMENT_SHADER)
-
-	glShaderSource := func(handle uint32, source string) {
-		csource, free := gl.Strs(source + "\x00")
-		defer free()
-
-		gl.ShaderSource(handle, 1, csource, nil)
-	}
-
-	glShaderSource(r.vertHandle, vertexShader)
-	glShaderSource(r.fragHandle, fragmentShader)
-	gl.CompileShader(r.vertHandle)
-	gl.CompileShader(r.fragHandle)
-	gl.AttachShader(r.shaderHandle, r.vertHandle)
-	gl.AttachShader(r.shaderHandle, r.fragHandle)
-	gl.LinkProgram(r.shaderHandle)
-
-	r.attribLocationTex = gl.GetUniformLocation(r.shaderHandle, gl.Str("Texture"+"\x00"))
-	r.attribLocationProjMtx = gl.GetUniformLocation(r.shaderHandle, gl.Str("ProjMtx"+"\x00"))
-	r.attribLocationPosition = gl.GetAttribLocation(r.shaderHandle, gl.Str("Position"+"\x00"))
-	r.attribLocationUV = gl.GetAttribLocation(r.shaderHandle, gl.Str("UV"+"\x00"))
-	r.attribLocationColor = gl.GetAttribLocation(r.shaderHandle, gl.Str("Color"+"\x00"))
+	r.attribLocationTex = gl.GetUniformLocation(r.program.Id, gl.Str("Texture"+"\x00"))
+	r.attribLocationProjMtx = gl.GetUniformLocation(r.program.Id, gl.Str("ProjMtx"+"\x00"))
+	r.attribLocationPosition = gl.GetAttribLocation(r.program.Id, gl.Str("Position"+"\x00"))
+	r.attribLocationUV = gl.GetAttribLocation(r.program.Id, gl.Str("UV"+"\x00"))
+	r.attribLocationColor = gl.GetAttribLocation(r.program.Id, gl.Str("Color"+"\x00"))
 
 	gl.GenBuffers(1, &r.vboHandle)
 	gl.GenBuffers(1, &r.elementsHandle)
@@ -272,10 +248,10 @@ func (r *OpenGL3) createDeviceObjects() {
 	gl.BindVertexArray(uint32(lastVertexArray))
 }
 
-func (r *OpenGL3) createFontsTexture() {
+func (r *OpenGL4) createFontsTexture() {
 	// Build texture atlas
 	io := imgui.CurrentIO()
-	image := io.Fonts().TextureDataAlpha8()
+	image := io.Fonts().TextureDataRGBA32()
 
 	// Upload texture to graphics system
 	var lastTexture int32
@@ -285,8 +261,8 @@ func (r *OpenGL3) createFontsTexture() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RED, int32(image.Width), int32(image.Height),
-		0, gl.RED, gl.UNSIGNED_BYTE, image.Pixels)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(image.Width), int32(image.Height),
+		0, gl.RGBA, gl.UNSIGNED_BYTE, image.Pixels)
 
 	// Store our identifier
 	io.Fonts().SetTextureID(imgui.TextureID(r.fontTexture))
@@ -295,7 +271,7 @@ func (r *OpenGL3) createFontsTexture() {
 	gl.BindTexture(gl.TEXTURE_2D, uint32(lastTexture))
 }
 
-func (r *OpenGL3) invalidateDeviceObjects() {
+func (r *OpenGL4) invalidateDeviceObjects() {
 	if r.vboHandle != 0 {
 		gl.DeleteBuffers(1, &r.vboHandle)
 	}
@@ -305,26 +281,7 @@ func (r *OpenGL3) invalidateDeviceObjects() {
 	}
 	r.elementsHandle = 0
 
-	if (r.shaderHandle != 0) && (r.vertHandle != 0) {
-		gl.DetachShader(r.shaderHandle, r.vertHandle)
-	}
-	if r.vertHandle != 0 {
-		gl.DeleteShader(r.vertHandle)
-	}
-	r.vertHandle = 0
-
-	if (r.shaderHandle != 0) && (r.fragHandle != 0) {
-		gl.DetachShader(r.shaderHandle, r.fragHandle)
-	}
-	if r.fragHandle != 0 {
-		gl.DeleteShader(r.fragHandle)
-	}
-	r.fragHandle = 0
-
-	if r.shaderHandle != 0 {
-		gl.DeleteProgram(r.shaderHandle)
-	}
-	r.shaderHandle = 0
+	r.program.Delete()
 
 	if r.fontTexture != 0 {
 		gl.DeleteTextures(1, &r.fontTexture)
@@ -359,4 +316,7 @@ func openglLogCallback(source uint32, gltype uint32, id uint32,
 
 	log.Printf("[gl] id:%v severity:%v src:%v type:%v %q",
 		id, glConstToString[severity], glConstToString[source], glConstToString[gltype], message)
+	if gltype == gl.DEBUG_TYPE_ERROR {
+		panic(message)
+	}
 }

@@ -32,7 +32,9 @@ require (
 	github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/mogaika/binrw v0.1.0 // indirect
+	github.com/technohippy/go-glmatrix v1.0.0 // indirect
 	github.com/timtadh/data-structures v0.6.1 // indirect
+	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/image v0.0.0-20190321063152-3fc05d484e9f // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )

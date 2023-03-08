@@ -6,10 +6,27 @@ import (
 
 	"github.com/mogaika/god_of_war_browser/config"
 
+	"golang.org/x/exp/constraints"
 	"golang.org/x/text/transform"
 )
 
 const SECTOR_SIZE = 0x800
+
+func Max[T constraints.Ordered](a, b T) T {
+	if a > b {
+		return a
+	} else {
+		return b
+	}
+}
+
+func Min[T constraints.Ordered](a, b T) T {
+	if a < b {
+		return a
+	} else {
+		return b
+	}
+}
 
 func GetRequiredSectorsCount(size int64) int64 {
 	return (size + SECTOR_SIZE - 1) / SECTOR_SIZE

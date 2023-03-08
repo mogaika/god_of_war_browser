@@ -120,6 +120,7 @@ func (g *Group) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Log
 
 	g.HideDistance = math.Float32frombits(binary.LittleEndian.Uint32(b[0:]))
 	g.Objects = make([]Object, binary.LittleEndian.Uint32(b[4:]))
+	g.ObjectLayerMappings = make([][4]uint16, len(g.Objects))
 	g.HasBbox = binary.LittleEndian.Uint32(b[8:])
 	exlog.Printf("      | hidedist: %f hasbbox: 0x%.8x objects count: %v", g.HideDistance, g.HasBbox, len(g.Objects))
 
@@ -128,6 +129,13 @@ func (g *Group) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Log
 	}
 
 	voff := uint32(len(g.Objects))*4 + OBJECT_GOW1_HEADER_SIZE
+
+	layerMappings := b[GROUP_GOW1_HEADER_SIZE+len(g.Objects)*4:]
+	for i := range g.ObjectLayerMappings {
+		for j, v := range layerMappings[i*4 : i*4+4] {
+			g.ObjectLayerMappings[i][j] = uint16(v)
+		}
+	}
 
 	for i := range g.Objects {
 		if g.HasBbox != 0 {
@@ -159,10 +167,10 @@ func (p *Part) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Logg
 	b := allb[pos:]
 	p.Offset = pos
 	p.Unk00 = binary.LittleEndian.Uint16(b[:])
-	if p.Unk00 != 1 {
-		// usually 1, but can vary [0x1:0x10] PAND01A.WAD => WoodPlanks04GP1
-		// return fmt.Errorf("Unknown Unk00: 0x%x", p.Unk00)
-	}
+	//if p.Unk00 != 1 {
+	// usually 1, but can vary [0x1:0x10] PAND01A.WAD => WoodPlanks04GP1
+	// return fmt.Errorf("Unknown Unk00: 0x%x", p.Unk00)
+	//}
 
 	p.Groups = make([]Group, binary.LittleEndian.Uint16(b[2:]))
 	p.JointId = binary.LittleEndian.Uint16(b[len(p.Groups)*4+PART_GOW1_HEADER_SIZE:])
@@ -187,8 +195,8 @@ func (p *Part) parseGow1(allb []byte, pos uint32, size uint32, exlog *utils.Logg
 
 func (v *Vector) parseGow1(allb []byte, pos uint32, exlog *utils.Logger) {
 	b := allb[pos:]
-	v.Unk00 = binary.LittleEndian.Uint16(b[0:])
-	v.Unk02 = binary.LittleEndian.Uint16(b[2:])
+	v.Unk00 = int16(binary.LittleEndian.Uint16(b[0:]))
+	v.Unk02 = int16(binary.LittleEndian.Uint16(b[2:]))
 
 	for i := range v.Value {
 		v.Value[i] = math.Float32frombits(binary.LittleEndian.Uint32(b[4+i*4:]))

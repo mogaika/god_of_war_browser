@@ -49,6 +49,7 @@ class RenderMesh extends Claimable {
         this.ps3static = false;
         this.useBindToJoin = false;
         this.layer = undefined;
+        this.layerIdUVMapping = [];
         this.mask = 0;
         this.meta = {};
 
@@ -113,6 +114,10 @@ class RenderMesh extends Claimable {
 
     setMaterialID(materialIndex) {
         this.materialIndex = materialIndex;
+    }
+
+    setLayerIdUVMapping(mapping) {
+        this.layerIdUVMapping = mapping;
     }
 
     setNormals(data) {

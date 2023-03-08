@@ -64,6 +64,7 @@ type Joint struct {
 
 	BindToJointMat mgl32.Mat4 // bind world joint => local joint
 	ParentToJoint  mgl32.Mat4 // idle parent local joint => local joint
+	ObjectToJoint  mgl32.Mat4 // multiplied on parent parents
 	//BindWorldJoint    mgl32.Mat4 // bind world joint
 	//OurJointToIdleMat mgl32.Mat4 // idle world joint
 	//RenderMat         mgl32.Mat4 // bind world joint => idle world joint
@@ -74,7 +75,7 @@ const JOINT_CHILD_NONE = -1
 type Object struct {
 	Joints []Joint
 
-	File0x20 uint32 // index of root joint ?
+	File0x20 uint32 // index of root mdl joint?
 	File0x24 uint32 /*
 		more flags
 		0bit - need creation of array(joints count) of words? if dynamic model?
@@ -290,6 +291,12 @@ func (obj *Object) FillJoints() {
 	for i := range obj.Joints {
 		j := &obj.Joints[i]
 		j.ParentToJoint = obj.Matrixes1[i]
+
+		if i == 0 {
+			j.ObjectToJoint = j.ParentToJoint
+		} else {
+			j.ObjectToJoint = obj.Joints[j.Parent].ObjectToJoint.Mul4(j.ParentToJoint)
+		}
 
 		if j.IsSkinned {
 			j.BindToJointMat = obj.Matrixes3[j.InvId]

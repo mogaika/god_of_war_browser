@@ -68,15 +68,18 @@ func IndexSwizzlePalette(i int) int {
 	return blockpos + (remap[blockid%4]+(blockid/4)*4)*8
 }
 
-func (gfx *GFX) AsRawPalette(idx int) ([]uint32, error) {
+func (gfx *GFX) AsRawPalette(idx int, convertAlphaToPCformat bool) ([][4]byte, error) {
 	palbuf := gfx.Data[idx]
 
 	colors := gfx.Width * gfx.RealHeight
 
-	palette := make([]uint32, colors)
+	palette := make([][4]byte, colors)
 
+	var clr [4]byte
 	for i := range palette {
-		clr := binary.LittleEndian.Uint32(palbuf[i*4 : i*4+4])
+		copy(clr[:], palbuf[i*4:i*4+4])
+		clr[3] = uint8(float32(clr[3]) * (255.0 / 128.0))
+		// clr := binary.LittleEndian.Uint32(palbuf[i*4 : i*4+4])
 		switch gfx.Height {
 		case 2:
 			palette[i] = clr
@@ -92,23 +95,19 @@ func (gfx *GFX) AsRawPalette(idx int) ([]uint32, error) {
 }
 
 func (gfx *GFX) AsPalette(idx int, convertAlphaToPCformat bool) ([]color.NRGBA, error) {
-	rawPal, err := gfx.AsRawPalette(idx)
+	rawPal, err := gfx.AsRawPalette(idx, convertAlphaToPCformat)
 	if err != nil {
 		return nil, err
 	}
 
 	palette := make([]color.NRGBA, len(rawPal))
 	for i, raw := range rawPal {
-		clr := color.NRGBA{
-			R: uint8(raw),
-			G: uint8(raw >> 8),
-			B: uint8(raw >> 16),
-			A: uint8(raw >> 24),
+		palette[i] = color.NRGBA{
+			R: uint8(raw[0]),
+			G: uint8(raw[1]),
+			B: uint8(raw[2]),
+			A: uint8(raw[3]),
 		}
-		if convertAlphaToPCformat {
-			clr.A = uint8(float32(clr.A) * (255.0 / 128.0))
-		}
-		palette[i] = clr
 	}
 
 	return palette, nil
@@ -188,7 +187,7 @@ func (gfx *GFX) GetPSM() int {
 	return -1
 }
 
-func NewFromData(name string, buf []byte) (*GFX, error) {
+func NewFromData(buf []byte) (*GFX, error) {
 	gfx := &GFX{
 		Magic:    binary.LittleEndian.Uint32(buf[0:4]),
 		Width:    binary.LittleEndian.Uint32(buf[4:8]),
@@ -247,7 +246,7 @@ func (gfx *GFX) Marshal(wrsrc *wad.WadNodeRsrc) (interface{}, error) {
 
 func init() {
 	h := func(wrsrc *wad.WadNodeRsrc) (wad.File, error) {
-		gfx, err := NewFromData(wrsrc.Name(), wrsrc.Tag.Data)
+		gfx, err := NewFromData(wrsrc.Tag.Data)
 		if err != nil {
 			return gfx, err
 		}

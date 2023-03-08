@@ -50,11 +50,14 @@ type Object struct {
 	// new dma program per each instance.
 	// uses same buffers except rgba lighting, own jointmapper per instance
 	InstancesCount uint32
-	Flags          uint32 // if & 0x40 - UseInvertedMatrix, & 0x10 - 3d, not gui
-	FlagsMask      uint32
+
+	// 0x40 - use inverted matrix
+	// 0x10 - 3d
+	Flags     uint32
+	FlagsMask uint32
 
 	// new dma program per texture layer
-	// uses same buffers except uv and rgba for  second layer
+	// uses same buffers except uv and rgba for second layer
 	TextureLayersCount    uint8
 	TotalDmaProgramsCount uint8 // total dma programs count ?
 	NextFreeVUBufferId    uint16
@@ -74,8 +77,9 @@ type Group struct {
 	// value with minus, for last lod - very huge number
 	HideDistance float32
 
-	Objects []Object
-	HasBbox uint32
+	Objects             []Object
+	ObjectLayerMappings [][4]uint16 // actually byte, but json encoding.... [objectId][layerId] should give UV?
+	HasBbox             uint32
 }
 
 type Part struct {
@@ -87,8 +91,8 @@ type Part struct {
 }
 
 type Vector struct {
-	Unk00 uint16
-	Unk02 uint16
+	Unk00 int16
+	Unk02 int16
 	Value [4]float32
 }
 
@@ -103,10 +107,20 @@ type Mesh struct {
 	// last vector used in mdl
 	BlendJoints []BlendJoints
 
-	Unk0c           uint32
-	Unk10           uint32
-	Unk14           uint32
-	Flags0x20       uint32 // use last and first vectors for some rendering process
+	Unk0c uint32
+	Unk10 uint32
+	Unk14 uint32
+
+	// 0x00 gui
+	// 0x24 hero, chest, enemies
+	// 0x10 most static objects
+	//
+	// affects use last and first vectors for some rendering process
+	// 0x2
+	// 0x4
+	// 0x10 - fast vis check (enable fast path for no advanced processing of bbox graph)
+	// 0x20
+	Flags0x20       uint32
 	NameOfRootJoint string
 	SkeletJoints    uint32 // skelet joints count?
 	Unk30           uint32
@@ -162,7 +176,7 @@ func (m *Mesh) AsCommonMesh() *common.Mesh {
 				object := &group.Objects[iObject]
 				cObject := &common.Object{
 					Vertices:       make([]common.Vertex, 0, 64),
-					Indexes:        make([]int, 0, 128),
+					Indexes:        make([]uint32, 0, 128),
 					JointMaps:      object.JointMappers,
 					BlendColors:    make([][]common.RGBA, 0, 2),
 					UVs:            make([][]common.UV, 0, 2),
@@ -179,7 +193,6 @@ func (m *Mesh) AsCommonMesh() *common.Mesh {
 					cObject.Normals = make([]common.Normal, 0, 64)
 				}
 
-				// fill vertices and normals from first packet
 				for iInstance := 0; iInstance < int(object.InstancesCount); iInstance++ {
 					for iLayer := 0; iLayer < int(object.TextureLayersCount); iLayer++ {
 						iDmaPacket := iInstance*int(object.TextureLayersCount) + iLayer
@@ -204,50 +217,50 @@ func (m *Mesh) AsCommonMesh() *common.Mesh {
 							for iVertex := range packet.Trias.X {
 								if iDmaPacket == 0 {
 									// fill vertices, indexes and normals from first dma packet
-									cObject.Vertices = append(cObject.Vertices,
-										common.Vertex{
-											Position: common.Position{
-												packet.Trias.X[iVertex],
-												packet.Trias.Y[iVertex],
-												packet.Trias.Z[iVertex],
-											},
-											Weight: packet.Trias.Weight[iVertex],
-											JointsIndexes: [2]uint16{
-												packet.Joints[0][iVertex],
-												packet.Joints[1][iVertex]},
-										})
+									cObject.Vertices = append(cObject.Vertices, common.Vertex{
+										Position: common.Position{
+											packet.Trias.X[iVertex],
+											packet.Trias.Y[iVertex],
+											packet.Trias.Z[iVertex],
+										},
+										JointWeights: [2]float32{
+											packet.Trias.Weight[iVertex],
+											1 - packet.Trias.Weight[iVertex],
+										},
+										JointsIndexes: [2]uint16{
+											packet.Joints[0][iVertex],
+											packet.Joints[1][iVertex],
+										},
+									})
 
 									if !packet.Trias.Skip[iVertex] {
-										curIndex := len(cObject.Vertices) - 1
+										curIndex := uint32(len(cObject.Vertices)) - 1
 										cObject.Indexes = append(cObject.Indexes,
 											curIndex-2, curIndex-1, curIndex)
 									}
 
 									if cObject.Normals != nil {
-										cObject.Normals = append(cObject.Normals,
-											common.Normal{
-												packet.Norms.X[iVertex],
-												packet.Norms.Y[iVertex],
-												packet.Norms.Z[iVertex],
-											})
+										cObject.Normals = append(cObject.Normals, common.Normal{
+											packet.Norms.X[iVertex],
+											packet.Norms.Y[iVertex],
+											packet.Norms.Z[iVertex],
+										})
 									}
 								}
 
 								if blendColors != nil {
-									blendColors = append(blendColors,
-										common.RGBA{
-											R: uint8(packet.Blend.R[iVertex]),
-											G: uint8(packet.Blend.G[iVertex]),
-											B: uint8(packet.Blend.B[iVertex]),
-											A: byte((float64(packet.Blend.A[iVertex]) / 128.0) * 255.0),
-										})
+									blendColors = append(blendColors, common.RGBA{
+										R: uint8(packet.Blend.R[iVertex]),
+										G: uint8(packet.Blend.G[iVertex]),
+										B: uint8(packet.Blend.B[iVertex]),
+										A: byte((float64(packet.Blend.A[iVertex]) / 128.0) * 255.0),
+									})
 								}
 								if uvs != nil {
-									uvs = append(uvs,
-										common.UV{
-											packet.Uvs.U[iVertex],
-											packet.Uvs.V[iVertex],
-										})
+									uvs = append(uvs, common.UV{
+										packet.Uvs.U[iVertex],
+										packet.Uvs.V[iVertex],
+									})
 								}
 							}
 						}
@@ -277,15 +290,15 @@ func init() {
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
 		defer f.Close()
-		logger := utils.Logger{f}
+		logger := utils.Logger{Writer: f}
 
 		//logger := utils.Logger{ioutil.Discard}
 
 		mesh, err := NewFromData(wrsrc.Tag.Data, &logger)
-		if err == nil && mesh.BaseBoneIndex != 0 {
-			//log.Printf("bbi: %d mesh: %s:%s j: %q",
-			//	mesh.BaseBoneIndex, wrsrc.Wad.Name(), wrsrc.Tag.Name, mesh.NameOfRootJoint)
-		}
+		// if err == nil && mesh.BaseBoneIndex != 0 {
+		//log.Printf("bbi: %d mesh: %s:%s j: %q",
+		//	mesh.BaseBoneIndex, wrsrc.Wad.Name(), wrsrc.Tag.Name, mesh.NameOfRootJoint)
+		// }
 
 		return mesh, err
 	})
@@ -294,7 +307,7 @@ func init() {
 		os.MkdirAll(filepath.Dir(fpath), 0777)
 		f, _ := os.Create(fpath)
 		defer f.Close()
-		logger := utils.Logger{f}
+		logger := utils.Logger{Writer: f}
 		//logger := Logger{io.MultiWriter(os.Stdout, f)}
 
 		return NewFromData(wrsrc.Tag.Data, &logger)

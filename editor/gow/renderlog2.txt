@@ -1,0 +1,290 @@
+Master: Step changed to 0x1 (prev: 0x0)
+Master: ------ [frame 0x0000fe5 Static pass (render pass 0:1:0:0)]
+RendererStatic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Static pass (render pass 0:2:0:0)]
+RendererStatic: texture group 1
+RendererStatic: texture group 2
+RendererStatic: texture 'TXR_visuals01_file349' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 alFakeReflections_0
+RendererStatic: [frame 0x0000fe5] Static groups: 2 flashes: 2
+Master: ------ [frame 0x0000fe5 Static pass (render pass 0:3:0:0)]
+RendererStatic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Static pass (render pass 0:4:0:0)]
+Master: Step changed to 0x2 (prev: 0x1)
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:0:0:0)]
+RendererStatic: texture group 1
+RendererStatic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 bottomPlatform_0
+RendererStatic: [frame 0x0000fe5] Static groups: 1 flashes: 1
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:0:0)]
+RendererDynamic: texture group 1
+RendererDynamic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 portalReflect_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 1 flashes: 1
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:1:0)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:2:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:4:0)]
+Master: Step changed to 0x3 (prev: 0x2)
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:1:0:0)]
+RendererStatic: texture group 1
+RendererStatic: texture 'TXR_visuals01_file340' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 skyBox_0
+RendererStatic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 skyBox_0
+RendererStatic: [frame 0x0000fe5] Static groups: 1 flashes: 2
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:1:0:0)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:1:1:0)]
+RendererDynamic: texture group 1
+RendererDynamic: texture 'TXR_visuals01_asdfwe' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x001: inst 1 layer 0 transp 1,000000 dma: 0x2 progI: 1 progS: 0x3 skyBox_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 1 flashes: 1
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:1:2:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:1:4:0)]
+Master: Step changed to 0x4 (prev: 0x3)
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:0:0:0)]
+RendererStatic: texture group 1
+RendererStatic: texture 'TXR_01_filestnCornice03' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 bottomPlatform_0
+RendererStatic: [frame 0x0000fe5] Static groups: 1 flashes: 1
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:0:0)]
+RendererDynamic: texture group 1
+RendererDynamic: texture 'TXR_ortalEffect_file345' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 portalReflect_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 1 flashes: 1
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:1:0)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:2:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:0:4:0)]
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:2:0:1)]
+RendererStatic: texture group 1
+RendererStatic: texture 'TXR_visuals01_file335' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x2 portalGrp_0
+RendererStatic: texture group 2
+RendererStatic: texture 'TXR_visuals01_file333' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 0 br 1 bs 0
+RendererStatic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x2 portalGrp_0
+RendererStatic: texture group 3
+RendererStatic: texture 'TXR_visuals01_file335' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 0 br 1 bs 0
+RendererStatic: flash 0x003: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x2 portalGrp_0
+RendererStatic: texture group 4
+RendererStatic: texture 'TXR_visuals01_file313' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x004: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x59 portalGrp_0
+RendererStatic: texture group 5
+RendererStatic: texture 'TXR_visuals01_file322' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 0 br 1 bs 0
+RendererStatic: flash 0x005: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x59 portalGrp_0
+RendererStatic: texture group 6
+RendererStatic: texture 'TXR_visuals01_file313' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 0 br 1 bs 0
+RendererStatic: flash 0x006: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x59 portalGrp_0
+RendererStatic: texture group 7
+RendererStatic: texture 'TXR_visuals01_file14' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x007: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 portalGrp_0
+RendererStatic: texture group 8
+RendererStatic: texture 'TXR_uals01_statue_file7' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x008: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 portalGrp_0
+RendererStatic: texture group 9
+RendererStatic: texture 'TXR_ls01_statue_file114' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x009: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 portalGrp_0
+RendererStatic: texture group 10
+RendererStatic: texture 'TXR__kensStuff2_file112' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x00a: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x5 portalGrp_0
+RendererStatic: texture group 11
+RendererStatic: texture 'TXR_visuals01_file326' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x00b: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 portalGrp_0
+RendererStatic: texture group 12
+RendererStatic: texture 'TXR_visuals01_file324' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 0 br 1 bs 0
+RendererStatic: flash 0x00c: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 portalGrp_0
+RendererStatic: texture group 13
+RendererStatic: texture 'TXR_visuals01_file326' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 0 br 1 bs 0
+RendererStatic: flash 0x00d: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 portalGrp_0
+RendererStatic: texture group 14
+RendererStatic: texture 'TXR_paulsEntryway_file4' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x00e: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x2 portalGrp_0
+RendererStatic: texture group 15
+RendererStatic: texture 'TXR_atue_filestnBlock05' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x00f: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 portalGrp_0
+RendererStatic: texture group 16
+RendererStatic: texture 'TXR_f2_filestnCornice02' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x010: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 portalGrp_0
+RendererStatic: texture group 17
+RendererStatic: texture 'TXR_visuals01_file346' image index 0
+RendererStatic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererStatic: flash 0x011: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 bottomStairs_0
+RendererStatic: flash 0x012: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 bottomStairs_0
+RendererStatic: flash 0x013: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 bottomStairs_0
+RendererStatic: flash 0x014: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 bottomStairs_0
+RendererStatic: [frame 0x0000fe5] Static groups: 17 flashes: 20
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:2:0:1)]
+RendererDynamic: texture group 1
+RendererDynamic: texture 'TXR_visuals01_file341' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0xb bottomPlatform_0
+RendererDynamic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0xb bottomPlatform_0
+RendererDynamic: flash 0x003: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0xe bottomStairs_0
+RendererDynamic: flash 0x004: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0x7 bottomStairs_0
+RendererDynamic: flash 0x005: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0xe bottomStairs_0
+RendererDynamic: texture group 2
+RendererDynamic: texture 'TXR_uals01_goldMaskTest' image index 0
+RendererDynamic: matlayer disable depth write 1 ba 0 bn 0 br 0 bs 1
+RendererDynamic: flash 0x006: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0xb bottomPlatform_0
+RendererDynamic: flash 0x007: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0xb bottomPlatform_0
+RendererDynamic: flash 0x008: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0xe bottomStairs_0
+RendererDynamic: flash 0x009: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0x7 bottomStairs_0
+RendererDynamic: flash 0x00a: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0xe bottomStairs_0
+RendererDynamic: texture group 3
+RendererDynamic: texture 'TXR_visuals01_file341' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x00b: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x2 bottomPlatform_0
+RendererDynamic: flash 0x00c: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x13 bottomPlatform_0
+RendererDynamic: flash 0x00d: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x13 bottomPlatform_0
+RendererDynamic: flash 0x00e: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x8 portalGrp_0
+RendererDynamic: flash 0x00f: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x11 bottomStairs_0
+RendererDynamic: flash 0x010: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x11 bottomStairs_0
+RendererDynamic: flash 0x011: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0xe bottomStairs_0
+RendererDynamic: flash 0x012: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0xe bottomStairs_0
+RendererDynamic: flash 0x013: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x3 bottomStairs_0
+RendererDynamic: texture group 4
+RendererDynamic: texture 'TXR_Stage5Btx' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x014: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 MAIblade_0
+RendererDynamic: flash 0x015: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 MAIblade_0
+RendererDynamic: texture group 5
+RendererDynamic: texture 'TXR_Stage5Btx' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x016: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x5 MAIblade_0
+RendererDynamic: flash 0x017: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x5 MAIblade_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 5 flashes: 23
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:2:1:1)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:2:0:2)]
+RendererStatic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:2:0:2)]
+RendererDynamic: texture group 1
+RendererDynamic: texture 'TXR_Stage5Btx' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x15 MAIblade_0
+RendererDynamic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x15 MAIblade_0
+RendererDynamic: texture group 2
+RendererDynamic: texture 'TXR_file1' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x003: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0xb hero_0
+RendererDynamic: flash 0x004: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x6 hero_0
+RendererDynamic: flash 0x005: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x25 hero_0
+RendererDynamic: texture group 3
+RendererDynamic: texture 'TXR_mai02' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x006: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x15 hero_0
+RendererDynamic: texture group 4
+RendererDynamic: texture 'TXR_mai01' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x007: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x2 hero_0
+RendererDynamic: flash 0x008: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x3 hero_0
+RendererDynamic: flash 0x009: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x9 hero_0
+RendererDynamic: flash 0x00a: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x4 hero_0
+RendererDynamic: flash 0x00b: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x5 hero_0
+RendererDynamic: flash 0x00c: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x36 hero_0
+RendererDynamic: texture group 5
+RendererDynamic: texture group 6
+RendererDynamic: texture 'TXR_s01_emblemStripGold' image index 0
+RendererDynamic: matlayer disable depth write 0 ba 0 bn 1 br 0 bs 0
+RendererDynamic: flash 0x00e: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0x1 bottomPlatform_0
+RendererDynamic: flash 0x00f: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0x1 bottomPlatform_0
+RendererDynamic: flash 0x010: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0x1 bottomStairs_0
+RendererDynamic: flash 0x011: inst 0 layer 0 transp 1,000000 dma: 0x2 progI: 0 progS: 0x1 bottomStairs_0
+RendererDynamic: texture group 7
+RendererDynamic: texture 'TXR_isuals01_squareStip' image index 0
+RendererDynamic: matlayer disable depth write 1 ba 0 bn 0 br 0 bs 1
+RendererDynamic: flash 0x012: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0x1 bottomPlatform_0
+RendererDynamic: flash 0x013: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0x1 bottomPlatform_0
+RendererDynamic: flash 0x014: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0x1 bottomStairs_0
+RendererDynamic: flash 0x015: inst 0 layer 1 transp 1,000000 dma: 0x2 progI: 1 progS: 0x1 bottomStairs_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 7 flashes: 21
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:2:1:2)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:2:2:0)]
+RendererDynamic: texture group 1
+RendererDynamic: texture 'TXR_bladeicon11' image index 0
+RendererDynamic: matlayer disable depth write 1 ba 0 bn 0 br 0 bs 1
+RendererDynamic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 MAIblade_0
+RendererDynamic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 MAIblade_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 1 flashes: 2
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:2:4:0)]
+RendererDynamic: texture group 1
+RendererDynamic: texture 'TXR_bladeicon1' image index 0
+RendererDynamic: matlayer disable depth write 1 ba 1 bn 0 br 0 bs 0
+RendererDynamic: flash 0x001: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 MAIblade_0
+RendererDynamic: flash 0x002: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 MAIblade_0
+RendererDynamic: texture group 2
+RendererDynamic: texture 'TXR_bladeicon3' image index 0
+RendererDynamic: matlayer disable depth write 1 ba 1 bn 0 br 0 bs 0
+RendererDynamic: flash 0x003: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 MAIblade_0
+RendererDynamic: flash 0x004: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 MAIblade_0
+RendererDynamic: texture group 3
+RendererDynamic: texture 'TXR_visuals01_file280' image index 0
+RendererDynamic: matlayer disable depth write 1 ba 1 bn 0 br 0 bs 0
+RendererDynamic: flash 0x005: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x006: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x007: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x008: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x009: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x00a: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x00b: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x00c: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x00d: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2242_0
+RendererDynamic: flash 0x00e: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x00f: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x010: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x011: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x012: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x013: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x014: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x015: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x016: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x017: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x018: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x019: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x01a: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x01b: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x01c: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x01d: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x01e: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x01f: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x020: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2243_0
+RendererDynamic: flash 0x021: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x1 group2244_0
+RendererDynamic: flash 0x022: inst 0 layer 0 transp 1,000000 dma: 0x1 progI: 0 progS: 0x3 group2246_0
+RendererDynamic: [frame 0x0000fe5] Static groups: 3 flashes: 34
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:3:0:0)]
+RendererStatic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:3:0:0)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:3:1:0)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:3:2:0)]
+RendererDynamic: [frame 0x0000fe5] Static groups: 0 flashes: 0
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:3:4:0)]
+RendererDynamic: texture group 1
+RendererDynamic: [frame 0x0000fe5] Static groups: 1 flashes: 2
+Master: ------ [frame 0x0000fe5 Static pass (render pass 1:4:0:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:4:0:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:4:1:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:4:2:0)]
+Master: ------ [frame 0x0000fe5 Dynamic pass (render pass 1:4:4:0)]
+CORE: #### ========= DUMPED FRAME 4070 ========= ####

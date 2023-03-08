@@ -34,9 +34,9 @@ func (m *Mesh) ExportObj(_w io.Writer, materials []string) error {
 		}
 	}
 
-	iV := 1
-	iT := 1
-	iN := 1
+	iV := uint32(1)
+	iT := uint32(1)
+	iN := uint32(1)
 
 	for iPart, part := range cMesh.Parts {
 		for iGroup, group := range part.LodGroups {
@@ -79,12 +79,12 @@ func (m *Mesh) ExportObj(_w io.Writer, materials []string) error {
 					}
 				}
 
-				iV += len(object.Vertices)
+				iV += uint32(len(object.Vertices))
 				if haveUV {
-					iT += len(object.BlendColors[0])
+					iT += uint32(len(object.BlendColors[0]))
 				}
 				if haveNorm {
-					iN += len(object.Normals)
+					iN += uint32(len(object.Normals))
 				}
 			}
 		}

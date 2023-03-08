@@ -13,7 +13,7 @@ type RGBA = color.NRGBA
 
 type Vertex struct {
 	Position      Position
-	Weight        float32
+	JointWeights  [2]float32
 	JointsIndexes [2]uint16
 }
 
@@ -22,7 +22,7 @@ type Object struct {
 	BlendColors [][]RGBA // rgba color per layer or instance
 	UVs         [][]UV   // one uv per material layer
 	Normals     []Normal
-	Indexes     []int
+	Indexes     []uint32
 	JointMaps   [][]uint32 // one map per instance (each instance has it's own jointsmap)
 
 	MaterialIndex int

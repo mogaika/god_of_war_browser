@@ -29,6 +29,7 @@ type Flags struct {
 	RenderingSubstract      bool
 	RenderingStrangeBlended bool // do not know
 	HaveTexture             bool
+	NOTSUREThisIsReflection bool
 
 	AnimationUVEnabled    bool // Anim type 8
 	AnimationColorEnabled bool // ?? Anim type 3, applyed to mat, not layer
@@ -57,6 +58,8 @@ const HEADER_SIZE = 0x38
 const LAYER_SIZE = 0x40
 
 func (l *Layer) ParseFlags() error {
+	l.ParsedFlags.NOTSUREThisIsReflection = (l.Flags[0]>>1)&1 != 0
+
 	l.ParsedFlags.HaveTexture = (l.Flags[0]>>7)&1 != 0
 
 	l.ParsedFlags.FilterLinear = (l.Flags[0]>>16)&1 != 0
