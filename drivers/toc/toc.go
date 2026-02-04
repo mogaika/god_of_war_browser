@@ -70,7 +70,11 @@ func (toc *TableOfContent) Unmarshal(b []byte) error {
 	case config.GOW1:
 		return toc.unmarshalGOW1(b)
 	case config.GOW2:
-		return toc.unmarshalGOW2(b)
+		if Gow2DEMOHack {
+			return toc.unmarshalGow2Demo(b)
+		} else {
+			return toc.unmarshalGOW2(b)
+		}
 	default:
 		return fmt.Errorf("[toc] Unknown GOW version: %d", config.GetGOWVersion())
 	}
@@ -81,6 +85,9 @@ func (toc *TableOfContent) Marshal() []byte {
 	case config.GOW1:
 		return toc.marshalGOW1()
 	case config.GOW2:
+		if Gow2DEMOHack {
+			log.Panicf("GoW II E3 demo is not supported")
+		}
 		return toc.marshalGOW2()
 	default:
 		log.Panicf("[toc] Unknown GOW version: %v", config.GetGOWVersion())

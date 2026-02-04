@@ -53,7 +53,7 @@ func main() {
 	flag.StringVar(&isopath, "iso", "", "Path to iso file")
 	flag.StringVar(&psarcpath, "psarc", "", "Path to ps3 psarc file")
 	flag.StringVar(&psversion, "ps", "ps2", "Playstation version (ps2, ps3, psvita, pc)")
-	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1', 2 - 'gow2', 2018 - 'gow2018'")
+	flag.IntVar(&gowversion, "gowversion", 0, "0 - auto, 1 - 'gow1', 2 - 'gow2', 2018 - 'gow2018', 23 - 'gow2 e2 demo'")
 	flag.BoolVar(&parsecheck, "parsecheck", false, "Check every file for parse errors (for devs)")
 	flag.BoolVar(&listencodings, "listencodings", false, "List text encodings")
 	flag.StringVar(&encoding, "encoding", "Windows 1252", "Select text encodings")
@@ -87,6 +87,11 @@ func main() {
 		config.SetPlayStationVersion(config.PC)
 	default:
 		log.Fatalf("Provide correct 'ps' parameter (ps2, ps3, psvita)")
+	}
+
+	if gowversion == 23 {
+		gowversion = 2
+		toc.Gow2DEMOHack = true
 	}
 
 	config.SetGOWVersion(config.GOWVersion(gowversion))

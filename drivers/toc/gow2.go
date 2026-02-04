@@ -10,6 +10,8 @@ import (
 const GOW2_ENTRY_SIZE = 36
 const GOW2_DVDDL_SPLITLINE = 10000000
 
+var Gow2DEMOHack = false
+
 type RawTocEntryGOW2 struct {
 	Name         string
 	Size         int64
@@ -24,6 +26,13 @@ func (rte *RawTocEntryGOW2) Unmarshal(buffer []byte) {
 	rte.EntriesStart = binary.LittleEndian.Uint32(buffer[32:36])
 }
 
+func (rte *RawTocEntryGOW2) UnmarshalDemo(buffer []byte) {
+	rte.Name = utils.BytesToString(buffer[0:24])
+	rte.EntriesCount = 1
+	rte.Size = int64(binary.LittleEndian.Uint32(buffer[28:32]))
+	rte.EntriesStart = binary.LittleEndian.Uint32(buffer[32:36])
+}
+
 func (rte *RawTocEntryGOW2) Marshal() []byte {
 	buf := make([]byte, GOW2_ENTRY_SIZE)
 	copy(buf[:24], utils.StringToBytesBuffer(rte.Name, 24, false))
@@ -31,6 +40,37 @@ func (rte *RawTocEntryGOW2) Marshal() []byte {
 	binary.LittleEndian.PutUint32(buf[28:32], uint32(rte.EntriesCount))
 	binary.LittleEndian.PutUint32(buf[32:36], uint32(rte.EntriesStart))
 	return buf
+}
+
+func (rte *RawTocEntryGOW2) MarshalDemo() []byte {
+	buf := make([]byte, GOW2_ENTRY_SIZE)
+	copy(buf[:24], utils.StringToBytesBuffer(rte.Name, 24, false))
+	binary.LittleEndian.PutUint32(buf[28:32], uint32(rte.Size))
+	binary.LittleEndian.PutUint32(buf[32:36], uint32(rte.EntriesStart))
+	return buf
+}
+
+func (toc *TableOfContent) unmarshalGow2Demo(b []byte) error {
+	countOfFiles := uint32(len(b) / GOW2_ENTRY_SIZE)
+	files := make(map[string]*File)
+
+	var raw RawTocEntryGOW2
+	for iFile := uint32(0); iFile < countOfFiles; iFile++ {
+		raw.UnmarshalDemo(b[iFile*GOW2_ENTRY_SIZE:])
+
+		file := &File{
+			name:       raw.Name,
+			size:       raw.Size,
+			encounters: make([]Encounter, 1),
+			toc:        toc}
+
+		file.encounters[0] = Encounter{Offset: int64(raw.EntriesStart) * utils.SECTOR_SIZE, Size: raw.Size}
+		files[file.name] = file
+	}
+
+	toc.packsArrayIndexing = PACK_ADDR_ABSOLUTE
+	toc.files = files
+	return nil
 }
 
 func (toc *TableOfContent) unmarshalGOW2(b []byte) error {
