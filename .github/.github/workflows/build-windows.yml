@@ -1,0 +1,81 @@
+name: Compilar God of War Browser
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      GOOS: windows
+      GOARCH: 386
+      CGO_ENABLED: 0
+
+    steps:
+      - name: Baixar o código do projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Baixar dependências
+        shell: pwsh
+        run: |
+          go version
+          go mod download
+
+      - name: Compilar para Windows 32 bits
+        shell: pwsh
+        run: |
+          go build -trimpath -o god_of_war_browser.exe .
+
+          if (-not (Test-Path "god_of_war_browser.exe")) {
+            throw "O executável não foi criado."
+          }
+
+      - name: Preparar pacote completo
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:GITHUB_WORKSPACE "dist\god_of_war_browser"
+
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+
+          Copy-Item "god_of_war_browser.exe" $package -Force
+          Copy-Item "web" "$package\web" -Recurse -Force
+
+          Get-ChildItem "$package\web" -Filter "*.go" -Recurse |
+            Remove-Item -Force
+
+          $files = @(
+            "font_aliases.cfg",
+            "font_aliases.ru.cp1251.cfg",
+            "LOCALIZATION.md",
+            "README.md",
+            "CHANGELOG.md",
+            "hashes.dump.txt",
+            "strings.dump.txt"
+          )
+
+          foreach ($file in $files) {
+            if (Test-Path $file) {
+              Copy-Item $file $package -Force
+            }
+          }
+
+      - name: Disponibilizar programa para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: god_of_war_browser_windows_32bits
+          path: dist/god_of_war_browser
+          if-no-files-found: error
+          retention-days: 30
